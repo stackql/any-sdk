@@ -6,7 +6,7 @@
 ![Lines](https://img.shields.io/tokei/lines/github/stackql/stackql)   
 
 
-# openapistackql
+# any-sdk
 
 A golang library to support:
   - traversal algorithms on StackQL augmented openapi doc structure.

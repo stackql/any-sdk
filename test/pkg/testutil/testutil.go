@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/stackql/go-openapistackql/pkg/fileutil"
+	"github.com/stackql/any-sdk/pkg/fileutil"
 )
 
 var (

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/stackql/go-openapistackql/pkg/response"
+	"github.com/stackql/any-sdk/pkg/response"
 )
 
 func InterfaceToBytes(subject interface{}, isErrorCol bool) []byte {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/stackql/go-openapistackql/pkg/fuzzymatch"
+	"github.com/stackql/any-sdk/pkg/fuzzymatch"
 )
 
 const (

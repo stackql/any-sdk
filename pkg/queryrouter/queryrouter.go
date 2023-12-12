@@ -24,7 +24,7 @@ import (
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/gorilla/mux"
 
-	"github.com/stackql/go-openapistackql/pkg/urltranslate"
+	"github.com/stackql/any-sdk/pkg/urltranslate"
 )
 
 var _ routers.Router = &Router{}

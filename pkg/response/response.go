@@ -7,9 +7,9 @@ import (
 
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/antchfx/xmlquery"
-	"github.com/stackql/go-openapistackql/pkg/httpelement"
-	"github.com/stackql/go-openapistackql/pkg/media"
-	"github.com/stackql/go-openapistackql/pkg/xmlmap"
+	"github.com/stackql/any-sdk/pkg/httpelement"
+	"github.com/stackql/any-sdk/pkg/media"
+	"github.com/stackql/any-sdk/pkg/xmlmap"
 )
 
 var (

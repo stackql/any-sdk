@@ -1,6 +1,6 @@
-module github.com/stackql/go-openapistackql
+module github.com/stackql/any-sdk
 
-go 1.18
+go 1.20
 
 require (
 	github.com/Masterminds/semver v1.4.2

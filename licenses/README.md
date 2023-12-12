@@ -1,7 +1,7 @@
 
 ## Summary
 
-This directory contains licenses from products leveraged / forked / adapted to support go-openapistackql.
+This directory contains licenses from products leveraged / forked / adapted to support any-sdk.
 
 Some deep links to original licenses are supplied for convenience:
 

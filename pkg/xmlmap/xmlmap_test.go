@@ -7,9 +7,9 @@ import (
 
 	"gotest.tools/assert"
 
-	"github.com/stackql/go-openapistackql/pkg/fileutil"
-	. "github.com/stackql/go-openapistackql/pkg/xmlmap"
-	"github.com/stackql/go-openapistackql/test/pkg/testutil"
+	"github.com/stackql/any-sdk/pkg/fileutil"
+	. "github.com/stackql/any-sdk/pkg/xmlmap"
+	"github.com/stackql/any-sdk/test/pkg/testutil"
 
 	"github.com/getkin/kin-openapi/openapi3"
 )

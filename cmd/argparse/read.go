@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/stackql/go-openapistackql/openapistackql"
+	"github.com/stackql/any-sdk/anysdk"
 )
 
 func printErrorAndExitOneIfNil(subject interface{}, msg string) {
@@ -27,8 +27,8 @@ func printErrorAndExitOneIfError(err error) {
 // execCmd represents the exec command
 var execCmd = &cobra.Command{
 	Use:   "read",
-	Short: "Simple textual openapistackql doc read and display",
-	Long:  `Simple textual openapistackql doc read and display`,
+	Short: "Simple textual any-sdk doc read and display",
+	Long:  `Simple textual any-sdk doc read and display`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if runtimeCtx.CPUProfile != "" {
@@ -52,7 +52,7 @@ var execCmd = &cobra.Command{
 func RunCommand(rtCtx runtimeContext, arg string) {
 	b, err := os.ReadFile(arg)
 	printErrorAndExitOneIfError(err)
-	l := openapistackql.NewLoader()
+	l := anysdk.NewLoader()
 	svc, err := l.LoadFromBytes(b)
 	printErrorAndExitOneIfError(err)
 	printErrorAndExitOneIfNil(svc, "doc parse gave me doughnuts!!!\n\n")

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/stackql/go-openapistackql/cmd/argparse"
+	"github.com/stackql/any-sdk/cmd/argparse"
 )
 
 func main() {
