@@ -11,7 +11,6 @@ import (
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/antchfx/xmlquery"
 	"github.com/getkin/kin-openapi/openapi3"
-	log "github.com/sirupsen/logrus"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/openapitopath"
 	"github.com/stackql/any-sdk/pkg/response"
@@ -739,7 +738,7 @@ func (schema *standardSchema) extractMediaTypeSynonym(mediaType string) string {
 }
 
 func (schema *standardSchema) getSelectItemsSchema(key string, mediaType string) (Schema, string, error) {
-	log.Infoln(fmt.Sprintf("schema.getSelectItemsSchema() key = '%s'", key))
+	// log.Infoln(fmt.Sprintf("schema.getSelectItemsSchema() key = '%s'", key))
 	if key == "" {
 		if schema.Items != nil && schema.Items.Value != nil {
 			return NewSchema(schema.Items.Value, schema.svc, "", schema.Items.Ref), "", nil
@@ -804,7 +803,7 @@ func (schema *standardSchema) getSelectItemsSchema(key string, mediaType string)
 func (schema *standardSchema) deprecatedGetSelectItemsSchema(key string, mediaType string) (Schema, string, error) {
 	var itemS *openapi3.Schema
 	var schemaPath string
-	log.Infoln(fmt.Sprintf("schema.deprecatedGetSelectItemsSchema() key = '%s'", key))
+	// log.Infoln(fmt.Sprintf("schema.deprecatedGetSelectItemsSchema() key = '%s'", key))
 	if strings.HasPrefix(schema.key, "[]") || schema.Type == "array" {
 		rv, err := schema.GetItems()
 		return rv, key, err
@@ -882,7 +881,7 @@ func (s *standardSchema) toFlatDescriptionMap(extended bool) map[string]interfac
 }
 
 func (s *standardSchema) GetAllColumns() []string {
-	log.Infoln(fmt.Sprintf("s = %v", *s))
+	// log.Infoln(fmt.Sprintf("s = %v", *s))
 	var retVal []string
 	properties := s.getProperties()
 	if s.Type == "object" || (len(properties) > 0) {
@@ -984,8 +983,8 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 	}
 	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
 	newProperties := make(openapi3.Schemas)
-	for k, val := range srs {
-		log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
+	for _, val := range srs {
+		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
 
 		ss := newSchema(val.Value, s.svc, getPathSuffix(val.Ref), val.Ref)
 		if ss.hasPolymorphicProperties() {
@@ -1019,8 +1018,8 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 func (s *standardSchema) getFatItemsSchema(srs openapi3.SchemaRefs) Schema {
 	copySchema := copyOpenapiSchema(s.Schema)
 	rv := newSchema(copySchema, s.svc, s.key, s.path)
-	for k, val := range srs {
-		log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
+	for _, val := range srs {
+		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
 		ss := newSchema(val.Value, s.svc, getPathSuffix(val.Ref), val.Ref)
 		if rv == nil {
 			rv = ss
@@ -1047,8 +1046,8 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 		copiedSchema = copyOpenapiSchema(s.Schema)
 	}
 	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
-	for k, val := range srs {
-		log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
+	for _, val := range srs {
+		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
 		ss := newSchema(val.Value, s.svc, "", val.Ref)
 		if rv == nil {
 			rv = ss
@@ -1217,7 +1216,7 @@ func (s *standardSchema) FindByPath(path string, visited map[string]bool) Schema
 	if visited == nil {
 		visited = make(map[string]bool)
 	}
-	log.Infoln(fmt.Sprintf("FindByPath() called with path = '%s'", path))
+	// log.Infoln(fmt.Sprintf("FindByPath() called with path = '%s'", path))
 	if s.key == path {
 		return s
 	}
@@ -1236,7 +1235,7 @@ func (s *standardSchema) FindByPath(path string, visited map[string]bool) Schema
 				}
 				visited[v.Ref] = true
 			}
-			log.Infoln(fmt.Sprintf("FindByPath() attempting to match  path = '%s' with property '%s', visited = %v", path, k, visited))
+			// log.Infoln(fmt.Sprintf("FindByPath() attempting to match  path = '%s' with property '%s', visited = %v", path, k, visited))
 			if k == path {
 				rv := v.Value
 				return NewSchema(rv, s.svc, k, v.Ref)

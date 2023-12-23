@@ -21,8 +21,6 @@ import (
 	"github.com/stackql/any-sdk/pkg/util"
 	"github.com/stackql/any-sdk/pkg/xmlmap"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/stackql/stackql-parser/go/sqltypes"
 )
 
@@ -412,12 +410,12 @@ func (op *standardOperationStore) parameterMatch(params map[string]interface{}) 
 			delete(copiedParams, k)
 			continue
 		}
-		log.Debugf("parameter '%s' unmatched for method '%s'\n", k, op.getName())
+		// log.Debugf("parameter '%s' unmatched for method '%s'\n", k, op.getName())
 	}
 	if requiredParameters.Size() == 0 {
 		return copiedParams, true
 	}
-	log.Debugf("unmatched **required** paramter count = %d for method '%s'\n", requiredParameters.Size(), op.getName())
+	// log.Debugf("unmatched **required** paramter count = %d for method '%s'\n", requiredParameters.Size(), op.getName())
 	return copiedParams, false
 }
 
