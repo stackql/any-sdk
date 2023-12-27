@@ -27,29 +27,35 @@ type AuthDTO interface {
 	GetEnvVarPassword() string
 	GetEnvVarAPIKeyStr() string
 	GetEnvVarAPISecretStr() string
+	GetSuccessor() (AuthDTO, bool)
 }
 
 type standardAuthDTO struct {
-	Scopes             []string `json:"scopes,omitempty" yaml:"scopes,omitempty"`
-	Type               string   `json:"type" yaml:"type"`
-	ValuePrefix        string   `json:"valuePrefix" yaml:"valuePrefix"`
-	KeyID              string   `json:"keyID" yaml:"keyID"`
-	KeyIDEnvVar        string   `json:"keyIDenvvar" yaml:"keyIDenvvar"`
-	KeyFilePath        string   `json:"credentialsfilepath" yaml:"credentialsfilepath"`
-	KeyFilePathEnvVar  string   `json:"credentialsfilepathenvvar" yaml:"credentialsfilepathenvvar"`
-	KeyEnvVar          string   `json:"credentialsenvvar" yaml:"credentialsenvvar"`
-	ApiKeyStr          string   `json:"api_key" yaml:"api_key"`
-	ApiSecretStr       string   `json:"api_secret" yaml:"api_secret"`
-	Username           string   `json:"username" yaml:"username"`
-	Password           string   `json:"password" yaml:"password"`
-	EnvVarAPIKeyStr    string   `json:"api_key_var" yaml:"api_key_var"`
-	EnvVarAPISecretStr string   `json:"api_secret_var" yaml:"api_secret_var"`
-	EnvVarUsername     string   `json:"username_var" yaml:"username_var"`
-	EnvVarPassword     string   `json:"password_var" yaml:"password_var"`
+	Scopes             []string         `json:"scopes,omitempty" yaml:"scopes,omitempty"`
+	Type               string           `json:"type" yaml:"type"`
+	ValuePrefix        string           `json:"valuePrefix" yaml:"valuePrefix"`
+	KeyID              string           `json:"keyID" yaml:"keyID"`
+	KeyIDEnvVar        string           `json:"keyIDenvvar" yaml:"keyIDenvvar"`
+	KeyFilePath        string           `json:"credentialsfilepath" yaml:"credentialsfilepath"`
+	KeyFilePathEnvVar  string           `json:"credentialsfilepathenvvar" yaml:"credentialsfilepathenvvar"`
+	KeyEnvVar          string           `json:"credentialsenvvar" yaml:"credentialsenvvar"`
+	ApiKeyStr          string           `json:"api_key" yaml:"api_key"`
+	ApiSecretStr       string           `json:"api_secret" yaml:"api_secret"`
+	Username           string           `json:"username" yaml:"username"`
+	Password           string           `json:"password" yaml:"password"`
+	EnvVarAPIKeyStr    string           `json:"api_key_var" yaml:"api_key_var"`
+	EnvVarAPISecretStr string           `json:"api_secret_var" yaml:"api_secret_var"`
+	EnvVarUsername     string           `json:"username_var" yaml:"username_var"`
+	EnvVarPassword     string           `json:"password_var" yaml:"password_var"`
+	Successor          *standardAuthDTO `json:"successor,omitempty" yaml:"successor,omitempty"`
 }
 
 func (qt standardAuthDTO) GetType() string {
 	return qt.Type
+}
+
+func (qt standardAuthDTO) GetSuccessor() (AuthDTO, bool) {
+	return qt.Successor, qt.Successor != nil
 }
 
 func (qt standardAuthDTO) GetKeyID() string {
