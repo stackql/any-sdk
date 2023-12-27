@@ -28,6 +28,7 @@ type AuthDTO interface {
 	GetEnvVarAPIKeyStr() string
 	GetEnvVarAPISecretStr() string
 	GetSuccessor() (AuthDTO, bool)
+	GetLocation() string
 }
 
 type standardAuthDTO struct {
@@ -48,10 +49,15 @@ type standardAuthDTO struct {
 	EnvVarUsername     string           `json:"username_var" yaml:"username_var"`
 	EnvVarPassword     string           `json:"password_var" yaml:"password_var"`
 	Successor          *standardAuthDTO `json:"successor,omitempty" yaml:"successor,omitempty"`
+	Location           string           `json:"location,omitempty" yaml:"location,omitempty"`
 }
 
 func (qt standardAuthDTO) GetType() string {
 	return qt.Type
+}
+
+func (qt standardAuthDTO) GetLocation() string {
+	return qt.Location
 }
 
 func (qt standardAuthDTO) GetSuccessor() (AuthDTO, bool) {
