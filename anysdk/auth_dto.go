@@ -29,12 +29,14 @@ type AuthDTO interface {
 	GetEnvVarAPISecretStr() string
 	GetSuccessor() (AuthDTO, bool)
 	GetLocation() string
+	GetName() string
 }
 
 type standardAuthDTO struct {
 	Scopes             []string         `json:"scopes,omitempty" yaml:"scopes,omitempty"`
 	Type               string           `json:"type" yaml:"type"`
 	ValuePrefix        string           `json:"valuePrefix" yaml:"valuePrefix"`
+	Name               string           `json:"name" yaml:"name"`
 	KeyID              string           `json:"keyID" yaml:"keyID"`
 	KeyIDEnvVar        string           `json:"keyIDenvvar" yaml:"keyIDenvvar"`
 	KeyFilePath        string           `json:"credentialsfilepath" yaml:"credentialsfilepath"`
@@ -50,6 +52,10 @@ type standardAuthDTO struct {
 	EnvVarPassword     string           `json:"password_var" yaml:"password_var"`
 	Successor          *standardAuthDTO `json:"successor,omitempty" yaml:"successor,omitempty"`
 	Location           string           `json:"location,omitempty" yaml:"location,omitempty"`
+}
+
+func (qt standardAuthDTO) GetName() string {
+	return qt.Name
 }
 
 func (qt standardAuthDTO) GetType() string {
