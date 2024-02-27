@@ -100,7 +100,6 @@ type Schema interface {
 
 func ProviderTypeConditionIsValid(providerType string, lhs string, rhs interface{}) bool {
 	return providerTypeConditionIsValid(providerType, lhs, rhs)
-
 }
 
 func providerTypeConditionIsValid(providerType string, lhs string, rhs interface{}) bool {
@@ -230,6 +229,7 @@ type standardSchema struct {
 	alwaysRequired  bool
 	path            string
 	alreadyExpanded bool
+	visitedSchemas  map[*openapi3.Schema]Schema
 }
 
 func (s *standardSchema) getService() Service {
@@ -282,7 +282,6 @@ func copyOpenapiSchema(inSchema *openapi3.Schema) *openapi3.Schema {
 	rv.AdditionalPropertiesAllowed = inSchema.AdditionalPropertiesAllowed
 	rv.AdditionalProperties = inSchema.AdditionalProperties
 	rv.Discriminator = inSchema.Discriminator
-
 	return rv
 }
 
@@ -321,6 +320,7 @@ func newSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema
 		key:            key,
 		alwaysRequired: alwaysRequired,
 		path:           path,
+		visitedSchemas: make(map[*openapi3.Schema]Schema),
 	}
 }
 
@@ -934,7 +934,7 @@ func (s *standardSchema) getPropertiesColumns() []ColumnDescriptor {
 }
 
 func (s *standardSchema) getAllOfColumns() []ColumnDescriptor {
-	return s.getAllSchemaRefsColumns(s.AllOf)
+	return s.getAllSchemaRefsColumns(s.AllOf) // infinite loop point
 }
 
 func (s *standardSchema) getAnyOfColumns() []ColumnDescriptor {
@@ -1002,7 +1002,7 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 			rv.SetType(ss.GetType())
 		}
 		for k, sRef := range ss.getPropertiesOpenapi3() {
-			_, alreadyExists := newProperties[k]
+			_, alreadyExists := newProperties[k] // TODO: add this sorta stuff to other places
 			if alreadyExists {
 				cn := fmt.Sprintf("%s_%s", getSchemaName(val), k)
 				newProperties[cn] = sRef
@@ -1073,7 +1073,7 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 
 func (s *standardSchema) getAllSchemaRefsColumns(srs openapi3.SchemaRefs) []ColumnDescriptor {
 	sc := s.getFatSchema(srs)
-	st := sc.Tabulate(false)
+	st := sc.Tabulate(false) // infinite loop point
 	return st.GetColumns()
 }
 
@@ -1136,7 +1136,11 @@ func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
 			} else if len(s.Properties) > 0 {
 				cols = s.getPropertiesColumns()
 			} else if len(s.AllOf) > 0 {
-				cols = s.getAllOfColumns()
+				_, schemaAlreadyVisited := s.visitedSchemas[s.Schema]
+				if !schemaAlreadyVisited {
+					cols = s.getAllOfColumns() // infinite loop point
+				}
+				s.visitedSchemas[s.Schema] = s
 			} else if len(s.AnyOf) > 0 {
 				cols = s.getAnyOfColumns()
 			} else if len(s.OneOf) > 0 {
