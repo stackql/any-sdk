@@ -986,7 +986,11 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 	for _, val := range srs {
 		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
 
+		if _, schemaIsVisited := s.visitedSchemas[val.Value]; schemaIsVisited {
+			continue
+		}
 		ss := newSchema(val.Value, s.svc, getPathSuffix(val.Ref), val.Ref)
+		s.visitedSchemas[val.Value] = ss
 		if ss.hasPolymorphicProperties() {
 			ss = ss.getFattnedPolymorphicSchema()
 		}
