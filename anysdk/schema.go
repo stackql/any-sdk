@@ -1138,9 +1138,9 @@ func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
 			} else if len(s.AllOf) > 0 {
 				_, schemaAlreadyVisited := s.visitedSchemas[s.Schema]
 				if !schemaAlreadyVisited {
+					s.visitedSchemas[s.Schema] = s
 					cols = s.getAllOfColumns() // infinite loop point
 				}
-				s.visitedSchemas[s.Schema] = s
 			} else if len(s.AnyOf) > 0 {
 				cols = s.getAnyOfColumns()
 			} else if len(s.OneOf) > 0 {
