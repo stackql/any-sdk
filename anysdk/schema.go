@@ -993,6 +993,8 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 		copiedSchema = copyOpenapiSchema(s.Schema)
 	}
 	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
+	rv.SetVisitedSchema(s.Schema, rv)
+	rv.SetVisitedSchema(copiedSchema, rv)
 	for k, v := range s.visitedSchemas { // need to transfer visited schema for infinite loop breakage
 		rv.SetVisitedSchema(k, v)
 	}
