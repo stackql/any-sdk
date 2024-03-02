@@ -58,6 +58,8 @@ type Schema interface {
 	SetKey(string)
 	Tabulate(omitColumns bool) Tabulation
 	ToDescriptionMap(extended bool) map[string]interface{}
+	SetVisitedSchema(schema *openapi3.Schema, ss Schema)
+	GetVisitedSchema(schema *openapi3.Schema) (Schema, bool)
 	// not exported, but essential
 	deprecatedGetSelectItemsSchema(key string, mediaType string) (Schema, string, error)
 	getAllOf() openapi3.SchemaRefs
@@ -322,6 +324,15 @@ func newSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema
 		path:           path,
 		visitedSchemas: make(map[*openapi3.Schema]Schema),
 	}
+}
+
+func (s *standardSchema) SetVisitedSchema(schema *openapi3.Schema, ss Schema) {
+	s.visitedSchemas[schema] = ss
+}
+
+func (s *standardSchema) GetVisitedSchema(schema *openapi3.Schema) (Schema, bool) {
+	rv, ok := s.visitedSchemas[schema]
+	return rv, ok
 }
 
 func (s *standardSchema) getExtension(k string) (interface{}, bool) {
@@ -982,6 +993,9 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 		copiedSchema = copyOpenapiSchema(s.Schema)
 	}
 	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
+	for k, v := range s.visitedSchemas { // need to transfer visited schema for infinite loop breakage
+		rv.SetVisitedSchema(k, v)
+	}
 	newProperties := make(openapi3.Schemas)
 	for _, val := range srs {
 		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
