@@ -18,7 +18,7 @@ func getServerVariablesMap(sv *openapi3.Server, svc Service) map[string]Addressa
 		s := openapi3.NewSchema()
 		s.Type = "string"
 		s.Default = v.Default
-		retVal[k] = newAddressableServerVariable(k, newSchema(s, svc, "", ""), true)
+		retVal[k] = newAddressableServerVariable(k, newSchemaWithoutParent(s, svc, "", ""), true)
 	}
 	return retVal
 }

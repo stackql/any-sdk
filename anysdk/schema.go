@@ -58,9 +58,11 @@ type Schema interface {
 	SetKey(string)
 	Tabulate(omitColumns bool) Tabulation
 	ToDescriptionMap(extended bool) map[string]interface{}
-	SetVisitedSchema(schema *openapi3.Schema, ss Schema)
-	GetVisitedSchema(schema *openapi3.Schema) (Schema, bool)
 	// not exported, but essential
+	setVisitedSchema(schema *openapi3.Schema, ss Schema)
+	getVisitedSchema(schema *openapi3.Schema) (Schema, bool)
+	getDescendentVisitedSchema(schema *openapi3.Schema) (Schema, bool)
+	setParent(s Schema)
 	deprecatedGetSelectItemsSchema(key string, mediaType string) (Schema, string, error)
 	getAllOf() openapi3.SchemaRefs
 	getDescendent(path []string) (Schema, bool)
@@ -121,7 +123,7 @@ func providerTypeConditionIsValid(providerType string, lhs string, rhs interface
 
 func (s *standardSchema) getAdditionalProperties() (Schema, bool) {
 	if s.AdditionalProperties != nil && s.AdditionalProperties.Value != nil {
-		return newSchema(
+		return newSchemaWithoutParent(
 				s.AdditionalProperties.Value,
 				s.svc,
 				"",
@@ -157,7 +159,7 @@ func (s *standardSchema) GetItemProperty(k string) (Schema, bool) {
 	if !ok {
 		return nil, false
 	}
-	return NewSchema(raw.Value, s.svc, k, ""), ok
+	return newSchemaWithoutParent(raw.Value, s.svc, k, ""), ok
 }
 
 func (s *standardSchema) SetProperties(schemaz openapi3.Schemas) {
@@ -226,6 +228,7 @@ func (s *standardSchema) getOpenapiSchema() (*openapi3.Schema, bool) {
 
 type standardSchema struct {
 	*openapi3.Schema
+	parent          Schema
 	svc             Service
 	key             string
 	alwaysRequired  bool
@@ -290,21 +293,25 @@ func copyOpenapiSchema(inSchema *openapi3.Schema) *openapi3.Schema {
 type Schemas map[string]Schema
 
 func NewSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema {
-	return newSchema(sc, svc, key, path)
+	return newSchemaWithoutParent(sc, svc, key, path)
 }
 
 func (sc *standardSchema) GetPath() string {
 	return sc.path
 }
 
+func (sc *standardSchema) setParent(s Schema) {
+	sc.parent = s
+}
+
 func (sc *standardSchema) GetAdditionalProperties() (Schema, bool) {
 	if sc.AdditionalProperties == nil {
 		return nil, false
 	}
-	return NewSchema(sc.AdditionalProperties.Value, sc.svc, "additionalProperties", sc.AdditionalProperties.Ref), true
+	return newSchemaWithoutParent(sc.AdditionalProperties.Value, sc.svc, "additionalProperties", sc.AdditionalProperties.Ref), true
 }
 
-func newSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema {
+func newSchemaWithParent(sc *openapi3.Schema, svc Service, key string, path string, parent Schema) Schema {
 	var alwaysRequired bool
 	if sc.Extensions != nil {
 		if ar, ok := sc.Extensions[ExtensionKeyAlwaysRequired]; ok {
@@ -323,16 +330,34 @@ func newSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema
 		alwaysRequired: alwaysRequired,
 		path:           path,
 		visitedSchemas: make(map[*openapi3.Schema]Schema),
+		parent:         parent,
 	}
 }
 
-func (s *standardSchema) SetVisitedSchema(schema *openapi3.Schema, ss Schema) {
+func newSchemaWithoutParent(sc *openapi3.Schema, svc Service, key string, path string) Schema {
+	return newSchemaWithParent(sc, svc, key, path, nil)
+}
+
+func (s *standardSchema) setVisitedSchema(schema *openapi3.Schema, ss Schema) {
 	s.visitedSchemas[schema] = ss
 }
 
-func (s *standardSchema) GetVisitedSchema(schema *openapi3.Schema) (Schema, bool) {
+func (s *standardSchema) getVisitedSchema(schema *openapi3.Schema) (Schema, bool) {
 	rv, ok := s.visitedSchemas[schema]
-	return rv, ok
+	if ok {
+		return rv, true
+	}
+	if s.parent != nil {
+		return s.parent.getVisitedSchema(schema)
+	}
+	return nil, false
+}
+
+func (s *standardSchema) getDescendentVisitedSchema(schema *openapi3.Schema) (Schema, bool) {
+	if s.parent != nil {
+		return s.parent.getVisitedSchema(schema)
+	}
+	return nil, false
 }
 
 func (s *standardSchema) getExtension(k string) (interface{}, bool) {
@@ -366,12 +391,12 @@ func (s *standardSchema) getProperties() Schemas {
 		ss := s.getFattnedPolymorphicSchema()
 		if ss != nil {
 			for k, sr := range ss.getPropertiesOpenapi3() {
-				retVal[k] = NewSchema(sr.Value, s.svc, k, sr.Ref)
+				retVal[k] = newSchemaWithoutParent(sr.Value, s.svc, k, sr.Ref)
 			}
 		}
 	}
 	for k, sr := range s.Properties {
-		retVal[k] = NewSchema(sr.Value, s.svc, k, sr.Ref)
+		retVal[k] = newSchemaWithoutParent(sr.Value, s.svc, k, sr.Ref)
 	}
 	return retVal
 }
@@ -385,12 +410,12 @@ func (s *standardSchema) getInplicitlyUnionedProperties() Schemas {
 		ss := s.getFattnedPolymorphicSchema()
 		if ss != nil {
 			for k, sr := range ss.getPropertiesOpenapi3() {
-				retVal[k] = NewSchema(sr.Value, s.svc, k, sr.Ref)
+				retVal[k] = newSchemaWithoutParent(sr.Value, s.svc, k, sr.Ref)
 			}
 		}
 	}
 	for k, sr := range s.Properties {
-		retVal[k] = NewSchema(sr.Value, s.svc, k, sr.Ref)
+		retVal[k] = newSchemaWithoutParent(sr.Value, s.svc, k, sr.Ref)
 	}
 	return retVal
 }
@@ -443,7 +468,7 @@ func (s *standardSchema) getXMLChild(path string, isTerminal bool) (Schema, bool
 		}
 	}
 	if s.Type == "array" && s.Items != nil && s.Items.Value != nil {
-		ss := NewSchema(s.Items.Value, s.svc, "", s.Items.Ref)
+		ss := newSchemaWithoutParent(s.Items.Value, s.svc, "", s.Items.Ref)
 		ds, ok := ss.getXMLChild(path, isTerminal)
 		if ok {
 			if !isTerminal {
@@ -459,13 +484,13 @@ func (s *standardSchema) getXMLChild(path string, isTerminal bool) (Schema, bool
 		}
 		si := v.Value
 		if si.Type == "array" && si.Items != nil && si.Items.Value != nil {
-			ss := NewSchema(si.Items.Value, s.svc, "", si.Items.Ref)
+			ss := newSchemaWithoutParent(si.Items.Value, s.svc, "", si.Items.Ref)
 			ds, ok := ss.getXMLChild(path, isTerminal)
 			if ok {
 				if !isTerminal {
 					return ds, true
 				}
-				return NewSchema(si, s.svc, getPathSuffix(si.Items.Ref), si.Items.Ref), true
+				return newSchemaWithoutParent(si, s.svc, getPathSuffix(si.Items.Ref), si.Items.Ref), true
 			}
 			return nil, false
 		}
@@ -527,7 +552,7 @@ func (s *standardSchema) getXmlName() (string, bool) {
 			if ss.Value == nil {
 				continue
 			}
-			ns := newSchema(ss.Value, s.svc, "", ss.Ref)
+			ns := newSchemaWithoutParent(ss.Value, s.svc, "", ss.Ref)
 			if sn, ok := ns.getXmlName(); ok {
 				return sn, true
 			}
@@ -538,7 +563,7 @@ func (s *standardSchema) getXmlName() (string, bool) {
 
 func (s *standardSchema) isItemsXmlWrapped() bool {
 	if s.Items != nil && s.Items.Value == nil {
-		itemsSchema := newSchema(s.Items.Value, s.svc, "", s.Items.Ref)
+		itemsSchema := newSchemaWithoutParent(s.Items.Value, s.svc, "", s.Items.Ref)
 		return itemsSchema.isXmlWrapped()
 	}
 	if len(s.AllOf) > 0 {
@@ -563,7 +588,7 @@ func (s *standardSchema) isXmlWrapped() bool {
 			if ss.Value == nil {
 				continue
 			}
-			ns := newSchema(ss.Value, s.svc, "", ss.Ref)
+			ns := newSchemaWithoutParent(ss.Value, s.svc, "", ss.Ref)
 			if ns.isXmlWrapped() {
 				return true
 			}
@@ -637,7 +662,7 @@ func (s *standardSchema) GetItems() (Schema, error) {
 	}
 	if s.Items != nil && s.Items.Value != nil {
 		itemsPathSplit := strings.Split(s.Items.Ref, "/")
-		return NewSchema(s.Items.Value, s.svc, itemsPathSplit[len(itemsPathSplit)-1], s.Items.Ref), nil
+		return newSchemaWithoutParent(s.Items.Value, s.svc, itemsPathSplit[len(itemsPathSplit)-1], s.Items.Ref), nil
 	}
 	return nil, fmt.Errorf("no items present in schema with key = '%s'", s.key)
 }
@@ -659,7 +684,7 @@ func (s *standardSchema) getProperty(propertyKey string) (Schema, bool) {
 	if !ok {
 		return nil, false
 	}
-	return NewSchema(sc.Value, s.svc, getPathSuffix(sc.Ref), sc.Ref), true
+	return newSchemaWithoutParent(sc.Value, s.svc, getPathSuffix(sc.Ref), sc.Ref), true
 }
 
 func (s *standardSchema) IsIntegral() bool {
@@ -680,7 +705,7 @@ func (sc *standardSchema) GetPropertySchema(key string) (Schema, error) {
 	if !ok {
 		return nil, absentErr
 	}
-	return NewSchema(
+	return newSchemaWithoutParent(
 		sh.Value,
 		sc.svc,
 		key,
@@ -692,7 +717,7 @@ func (sc *standardSchema) GetItemsSchema() (Schema, error) {
 	absentErr := fmt.Errorf("items schema not present")
 	sh := sc.Items
 	if sh.Value != nil {
-		return NewSchema(
+		return newSchemaWithoutParent(
 			sh.Value,
 			sc.svc,
 			"",
@@ -713,7 +738,7 @@ func (schema *standardSchema) getSelectListItems(key string) (Schema, string) {
 	}
 	itemS := propS.Value
 	if itemS != nil {
-		return NewSchema(
+		return newSchemaWithoutParent(
 			itemS,
 			schema.svc,
 			"",
@@ -752,7 +777,7 @@ func (schema *standardSchema) getSelectItemsSchema(key string, mediaType string)
 	// log.Infoln(fmt.Sprintf("schema.getSelectItemsSchema() key = '%s'", key))
 	if key == "" {
 		if schema.Items != nil && schema.Items.Value != nil {
-			return NewSchema(schema.Items.Value, schema.svc, "", schema.Items.Ref), "", nil
+			return newSchemaWithoutParent(schema.Items.Value, schema.svc, "", schema.Items.Ref), "", nil
 		}
 		return schema, "", nil
 	}
@@ -833,7 +858,7 @@ func (schema *standardSchema) deprecatedGetSelectItemsSchema(key string, mediaTy
 		return polySchema, "", nil
 	}
 	if itemS != nil {
-		s := NewSchema(
+		s := newSchemaWithoutParent(
 			itemS,
 			schema.svc,
 			key,
@@ -904,7 +929,7 @@ func (s *standardSchema) GetAllColumns() []string {
 		}
 	} else if s.Type == "array" {
 		if items := s.Items.Value; items != nil {
-			iS := NewSchema(items, s.svc, "", s.Items.Ref)
+			iS := newSchemaWithoutParent(items, s.svc, "", s.Items.Ref)
 			return iS.GetAllColumns()
 		}
 	}
@@ -930,7 +955,7 @@ func (s *standardSchema) getPropertiesColumns() []ColumnDescriptor {
 				"",
 				"",
 				nil,
-				NewSchema(
+				newSchemaWithoutParent(
 					valSchema,
 					s.svc,
 					k,
@@ -977,7 +1002,7 @@ func (s *standardSchema) getXmlAlias() string {
 	}
 	for _, ao := range s.AllOf {
 		if ao.Value != nil {
-			aos := NewSchema(ao.Value, s.svc, "", ao.Ref)
+			aos := newSchemaWithoutParent(ao.Value, s.svc, "", ao.Ref)
 			name := aos.getXmlAlias()
 			if name != "" {
 				return name
@@ -992,21 +1017,19 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 	if s.Schema != nil {
 		copiedSchema = copyOpenapiSchema(s.Schema)
 	}
-	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
-	rv.SetVisitedSchema(s.Schema, rv)
-	rv.SetVisitedSchema(copiedSchema, rv)
-	for k, v := range s.visitedSchemas { // need to transfer visited schema for infinite loop breakage
-		rv.SetVisitedSchema(k, v)
-	}
+	rv := newSchemaWithoutParent(copiedSchema, s.svc, s.key, s.path)
+	rv.setVisitedSchema(s.Schema, rv)
+	rv.setVisitedSchema(copiedSchema, rv)
 	newProperties := make(openapi3.Schemas)
 	for _, val := range srs {
 		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
 
-		if _, schemaIsVisited := s.visitedSchemas[val.Value]; schemaIsVisited {
+		if _, schemaIsVisited := s.getDescendentVisitedSchema(val.Value); schemaIsVisited {
 			continue
 		}
-		ss := newSchema(val.Value, s.svc, getPathSuffix(val.Ref), val.Ref)
-		s.visitedSchemas[val.Value] = ss
+		ss := newSchemaWithoutParent(val.Value, s.svc, getPathSuffix(val.Ref), val.Ref)
+		s.setVisitedSchema(val.Value, ss)
+		// ss.setParent(s)
 		if ss.hasPolymorphicProperties() {
 			ss = ss.getFattnedPolymorphicSchema()
 		}
@@ -1037,10 +1060,10 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 
 func (s *standardSchema) getFatItemsSchema(srs openapi3.SchemaRefs) Schema {
 	copySchema := copyOpenapiSchema(s.Schema)
-	rv := newSchema(copySchema, s.svc, s.key, s.path)
+	rv := newSchemaWithoutParent(copySchema, s.svc, s.key, s.path)
 	for _, val := range srs {
 		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
-		ss := newSchema(val.Value, s.svc, getPathSuffix(val.Ref), val.Ref)
+		ss := newSchemaWithoutParent(val.Value, s.svc, getPathSuffix(val.Ref), val.Ref)
 		if rv == nil {
 			rv = ss
 			continue
@@ -1065,10 +1088,10 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 	if s.Schema != nil {
 		copiedSchema = copyOpenapiSchema(s.Schema)
 	}
-	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
+	rv := newSchemaWithoutParent(copiedSchema, s.svc, s.key, s.path)
 	for _, val := range srs {
 		// log.Debugf("processing composite key number = %d, id = '%s'\n", k, val.Ref)
-		ss := newSchema(val.Value, s.svc, "", val.Ref)
+		ss := newSchemaWithoutParent(val.Value, s.svc, "", val.Ref)
 		if rv == nil {
 			rv = ss
 			continue
@@ -1093,6 +1116,7 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 
 func (s *standardSchema) getAllSchemaRefsColumns(srs openapi3.SchemaRefs) []ColumnDescriptor {
 	sc := s.getFatSchema(srs)
+	sc.setParent(s)
 	st := sc.Tabulate(false) // infinite loop point
 	return st.GetColumns()
 }
@@ -1156,9 +1180,9 @@ func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
 			} else if len(s.Properties) > 0 {
 				cols = s.getPropertiesColumns()
 			} else if len(s.AllOf) > 0 {
-				_, schemaAlreadyVisited := s.visitedSchemas[s.Schema]
+				_, schemaAlreadyVisited := s.getDescendentVisitedSchema(s.Schema)
 				if !schemaAlreadyVisited {
-					s.visitedSchemas[s.Schema] = s
+					s.setVisitedSchema(s.Schema, s)
 					cols = s.getAllOfColumns() // infinite loop point
 				}
 			} else if len(s.AnyOf) > 0 {
@@ -1170,7 +1194,7 @@ func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
 		return newStandardTabulation(s.GetName(), cols, s)
 	} else if s.Type == "array" {
 		if items := s.Items.Value; items != nil {
-			rv := newSchema(items, s.svc, "", s.Items.Ref).Tabulate(omitColumns)
+			rv := newSchemaWithoutParent(items, s.svc, "", s.Items.Ref).Tabulate(omitColumns)
 			return rv
 		}
 	} else if s.Type == "string" {
@@ -1188,7 +1212,7 @@ func (s *standardSchema) ToDescriptionMap(extended bool) map[string]interface{} 
 	if s.Type == "array" {
 		items := s.Items.Value
 		if items != nil {
-			return NewSchema(items, s.svc, "", s.Items.Ref).ToDescriptionMap(extended)
+			return newSchemaWithoutParent(items, s.svc, "", s.Items.Ref).ToDescriptionMap(extended)
 		}
 	}
 	// TODO:
@@ -1198,7 +1222,7 @@ func (s *standardSchema) ToDescriptionMap(extended bool) map[string]interface{} 
 		for k, v := range s.Properties {
 			p := v.Value
 			if p != nil {
-				pm := NewSchema(p, s.svc, "", v.Ref).toFlatDescriptionMap(extended)
+				pm := newSchemaWithoutParent(p, s.svc, "", v.Ref).toFlatDescriptionMap(extended)
 				pm["name"] = k
 				retVal[k] = pm
 			}
@@ -1210,7 +1234,7 @@ func (s *standardSchema) ToDescriptionMap(extended bool) map[string]interface{} 
 		for k, v := range fs.getPropertiesOpenapi3() {
 			p := v.Value
 			if p != nil {
-				pm := NewSchema(p, s.svc, "", v.Ref).toFlatDescriptionMap(extended)
+				pm := newSchemaWithoutParent(p, s.svc, "", v.Ref).toFlatDescriptionMap(extended)
 				pm["name"] = k
 				retVal[k] = pm
 			}
@@ -1262,9 +1286,9 @@ func (s *standardSchema) FindByPath(path string, visited map[string]bool) Schema
 			// log.Infoln(fmt.Sprintf("FindByPath() attempting to match  path = '%s' with property '%s', visited = %v", path, k, visited))
 			if k == path {
 				rv := v.Value
-				return NewSchema(rv, s.svc, k, v.Ref)
+				return newSchemaWithoutParent(rv, s.svc, k, v.Ref)
 			}
-			ss := NewSchema(v.Value, s.svc, k, v.Ref)
+			ss := newSchemaWithoutParent(v.Value, s.svc, k, v.Ref)
 			// TODO: prevent endless recursion
 			if ss != nil {
 				res := ss.FindByPath(path, visited)
