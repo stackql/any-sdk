@@ -27,11 +27,13 @@ var (
 )
 
 type Schema interface {
+	SetDefaultColName(string)
+	getDefaultColName() string
 	ConditionIsValid(lhs string, rhs interface{}) bool
 	DeprecatedProcessHttpResponse(response *http.Response, path string) (map[string]interface{}, error)
 	FindByPath(path string, visited map[string]bool) Schema
 	GetAdditionalProperties() (Schema, bool)
-	GetAllColumns() []string
+	GetAllColumns(string) []string
 	GetItemProperty(k string) (Schema, bool)
 	GetItems() (Schema, error)
 	GetItemsSchema() (Schema, error)
@@ -56,7 +58,7 @@ type Schema interface {
 	SetProperties(openapi3.Schemas)
 	SetType(string)
 	SetKey(string)
-	Tabulate(omitColumns bool) Tabulation
+	Tabulate(bool, string) Tabulation
 	ToDescriptionMap(extended bool) map[string]interface{}
 	// not exported, but essential
 	deprecatedGetSelectItemsSchema(key string, mediaType string) (Schema, string, error)
@@ -167,6 +169,10 @@ func (s *standardSchema) SetType(t string) {
 	s.Type = t
 }
 
+func (s *standardSchema) SetDefaultColName(c string) {
+	s.defaultColName = c
+}
+
 func (s *standardSchema) getPropertiesOpenapi3() openapi3.Schemas {
 	return s.Properties
 }
@@ -192,7 +198,7 @@ func (s *standardSchema) getKey() string {
 }
 
 func (s *standardSchema) GetType() string {
-	return s.Type
+	return s.getType()
 }
 
 func (s *standardSchema) GetTitle() string {
@@ -230,6 +236,7 @@ type standardSchema struct {
 	alwaysRequired  bool
 	path            string
 	alreadyExpanded bool
+	defaultColName  string
 }
 
 func (s *standardSchema) getService() Service {
@@ -322,6 +329,10 @@ func newSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema
 		alwaysRequired: alwaysRequired,
 		path:           path,
 	}
+}
+
+func (s *standardSchema) getDefaultColName() string {
+	return s.defaultColName
 }
 
 func (s *standardSchema) getExtension(k string) (interface{}, bool) {
@@ -880,7 +891,7 @@ func (s *standardSchema) toFlatDescriptionMap(extended bool) map[string]interfac
 	return retVal
 }
 
-func (s *standardSchema) GetAllColumns() []string {
+func (s *standardSchema) GetAllColumns(defaultColName string) []string {
 	// log.Infoln(fmt.Sprintf("s = %v", *s))
 	var retVal []string
 	properties := s.getProperties()
@@ -894,12 +905,16 @@ func (s *standardSchema) GetAllColumns() []string {
 	} else if s.Type == "array" {
 		if items := s.Items.Value; items != nil {
 			iS := NewSchema(items, s.svc, "", s.Items.Ref)
-			return iS.GetAllColumns()
+			return iS.GetAllColumns(defaultColName)
 		}
 	}
-	switch s.Type {
+	schemaType := s.getType()
+	switch schemaType {
 	case "string", "bool", "integer":
-		return []string{AnonymousColumnName}
+		if defaultColName == "" {
+			return []string{AnonymousColumnName}
+		}
+		return []string{defaultColName}
 	}
 	return retVal
 }
@@ -980,6 +995,9 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 	var copiedSchema *openapi3.Schema
 	if s.Schema != nil {
 		copiedSchema = copyOpenapiSchema(s.Schema)
+		copiedSchema.AllOf = nil
+		copiedSchema.AnyOf = nil
+		copiedSchema.OneOf = nil
 	}
 	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
 	newProperties := make(openapi3.Schemas)
@@ -1000,6 +1018,10 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 		}
 		if ss.GetType() != "" {
 			rv.SetType(ss.GetType())
+		}
+		itemsRef, itemsRefExists := ss.getItemsRef()
+		if itemsRefExists {
+			rv.setItemsRef(itemsRef)
 		}
 		for k, sRef := range ss.getPropertiesOpenapi3() {
 			_, alreadyExists := newProperties[k]
@@ -1073,7 +1095,7 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 
 func (s *standardSchema) getAllSchemaRefsColumns(srs openapi3.SchemaRefs) []ColumnDescriptor {
 	sc := s.getFatSchema(srs)
-	st := sc.Tabulate(false)
+	st := sc.Tabulate(false, s.defaultColName)
 	return st.GetColumns()
 }
 
@@ -1113,7 +1135,10 @@ func (s *standardSchema) isNotSimple() bool {
 	}
 }
 
-func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
+func (s *standardSchema) Tabulate(omitColumns bool, defaultColName string) Tabulation {
+	if defaultColName != "" {
+		s.defaultColName = defaultColName
+	}
 	if s.Type == "object" || (s.hasPropertiesOrPolymorphicProperties() && s.Type != "array") {
 		var cols []ColumnDescriptor
 		if !omitColumns {
@@ -1146,11 +1171,15 @@ func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
 		return newStandardTabulation(s.GetName(), cols, s)
 	} else if s.Type == "array" {
 		if items := s.Items.Value; items != nil {
-			rv := newSchema(items, s.svc, "", s.Items.Ref).Tabulate(omitColumns)
+			rv := newSchema(items, s.svc, "", s.Items.Ref).Tabulate(omitColumns, defaultColName)
 			return rv
 		}
-	} else if s.Type == "string" {
-		cd := newColumnDescriptor("", AnonymousColumnName, "", "", nil, s, nil)
+	} else if s.getType() == "string" {
+		anonColName := AnonymousColumnName
+		if s.defaultColName != "" {
+			anonColName = s.defaultColName
+		}
+		cd := newColumnDescriptor("", anonColName, "", "", nil, s, nil)
 		if omitColumns {
 			return newStandardTabulation(s.Title, []ColumnDescriptor{}, s)
 		}

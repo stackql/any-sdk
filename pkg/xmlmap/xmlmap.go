@@ -172,6 +172,9 @@ func getTypeFromRefs(refs openapi3.SchemaRefs) (string, bool) {
 }
 
 func getPropertyFromSchema(schema *openapi3.Schema, key string) (*openapi3.Schema, bool) {
+	if schema.Type == "string" {
+		return schema, true
+	}
 	ref, ok := schema.Properties[key]
 	if ok {
 		return ref.Value, true
