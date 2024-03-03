@@ -980,6 +980,9 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 	var copiedSchema *openapi3.Schema
 	if s.Schema != nil {
 		copiedSchema = copyOpenapiSchema(s.Schema)
+		copiedSchema.AllOf = nil
+		copiedSchema.AnyOf = nil
+		copiedSchema.OneOf = nil
 	}
 	rv := newSchema(copiedSchema, s.svc, s.key, s.path)
 	newProperties := make(openapi3.Schemas)
