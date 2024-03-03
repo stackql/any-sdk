@@ -31,7 +31,7 @@ type Schema interface {
 	DeprecatedProcessHttpResponse(response *http.Response, path string) (map[string]interface{}, error)
 	FindByPath(path string, visited map[string]bool) Schema
 	GetAdditionalProperties() (Schema, bool)
-	GetAllColumns() []string
+	GetAllColumns(string) []string
 	GetItemProperty(k string) (Schema, bool)
 	GetItems() (Schema, error)
 	GetItemsSchema() (Schema, error)
@@ -880,7 +880,7 @@ func (s *standardSchema) toFlatDescriptionMap(extended bool) map[string]interfac
 	return retVal
 }
 
-func (s *standardSchema) GetAllColumns() []string {
+func (s *standardSchema) GetAllColumns(defaultColName string) []string {
 	// log.Infoln(fmt.Sprintf("s = %v", *s))
 	var retVal []string
 	properties := s.getProperties()
@@ -894,13 +894,16 @@ func (s *standardSchema) GetAllColumns() []string {
 	} else if s.Type == "array" {
 		if items := s.Items.Value; items != nil {
 			iS := NewSchema(items, s.svc, "", s.Items.Ref)
-			return iS.GetAllColumns()
+			return iS.GetAllColumns(defaultColName)
 		}
 	}
 	schemaType := s.getType()
 	switch schemaType {
 	case "string", "bool", "integer":
-		return []string{AnonymousColumnName}
+		if defaultColName == "" {
+			return []string{AnonymousColumnName}
+		}
+		return []string{defaultColName}
 	}
 	return retVal
 }
