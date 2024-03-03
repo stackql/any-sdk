@@ -1095,7 +1095,7 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 
 func (s *standardSchema) getAllSchemaRefsColumns(srs openapi3.SchemaRefs) []ColumnDescriptor {
 	sc := s.getFatSchema(srs)
-	st := sc.Tabulate(false, s.GetSelectionName())
+	st := sc.Tabulate(false, s.defaultColName)
 	return st.GetColumns()
 }
 
@@ -1136,6 +1136,9 @@ func (s *standardSchema) isNotSimple() bool {
 }
 
 func (s *standardSchema) Tabulate(omitColumns bool, defaultColName string) Tabulation {
+	if defaultColName != "" {
+		s.defaultColName = defaultColName
+	}
 	if s.Type == "object" || (s.hasPropertiesOrPolymorphicProperties() && s.Type != "array") {
 		var cols []ColumnDescriptor
 		if !omitColumns {
@@ -1172,7 +1175,11 @@ func (s *standardSchema) Tabulate(omitColumns bool, defaultColName string) Tabul
 			return rv
 		}
 	} else if s.getType() == "string" {
-		cd := newColumnDescriptor("", AnonymousColumnName, "", "", nil, s, nil)
+		anonColName := AnonymousColumnName
+		if s.defaultColName != "" {
+			anonColName = s.defaultColName
+		}
+		cd := newColumnDescriptor("", anonColName, "", "", nil, s, nil)
 		if omitColumns {
 			return newStandardTabulation(s.Title, []ColumnDescriptor{}, s)
 		}
