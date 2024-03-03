@@ -192,7 +192,7 @@ func (s *standardSchema) getKey() string {
 }
 
 func (s *standardSchema) GetType() string {
-	return s.Type
+	return s.getType()
 }
 
 func (s *standardSchema) GetTitle() string {
@@ -897,7 +897,8 @@ func (s *standardSchema) GetAllColumns() []string {
 			return iS.GetAllColumns()
 		}
 	}
-	switch s.Type {
+	schemaType := s.getType()
+	switch schemaType {
 	case "string", "bool", "integer":
 		return []string{AnonymousColumnName}
 	}
