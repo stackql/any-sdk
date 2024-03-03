@@ -56,7 +56,7 @@ type Schema interface {
 	SetProperties(openapi3.Schemas)
 	SetType(string)
 	SetKey(string)
-	Tabulate(omitColumns bool) Tabulation
+	Tabulate(bool, string) Tabulation
 	ToDescriptionMap(extended bool) map[string]interface{}
 	// not exported, but essential
 	deprecatedGetSelectItemsSchema(key string, mediaType string) (Schema, string, error)
@@ -1084,7 +1084,7 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 
 func (s *standardSchema) getAllSchemaRefsColumns(srs openapi3.SchemaRefs) []ColumnDescriptor {
 	sc := s.getFatSchema(srs)
-	st := sc.Tabulate(false)
+	st := sc.Tabulate(false, "")
 	return st.GetColumns()
 }
 
@@ -1124,7 +1124,7 @@ func (s *standardSchema) isNotSimple() bool {
 	}
 }
 
-func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
+func (s *standardSchema) Tabulate(omitColumns bool, defaultColName string) Tabulation {
 	if s.Type == "object" || (s.hasPropertiesOrPolymorphicProperties() && s.Type != "array") {
 		var cols []ColumnDescriptor
 		if !omitColumns {
@@ -1157,7 +1157,7 @@ func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
 		return newStandardTabulation(s.GetName(), cols, s)
 	} else if s.Type == "array" {
 		if items := s.Items.Value; items != nil {
-			rv := newSchema(items, s.svc, "", s.Items.Ref).Tabulate(omitColumns)
+			rv := newSchema(items, s.svc, "", s.Items.Ref).Tabulate(omitColumns, defaultColName)
 			return rv
 		}
 	} else if s.getType() == "string" {
