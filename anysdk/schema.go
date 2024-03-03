@@ -1004,6 +1004,10 @@ func (s *standardSchema) getFatSchema(srs openapi3.SchemaRefs) Schema {
 		if ss.GetType() != "" {
 			rv.SetType(ss.GetType())
 		}
+		itemsRef, itemsRefExists := ss.getItemsRef()
+		if itemsRefExists {
+			rv.setItemsRef(itemsRef)
+		}
 		for k, sRef := range ss.getPropertiesOpenapi3() {
 			_, alreadyExists := newProperties[k]
 			if alreadyExists {
