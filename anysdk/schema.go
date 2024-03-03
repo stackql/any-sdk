@@ -1157,7 +1157,7 @@ func (s *standardSchema) Tabulate(omitColumns bool) Tabulation {
 			rv := newSchema(items, s.svc, "", s.Items.Ref).Tabulate(omitColumns)
 			return rv
 		}
-	} else if s.Type == "string" {
+	} else if s.getType() == "string" {
 		cd := newColumnDescriptor("", AnonymousColumnName, "", "", nil, s, nil)
 		if omitColumns {
 			return newStandardTabulation(s.Title, []ColumnDescriptor{}, s)
