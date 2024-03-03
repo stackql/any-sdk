@@ -27,6 +27,8 @@ var (
 )
 
 type Schema interface {
+	SetDefaultColName(string)
+	getDefaultColName() string
 	ConditionIsValid(lhs string, rhs interface{}) bool
 	DeprecatedProcessHttpResponse(response *http.Response, path string) (map[string]interface{}, error)
 	FindByPath(path string, visited map[string]bool) Schema
@@ -167,6 +169,10 @@ func (s *standardSchema) SetType(t string) {
 	s.Type = t
 }
 
+func (s *standardSchema) SetDefaultColName(c string) {
+	s.defaultColName = c
+}
+
 func (s *standardSchema) getPropertiesOpenapi3() openapi3.Schemas {
 	return s.Properties
 }
@@ -230,6 +236,7 @@ type standardSchema struct {
 	alwaysRequired  bool
 	path            string
 	alreadyExpanded bool
+	defaultColName  string
 }
 
 func (s *standardSchema) getService() Service {
@@ -322,6 +329,10 @@ func newSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema
 		alwaysRequired: alwaysRequired,
 		path:           path,
 	}
+}
+
+func (s *standardSchema) getDefaultColName() string {
+	return s.defaultColName
 }
 
 func (s *standardSchema) getExtension(k string) (interface{}, bool) {
@@ -1084,7 +1095,7 @@ func (s *standardSchema) getFatSchemaWithOverwrites(srs openapi3.SchemaRefs) Sch
 
 func (s *standardSchema) getAllSchemaRefsColumns(srs openapi3.SchemaRefs) []ColumnDescriptor {
 	sc := s.getFatSchema(srs)
-	st := sc.Tabulate(false, "")
+	st := sc.Tabulate(false, s.GetSelectionName())
 	return st.GetColumns()
 }
 
