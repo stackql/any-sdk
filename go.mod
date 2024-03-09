@@ -15,7 +15,7 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/stackql/go-suffix-map v0.0.1-alpha01
 	github.com/stackql/stackql-parser v0.0.13-alpha03
-	github.com/stackql/stackql-provider-registry v0.0.1-rc02
+	github.com/stackql/stackql-provider-registry v0.0.1-rc03
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0
