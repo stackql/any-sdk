@@ -126,8 +126,8 @@ github.com/stackql/go-suffix-map v0.0.1-alpha01 h1:TDUDS8bySu41Oo9p0eniUeCm43mnR
 github.com/stackql/go-suffix-map v0.0.1-alpha01/go.mod h1:QAi+SKukOyf4dBtWy8UMy+hsXXV+yyEE4vmBkji2V7g=
 github.com/stackql/stackql-parser v0.0.13-alpha03 h1:qVTWXac8DxkOnvM5dBczE/YLk7T9MzY2jhiKXBl8UvI=
 github.com/stackql/stackql-parser v0.0.13-alpha03/go.mod h1:iyB47SvRS+Fvpn7joF7mHAkeiWSq83TbUhglRmLzPLQ=
-github.com/stackql/stackql-provider-registry v0.0.1-rc01 h1:3XorfaYEhGpuvEeQK04EmpZUCr42hZ/a4Nh3wE25LF0=
-github.com/stackql/stackql-provider-registry v0.0.1-rc01/go.mod h1:D0WFWa7HOXS+PQAmvN0Nm1E6dMdUkUFtAzRH8cXxg88=
+github.com/stackql/stackql-provider-registry v0.0.1-rc06 h1:MgroWOr0bSqjSTDGnXB0UoZGFXpW3SRtN0EFkzB8Rpo=
+github.com/stackql/stackql-provider-registry v0.0.1-rc06/go.mod h1:87rVxnS2aRASK20lBQgoYA0o7FSJTZBGGRaWFR7IDm4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
