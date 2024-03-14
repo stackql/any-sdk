@@ -373,6 +373,14 @@ func (hp *standardHttpParameters) ToFlatMap() (map[string]interface{}, error) {
 			return nil, err
 		}
 	}
+	for k, v := range hp.RequestBody {
+		prefixedKey := fmt.Sprintf("%s%s", RequestBodyBaseKey, k)
+		val := NewParameterBinding(nil, v)
+		err := hp.updateStuff(prefixedKey, val, rv, visited)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return rv, nil
 }
 
