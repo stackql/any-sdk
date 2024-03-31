@@ -102,6 +102,12 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 			if reqExists {
 				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
 			}
+		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
+			pm.SetBodyBytes(pr.m.getDefaultRequestBodyBytes())
+			req, reqExists := pr.m.GetRequest() //nolint:govet // intentional shadowing
+			if reqExists {
+				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
+			}
 		}
 		resp, respExists := pr.m.GetResponse()
 		if respExists {
@@ -232,6 +238,12 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 			if reqExists {
 				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
 			}
+		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
+			pm.SetBodyBytes(pr.m.getDefaultRequestBodyBytes())
+			req, reqExists := pr.m.GetRequest() //nolint:govet // intentional shadowing
+			if reqExists {
+				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
+			}
 		}
 		resp, respExists := pr.m.GetResponse() //nolint:govet // intentional
 		if respExists {
@@ -245,8 +257,15 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 	secondPassParams := httpArmoury.GetRequestParams()
 	for i, param := range secondPassParams {
 		p := param
-		if len(p.GetParameters().GetRequestBody()) == 0 {
+		if len(p.GetParameters().GetRequestBody()) == 0 && len(pr.m.getDefaultRequestBodyBytes()) == 0 {
 			p.SetRequestBodyMap(nil)
+		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
+			bm := make(map[string]interface{})
+			// TODO: support types other than json
+			err := json.Unmarshal(pr.m.getDefaultRequestBodyBytes(), &bm)
+			if err == nil {
+				p.SetRequestBodyMap(bm)
+			}
 		}
 		var baseRequestCtx *http.Request
 		baseRequestCtx, err = getRequest(pr.prov, pr.svc, pr.m, p.GetParameters())
