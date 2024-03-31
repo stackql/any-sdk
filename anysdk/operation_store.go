@@ -93,6 +93,7 @@ type OperationStore interface {
 	ToPresentationMap(extended bool) map[string]interface{}
 	GetColumnOrder(extended bool) []string
 	//
+	getDefaultRequestBodyBytes() []byte
 	getName() string
 	getServerVariable(key string) (*openapi3.ServerVariable, bool)
 	setMethodKey(string)
@@ -175,6 +176,14 @@ func (op *standardOperationStore) setGraphQL(gql GraphQL) {
 
 func (op *standardOperationStore) setRequest(req *standardExpectedRequest) {
 	op.Request = req
+}
+
+func (op *standardOperationStore) getDefaultRequestBodyBytes() []byte {
+	var rv []byte
+	if op.Request != nil && op.Request.Default != "" {
+		rv = []byte(op.Request.Default)
+	}
+	return rv
 }
 
 func (op *standardOperationStore) setResponse(resp *standardExpectedResponse) {

@@ -102,6 +102,12 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 			if reqExists {
 				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
 			}
+		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
+			pm.SetBodyBytes(pr.m.getDefaultRequestBodyBytes())
+			req, reqExists := pr.m.GetRequest() //nolint:govet // intentional shadowing
+			if reqExists {
+				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
+			}
 		}
 		resp, respExists := pr.m.GetResponse()
 		if respExists {

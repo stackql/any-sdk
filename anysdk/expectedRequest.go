@@ -17,8 +17,8 @@ type ExpectedRequest interface {
 type standardExpectedRequest struct {
 	BodyMediaType string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
 	Schema        Schema
-	Default       interface{} `json:"default,omitempty" yaml:"default,omitempty"`
-	Required      []string    `json:"required,omitempty" yaml:"required,omitempty"`
+	Default       string   `json:"default,omitempty" yaml:"default,omitempty"`
+	Required      []string `json:"required,omitempty" yaml:"required,omitempty"`
 }
 
 func (er *standardExpectedRequest) setBodyMediaType(s string) {
