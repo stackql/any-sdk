@@ -257,8 +257,14 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 	secondPassParams := httpArmoury.GetRequestParams()
 	for i, param := range secondPassParams {
 		p := param
-		if len(p.GetParameters().GetRequestBody()) == 0 {
+		if len(p.GetParameters().GetRequestBody()) == 0 && len(pr.m.getDefaultRequestBodyBytes()) == 0 {
 			p.SetRequestBodyMap(nil)
+		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
+			bm := make(map[string]interface{})
+			err := json.Unmarshal(pr.m.getDefaultRequestBodyBytes(), &bm)
+			if err == nil {
+				p.SetRequestBodyMap(bm)
+			}
 		}
 		var baseRequestCtx *http.Request
 		baseRequestCtx, err = getRequest(pr.prov, pr.svc, pr.m, p.GetParameters())
