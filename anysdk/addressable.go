@@ -72,10 +72,6 @@ type Addressable interface {
 	IsRequired() bool
 }
 
-func DefaultRequestBodyAttributeRename(k string) string {
-	return defaultRequestBodyAttributeRename(k)
-}
-
 func defaultRequestBodyAttributeRename(k string) string {
-	return fmt.Sprintf("%s%s", RequestBodyBaseKey, k)
+	return fmt.Sprintf("%s%s", requestBodyBaseKey, k)
 }

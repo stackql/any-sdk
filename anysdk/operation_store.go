@@ -92,6 +92,9 @@ type OperationStore interface {
 	IsNullary() bool
 	ToPresentationMap(extended bool) map[string]interface{}
 	GetColumnOrder(extended bool) []string
+	RenameRequestBodyAttribute(string) string
+	RevertRequestBodyAttributeRename(string) string
+	IsRequestBodyAttributeRenamed(string) bool
 	//
 	getDefaultRequestBodyBytes() []byte
 	getName() string
@@ -111,6 +114,8 @@ type OperationStore interface {
 	setService(Service)
 	setOperationRef(*OperationRef)
 	setPathItem(*openapi3.PathItem)
+	renameRequestBodyAttribute(string) string
+	revertRequestBodyAttributeRename(string) string
 }
 
 type standardOperationStore struct {
@@ -610,8 +615,25 @@ func (m *standardOperationStore) getIndicatedRequestBodyAttributes(required bool
 	return rv, nil
 }
 
+func (m *standardOperationStore) RenameRequestBodyAttribute(k string) string {
+	return m.renameRequestBodyAttribute(k)
+}
+
+// TODO: place renaming algorithm here
 func (m *standardOperationStore) renameRequestBodyAttribute(k string) string {
 	return defaultRequestBodyAttributeRename(k)
+}
+
+func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) string {
+	return m.revertRequestBodyAttributeRename(k)
+}
+
+func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) string {
+	return strings.TrimPrefix(k, requestBodyBaseKey)
+}
+
+func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
+	return strings.HasPrefix(k, requestBodyBaseKey)
 }
 
 func (m *standardOperationStore) getRequiredNonBodyParameters() map[string]Addressable {
