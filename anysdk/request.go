@@ -247,7 +247,18 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 			}
 			params.SetRequestBody(pr.execContext.GetExecPayload().GetPayloadMap())
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
-			b, jErr := json.Marshal(params.GetRequestBody())
+			m := make(map[string]interface{})
+			baseRequestBytes := pr.m.getBaseRequestBodyBytes()
+			if len(baseRequestBytes) > 0 {
+				mapErr := json.Unmarshal(baseRequestBytes, &m)
+				if mapErr != nil {
+					return nil, fmt.Errorf("error unmarshalling base request: %v", mapErr)
+				}
+			}
+			for k, v := range params.GetRequestBody() {
+				m[k] = v
+			}
+			b, jErr := json.Marshal(m)
 			if jErr != nil {
 				return nil, jErr
 			}
