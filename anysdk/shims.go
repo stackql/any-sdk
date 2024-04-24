@@ -85,6 +85,18 @@ func splitHTTPParameters(
 				reqMap.StoreParameter(param, v)
 			} else {
 				if requestSchema != nil {
+					// if base is not nil then pre populate the request body with the base
+					baseRequestBytes := method.getBaseRequestBodyBytes()
+					if len(baseRequestBytes) > 0 {
+						var m map[string]interface{}
+						mapErr := json.Unmarshal(baseRequestBytes, &m)
+						if mapErr != nil {
+							return nil, fmt.Errorf("error unmarshalling base request: %v", mapErr)
+						}
+						for k, v := range m {
+							reqMap.SetRequestBodyParam(k, v)
+						}
+					}
 					kCleaned := method.revertRequestBodyAttributeRename(k)
 					prop, _ := requestSchema.GetProperty(kCleaned)
 					rbp := parseRequestBodyParam(k, v, prop, method)
