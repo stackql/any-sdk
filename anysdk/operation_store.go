@@ -97,6 +97,7 @@ type OperationStore interface {
 	IsRequestBodyAttributeRenamed(string) bool
 	//
 	getDefaultRequestBodyBytes() []byte
+	getBaseRequestBodyBytes() []byte
 	getName() string
 	getServerVariable(key string) (*openapi3.ServerVariable, bool)
 	setMethodKey(string)
@@ -187,6 +188,14 @@ func (op *standardOperationStore) getDefaultRequestBodyBytes() []byte {
 	var rv []byte
 	if op.Request != nil && op.Request.Default != "" {
 		rv = []byte(op.Request.Default)
+	}
+	return rv
+}
+
+func (op *standardOperationStore) getBaseRequestBodyBytes() []byte {
+	var rv []byte
+	if op.Request != nil && op.Request.Base != "" {
+		rv = []byte(op.Request.Base)
 	}
 	return rv
 }
