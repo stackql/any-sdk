@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
@@ -15,8 +14,8 @@ type requestBodyParam struct {
 	Val interface{}
 }
 
-func parseRequestBodyParam(k string, v interface{}, s Schema) *requestBodyParam {
-	trimmedKey := strings.TrimPrefix(k, constants.RequestBodyBaseKey)
+func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) *requestBodyParam {
+	trimmedKey := method.revertRequestBodyAttributeRename(k)
 	var parsedVal interface{}
 	if trimmedKey != k { //nolint:nestif // keep for now
 		switch vt := v.(type) {
@@ -86,9 +85,21 @@ func splitHTTPParameters(
 				reqMap.StoreParameter(param, v)
 			} else {
 				if requestSchema != nil {
-					kCleaned := strings.TrimPrefix(k, RequestBodyBaseKey)
+					// if base is not nil then pre populate the request body with the base
+					baseRequestBytes := method.getBaseRequestBodyBytes()
+					if len(baseRequestBytes) > 0 {
+						var m map[string]interface{}
+						mapErr := json.Unmarshal(baseRequestBytes, &m)
+						if mapErr != nil {
+							return nil, fmt.Errorf("error unmarshalling base request: %v", mapErr)
+						}
+						for k, v := range m {
+							reqMap.SetRequestBodyParam(k, v)
+						}
+					}
+					kCleaned := method.revertRequestBodyAttributeRename(k)
 					prop, _ := requestSchema.GetProperty(kCleaned)
-					rbp := parseRequestBodyParam(k, v, prop)
+					rbp := parseRequestBodyParam(k, v, prop, method)
 					if rbp != nil {
 						reqMap.SetRequestBodyParam(rbp.Key, rbp.Val)
 						continue

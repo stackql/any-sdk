@@ -17,9 +17,9 @@ const (
 )
 
 const (
-	RequestBodyKeyPrefix    string = "data"
-	RequestBodyKeyDelimiter string = "__"
-	RequestBodyBaseKey      string = RequestBodyKeyPrefix + RequestBodyKeyDelimiter
+	requestBodyKeyPrefix    string = "data"
+	requestBodyKeyDelimiter string = "__"
+	requestBodyBaseKey      string = requestBodyKeyPrefix + requestBodyKeyDelimiter
 )
 
 const (

@@ -8,7 +8,8 @@ type ExpectedRequest interface {
 	GetBodyMediaType() string
 	GetSchema() Schema
 	GetRequired() []string
-	GetDefault() interface{}
+	GetDefault() string
+	GetBase() string
 	//
 	setSchema(Schema)
 	setBodyMediaType(string)
@@ -18,6 +19,7 @@ type standardExpectedRequest struct {
 	BodyMediaType string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
 	Schema        Schema
 	Default       string   `json:"default,omitempty" yaml:"default,omitempty"`
+	Base          string   `json:"base,omitempty" yaml:"base,omitempty"`
 	Required      []string `json:"required,omitempty" yaml:"required,omitempty"`
 }
 
@@ -37,8 +39,12 @@ func (er *standardExpectedRequest) GetSchema() Schema {
 	return er.Schema
 }
 
-func (er *standardExpectedRequest) GetDefault() interface{} {
+func (er *standardExpectedRequest) GetDefault() string {
 	return er.Default
+}
+
+func (er *standardExpectedRequest) GetBase() string {
+	return er.Base
 }
 
 func (er *standardExpectedRequest) GetRequired() []string {
