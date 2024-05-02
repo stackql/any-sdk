@@ -15,6 +15,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/stackql/any-sdk/pkg/media"
+	"github.com/stackql/any-sdk/pkg/parametertranslate"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
 	"github.com/stackql/any-sdk/pkg/response"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
@@ -123,7 +124,7 @@ type standardOperationStore struct {
 	MethodKey     string        `json:"-" yaml:"-"`
 	SQLVerb       string        `json:"-" yaml:"-"`
 	GraphQL       GraphQL       `json:"-" yaml:"-"`
-	StackQLConfig StackQLConfig `json:"-" yaml:"-"`
+	StackQLConfig StackQLConfig `json:"config" yaml:"config"`
 	// Optional parameters.
 	Parameters   map[string]interface{}    `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	PathItem     *openapi3.PathItem        `json:"-" yaml:"-"`                 // Required
@@ -233,7 +234,13 @@ func (op *standardOperationStore) GetInverse() (OperationInverse, bool) {
 }
 
 func (op *standardOperationStore) GetStackQLConfig() StackQLConfig {
-	return op.StackQLConfig
+	rv, _ := op.getStackQLConfig()
+	return rv
+}
+
+func (op *standardOperationStore) getStackQLConfig() (StackQLConfig, bool) {
+	rv := op.StackQLConfig
+	return rv, rv != nil
 }
 
 func (op *standardOperationStore) GetAPIMethod() string {
@@ -628,9 +635,26 @@ func (m *standardOperationStore) RenameRequestBodyAttribute(k string) string {
 	return m.renameRequestBodyAttribute(k)
 }
 
-// TODO: place renaming algorithm here
 func (m *standardOperationStore) renameRequestBodyAttribute(k string) string {
-	return defaultRequestBodyAttributeRename(k)
+	paramTranslator := parametertranslate.NewParameterTranslator(
+		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
+		requestBodyBaseKeyFuzzyMatcher,
+	)
+	cfg, cfgExists := m.getStackQLConfig()
+	if cfgExists {
+		requestBodyTranslate, requestBodyTranslateExists := cfg.GetRequestBodyTranslate()
+		if requestBodyTranslateExists {
+			algorithmStr := requestBodyTranslate.GetAlgorithm()
+			if algorithmStr != "" {
+				paramTranslator = parametertranslate.NewParameterTranslator(
+					algorithmStr,
+					requestBodyBaseKeyFuzzyMatcher,
+				)
+			}
+		}
+	}
+	output, _ := paramTranslator.Translate(k)
+	return output
 }
 
 func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) string {
@@ -638,11 +662,47 @@ func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) stri
 }
 
 func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) string {
-	return strings.TrimPrefix(k, requestBodyBaseKey)
+	paramTranslator := parametertranslate.NewParameterTranslator(
+		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
+		requestBodyBaseKeyFuzzyMatcher,
+	)
+	cfg, cfgExists := m.getStackQLConfig()
+	if cfgExists {
+		requestBodyTranslate, requestBodyTranslateExists := cfg.GetRequestBodyTranslate()
+		if requestBodyTranslateExists {
+			algorithmStr := requestBodyTranslate.GetAlgorithm()
+			if algorithmStr != "" {
+				paramTranslator = parametertranslate.NewParameterTranslator(
+					algorithmStr,
+					requestBodyBaseKeyFuzzyMatcher,
+				)
+			}
+		}
+	}
+	output, _ := paramTranslator.ReverseTranslate(k)
+	return output
 }
 
 func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
-	return strings.HasPrefix(k, requestBodyBaseKey)
+	paramTranslator := parametertranslate.NewParameterTranslator(
+		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
+		requestBodyBaseKeyFuzzyMatcher,
+	)
+	cfg, cfgExists := m.getStackQLConfig()
+	if cfgExists {
+		requestBodyTranslate, requestBodyTranslateExists := cfg.GetRequestBodyTranslate()
+		if requestBodyTranslateExists {
+			algorithmStr := requestBodyTranslate.GetAlgorithm()
+			if algorithmStr != "" {
+				paramTranslator = parametertranslate.NewParameterTranslator(
+					algorithmStr,
+					requestBodyBaseKeyFuzzyMatcher,
+				)
+			}
+		}
+	}
+	_, outputErr := paramTranslator.ReverseTranslate(k)
+	return outputErr == nil
 }
 
 func (m *standardOperationStore) getRequiredNonBodyParameters() map[string]Addressable {

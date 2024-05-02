@@ -1,7 +1,5 @@
 package anysdk
 
-import "fmt"
-
 var (
 	_ Addressable = &namedSchema{}
 )
@@ -70,8 +68,4 @@ type Addressable interface {
 	GetSchema() (Schema, bool)
 	GetType() string
 	IsRequired() bool
-}
-
-func defaultRequestBodyAttributeRename(k string) string {
-	return fmt.Sprintf("%s%s", requestBodyBaseKey, k)
 }

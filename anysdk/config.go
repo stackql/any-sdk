@@ -16,6 +16,7 @@ type StackQLConfig interface {
 	GetViewBodyDDLForSQLDialect(sqlDialect string, viewName string) (string, bool)
 	GetQueryTranspose() (Transform, bool)
 	GetRequestTranslate() (Transform, bool)
+	GetRequestBodyTranslate() (Transform, bool)
 	GetPagination() (Pagination, bool)
 	GetVariations() (Variations, bool)
 	GetViews() map[string]View
@@ -25,13 +26,14 @@ type StackQLConfig interface {
 }
 
 type standardStackQLConfig struct {
-	QueryTranspose   *standardTransform                  `json:"queryParamTranspose,omitempty" yaml:"queryParamTranspose,omitempty"`
-	RequestTranslate *standardTransform                  `json:"requestTranslate,omitempty" yaml:"requestTranslate,omitempty"`
-	Pagination       *standardPagination                 `json:"pagination,omitempty" yaml:"pagination,omitempty"`
-	Variations       *standardVariations                 `json:"variations,omitempty" yaml:"variations,omitempty"`
-	Views            map[string]*standardView            `json:"views" yaml:"views"`
-	ExternalTables   map[string]standardSQLExternalTable `json:"sqlExternalTables" yaml:"sqlExternalTables"`
-	Auth             *standardAuthDTO                    `json:"auth,omitempty" yaml:"auth,omitempty"`
+	QueryTranspose       *standardTransform                  `json:"queryParamTranspose,omitempty" yaml:"queryParamTranspose,omitempty"`
+	RequestTranslate     *standardTransform                  `json:"requestTranslate,omitempty" yaml:"requestTranslate,omitempty"`
+	RequestBodyTranslate *standardTransform                  `json:"requestBodyTranslate,omitempty" yaml:"requestBodyTranslate,omitempty"`
+	Pagination           *standardPagination                 `json:"pagination,omitempty" yaml:"pagination,omitempty"`
+	Variations           *standardVariations                 `json:"variations,omitempty" yaml:"variations,omitempty"`
+	Views                map[string]*standardView            `json:"views" yaml:"views"`
+	ExternalTables       map[string]standardSQLExternalTable `json:"sqlExternalTables" yaml:"sqlExternalTables"`
+	Auth                 *standardAuthDTO                    `json:"auth,omitempty" yaml:"auth,omitempty"`
 }
 
 func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
@@ -57,6 +59,13 @@ func (cfg *standardStackQLConfig) GetRequestTranslate() (Transform, bool) {
 		return nil, false
 	}
 	return cfg.RequestTranslate, true
+}
+
+func (cfg *standardStackQLConfig) GetRequestBodyTranslate() (Transform, bool) {
+	if cfg.RequestBodyTranslate == nil {
+		return nil, false
+	}
+	return cfg.RequestBodyTranslate, true
 }
 
 func (cfg *standardStackQLConfig) GetPagination() (Pagination, bool) {
