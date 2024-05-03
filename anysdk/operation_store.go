@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/stackql/any-sdk/pkg/fuzzymatch"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/parametertranslate"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
@@ -639,22 +641,9 @@ func (m *standardOperationStore) RenameRequestBodyAttribute(k string) (string, e
 }
 
 func (m *standardOperationStore) renameRequestBodyAttribute(k string) (string, error) {
-	paramTranslator := parametertranslate.NewParameterTranslator(
-		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
-		requestBodyBaseKeyFuzzyMatcher,
-	)
-	cfg, cfgExists := m.getStackQLConfig()
-	if cfgExists {
-		requestBodyTranslate, requestBodyTranslateExists := cfg.GetRequestBodyTranslate()
-		if requestBodyTranslateExists {
-			algorithmStr := requestBodyTranslate.GetAlgorithm()
-			if algorithmStr != "" {
-				paramTranslator = parametertranslate.NewParameterTranslator(
-					algorithmStr,
-					requestBodyBaseKeyFuzzyMatcher,
-				)
-			}
-		}
+	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
+	if translatorInferErr != nil {
+		return "", translatorInferErr
 	}
 	output, outputErr := paramTranslator.Translate(k)
 	return output, outputErr
@@ -665,44 +654,105 @@ func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) (str
 }
 
 func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (string, error) {
-	paramTranslator := parametertranslate.NewParameterTranslator(
-		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
-		requestBodyBaseKeyFuzzyMatcher,
-	)
-	cfg, cfgExists := m.getStackQLConfig()
-	if cfgExists {
-		requestBodyTranslate, requestBodyTranslateExists := cfg.GetRequestBodyTranslate()
-		if requestBodyTranslateExists {
-			algorithmStr := requestBodyTranslate.GetAlgorithm()
-			if algorithmStr != "" {
-				paramTranslator = parametertranslate.NewParameterTranslator(
-					algorithmStr,
-					requestBodyBaseKeyFuzzyMatcher,
-				)
-			}
-		}
+	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
+	if translatorInferErr != nil {
+		return "", translatorInferErr
 	}
 	output, outputErr := paramTranslator.ReverseTranslate(k)
 	return output, outputErr
 }
 
-func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
-	paramTranslator := parametertranslate.NewParameterTranslator(
-		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
-		requestBodyBaseKeyFuzzyMatcher,
-	)
+func (m *standardOperationStore) getDefaultRequestBodyMatcher() fuzzymatch.FuzzyMatcher[string] {
+	return requestBodyBaseKeyFuzzyMatcher
+}
+
+func (m *standardOperationStore) getRequestBodySchemaAttributeMatcher(path string) (fuzzymatch.FuzzyMatcher[string], error) {
+	schemaOfInterest, err := m.getRequestBodySchema()
+	if err != nil {
+		return nil, err
+	}
+	if path != "" {
+		schemaOfInterest = schemaOfInterest.FindByPath(path, map[string]bool{})
+		if schemaOfInterest == nil {
+			return nil, fmt.Errorf("could not find schema at path '%s'", path)
+		}
+	}
+	return getschemaAttributeMatcher(schemaOfInterest)
+}
+
+func getschemaAttributeMatcher(schemaOfInterest Schema) (fuzzymatch.FuzzyMatcher[string], error) {
+	var matchers []fuzzymatch.StringFuzzyPair
+	for k := range schemaOfInterest.getProperties() {
+		if k == "" {
+			return nil, fmt.Errorf("empty key in schema")
+		}
+		keyRegexpStr := fmt.Sprintf("^%s$", regexp.QuoteMeta(k))
+		keyRegexp, regexpErr := regexp.Compile(keyRegexpStr)
+		if regexpErr != nil {
+			return nil, regexpErr
+		}
+		matchers = append(matchers, fuzzymatch.NewFuzzyPair(keyRegexp, k))
+	}
+	return fuzzymatch.NewRegexpStringMetcher(matchers), nil
+}
+
+func extractAlgorithmSuffix(algorithm string, prefix string) string {
+	return strings.TrimPrefix(algorithm, fmt.Sprintf("%s_", prefix))
+}
+
+func extractAlgorithmPrefix(algorithm string) string {
+	if strings.HasPrefix(algorithm, translateAlgorithmNaiveNaming) {
+		return translateAlgorithmNaiveNaming
+	}
+	if strings.HasPrefix(algorithm, translateAlgorithmDefault) {
+		return translateAlgorithmDefault
+	}
+	return algorithm
+}
+
+func (m *standardOperationStore) inferTranslator(algorithm string) (parametertranslate.ParameterTranslator, error) {
+	algorithmPrefix := extractAlgorithmPrefix(algorithm)
+	algorithmSuffix := extractAlgorithmSuffix(algorithm, algorithmPrefix)
+	switch algorithmPrefix {
+	case "", translateAlgorithmDefault:
+		requestBodyMatcher := m.getDefaultRequestBodyMatcher()
+		return parametertranslate.NewParameterTranslator(
+			algorithm,
+			requestBodyMatcher,
+		), nil
+	case translateAlgorithmNaiveNaming:
+		requestBodyMatcher, err := m.getRequestBodySchemaAttributeMatcher(algorithmSuffix)
+		if err != nil {
+			return nil, err
+		}
+		return parametertranslate.NewParameterTranslator(
+			algorithm,
+			requestBodyMatcher,
+		), nil
+	default:
+		return nil, fmt.Errorf("unsupported request body parameter translation algorithm '%s'", algorithm)
+	}
+}
+
+func (m *standardOperationStore) getRequestBodyTranslateAlgorithmString() string {
+	retVal := ""
 	cfg, cfgExists := m.getStackQLConfig()
 	if cfgExists {
 		requestBodyTranslate, requestBodyTranslateExists := cfg.GetRequestBodyTranslate()
 		if requestBodyTranslateExists {
 			algorithmStr := requestBodyTranslate.GetAlgorithm()
 			if algorithmStr != "" {
-				paramTranslator = parametertranslate.NewParameterTranslator(
-					algorithmStr,
-					requestBodyBaseKeyFuzzyMatcher,
-				)
+				retVal = algorithmStr
 			}
 		}
+	}
+	return retVal
+}
+
+func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
+	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
+	if translatorInferErr != nil {
+		return false
 	}
 	_, outputErr := paramTranslator.ReverseTranslate(k)
 	return outputErr == nil
