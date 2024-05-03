@@ -93,8 +93,8 @@ type OperationStore interface {
 	IsNullary() bool
 	ToPresentationMap(extended bool) map[string]interface{}
 	GetColumnOrder(extended bool) []string
-	RenameRequestBodyAttribute(string) string
-	RevertRequestBodyAttributeRename(string) string
+	RenameRequestBodyAttribute(string) (string, error)
+	RevertRequestBodyAttributeRename(string) (string, error)
 	IsRequestBodyAttributeRenamed(string) bool
 	//
 	getDefaultRequestBodyBytes() []byte
@@ -116,8 +116,8 @@ type OperationStore interface {
 	setService(Service)
 	setOperationRef(*OperationRef)
 	setPathItem(*openapi3.PathItem)
-	renameRequestBodyAttribute(string) string
-	revertRequestBodyAttributeRename(string) string
+	renameRequestBodyAttribute(string) (string, error)
+	revertRequestBodyAttributeRename(string) (string, error)
 }
 
 type standardOperationStore struct {
@@ -578,7 +578,10 @@ func (m *standardOperationStore) getRequestBodyAttributes() (map[string]Addressa
 		propz := s.getProperties()
 		for k, v := range propz {
 			isRequired := slices.Contains(s.GetRequired(), k)
-			renamedKey := m.renameRequestBodyAttribute(k)
+			renamedKey, keyRenameErr := m.renameRequestBodyAttribute(k)
+			if keyRenameErr != nil {
+				return nil, keyRenameErr
+			}
 			if isRequired {
 				rv[renamedKey] = NewRequiredAddressableRequestBodyProperty(renamedKey, v)
 			} else {
@@ -631,11 +634,11 @@ func (m *standardOperationStore) getIndicatedRequestBodyAttributes(required bool
 	return rv, nil
 }
 
-func (m *standardOperationStore) RenameRequestBodyAttribute(k string) string {
+func (m *standardOperationStore) RenameRequestBodyAttribute(k string) (string, error) {
 	return m.renameRequestBodyAttribute(k)
 }
 
-func (m *standardOperationStore) renameRequestBodyAttribute(k string) string {
+func (m *standardOperationStore) renameRequestBodyAttribute(k string) (string, error) {
 	paramTranslator := parametertranslate.NewParameterTranslator(
 		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
 		requestBodyBaseKeyFuzzyMatcher,
@@ -653,15 +656,15 @@ func (m *standardOperationStore) renameRequestBodyAttribute(k string) string {
 			}
 		}
 	}
-	output, _ := paramTranslator.Translate(k)
-	return output
+	output, outputErr := paramTranslator.Translate(k)
+	return output, outputErr
 }
 
-func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) string {
+func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) (string, error) {
 	return m.revertRequestBodyAttributeRename(k)
 }
 
-func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) string {
+func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (string, error) {
 	paramTranslator := parametertranslate.NewParameterTranslator(
 		fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey),
 		requestBodyBaseKeyFuzzyMatcher,
@@ -679,8 +682,8 @@ func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) stri
 			}
 		}
 	}
-	output, _ := paramTranslator.ReverseTranslate(k)
-	return output
+	output, outputErr := paramTranslator.ReverseTranslate(k)
+	return output, outputErr
 }
 
 func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
@@ -834,7 +837,11 @@ func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]int
 			isRequiredFromMethodAnnotation = slices.Contains(m.Request.Required, k)
 		}
 		if v.IsRequired() || isRequiredFromMethodAnnotation {
-			renamedKey := m.renameRequestBodyAttribute(k)
+			renamedKey, renamedKeyErr := m.renameRequestBodyAttribute(k)
+			if renamedKeyErr != nil {
+				requiredBodyParamNames = append(requiredBodyParamNames, k)
+				continue
+			}
 			requiredBodyParamNames = append(requiredBodyParamNames, renamedKey)
 		}
 	}

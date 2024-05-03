@@ -374,7 +374,7 @@ func (hp *standardHttpParameters) ToFlatMap() (map[string]interface{}, error) {
 		}
 	}
 	for k, v := range hp.RequestBody {
-		prefixedKey := hp.opStore.renameRequestBodyAttribute(k)
+		prefixedKey, _ := hp.opStore.renameRequestBodyAttribute(k)
 		val := NewParameterBinding(nil, v)
 		err := hp.updateStuff(prefixedKey, val, rv, visited)
 		if err != nil {
