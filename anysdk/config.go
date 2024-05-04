@@ -40,6 +40,10 @@ func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
 	switch token {
 	case "queryTranspose":
 		return qt.QueryTranspose, nil
+	case "requestBodyTranslate":
+		return qt.RequestBodyTranslate, nil
+	case "requestTranslate":
+		return qt.RequestTranslate, nil
 	case "views":
 		return qt.Views, nil
 	default:
