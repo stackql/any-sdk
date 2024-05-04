@@ -716,8 +716,9 @@ func (m *standardOperationStore) inferTranslator(algorithm string) (parametertra
 	switch algorithmPrefix {
 	case "", translateAlgorithmDefault:
 		requestBodyMatcher := m.getDefaultRequestBodyMatcher()
+		algorithmName := fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey)
 		return parametertranslate.NewParameterTranslator(
-			algorithm,
+			algorithmName,
 			requestBodyMatcher,
 		), nil
 	case translateAlgorithmNaiveNaming:
@@ -726,7 +727,7 @@ func (m *standardOperationStore) inferTranslator(algorithm string) (parametertra
 			return nil, err
 		}
 		return parametertranslate.NewParameterTranslator(
-			algorithm,
+			parametertranslate.GetPrefixPrefix(),
 			requestBodyMatcher,
 		), nil
 	default:
