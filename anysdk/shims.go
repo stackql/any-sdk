@@ -17,7 +17,7 @@ type requestBodyParam struct {
 func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) *requestBodyParam {
 	trimmedKey, revertErr := method.revertRequestBodyAttributeRename(k)
 	var parsedVal interface{}
-	if trimmedKey != k && revertErr == nil { //nolint:nestif // keep for now
+	if revertErr == nil { //nolint:nestif // keep for now
 		switch vt := v.(type) {
 		case string:
 			var isStringRestricted bool
