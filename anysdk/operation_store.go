@@ -728,8 +728,8 @@ func (m *standardOperationStore) inferTranslator(algorithm string) (parametertra
 		if err != nil {
 			return nil, err
 		}
-		return parametertranslate.NewParameterTranslator(
-			parametertranslate.GetPrefixPrefix(),
+		return parametertranslate.NewNaiveBodyTranslator(
+			"",
 			requestBodyMatcher,
 		), nil
 	default:
