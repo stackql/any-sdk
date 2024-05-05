@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -14,7 +15,9 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/stackql/any-sdk/pkg/fuzzymatch"
 	"github.com/stackql/any-sdk/pkg/media"
+	"github.com/stackql/any-sdk/pkg/parametertranslate"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
 	"github.com/stackql/any-sdk/pkg/response"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
@@ -92,8 +95,8 @@ type OperationStore interface {
 	IsNullary() bool
 	ToPresentationMap(extended bool) map[string]interface{}
 	GetColumnOrder(extended bool) []string
-	RenameRequestBodyAttribute(string) string
-	RevertRequestBodyAttributeRename(string) string
+	RenameRequestBodyAttribute(string) (string, error)
+	RevertRequestBodyAttributeRename(string) (string, error)
 	IsRequestBodyAttributeRenamed(string) bool
 	//
 	getDefaultRequestBodyBytes() []byte
@@ -105,7 +108,6 @@ type OperationStore interface {
 	getRequiredParameters() map[string]Addressable
 	getResponseBodySchemaAndMediaType() (Schema, string, error)
 	setGraphQL(GraphQL)
-	setStackQLConfig(StackQLConfig)
 	setRequest(*standardExpectedRequest)
 	setResponse(*standardExpectedResponse)
 	setServers(*openapi3.Servers)
@@ -115,15 +117,15 @@ type OperationStore interface {
 	setService(Service)
 	setOperationRef(*OperationRef)
 	setPathItem(*openapi3.PathItem)
-	renameRequestBodyAttribute(string) string
-	revertRequestBodyAttributeRename(string) string
+	renameRequestBodyAttribute(string) (string, error)
+	revertRequestBodyAttributeRename(string) (string, error)
 }
 
 type standardOperationStore struct {
-	MethodKey     string        `json:"-" yaml:"-"`
-	SQLVerb       string        `json:"-" yaml:"-"`
-	GraphQL       GraphQL       `json:"-" yaml:"-"`
-	StackQLConfig StackQLConfig `json:"-" yaml:"-"`
+	MethodKey     string                 `json:"-" yaml:"-"`
+	SQLVerb       string                 `json:"-" yaml:"-"`
+	GraphQL       GraphQL                `json:"-" yaml:"-"`
+	StackQLConfig *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
 	// Optional parameters.
 	Parameters   map[string]interface{}    `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	PathItem     *openapi3.PathItem        `json:"-" yaml:"-"`                 // Required
@@ -204,10 +206,6 @@ func (op *standardOperationStore) setResponse(resp *standardExpectedResponse) {
 	op.Response = resp
 }
 
-func (op *standardOperationStore) setStackQLConfig(config StackQLConfig) {
-	op.StackQLConfig = config
-}
-
 func (op *standardOperationStore) setMethodKey(methodKey string) {
 	op.MethodKey = methodKey
 }
@@ -233,7 +231,16 @@ func (op *standardOperationStore) GetInverse() (OperationInverse, bool) {
 }
 
 func (op *standardOperationStore) GetStackQLConfig() StackQLConfig {
-	return op.StackQLConfig
+	rv, isPresent := op.getStackQLConfig()
+	if !isPresent {
+		return nil
+	}
+	return rv
+}
+
+func (op *standardOperationStore) getStackQLConfig() (StackQLConfig, bool) {
+	rv := op.StackQLConfig
+	return rv, rv != nil
 }
 
 func (op *standardOperationStore) GetAPIMethod() string {
@@ -571,7 +578,10 @@ func (m *standardOperationStore) getRequestBodyAttributes() (map[string]Addressa
 		propz := s.getProperties()
 		for k, v := range propz {
 			isRequired := slices.Contains(s.GetRequired(), k)
-			renamedKey := m.renameRequestBodyAttribute(k)
+			renamedKey, keyRenameErr := m.renameRequestBodyAttribute(k)
+			if keyRenameErr != nil {
+				return nil, keyRenameErr
+			}
 			if isRequired {
 				rv[renamedKey] = NewRequiredAddressableRequestBodyProperty(renamedKey, v)
 			} else {
@@ -624,25 +634,131 @@ func (m *standardOperationStore) getIndicatedRequestBodyAttributes(required bool
 	return rv, nil
 }
 
-func (m *standardOperationStore) RenameRequestBodyAttribute(k string) string {
+func (m *standardOperationStore) RenameRequestBodyAttribute(k string) (string, error) {
 	return m.renameRequestBodyAttribute(k)
 }
 
-// TODO: place renaming algorithm here
-func (m *standardOperationStore) renameRequestBodyAttribute(k string) string {
-	return defaultRequestBodyAttributeRename(k)
+func (m *standardOperationStore) renameRequestBodyAttribute(k string) (string, error) {
+	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
+	if translatorInferErr != nil {
+		return "", translatorInferErr
+	}
+	output, outputErr := paramTranslator.Translate(k)
+	return output, outputErr
 }
 
-func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) string {
+func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) (string, error) {
 	return m.revertRequestBodyAttributeRename(k)
 }
 
-func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) string {
-	return strings.TrimPrefix(k, requestBodyBaseKey)
+func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (string, error) {
+	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
+	if translatorInferErr != nil {
+		return "", translatorInferErr
+	}
+	output, outputErr := paramTranslator.ReverseTranslate(k)
+	return output, outputErr
+}
+
+func (m *standardOperationStore) getDefaultRequestBodyMatcher() fuzzymatch.FuzzyMatcher[string] {
+	return requestBodyBaseKeyFuzzyMatcher
+}
+
+func (m *standardOperationStore) getRequestBodySchemaAttributeMatcher(path string) (fuzzymatch.FuzzyMatcher[string], error) {
+	schemaOfInterest, err := m.getRequestBodySchema()
+	if err != nil {
+		return nil, err
+	}
+	if path != "" {
+		schemaOfInterest = schemaOfInterest.FindByPath(path, map[string]bool{})
+		if schemaOfInterest == nil {
+			return nil, fmt.Errorf("could not find schema at path '%s'", path)
+		}
+	}
+	return getschemaAttributeMatcher(schemaOfInterest)
+}
+
+func getschemaAttributeMatcher(schemaOfInterest Schema) (fuzzymatch.FuzzyMatcher[string], error) {
+	var matchers []fuzzymatch.StringFuzzyPair
+	for k := range schemaOfInterest.getProperties() {
+		if k == "" {
+			return nil, fmt.Errorf("empty key in schema")
+		}
+		keyRegexpStr := fmt.Sprintf("^%s$", regexp.QuoteMeta(k))
+		keyRegexp, regexpErr := regexp.Compile(keyRegexpStr)
+		if regexpErr != nil {
+			return nil, regexpErr
+		}
+		matchers = append(matchers, fuzzymatch.NewFuzzyPair(keyRegexp, k))
+	}
+	return fuzzymatch.NewRegexpStringMetcher(matchers), nil
+}
+
+func extractAlgorithmSuffix(algorithm string, prefix string) string {
+	trimmed := strings.TrimPrefix(algorithm, fmt.Sprintf("%s_", prefix))
+	if trimmed == algorithm {
+		return ""
+	}
+	return trimmed
+}
+
+func extractAlgorithmPrefix(algorithm string) string {
+	if strings.HasPrefix(algorithm, translateAlgorithmNaiveNaming) {
+		return translateAlgorithmNaiveNaming
+	}
+	if strings.HasPrefix(algorithm, translateAlgorithmDefault) {
+		return translateAlgorithmDefault
+	}
+	return algorithm
+}
+
+func (m *standardOperationStore) inferTranslator(algorithm string) (parametertranslate.ParameterTranslator, error) {
+	algorithmPrefix := extractAlgorithmPrefix(algorithm)
+	algorithmSuffix := extractAlgorithmSuffix(algorithm, algorithmPrefix)
+	switch algorithmPrefix {
+	case "", translateAlgorithmDefault:
+		requestBodyMatcher := m.getDefaultRequestBodyMatcher()
+		algorithmName := fmt.Sprintf("%s%s", parametertranslate.GetPrefixPrefix(), requestBodyBaseKey)
+		return parametertranslate.NewParameterTranslator(
+			algorithmName,
+			requestBodyMatcher,
+		), nil
+	case translateAlgorithmNaiveNaming:
+		requestBodyMatcher, err := m.getRequestBodySchemaAttributeMatcher(algorithmSuffix)
+		if err != nil {
+			return nil, err
+		}
+		return parametertranslate.NewNaiveBodyTranslator(
+			"",
+			requestBodyMatcher,
+		), nil
+	default:
+		return nil, fmt.Errorf("unsupported request body parameter translation algorithm '%s'", algorithm)
+	}
+}
+
+func (m *standardOperationStore) getRequestBodyTranslateAlgorithmString() string {
+	retVal := ""
+	cfg, cfgExists := m.getStackQLConfig()
+	if cfgExists {
+		requestBodyTranslate, requestBodyTranslateExists := cfg.GetRequestBodyTranslate()
+		if requestBodyTranslateExists {
+			algorithmStr := requestBodyTranslate.GetAlgorithm()
+			if algorithmStr != "" {
+				retVal = algorithmStr
+			}
+		}
+	}
+	return retVal
 }
 
 func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
-	return strings.HasPrefix(k, requestBodyBaseKey)
+	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
+	if translatorInferErr != nil {
+		return false
+	}
+	_, outputErr := paramTranslator.ReverseTranslate(k)
+	return outputErr == nil
 }
 
 func (m *standardOperationStore) getRequiredNonBodyParameters() map[string]Addressable {
@@ -774,7 +890,11 @@ func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]int
 			isRequiredFromMethodAnnotation = slices.Contains(m.Request.Required, k)
 		}
 		if v.IsRequired() || isRequiredFromMethodAnnotation {
-			renamedKey := m.renameRequestBodyAttribute(k)
+			renamedKey, renamedKeyErr := m.renameRequestBodyAttribute(k)
+			if renamedKeyErr != nil {
+				requiredBodyParamNames = append(requiredBodyParamNames, k)
+				continue
+			}
 			requiredBodyParamNames = append(requiredBodyParamNames, renamedKey)
 		}
 	}

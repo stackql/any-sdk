@@ -1,5 +1,12 @@
 package anysdk
 
+import (
+	"fmt"
+	"regexp"
+
+	"github.com/stackql/any-sdk/pkg/fuzzymatch"
+)
+
 const (
 	MethodDescription string = "description"
 	MethodName        string = "MethodName"
@@ -24,4 +31,16 @@ const (
 
 const (
 	ViewKeyResourceLevelSelect string = "select"
+)
+
+const (
+	translateAlgorithmDefault     string = "default"
+	translateAlgorithmNaiveNaming string = "naive"
+)
+
+var (
+	requestBodyBaseKeyRegexp       *regexp.Regexp                  = regexp.MustCompile(fmt.Sprintf("^%s%s", requestBodyBaseKey, "(.*)"))
+	requestBodyBaseKeyFuzzyMatcher fuzzymatch.FuzzyMatcher[string] = fuzzymatch.NewRegexpStringMetcher([]fuzzymatch.StringFuzzyPair{
+		fuzzymatch.NewFuzzyPair(requestBodyBaseKeyRegexp, requestBodyBaseKey),
+	})
 )

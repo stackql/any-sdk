@@ -182,19 +182,19 @@ func extractStackQLConfig(qt interface{}) (StackQLConfig, error) {
 	return &rv, nil
 }
 
-func (l *standardLoader) extractAndMergeQueryTransposeOpLevel(operation OperationStore) error {
-	if operation.GetOperationRef() == nil || operation.GetOperationRef().Value == nil {
-		return nil
-	}
-	qt, ok := operation.GetOperationRef().Value.Extensions[ExtensionKeyConfig]
-	if !ok {
-		return nil
-	}
-	rv, err := extractStackQLConfig(qt)
-	if err != nil {
-		return err
-	}
-	operation.setStackQLConfig(rv)
+func (l *standardLoader) extractAndMergeQueryTransposeOpLevel(_ OperationStore) error {
+	// if operation.GetOperationRef() == nil || operation.GetOperationRef().Value == nil {
+	// 	return nil
+	// }
+	// qt, ok := operation.GetOperationRef().Value.Extensions[ExtensionKeyConfig]
+	// if !ok {
+	// 	return nil
+	// }
+	// rv, err := extractStackQLConfig(qt)
+	// if err != nil {
+	// 	return err
+	// }
+	// operation.setStackQLConfig(rv)
 	return nil
 }
 
@@ -584,7 +584,7 @@ func (loader *standardLoader) resolveOperationRef(doc Service, rsc Resource, com
 			return nil
 		}
 		loader.visitedOperation[component.GetOperationRef().Value] = struct{}{}
-	} else if component.GetStackQLConfig() != nil && component.GetStackQLConfig().GetViews() != nil {
+	} else if component.GetStackQLConfig() != nil && len(component.GetStackQLConfig().GetViews()) > 0 {
 		component.setService(doc)
 		component.setProviderService(doc.getProviderService())
 		component.setProvider(doc.getProvider())

@@ -15,9 +15,9 @@ type requestBodyParam struct {
 }
 
 func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) *requestBodyParam {
-	trimmedKey := method.revertRequestBodyAttributeRename(k)
+	trimmedKey, revertErr := method.revertRequestBodyAttributeRename(k)
 	var parsedVal interface{}
-	if trimmedKey != k { //nolint:nestif // keep for now
+	if revertErr == nil { //nolint:nestif // keep for now
 		switch vt := v.(type) {
 		case string:
 			var isStringRestricted bool
@@ -97,7 +97,7 @@ func splitHTTPParameters(
 							reqMap.SetRequestBodyParam(k, v)
 						}
 					}
-					kCleaned := method.revertRequestBodyAttributeRename(k)
+					kCleaned, _ := method.revertRequestBodyAttributeRename(k)
 					prop, _ := requestSchema.GetProperty(kCleaned)
 					rbp := parseRequestBodyParam(k, v, prop, method)
 					if rbp != nil {
