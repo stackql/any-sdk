@@ -231,7 +231,10 @@ func (op *standardOperationStore) GetInverse() (OperationInverse, bool) {
 }
 
 func (op *standardOperationStore) GetStackQLConfig() StackQLConfig {
-	rv, _ := op.getStackQLConfig()
+	rv, isPresent := op.getStackQLConfig()
+	if !isPresent {
+		return nil
+	}
 	return rv
 }
 
