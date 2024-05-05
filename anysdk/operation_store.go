@@ -695,7 +695,11 @@ func getschemaAttributeMatcher(schemaOfInterest Schema) (fuzzymatch.FuzzyMatcher
 }
 
 func extractAlgorithmSuffix(algorithm string, prefix string) string {
-	return strings.TrimPrefix(algorithm, fmt.Sprintf("%s_", prefix))
+	trimmed := strings.TrimPrefix(algorithm, fmt.Sprintf("%s_", prefix))
+	if trimmed == algorithm {
+		return ""
+	}
+	return trimmed
 }
 
 func extractAlgorithmPrefix(algorithm string) string {
