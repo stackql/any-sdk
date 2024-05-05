@@ -108,7 +108,6 @@ type OperationStore interface {
 	getRequiredParameters() map[string]Addressable
 	getResponseBodySchemaAndMediaType() (Schema, string, error)
 	setGraphQL(GraphQL)
-	setStackQLConfig(StackQLConfig)
 	setRequest(*standardExpectedRequest)
 	setResponse(*standardExpectedResponse)
 	setServers(*openapi3.Servers)
@@ -123,10 +122,10 @@ type OperationStore interface {
 }
 
 type standardOperationStore struct {
-	MethodKey     string        `json:"-" yaml:"-"`
-	SQLVerb       string        `json:"-" yaml:"-"`
-	GraphQL       GraphQL       `json:"-" yaml:"-"`
-	StackQLConfig StackQLConfig `json:"config" yaml:"config"`
+	MethodKey     string                 `json:"-" yaml:"-"`
+	SQLVerb       string                 `json:"-" yaml:"-"`
+	GraphQL       GraphQL                `json:"-" yaml:"-"`
+	StackQLConfig *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
 	// Optional parameters.
 	Parameters   map[string]interface{}    `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	PathItem     *openapi3.PathItem        `json:"-" yaml:"-"`                 // Required
@@ -205,10 +204,6 @@ func (op *standardOperationStore) getBaseRequestBodyBytes() []byte {
 
 func (op *standardOperationStore) setResponse(resp *standardExpectedResponse) {
 	op.Response = resp
-}
-
-func (op *standardOperationStore) setStackQLConfig(config StackQLConfig) {
-	op.StackQLConfig = config
 }
 
 func (op *standardOperationStore) setMethodKey(methodKey string) {
