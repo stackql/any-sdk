@@ -584,7 +584,7 @@ func (loader *standardLoader) resolveOperationRef(doc Service, rsc Resource, com
 			return nil
 		}
 		loader.visitedOperation[component.GetOperationRef().Value] = struct{}{}
-	} else if component.GetStackQLConfig() != nil && component.GetStackQLConfig().GetViews() != nil {
+	} else if component.GetStackQLConfig() != nil && len(component.GetStackQLConfig().GetViews()) > 0 {
 		component.setService(doc)
 		component.setProviderService(doc.getProviderService())
 		component.setProvider(doc.getProvider())
