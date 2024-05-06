@@ -9,12 +9,75 @@ import (
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
-type requestBodyParam struct {
-	Key string
-	Val interface{}
+var (
+	_ ObjectWithLineage           = &standardObjectWithLineage{}
+	_ ObjectWithLineageCollection = &standardObjectWithLineageCollection{}
+)
+
+type ObjectWithLineageCollection interface {
+	Merge() error
+	GetFlatObjects() []ObjectWithoutLineage
+	PushBack(ObjectWithLineage)
 }
 
-func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) *requestBodyParam {
+type ObjectWithoutLineage interface {
+	GetKey() string
+	GetValue() interface{}
+}
+
+type ObjectWithLineage interface {
+	ObjectWithoutLineage
+}
+
+type standardObjectWithLineageCollection struct {
+	inputObjects  []ObjectWithLineage
+	outputObjects []ObjectWithoutLineage
+}
+
+func newObjectWithLineageCollection() ObjectWithLineageCollection {
+	return &standardObjectWithLineageCollection{}
+}
+
+func (oc *standardObjectWithLineageCollection) Merge() error {
+	for _, input := range oc.inputObjects {
+		oc.outputObjects = append(oc.outputObjects, input)
+	}
+	return nil
+}
+
+func (oc *standardObjectWithLineageCollection) PushBack(input ObjectWithLineage) {
+	oc.inputObjects = append(oc.inputObjects, input)
+}
+
+func (oc *standardObjectWithLineageCollection) GetFlatObjects() []ObjectWithoutLineage {
+	return oc.outputObjects
+}
+
+type standardObjectWithLineage struct {
+	parentKey string
+	schema    Schema
+	path      string
+	val       interface{}
+}
+
+func (owl *standardObjectWithLineage) GetKey() string {
+	return owl.parentKey
+}
+
+func (owl *standardObjectWithLineage) GetValue() interface{} {
+	return owl.val
+}
+
+func newObjectWithLineage(val interface{}, schema Schema, parentKey string, path string) ObjectWithLineage {
+	return &standardObjectWithLineage{
+		parentKey: parentKey,
+		schema:    schema,
+		path:      path,
+		val:       val,
+	}
+}
+
+func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) (ObjectWithLineage, bool) {
 	trimmedKey, revertErr := method.revertRequestBodyAttributeRename(k)
 	var parsedVal interface{}
 	if revertErr == nil { //nolint:nestif // keep for now
@@ -56,12 +119,9 @@ func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationSt
 		default:
 			parsedVal = vt
 		}
-		return &requestBodyParam{
-			Key: trimmedKey,
-			Val: parsedVal,
-		}
+		return newObjectWithLineage(parsedVal, s, trimmedKey, trimmedKey), true
 	}
-	return nil
+	return nil, false
 }
 
 //nolint:gocognit // not super complex
@@ -78,6 +138,7 @@ func splitHTTPParameters(
 	}
 	sort.Ints(rowKeys)
 	for _, key := range rowKeys {
+		requestBodyParams := newObjectWithLineageCollection()
 		sqlRow := sqlParamMap[key]
 		reqMap := NewHttpParameters(method)
 		for k, v := range sqlRow {
@@ -99,9 +160,9 @@ func splitHTTPParameters(
 					}
 					kCleaned, _ := method.revertRequestBodyAttributeRename(k)
 					prop, _ := requestSchema.GetProperty(kCleaned)
-					rbp := parseRequestBodyParam(k, v, prop, method)
-					if rbp != nil {
-						reqMap.SetRequestBodyParam(rbp.Key, rbp.Val)
+					rbp, rbpExists := parseRequestBodyParam(k, v, prop, method)
+					if rbpExists {
+						requestBodyParams.PushBack(rbp)
 						continue
 					}
 				}
@@ -110,6 +171,15 @@ func splitHTTPParameters(
 			if responseSchema != nil && responseSchema.FindByPath(k, nil) != nil {
 				reqMap.SetResponseBodyParam(k, v)
 			}
+		}
+		mergeErr := requestBodyParams.Merge()
+		if mergeErr != nil {
+			return nil, mergeErr
+		}
+		flattenedRequestBodyParams := requestBodyParams.GetFlatObjects()
+		for _, rbp := range flattenedRequestBodyParams {
+			rbpVal := rbp.GetValue()
+			reqMap.SetRequestBodyParam(rbp.GetKey(), rbpVal)
 		}
 		retVal = append(retVal, reqMap)
 	}
