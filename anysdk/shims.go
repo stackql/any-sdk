@@ -6,10 +6,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/stackql/any-sdk/pkg/brickmap"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
 var (
+	_ ObjectWithoutLineage        = &naiveObjectWithoutLineage{}
 	_ ObjectWithLineage           = &standardObjectWithLineage{}
 	_ ObjectWithLineageCollection = &standardObjectWithLineageCollection{}
 )
@@ -25,8 +27,29 @@ type ObjectWithoutLineage interface {
 	GetValue() interface{}
 }
 
+type naiveObjectWithoutLineage struct {
+	key string
+	val interface{}
+}
+
+func (nowl *naiveObjectWithoutLineage) GetKey() string {
+	return nowl.key
+}
+
+func (nowl *naiveObjectWithoutLineage) GetValue() interface{} {
+	return nowl.val
+}
+
+func newNaiveObjectWithoutLineage(k string, v interface{}) ObjectWithoutLineage {
+	return &naiveObjectWithoutLineage{
+		key: k,
+		val: v,
+	}
+}
+
 type ObjectWithLineage interface {
 	ObjectWithoutLineage
+	GetParentKey() string
 }
 
 type standardObjectWithLineageCollection struct {
@@ -38,10 +61,24 @@ func newObjectWithLineageCollection() ObjectWithLineageCollection {
 	return &standardObjectWithLineageCollection{}
 }
 
+func (oc *standardObjectWithLineageCollection) splitPath(path string) []string {
+	return strings.Split(path, ".")
+}
+
 func (oc *standardObjectWithLineageCollection) Merge() error {
 	// TODO: for each key, merge all lower level keys
+	var err error
+	preMergeMap := brickmap.NewBrickMap()
 	for _, input := range oc.inputObjects {
-		oc.outputObjects = append(oc.outputObjects, input)
+		splitPath := oc.splitPath(input.GetKey())
+		err = preMergeMap.Set(splitPath, input)
+		if err != nil {
+			return err
+		}
+	}
+	flatMap, _ := preMergeMap.ToFlatMap()
+	for k, v := range flatMap {
+		oc.outputObjects = append(oc.outputObjects, newNaiveObjectWithoutLineage(k, v))
 	}
 	return nil
 }
@@ -61,8 +98,12 @@ type standardObjectWithLineage struct {
 	val       interface{}
 }
 
-func (owl *standardObjectWithLineage) GetKey() string {
+func (owl *standardObjectWithLineage) GetParentKey() string {
 	return owl.parentKey
+}
+
+func (owl *standardObjectWithLineage) GetKey() string {
+	return owl.path
 }
 
 func (owl *standardObjectWithLineage) GetValue() interface{} {

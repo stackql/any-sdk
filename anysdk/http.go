@@ -195,6 +195,7 @@ func (hp *standardHttpParameters) SetRequestBody(body map[string]interface{}) {
 	hp.RequestBody = body
 }
 
+// TODO: make this more intelligent
 func (hp *standardHttpParameters) SetRequestBodyParam(key string, val interface{}) {
 	splitKey := strings.Split(key, ".")
 	if len(splitKey) == 1 {
