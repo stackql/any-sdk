@@ -196,7 +196,21 @@ func (hp *standardHttpParameters) SetRequestBody(body map[string]interface{}) {
 }
 
 func (hp *standardHttpParameters) SetRequestBodyParam(key string, val interface{}) {
-	hp.RequestBody[key] = val
+	splitKey := strings.Split(key, ".")
+	if len(splitKey) == 1 {
+		hp.RequestBody[key] = val
+		return
+	}
+	trunkKey := splitKey[0]
+	rhs := make(map[string]interface{})
+	for i, k := range splitKey {
+		if i < len(splitKey)-1 {
+			rhs[k] = make(map[string]interface{})
+			continue
+		}
+		rhs[k] = val
+	}
+	hp.RequestBody[trunkKey] = rhs
 }
 
 func (hp *standardHttpParameters) SetResponseBodyParam(key string, val interface{}) {

@@ -39,6 +39,7 @@ func newObjectWithLineageCollection() ObjectWithLineageCollection {
 }
 
 func (oc *standardObjectWithLineageCollection) Merge() error {
+	// TODO: for each key, merge all lower level keys
 	for _, input := range oc.inputObjects {
 		oc.outputObjects = append(oc.outputObjects, input)
 	}

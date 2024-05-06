@@ -119,6 +119,7 @@ type OperationStore interface {
 	setPathItem(*openapi3.PathItem)
 	renameRequestBodyAttribute(string) (string, error)
 	revertRequestBodyAttributeRename(string) (string, error)
+	// getRequestBodyAttributeLineage(string) (string, error)
 }
 
 type standardOperationStore struct {
@@ -660,6 +661,10 @@ func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (str
 	return output, outputErr
 }
 
+// func (op *standardOperationStore) getRequestBodyAttributeLineage(rawKey string) (string, error) {
+// 	return "", nil
+// }
+
 func (m *standardOperationStore) getDefaultRequestBodyMatcher() fuzzymatch.FuzzyMatcher[string] {
 	return requestBodyBaseKeyFuzzyMatcher
 }
@@ -729,7 +734,7 @@ func (m *standardOperationStore) inferTranslator(algorithm string) (parametertra
 			return nil, err
 		}
 		return parametertranslate.NewNaiveBodyTranslator(
-			"",
+			algorithmSuffix,
 			requestBodyMatcher,
 		), nil
 	default:
