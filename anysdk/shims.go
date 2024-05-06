@@ -6,15 +6,147 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/stackql/any-sdk/pkg/brickmap"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
-type requestBodyParam struct {
-	Key string
-	Val interface{}
+var (
+	_ ObjectWithLineageCollectionConfig = &standardObjectWithLineageCollectionConfig{}
+	_ ObjectWithoutLineage              = &naiveObjectWithoutLineage{}
+	_ ObjectWithLineage                 = &standardObjectWithLineage{}
+	_ ObjectWithLineageCollection       = &standardObjectWithLineageCollection{}
+)
+
+type ObjectWithLineageCollectionConfig interface {
+	GetStringifiedPaths() map[string]struct{}
 }
 
-func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) *requestBodyParam {
+type standardObjectWithLineageCollectionConfig struct {
+	stringifiedPaths map[string]struct{}
+}
+
+func (oc *standardObjectWithLineageCollectionConfig) GetStringifiedPaths() map[string]struct{} {
+	return oc.stringifiedPaths
+}
+
+func newStandardObjectWithLineageCollectionConfig(stringifiedPaths map[string]struct{}) ObjectWithLineageCollectionConfig {
+	return &standardObjectWithLineageCollectionConfig{
+		stringifiedPaths: stringifiedPaths,
+	}
+}
+
+type ObjectWithLineageCollection interface {
+	Merge() error
+	GetFlatObjects() []ObjectWithoutLineage
+	PushBack(ObjectWithLineage)
+}
+
+type ObjectWithoutLineage interface {
+	GetKey() string
+	GetValue() interface{}
+}
+
+type naiveObjectWithoutLineage struct {
+	key string
+	val interface{}
+}
+
+func (nowl *naiveObjectWithoutLineage) GetKey() string {
+	return nowl.key
+}
+
+func (nowl *naiveObjectWithoutLineage) GetValue() interface{} {
+	return nowl.val
+}
+
+func newNaiveObjectWithoutLineage(k string, v interface{}) ObjectWithoutLineage {
+	return &naiveObjectWithoutLineage{
+		key: k,
+		val: v,
+	}
+}
+
+type ObjectWithLineage interface {
+	ObjectWithoutLineage
+	GetParentKey() string
+}
+
+type standardObjectWithLineageCollection struct {
+	cfg           ObjectWithLineageCollectionConfig
+	inputObjects  []ObjectWithLineage
+	outputObjects []ObjectWithoutLineage
+}
+
+func newObjectWithLineageCollection(cfg ObjectWithLineageCollectionConfig) ObjectWithLineageCollection {
+	return &standardObjectWithLineageCollection{
+		cfg: cfg,
+	}
+}
+
+func (oc *standardObjectWithLineageCollection) splitPath(prefixPath string, path string) []string {
+	if prefixPath == "" {
+		return strings.Split(path, ".")
+	}
+	return append(strings.Split(prefixPath, "."), strings.Split(path, ".")...)
+}
+
+func (oc *standardObjectWithLineageCollection) Merge() error {
+	// TODO: for each key, merge all lower level keys
+	var err error
+	preMergeMap := brickmap.NewBrickMap(
+		brickmap.NewStandardBrickMapConfig(oc.cfg.GetStringifiedPaths()),
+	)
+	for _, input := range oc.inputObjects {
+		splitPath := oc.splitPath(input.GetParentKey(), input.GetKey())
+		err = preMergeMap.Set(splitPath, input.GetValue())
+		if err != nil {
+			return err
+		}
+	}
+	flatMap, _ := preMergeMap.ToFlatMap()
+	for k, v := range flatMap {
+		oc.outputObjects = append(oc.outputObjects, newNaiveObjectWithoutLineage(k, v))
+	}
+	return nil
+}
+
+func (oc *standardObjectWithLineageCollection) PushBack(input ObjectWithLineage) {
+	oc.inputObjects = append(oc.inputObjects, input)
+}
+
+func (oc *standardObjectWithLineageCollection) GetFlatObjects() []ObjectWithoutLineage {
+	return oc.outputObjects
+}
+
+type standardObjectWithLineage struct {
+	parentKey string
+	schema    Schema
+	path      string
+	val       interface{}
+}
+
+func (owl *standardObjectWithLineage) GetParentKey() string {
+	return owl.parentKey
+}
+
+func (owl *standardObjectWithLineage) GetKey() string {
+	return owl.path
+}
+
+func (owl *standardObjectWithLineage) GetValue() interface{} {
+	return owl.val
+}
+
+func newObjectWithLineage(val interface{}, schema Schema, parentKey string, path string) ObjectWithLineage {
+	return &standardObjectWithLineage{
+		parentKey: parentKey,
+		schema:    schema,
+		path:      path,
+		val:       val,
+	}
+}
+
+func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) (ObjectWithLineage, bool) {
 	trimmedKey, revertErr := method.revertRequestBodyAttributeRename(k)
 	var parsedVal interface{}
 	if revertErr == nil { //nolint:nestif // keep for now
@@ -56,12 +188,13 @@ func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationSt
 		default:
 			parsedVal = vt
 		}
-		return &requestBodyParam{
-			Key: trimmedKey,
-			Val: parsedVal,
+		parentKey, canInferParentKey := method.getRequestBodyAttributeParentKey(method.getRequestBodyTranslateAlgorithmString())
+		if !canInferParentKey {
+			parentKey = ""
 		}
+		return newObjectWithLineage(parsedVal, s, parentKey, trimmedKey), true
 	}
-	return nil
+	return nil, false
 }
 
 //nolint:gocognit // not super complex
@@ -77,7 +210,11 @@ func splitHTTPParameters(
 		rowKeys = append(rowKeys, idx)
 	}
 	sort.Ints(rowKeys)
+	requestBodyStringifiedPaths, _ := method.getRequestBodyStringifiedPaths()
 	for _, key := range rowKeys {
+		requestBodyParams := newObjectWithLineageCollection(
+			newStandardObjectWithLineageCollectionConfig(
+				requestBodyStringifiedPaths))
 		sqlRow := sqlParamMap[key]
 		reqMap := NewHttpParameters(method)
 		for k, v := range sqlRow {
@@ -99,9 +236,9 @@ func splitHTTPParameters(
 					}
 					kCleaned, _ := method.revertRequestBodyAttributeRename(k)
 					prop, _ := requestSchema.GetProperty(kCleaned)
-					rbp := parseRequestBodyParam(k, v, prop, method)
-					if rbp != nil {
-						reqMap.SetRequestBodyParam(rbp.Key, rbp.Val)
+					rbp, rbpExists := parseRequestBodyParam(k, v, prop, method)
+					if rbpExists {
+						requestBodyParams.PushBack(rbp)
 						continue
 					}
 				}
@@ -110,6 +247,15 @@ func splitHTTPParameters(
 			if responseSchema != nil && responseSchema.FindByPath(k, nil) != nil {
 				reqMap.SetResponseBodyParam(k, v)
 			}
+		}
+		mergeErr := requestBodyParams.Merge()
+		if mergeErr != nil {
+			return nil, mergeErr
+		}
+		flattenedRequestBodyParams := requestBodyParams.GetFlatObjects()
+		for _, rbp := range flattenedRequestBodyParams {
+			rbpVal := rbp.GetValue()
+			reqMap.SetRequestBodyParam(rbp.GetKey(), rbpVal)
 		}
 		retVal = append(retVal, reqMap)
 	}

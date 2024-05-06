@@ -119,6 +119,10 @@ type OperationStore interface {
 	setPathItem(*openapi3.PathItem)
 	renameRequestBodyAttribute(string) (string, error)
 	revertRequestBodyAttributeRename(string) (string, error)
+	getRequestBodyAttributeParentKey(string) (string, bool)
+	getRequestBodyTranslateAlgorithmString() string
+	getRequestBodyStringifiedPaths() (map[string]struct{}, error)
+	// getRequestBodyAttributeLineage(string) (string, error)
 }
 
 type standardOperationStore struct {
@@ -142,6 +146,23 @@ type standardOperationStore struct {
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
 	Service           Service         `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (op *standardOperationStore) getRequestBodyStringifiedPaths() (map[string]struct{}, error) {
+	rv := make(map[string]struct{})
+	requestBodySchema, schemaErr := op.getRequestBodySchema()
+	if schemaErr != nil {
+		return rv, schemaErr
+	}
+	for k, v := range requestBodySchema.getProperties() {
+		if v == nil {
+			continue
+		}
+		if v.isStringOnly() {
+			rv[k] = struct{}{}
+		}
+	}
+	return rv, nil
 }
 
 func NewEmptyOperationStore() OperationStore {
@@ -660,6 +681,19 @@ func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (str
 	return output, outputErr
 }
 
+func (m *standardOperationStore) getRequestBodyAttributeParentKey(algorithm string) (string, bool) {
+	algorithmPrefix := extractAlgorithmPrefix(algorithm)
+	algorithmSuffix := extractAlgorithmSuffix(algorithm, algorithmPrefix)
+	if algorithmPrefix == translateAlgorithmNaiveNaming {
+		return algorithmSuffix, true
+	}
+	return "", false
+}
+
+// func (op *standardOperationStore) getRequestBodyAttributeLineage(rawKey string) (string, error) {
+// 	return "", nil
+// }
+
 func (m *standardOperationStore) getDefaultRequestBodyMatcher() fuzzymatch.FuzzyMatcher[string] {
 	return requestBodyBaseKeyFuzzyMatcher
 }
@@ -729,7 +763,7 @@ func (m *standardOperationStore) inferTranslator(algorithm string) (parametertra
 			return nil, err
 		}
 		return parametertranslate.NewNaiveBodyTranslator(
-			"",
+			algorithmSuffix,
 			requestBodyMatcher,
 		), nil
 	default:
