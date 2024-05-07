@@ -161,7 +161,11 @@ func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationSt
 		default:
 			parsedVal = vt
 		}
-		return newObjectWithLineage(parsedVal, s, trimmedKey, trimmedKey), true
+		parentKey, canInferParentKey := method.getRequestBodyAttributeParentKey(method.getRequestBodyTranslateAlgorithmString())
+		if !canInferParentKey {
+			parentKey = trimmedKey
+		}
+		return newObjectWithLineage(parsedVal, s, parentKey, trimmedKey), true
 	}
 	return nil, false
 }

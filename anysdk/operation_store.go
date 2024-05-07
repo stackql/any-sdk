@@ -119,6 +119,8 @@ type OperationStore interface {
 	setPathItem(*openapi3.PathItem)
 	renameRequestBodyAttribute(string) (string, error)
 	revertRequestBodyAttributeRename(string) (string, error)
+	getRequestBodyAttributeParentKey(string) (string, bool)
+	getRequestBodyTranslateAlgorithmString() string
 	// getRequestBodyAttributeLineage(string) (string, error)
 }
 
@@ -659,6 +661,15 @@ func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (str
 	}
 	output, outputErr := paramTranslator.ReverseTranslate(k)
 	return output, outputErr
+}
+
+func (m *standardOperationStore) getRequestBodyAttributeParentKey(algorithm string) (string, bool) {
+	algorithmPrefix := extractAlgorithmPrefix(algorithm)
+	algorithmSuffix := extractAlgorithmSuffix(algorithm, algorithmPrefix)
+	if algorithmPrefix == translateAlgorithmNaiveNaming {
+		return algorithmSuffix, true
+	}
+	return "", false
 }
 
 // func (op *standardOperationStore) getRequestBodyAttributeLineage(rawKey string) (string, error) {
