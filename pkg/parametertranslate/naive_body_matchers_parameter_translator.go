@@ -19,7 +19,8 @@ type NaiveBodyTranslator struct {
 }
 
 func (gp *NaiveBodyTranslator) Translate(input string) (string, error) {
-	return fmt.Sprintf("%s%s", gp.prefix, input), nil
+	// return fmt.Sprintf("%s%s", gp.prefix, input), nil
+	return input, nil
 }
 
 func (gp *NaiveBodyTranslator) ReverseTranslate(input string) (string, error) {
