@@ -71,7 +71,7 @@ func (oc *standardObjectWithLineageCollection) Merge() error {
 	preMergeMap := brickmap.NewBrickMap()
 	for _, input := range oc.inputObjects {
 		splitPath := oc.splitPath(input.GetKey())
-		err = preMergeMap.Set(splitPath, input)
+		err = preMergeMap.Set(splitPath, input.GetValue())
 		if err != nil {
 			return err
 		}
