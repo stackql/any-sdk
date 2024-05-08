@@ -61,8 +61,8 @@ func newObjectWithLineageCollection() ObjectWithLineageCollection {
 	return &standardObjectWithLineageCollection{}
 }
 
-func (oc *standardObjectWithLineageCollection) splitPath(path string) []string {
-	return strings.Split(path, ".")
+func (oc *standardObjectWithLineageCollection) splitPath(prefixPath string, path string) []string {
+	return append(strings.Split(prefixPath, "."), strings.Split(path, ".")...)
 }
 
 func (oc *standardObjectWithLineageCollection) Merge() error {
@@ -70,7 +70,7 @@ func (oc *standardObjectWithLineageCollection) Merge() error {
 	var err error
 	preMergeMap := brickmap.NewBrickMap()
 	for _, input := range oc.inputObjects {
-		splitPath := oc.splitPath(input.GetKey())
+		splitPath := oc.splitPath(input.GetParentKey(), input.GetKey())
 		err = preMergeMap.Set(splitPath, input.GetValue())
 		if err != nil {
 			return err
