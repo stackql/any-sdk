@@ -98,6 +98,7 @@ type Schema interface {
 	isAlreadyExpanded() bool
 	getAdditionalProperties() (Schema, bool)
 	getExtension(k string) (interface{}, bool)
+	isStringOnly() bool
 }
 
 func ProviderTypeConditionIsValid(providerType string, lhs string, rhs interface{}) bool {
@@ -344,6 +345,17 @@ func (s *standardSchema) getExtension(k string) (interface{}, bool) {
 		return nil, false
 	}
 	return v, true
+}
+
+func (s *standardSchema) isStringOnly() bool {
+	if s.Extensions == nil {
+		return false
+	}
+	v, err := extractExtensionValBytes(s.Extensions, ExtensionKeyStringOnly)
+	if err != nil || v == nil {
+		return false
+	}
+	return string(v) == "true"
 }
 
 func (s *standardSchema) isObjectSchemaImplicitlyUnioned() bool {
