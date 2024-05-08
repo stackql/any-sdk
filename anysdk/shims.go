@@ -84,6 +84,9 @@ func newObjectWithLineageCollection(cfg ObjectWithLineageCollectionConfig) Objec
 }
 
 func (oc *standardObjectWithLineageCollection) splitPath(prefixPath string, path string) []string {
+	if prefixPath == "" {
+		return strings.Split(path, ".")
+	}
 	return append(strings.Split(prefixPath, "."), strings.Split(path, ".")...)
 }
 
