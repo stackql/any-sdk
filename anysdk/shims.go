@@ -11,10 +11,29 @@ import (
 )
 
 var (
-	_ ObjectWithoutLineage        = &naiveObjectWithoutLineage{}
-	_ ObjectWithLineage           = &standardObjectWithLineage{}
-	_ ObjectWithLineageCollection = &standardObjectWithLineageCollection{}
+	_ ObjectWithLineageCollectionConfig = &standardObjectWithLineageCollectionConfig{}
+	_ ObjectWithoutLineage              = &naiveObjectWithoutLineage{}
+	_ ObjectWithLineage                 = &standardObjectWithLineage{}
+	_ ObjectWithLineageCollection       = &standardObjectWithLineageCollection{}
 )
+
+type ObjectWithLineageCollectionConfig interface {
+	GetStringifiedPaths() map[string]struct{}
+}
+
+type standardObjectWithLineageCollectionConfig struct {
+	stringifiedPaths map[string]struct{}
+}
+
+func (oc *standardObjectWithLineageCollectionConfig) GetStringifiedPaths() map[string]struct{} {
+	return oc.stringifiedPaths
+}
+
+func newStandardObjectWithLineageCollectionConfig(stringifiedPaths map[string]struct{}) ObjectWithLineageCollectionConfig {
+	return &standardObjectWithLineageCollectionConfig{
+		stringifiedPaths: stringifiedPaths,
+	}
+}
 
 type ObjectWithLineageCollection interface {
 	Merge() error
@@ -53,12 +72,15 @@ type ObjectWithLineage interface {
 }
 
 type standardObjectWithLineageCollection struct {
+	cfg           ObjectWithLineageCollectionConfig
 	inputObjects  []ObjectWithLineage
 	outputObjects []ObjectWithoutLineage
 }
 
-func newObjectWithLineageCollection() ObjectWithLineageCollection {
-	return &standardObjectWithLineageCollection{}
+func newObjectWithLineageCollection(cfg ObjectWithLineageCollectionConfig) ObjectWithLineageCollection {
+	return &standardObjectWithLineageCollection{
+		cfg: cfg,
+	}
 }
 
 func (oc *standardObjectWithLineageCollection) splitPath(prefixPath string, path string) []string {
@@ -68,7 +90,9 @@ func (oc *standardObjectWithLineageCollection) splitPath(prefixPath string, path
 func (oc *standardObjectWithLineageCollection) Merge() error {
 	// TODO: for each key, merge all lower level keys
 	var err error
-	preMergeMap := brickmap.NewBrickMap()
+	preMergeMap := brickmap.NewBrickMap(
+		brickmap.NewStandardBrickMapConfig(oc.cfg.GetStringifiedPaths()),
+	)
 	for _, input := range oc.inputObjects {
 		splitPath := oc.splitPath(input.GetParentKey(), input.GetKey())
 		err = preMergeMap.Set(splitPath, input.GetValue())
@@ -183,8 +207,11 @@ func splitHTTPParameters(
 		rowKeys = append(rowKeys, idx)
 	}
 	sort.Ints(rowKeys)
+	requestBodyStringifiedPaths, _ := method.getRequestBodyStringifiedPaths()
 	for _, key := range rowKeys {
-		requestBodyParams := newObjectWithLineageCollection()
+		requestBodyParams := newObjectWithLineageCollection(
+			newStandardObjectWithLineageCollectionConfig(
+				requestBodyStringifiedPaths))
 		sqlRow := sqlParamMap[key]
 		reqMap := NewHttpParameters(method)
 		for k, v := range sqlRow {

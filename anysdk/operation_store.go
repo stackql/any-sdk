@@ -121,6 +121,7 @@ type OperationStore interface {
 	revertRequestBodyAttributeRename(string) (string, error)
 	getRequestBodyAttributeParentKey(string) (string, bool)
 	getRequestBodyTranslateAlgorithmString() string
+	getRequestBodyStringifiedPaths() (map[string]struct{}, error)
 	// getRequestBodyAttributeLineage(string) (string, error)
 }
 
@@ -145,6 +146,23 @@ type standardOperationStore struct {
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
 	Service           Service         `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (op *standardOperationStore) getRequestBodyStringifiedPaths() (map[string]struct{}, error) {
+	rv := make(map[string]struct{})
+	requestBodySchema, schemaErr := op.getRequestBodySchema()
+	if schemaErr != nil {
+		return rv, schemaErr
+	}
+	for k, v := range requestBodySchema.getProperties() {
+		if v == nil {
+			continue
+		}
+		if v.isStringOnly() {
+			rv[k] = struct{}{}
+		}
+	}
+	return rv, nil
 }
 
 func NewEmptyOperationStore() OperationStore {
