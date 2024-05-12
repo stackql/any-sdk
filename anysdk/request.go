@@ -134,7 +134,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 		p := param
 		if len(p.GetParameters().GetRequestBody()) == 0 && len(pr.m.getDefaultRequestBodyBytes()) == 0 {
 			p.SetRequestBodyMap(nil)
-		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
+		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 && len(p.GetParameters().GetRequestBody()) == 0 {
 			bm := make(map[string]interface{})
 			// TODO: support types other than json
 			err := json.Unmarshal(pr.m.getDefaultRequestBodyBytes(), &bm)
