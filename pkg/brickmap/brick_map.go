@@ -15,6 +15,32 @@ var (
 	_ BrickMap = &standardBrickMap{}
 )
 
+// AnyMap is a map[string]any.
+type AnyMap map[string]any
+
+// StringMap marshals into XML.
+func (s AnyMap) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+
+	tokens := []xml.Token{start}
+
+	for key, value := range s {
+		t := xml.StartElement{Name: xml.Name{"", key}}
+		tokens = append(tokens, t, xml.CharData(value), xml.EndElement{t.Name})
+	}
+
+	tokens = append(tokens, xml.EndElement{start.Name})
+
+	for _, t := range tokens {
+		err := e.EncodeToken(t)
+		if err != nil {
+			return err
+		}
+	}
+
+	// flush to ensure tokens are written
+	return e.Flush()
+}
+
 type BrickMapConfig interface {
 	GetStringifiedPaths() map[string]struct{}
 	GetEncoding() string
@@ -79,7 +105,7 @@ func (bm *standardBrickMap) ToFlatMap() (map[string]interface{}, bool) {
 		_, isStringOnly := bm.stringOnlyPaths[k]
 		if isStringOnly {
 			switch vt := v.(type) {
-			case map[string]interface{}:
+			case AnyMap:
 				var b []byte
 				var err error
 				if bm.isJSONSynonym(bm.cfg.GetEncoding()) {
