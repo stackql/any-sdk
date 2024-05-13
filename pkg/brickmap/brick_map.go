@@ -24,8 +24,9 @@ func (s AnyMap) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	tokens := []xml.Token{start}
 
 	for key, value := range s {
+		sVal := fmt.Sprintf("%v", value)
 		t := xml.StartElement{Name: xml.Name{"", key}}
-		tokens = append(tokens, t, xml.CharData(value), xml.EndElement{t.Name})
+		tokens = append(tokens, t, xml.CharData(sVal), xml.EndElement{t.Name})
 	}
 
 	tokens = append(tokens, xml.EndElement{start.Name})
