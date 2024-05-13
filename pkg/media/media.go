@@ -44,6 +44,16 @@ func isJSONSynonym(mediaType string) bool {
 	return synonymJSONRegexp.MatchString(mediaType)
 }
 
+func NormaliseMediaType(mediaType string) string {
+	if isJSONSynonym(mediaType) {
+		return MediaTypeJson
+	}
+	if isXMLSynonym(mediaType) {
+		return MediaTypeXML
+	}
+	return mediaType
+}
+
 func IsAcceptableMediaType(mediaType string) bool {
 	return isAcceptableMediaType(mediaType)
 }

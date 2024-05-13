@@ -19,19 +19,26 @@ var (
 
 type ObjectWithLineageCollectionConfig interface {
 	GetStringifiedPaths() map[string]struct{}
+	GetEncoding() string
 }
 
 type standardObjectWithLineageCollectionConfig struct {
 	stringifiedPaths map[string]struct{}
+	encoding         string
 }
 
 func (oc *standardObjectWithLineageCollectionConfig) GetStringifiedPaths() map[string]struct{} {
 	return oc.stringifiedPaths
 }
 
-func newStandardObjectWithLineageCollectionConfig(stringifiedPaths map[string]struct{}) ObjectWithLineageCollectionConfig {
+func (oc *standardObjectWithLineageCollectionConfig) GetEncoding() string {
+	return oc.encoding
+}
+
+func newStandardObjectWithLineageCollectionConfig(stringifiedPaths map[string]struct{}, encoding string) ObjectWithLineageCollectionConfig {
 	return &standardObjectWithLineageCollectionConfig{
 		stringifiedPaths: stringifiedPaths,
+		encoding:         encoding,
 	}
 }
 
@@ -94,7 +101,10 @@ func (oc *standardObjectWithLineageCollection) Merge() error {
 	// TODO: for each key, merge all lower level keys
 	var err error
 	preMergeMap := brickmap.NewBrickMap(
-		brickmap.NewStandardBrickMapConfig(oc.cfg.GetStringifiedPaths()),
+		brickmap.NewStandardBrickMapConfig(
+			oc.cfg.GetStringifiedPaths(),
+			oc.cfg.GetEncoding(),
+		),
 	)
 	for _, input := range oc.inputObjects {
 		splitPath := oc.splitPath(input.GetParentKey(), input.GetKey())
@@ -211,10 +221,14 @@ func splitHTTPParameters(
 	}
 	sort.Ints(rowKeys)
 	requestBodyStringifiedPaths, _ := method.getRequestBodyStringifiedPaths()
+	requestBodyEncoding := method.getRequestBodyMediaTypeNormalised()
 	for _, key := range rowKeys {
 		requestBodyParams := newObjectWithLineageCollection(
 			newStandardObjectWithLineageCollectionConfig(
-				requestBodyStringifiedPaths))
+				requestBodyStringifiedPaths,
+				requestBodyEncoding,
+			),
+		)
 		sqlRow := sqlParamMap[key]
 		reqMap := NewHttpParameters(method)
 		for k, v := range sqlRow {

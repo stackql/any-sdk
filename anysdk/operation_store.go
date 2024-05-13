@@ -122,6 +122,8 @@ type OperationStore interface {
 	getRequestBodyAttributeParentKey(string) (string, bool)
 	getRequestBodyTranslateAlgorithmString() string
 	getRequestBodyStringifiedPaths() (map[string]struct{}, error)
+	getRequestBodyMediaType() string
+	getRequestBodyMediaTypeNormalised() string
 	// getRequestBodyAttributeLineage(string) (string, error)
 }
 
@@ -169,6 +171,17 @@ func NewEmptyOperationStore() OperationStore {
 	return &standardOperationStore{
 		Parameters: make(map[string]interface{}),
 	}
+}
+
+func (op *standardOperationStore) getRequestBodyMediaType() string {
+	if op.Request != nil {
+		return op.Request.BodyMediaType
+	}
+	return ""
+}
+
+func (op *standardOperationStore) getRequestBodyMediaTypeNormalised() string {
+	return media.NormaliseMediaType(op.getRequestBodyMediaType())
 }
 
 func (op *standardOperationStore) setPathItem(pi *openapi3.PathItem) {
