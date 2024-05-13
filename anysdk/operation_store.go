@@ -1044,7 +1044,7 @@ func (op *standardOperationStore) marshalBody(body interface{}, expectedRequest 
 	case media.MediaTypeJson:
 		return json.Marshal(body)
 	case media.MediaTypeXML, media.MediaTypeTextXML:
-		return xmlmap.MarshalXMLUserInput(body, expectedRequest.GetSchema().getXMLALiasOrName())
+		return xmlmap.MarshalXMLUserInput(body, expectedRequest.GetSchema().getXMLALiasOrName(), "unescape")
 	}
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }

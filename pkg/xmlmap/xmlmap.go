@@ -1,6 +1,7 @@
 package xmlmap
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -301,11 +302,34 @@ func getSubObjFromNode(doc *xmlquery.Node, path string) (interface{}, error) {
 	return rv, nil
 }
 
-func MarshalXMLUserInput(input interface{}, enclosingName string) ([]byte, error) {
+// undo all the xml string escaping -- horrid hack to get through
+func unescapeXML(input []byte) ([]byte, error) {
+	rv := bytes.ReplaceAll(
+		bytes.ReplaceAll(
+			bytes.ReplaceAll(
+				bytes.ReplaceAll(
+					bytes.ReplaceAll(input, []byte("&lt;"), []byte("<")),
+					[]byte("&gt;"), []byte(">"),
+				), []byte("&quot;"), []byte("\"")),
+			[]byte("&apos;"), []byte("'"),
+		),
+		[]byte("&amp;"), []byte("&"),
+	)
+	return rv, nil
+}
+
+func MarshalXMLUserInput(input interface{}, enclosingName string, transformName string) ([]byte, error) {
 	switch input := input.(type) {
 	case map[string]interface{}:
 		m := newPermissableMapWrapper(input, enclosingName)
-		return xml.Marshal(m)
+		marshalled, marshallErr := xml.Marshal(m)
+		if marshallErr != nil {
+			return nil, marshallErr
+		}
+		if transformName != "" {
+			return unescapeXML(marshalled)
+		}
+		return marshalled, nil
 	default:
 		return nil, fmt.Errorf("cannot MarshaL XML user input from type = '%T'", input)
 	}
