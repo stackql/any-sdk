@@ -2,7 +2,15 @@ package brickmap
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+
+	"github.com/stackql/any-sdk/pkg/marshalmap"
+)
+
+const (
+	encodingJSON = "application/json"
+	encodingXML  = "application/xml"
 )
 
 var (
@@ -11,19 +19,29 @@ var (
 
 type BrickMapConfig interface {
 	GetStringifiedPaths() map[string]struct{}
+	GetEncoding() string
 }
 
 type standardBrickMapConfig struct {
 	stringifiedPaths map[string]struct{}
+	encoding         string
 }
 
 func (oc *standardBrickMapConfig) GetStringifiedPaths() map[string]struct{} {
 	return oc.stringifiedPaths
 }
 
-func NewStandardBrickMapConfig(stringifiedPaths map[string]struct{}) BrickMapConfig {
+func (oc *standardBrickMapConfig) GetEncoding() string {
+	if oc.encoding != "" {
+		return oc.encoding
+	}
+	return encodingJSON
+}
+
+func NewStandardBrickMapConfig(stringifiedPaths map[string]struct{}, encoding string) BrickMapConfig {
 	return &standardBrickMapConfig{
 		stringifiedPaths: stringifiedPaths,
+		encoding:         encoding,
 	}
 }
 
@@ -39,12 +57,22 @@ func NewBrickMap(cfg BrickMapConfig) BrickMap {
 	return &standardBrickMap{
 		m:               make(map[string]interface{}),
 		stringOnlyPaths: stringOnlyPaths,
+		cfg:             cfg,
 	}
 }
 
 type standardBrickMap struct {
 	m               map[string]interface{}
 	stringOnlyPaths map[string]struct{}
+	cfg             BrickMapConfig
+}
+
+func (bm *standardBrickMap) isJSONSynonym(mediaType string) bool {
+	return mediaType == encodingJSON
+}
+
+func (bm *standardBrickMap) isXMLSynonym(mediaType string) bool {
+	return mediaType == encodingXML
 }
 
 func (bm *standardBrickMap) ToFlatMap() (map[string]interface{}, bool) {
@@ -54,9 +82,18 @@ func (bm *standardBrickMap) ToFlatMap() (map[string]interface{}, bool) {
 		if isStringOnly {
 			switch vt := v.(type) {
 			case map[string]interface{}:
-				s, err := json.Marshal(vt)
+				var b []byte
+				var err error
+				m := marshalmap.AnyMap(vt)
+				if bm.isJSONSynonym(bm.cfg.GetEncoding()) {
+					b, err = json.Marshal(vt)
+				} else if bm.isXMLSynonym(bm.cfg.GetEncoding()) {
+					b, err = xml.Marshal(m)
+				} else {
+					b, err = json.Marshal(vt)
+				}
 				if err == nil {
-					output[k] = string(s)
+					output[k] = string(b)
 				} else {
 					output[k] = fmt.Sprintf("%v", v)
 				}
