@@ -18,13 +18,14 @@ type ExpectedRequest interface {
 }
 
 type standardExpectedRequest struct {
-	BodyMediaType  string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
-	Schema         Schema
-	Default        string   `json:"default,omitempty" yaml:"default,omitempty"`
-	Base           string   `json:"base,omitempty" yaml:"base,omitempty"`
-	Required       []string `json:"required,omitempty" yaml:"required,omitempty"`
-	XMLDeclaration string   `json:"xmlDeclaration,omitempty" yaml:"xmlDeclaration,omitempty"`
-	XMLTransform   string   `json:"xmlTransform,omitempty" yaml:"xmlTransform,omitempty"`
+	BodyMediaType     string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
+	Schema            Schema
+	Default           string   `json:"default,omitempty" yaml:"default,omitempty"`
+	Base              string   `json:"base,omitempty" yaml:"base,omitempty"`
+	Required          []string `json:"required,omitempty" yaml:"required,omitempty"`
+	XMLDeclaration    string   `json:"xmlDeclaration,omitempty" yaml:"xmlDeclaration,omitempty"`
+	XMLTransform      string   `json:"xmlTransform,omitempty" yaml:"xmlTransform,omitempty"`
+	XMLRootAnnotation string   `json:"xmlRootAnnotation,omitempty" yaml:"xmlRootAnnotation,omitempty"`
 }
 
 func (er *standardExpectedRequest) setBodyMediaType(s string) {

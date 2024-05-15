@@ -165,6 +165,14 @@ func (op *standardOperationStore) getXMLDeclaration() string {
 	return rv
 }
 
+func (op *standardOperationStore) getXMLRootAnnotation() string {
+	rv := ""
+	if op.Request != nil {
+		rv = op.Request.XMLRootAnnotation
+	}
+	return rv
+}
+
 func (op *standardOperationStore) getXMLTransform() string {
 	rv := ""
 	if op.Request != nil {
@@ -1074,7 +1082,9 @@ func (op *standardOperationStore) marshalBody(body interface{}, expectedRequest 
 			body,
 			expectedRequest.GetSchema().getXMLALiasOrName(),
 			op.getXMLTransform(),
-			op.getXMLDeclaration())
+			op.getXMLDeclaration(),
+			op.getXMLRootAnnotation(),
+		)
 	}
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }

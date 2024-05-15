@@ -318,7 +318,7 @@ func unescapeXML(input []byte) ([]byte, error) {
 	return rv, nil
 }
 
-func MarshalXMLUserInput(input interface{}, enclosingName string, transformName string, xmlDeclaration string) ([]byte, error) {
+func MarshalXMLUserInput(input interface{}, enclosingName string, transformName string, xmlDeclaration string, enclosingNameAnnotation string) ([]byte, error) {
 	switch input := input.(type) {
 	case map[string]interface{}:
 		m := newPermissableMapWrapper(input, enclosingName)
@@ -335,6 +335,11 @@ func MarshalXMLUserInput(input interface{}, enclosingName string, transformName 
 		}
 		if xmlDeclaration != "" {
 			marshalled = []byte(fmt.Sprintf("%s%s", xmlDeclaration, marshalled))
+		}
+		if enclosingNameAnnotation != "" {
+			replacementStr := fmt.Sprintf("%s %s", enclosingName, enclosingNameAnnotation)
+			newStr := strings.Replace(string(marshalled), enclosingName, replacementStr, 1)
+			marshalled = []byte(newStr)
 		}
 		return marshalled, nil
 	default:
