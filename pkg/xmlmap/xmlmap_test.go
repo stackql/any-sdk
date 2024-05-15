@@ -49,8 +49,8 @@ func TestXMLMArshal(t *testing.T) {
 	input := map[string]interface{}{
 		"XX": "yy",
 	}
-	b, err := MarshalXMLUserInput(input, "Input", "")
+	b, err := MarshalXMLUserInput(input, "Input", "", "", `xmlns="https://route53.amazonaws.com/doc/2013-04-01/"`)
 	assert.NilError(t, err)
 	s := string(b)
-	assert.Assert(t, s == "<Input><XX>yy</XX></Input>")
+	assert.Assert(t, s == `<Input xmlns="https://route53.amazonaws.com/doc/2013-04-01/"><XX>yy</XX></Input>`)
 }
