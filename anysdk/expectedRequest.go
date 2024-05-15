@@ -10,17 +10,21 @@ type ExpectedRequest interface {
 	GetRequired() []string
 	GetDefault() string
 	GetBase() string
+	GetXMLDeclaration() string
+	GetXMLTransform() string
 	//
 	setSchema(Schema)
 	setBodyMediaType(string)
 }
 
 type standardExpectedRequest struct {
-	BodyMediaType string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
-	Schema        Schema
-	Default       string   `json:"default,omitempty" yaml:"default,omitempty"`
-	Base          string   `json:"base,omitempty" yaml:"base,omitempty"`
-	Required      []string `json:"required,omitempty" yaml:"required,omitempty"`
+	BodyMediaType  string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
+	Schema         Schema
+	Default        string   `json:"default,omitempty" yaml:"default,omitempty"`
+	Base           string   `json:"base,omitempty" yaml:"base,omitempty"`
+	Required       []string `json:"required,omitempty" yaml:"required,omitempty"`
+	XMLDeclaration string   `json:"xmlDeclaration,omitempty" yaml:"xmlDeclaration,omitempty"`
+	XMLTransform   string   `json:"xmlTransform,omitempty" yaml:"xmlTransform,omitempty"`
 }
 
 func (er *standardExpectedRequest) setBodyMediaType(s string) {
@@ -33,6 +37,14 @@ func (er *standardExpectedRequest) setSchema(s Schema) {
 
 func (er *standardExpectedRequest) GetBodyMediaType() string {
 	return er.BodyMediaType
+}
+
+func (er *standardExpectedRequest) GetXMLDeclaration() string {
+	return er.XMLDeclaration
+}
+
+func (er *standardExpectedRequest) GetXMLTransform() string {
+	return er.XMLTransform
 }
 
 func (er *standardExpectedRequest) GetSchema() Schema {

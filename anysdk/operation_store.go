@@ -29,6 +29,9 @@ import (
 
 const (
 	defaultSelectItemsKey = "items"
+	defaultXMLDeclaration = `<?xml version="1.0" encoding="UTF-8"?>`
+	xmlTransformUnescape  = "unescape"
+	xmlTransformDefault   = xmlTransformUnescape
 )
 
 var (
@@ -124,6 +127,7 @@ type OperationStore interface {
 	getRequestBodyStringifiedPaths() (map[string]struct{}, error)
 	getRequestBodyMediaType() string
 	getRequestBodyMediaTypeNormalised() string
+	getXMLDeclaration() string
 	// getRequestBodyAttributeLineage(string) (string, error)
 }
 
@@ -148,6 +152,28 @@ type standardOperationStore struct {
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
 	Service           Service         `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (op *standardOperationStore) getXMLDeclaration() string {
+	rv := ""
+	if op.Request != nil {
+		rv = op.Request.XMLDeclaration
+	}
+	if rv == "" {
+		rv = defaultXMLDeclaration
+	}
+	return rv
+}
+
+func (op *standardOperationStore) getXMLTransform() string {
+	rv := ""
+	if op.Request != nil {
+		rv = op.Request.XMLTransform
+	}
+	if rv == "" {
+		rv = xmlTransformDefault
+	}
+	return rv
 }
 
 func (op *standardOperationStore) getRequestBodyStringifiedPaths() (map[string]struct{}, error) {
@@ -1044,7 +1070,11 @@ func (op *standardOperationStore) marshalBody(body interface{}, expectedRequest 
 	case media.MediaTypeJson:
 		return json.Marshal(body)
 	case media.MediaTypeXML, media.MediaTypeTextXML:
-		return xmlmap.MarshalXMLUserInput(body, expectedRequest.GetSchema().getXMLALiasOrName(), "unescape")
+		return xmlmap.MarshalXMLUserInput(
+			body,
+			expectedRequest.GetSchema().getXMLALiasOrName(),
+			op.getXMLTransform(),
+			op.getXMLDeclaration())
 	}
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }
