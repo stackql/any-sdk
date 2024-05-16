@@ -1404,8 +1404,12 @@ func (s *standardSchema) ProcessHttpResponseTesting(r *http.Response, path strin
 func (s *standardSchema) processHttpResponse(r *http.Response, path string, defaultMediaType string) (response.Response, error) {
 	defer r.Body.Close()
 	target, err := s.unmarshalResponseAtPath(r, path, defaultMediaType)
-	if r.StatusCode >= 300 && (target == nil || target.GetProcessedBody() == nil) {
-		err = fmt.Errorf(fmt.Sprintf("HTTP response error.  Status code %d.  Detail: %s", r.StatusCode, target.Error()))
+	if r.StatusCode >= 300 {
+		detail := ""
+		if target != nil {
+			detail = target.Error()
+		}
+		err = fmt.Errorf(fmt.Sprintf("HTTP response error.  Status code %d.  Detail: '%s'", r.StatusCode, detail))
 		if target != nil && target.GetBody() != nil {
 			rawBody := target.GetBody()
 			switch rb := rawBody.(type) {
