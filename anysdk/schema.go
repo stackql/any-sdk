@@ -1317,7 +1317,7 @@ func (s *standardSchema) unmarshalJSONResponseBody(body io.ReadCloser, path stri
 	}
 	processedResponse, err := jsonpath.Get(path, target)
 	if err != nil {
-		return nil, nil, err
+		return nil, target, err
 	}
 	return processedResponse, target, nil
 }
@@ -1383,7 +1383,7 @@ func (s *standardSchema) unmarshalResponseAtPath(r *http.Response, path string, 
 			}
 			processedResponse, rawResponse, err := ss.unmarshalJSONResponseBody(r.Body, path)
 			if err != nil {
-				return nil, err
+				return response.NewResponse(map[string]interface{}{}, rawResponse, r), err
 			}
 			return response.NewResponse(processedResponse, rawResponse, r), nil
 		}
@@ -1404,8 +1404,35 @@ func (s *standardSchema) ProcessHttpResponseTesting(r *http.Response, path strin
 func (s *standardSchema) processHttpResponse(r *http.Response, path string, defaultMediaType string) (response.Response, error) {
 	defer r.Body.Close()
 	target, err := s.unmarshalResponseAtPath(r, path, defaultMediaType)
-	if err == nil && r.StatusCode >= 400 {
-		err = fmt.Errorf(fmt.Sprintf("HTTP response error.  Status code %d.  Detail: %s", r.StatusCode, target.Error()))
+	if r.StatusCode >= 300 && target != nil {
+		detail := ""
+		if target != nil {
+			detail = target.Error()
+		}
+		errStringToPublish := fmt.Sprintf("HTTP response error.  Status code %d.  Detail: '%s'", r.StatusCode, detail)
+		if target != nil && target.GetBody() != nil {
+			rawBody := target.GetBody()
+			switch rb := rawBody.(type) {
+			case []map[string]interface{}:
+				responseBodyStr := fmt.Sprintf("%v", rb)
+				b, marshalErr := json.Marshal(rb)
+				if marshalErr == nil {
+					responseBodyStr = string(b)
+				}
+				errStringToPublish = fmt.Sprintf("Response error.  Status code %d.  Body: %s", r.StatusCode, responseBodyStr)
+			case map[string]interface{}:
+				responseBodyStr := fmt.Sprintf("%v", rb)
+				b, marshalErr := json.Marshal(rb)
+				if marshalErr == nil {
+					responseBodyStr = string(b)
+				}
+				errStringToPublish = fmt.Sprintf("Response error.  Status code %d.  Body: %s", r.StatusCode, responseBodyStr)
+			default:
+				errStringToPublish = fmt.Sprintf("%v", rb)
+			}
+		}
+		target.SetError(errStringToPublish)
+		return target, nil
 	}
 	if err == io.EOF {
 		if r.StatusCode >= 200 && r.StatusCode < 300 {
