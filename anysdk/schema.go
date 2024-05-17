@@ -1404,7 +1404,7 @@ func (s *standardSchema) ProcessHttpResponseTesting(r *http.Response, path strin
 func (s *standardSchema) processHttpResponse(r *http.Response, path string, defaultMediaType string) (response.Response, error) {
 	defer r.Body.Close()
 	target, err := s.unmarshalResponseAtPath(r, path, defaultMediaType)
-	if r.StatusCode >= 300 && !(target != nil && target.GetBody() != nil) {
+	if r.StatusCode >= 300 && (target != nil && target.GetBody() != nil) {
 		detail := ""
 		if target != nil {
 			detail = target.Error()
