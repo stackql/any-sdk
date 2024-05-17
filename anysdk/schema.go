@@ -1317,7 +1317,7 @@ func (s *standardSchema) unmarshalJSONResponseBody(body io.ReadCloser, path stri
 	}
 	processedResponse, err := jsonpath.Get(path, target)
 	if err != nil {
-		return nil, nil, err
+		return nil, target, err
 	}
 	return processedResponse, target, nil
 }
