@@ -22,6 +22,7 @@ type Response interface {
 	GetProcessedBody() interface{}
 	ExtractElement(e httpelement.HTTPElement) (interface{}, error)
 	Error() string
+	HasError() bool
 	SetError(string)
 	String() string
 }
@@ -45,6 +46,10 @@ func (r *basicResponse) GetBody() interface{} {
 
 func (r *basicResponse) GetProcessedBody() interface{} {
 	return r.processedBody
+}
+
+func (r *basicResponse) HasError() bool {
+	return r.errorStringOverride != ""
 }
 
 func (r *basicResponse) String() string {
