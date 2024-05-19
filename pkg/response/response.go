@@ -22,15 +22,17 @@ type Response interface {
 	GetProcessedBody() interface{}
 	ExtractElement(e httpelement.HTTPElement) (interface{}, error)
 	Error() string
+	SetError(string)
 	String() string
 }
 
 type basicResponse struct {
-	_             struct{}
-	rawBody       interface{}
-	processedBody interface{}
-	httpResponse  *http.Response
-	bodyMediaType string
+	_                   struct{}
+	rawBody             interface{}
+	processedBody       interface{}
+	httpResponse        *http.Response
+	bodyMediaType       string
+	errorStringOverride string
 }
 
 func (r *basicResponse) GetHttpResponse() *http.Response {
@@ -74,7 +76,14 @@ func (r *basicResponse) string() string {
 	return ""
 }
 
+func (r *basicResponse) SetError(err string) {
+	r.errorStringOverride = err
+}
+
 func (r *basicResponse) Error() string {
+	if r.errorStringOverride != "" {
+		return r.errorStringOverride
+	}
 	baseString := r.string()
 	if baseString != "" {
 		return fmt.Sprintf(`{ "httpError": %s }`, baseString)

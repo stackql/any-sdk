@@ -1409,7 +1409,7 @@ func (s *standardSchema) processHttpResponse(r *http.Response, path string, defa
 		if target != nil {
 			detail = target.Error()
 		}
-		err = fmt.Errorf(fmt.Sprintf("HTTP response error.  Status code %d.  Detail: '%s'", r.StatusCode, detail))
+		errStringToPublish := fmt.Sprintf("HTTP response error.  Status code %d.  Detail: '%s'", r.StatusCode, detail)
 		if target != nil && target.GetBody() != nil {
 			rawBody := target.GetBody()
 			switch rb := rawBody.(type) {
@@ -1419,20 +1419,20 @@ func (s *standardSchema) processHttpResponse(r *http.Response, path string, defa
 				if marshalErr == nil {
 					responseBodyStr = string(b)
 				}
-				err = fmt.Errorf(fmt.Sprintf("Response error.  Status code %d.  Body: %s", r.StatusCode, responseBodyStr))
+				errStringToPublish = fmt.Sprintf("Response error.  Status code %d.  Body: %s", r.StatusCode, responseBodyStr)
 			case map[string]interface{}:
 				responseBodyStr := fmt.Sprintf("%v", rb)
 				b, marshalErr := json.Marshal(rb)
 				if marshalErr == nil {
 					responseBodyStr = string(b)
 				}
-				err = fmt.Errorf(fmt.Sprintf("Response error.  Status code %d.  Body: %s", r.StatusCode, responseBodyStr))
+				errStringToPublish = fmt.Sprintf("Response error.  Status code %d.  Body: %s", r.StatusCode, responseBodyStr)
 			default:
-				err = fmt.Errorf("%v", rb)
+				errStringToPublish = fmt.Sprintf("%v", rb)
 			}
-			return target, err
 		}
-		return target, err
+		target.SetError(errStringToPublish)
+		return target, nil
 	}
 	if err == io.EOF {
 		if r.StatusCode >= 200 && r.StatusCode < 300 {
