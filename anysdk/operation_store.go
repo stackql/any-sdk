@@ -68,7 +68,7 @@ type OperationStore interface {
 	GetPathRef() *PathItemRef
 	GetRequest() (ExpectedRequest, bool)
 	GetResponse() (ExpectedResponse, bool)
-	GetServers() *openapi3.Servers
+	GetServers() (openapi3.Servers, bool)
 	GetParameterizedPath() string
 	GetProviderService() ProviderService
 	GetProvider() Provider
@@ -102,6 +102,7 @@ type OperationStore interface {
 	RevertRequestBodyAttributeRename(string) (string, error)
 	IsRequestBodyAttributeRenamed(string) bool
 	//
+	getServiceNameForProvider() string
 	getDefaultRequestBodyBytes() []byte
 	getBaseRequestBodyBytes() []byte
 	getName() string
@@ -146,6 +147,7 @@ type standardOperationStore struct {
 	Response     *standardExpectedResponse `json:"response" yaml:"response"`
 	Servers      *openapi3.Servers         `json:"servers" yaml:"servers"`
 	Inverse      *operationInverse         `json:"inverse" yaml:"inverse"`
+	ServiceName  string                    `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
 	// private
 	parameterizedPath string          `json:"-" yaml:"-"`
 	ProviderService   ProviderService `json:"-" yaml:"-"` // upwards traversal
@@ -163,6 +165,16 @@ func (op *standardOperationStore) getXMLDeclaration() string {
 		rv = defaultXMLDeclaration
 	}
 	return rv
+}
+
+func (op *standardOperationStore) getServiceNameForProvider() string {
+	if op.ServiceName != "" {
+		return op.ServiceName
+	}
+	if op.Service != nil {
+		return op.Service.GetName()
+	}
+	return ""
 }
 
 func (op *standardOperationStore) getXMLRootAnnotation() string {
@@ -341,8 +353,18 @@ func (op *standardOperationStore) GetResponse() (ExpectedResponse, bool) {
 	return op.Response, true
 }
 
-func (op *standardOperationStore) GetServers() *openapi3.Servers {
-	return op.Servers
+func (op *standardOperationStore) GetServers() (openapi3.Servers, bool) {
+	return op.getServers()
+}
+
+func (op *standardOperationStore) getServers() (openapi3.Servers, bool) {
+	if op.Servers != nil {
+		return *(op.Servers), true
+	}
+	if op.Service != nil {
+		return op.Service.GetServers()
+	}
+	return nil, false
 }
 
 func (op *standardOperationStore) GetProviderService() ProviderService {
@@ -865,9 +887,9 @@ func (m *standardOperationStore) getRequiredParameters() map[string]Addressable 
 	for k, v := range ss {
 		retVal[k] = v
 	}
-	if m.Service != nil && len(m.Service.GetServers()) > 0 {
-		servers := m.Service.GetServers()
-		sv := servers[0]
+	availableServers, availableServersDoExist := m.getServers()
+	if availableServersDoExist {
+		sv := availableServers[0]
 		serverVarMap := getServerVariablesMap(sv, m.Service)
 		for k, v := range serverVarMap {
 			retVal[k] = v
@@ -981,9 +1003,9 @@ func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]int
 	}
 
 	var requiredServerParamNames []string
-	if m.Service != nil && len(m.Service.GetServers()) > 0 {
-		servers := m.Service.GetServers()
-		sv := servers[0]
+	availableServers, availableServersDoExist := m.getServers()
+	if availableServersDoExist {
+		sv := availableServers[0]
 		serverVarMap := getServerVariablesMap(sv, m.Service)
 		for k := range serverVarMap {
 			requiredServerParamNames = append(requiredServerParamNames, k)
@@ -1042,8 +1064,9 @@ func getServersFromHeirarchy(op *standardOperationStore) openapi3.Servers {
 	if op.PathItem != nil && len(op.PathItem.Servers) > 0 {
 		return op.PathItem.Servers
 	}
-	if op.Service != nil && len(op.Service.GetServers()) > 0 {
-		return op.Service.GetServers()
+	availableServers, availableServersDoExist := op.getServers()
+	if availableServersDoExist {
+		return availableServers
 	}
 	return nil
 }
