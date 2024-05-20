@@ -358,6 +358,10 @@ func (op *standardOperationStore) GetServers() (openapi3.Servers, bool) {
 }
 
 func (op *standardOperationStore) getServers() (openapi3.Servers, bool) {
+	servers := getServersFromHeirarchy(op)
+	if len(servers) > 0 {
+		return servers, true
+	}
 	if op.Servers != nil {
 		return *(op.Servers), true
 	}
@@ -581,8 +585,9 @@ func (m *standardOperationStore) KeyExists(lhs string) bool {
 			return true
 		}
 	}
-	if m.Servers != nil {
-		for _, s := range *m.Servers {
+	availableServers, availableServersDoExist := m.getServers()
+	if availableServersDoExist {
+		for _, s := range availableServers {
 			for k, _ := range s.Variables {
 				if lhs == k {
 					return true
@@ -1047,7 +1052,7 @@ func (op *standardOperationStore) GetOperationParameter(key string) (Addressable
 }
 
 func (op *standardOperationStore) getServerVariable(key string) (*openapi3.ServerVariable, bool) {
-	srvs := getServersFromHeirarchy(op)
+	srvs, _ := op.getServers()
 	for _, srv := range srvs {
 		v, ok := srv.Variables[key]
 		if ok {
@@ -1182,7 +1187,7 @@ func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service,
 	if err != nil {
 		return nil, err
 	}
-	servers := getServersFromHeirarchy(op)
+	servers, _ := op.getServers()
 	serverParams, err := inputParams.GetServerParameterFlatMap()
 	if err != nil {
 		return nil, err
