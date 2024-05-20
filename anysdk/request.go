@@ -170,10 +170,11 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 
 func awsContextHousekeeping(
 	ctx context.Context,
-	svc Service,
+	method OperationStore,
 	parameters map[string]interface{},
 ) context.Context {
-	ctx = context.WithValue(ctx, "service", svc.GetName()) //nolint:revive,staticcheck // TODO: add custom context type
+	svcName := method.getServiceNameForProvider()
+	ctx = context.WithValue(ctx, "service", svcName) //nolint:revive,staticcheck // TODO: add custom context type
 	if region, ok := parameters["region"]; ok {
 		if regionStr, rOk := region.(string); rOk {
 			ctx = context.WithValue(ctx, "region", regionStr) //nolint:revive,staticcheck // TODO: add custom context type
@@ -197,7 +198,7 @@ func getRequest(
 		return nil, err
 	}
 	request := validationParams.Request
-	ctx := awsContextHousekeeping(request.Context(), svc, params)
+	ctx := awsContextHousekeeping(request.Context(), method, params)
 	request = request.WithContext(ctx)
 	return request, nil
 }
