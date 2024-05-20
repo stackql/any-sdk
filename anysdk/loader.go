@@ -298,8 +298,8 @@ func (l *standardLoader) mergeResource(svc Service,
 		if err != nil {
 			return err
 		}
-		iv := openapi3.Servers(svc.GetServers())
-		v.setServers(&iv)
+		// iv := openapi3.Servers(svc.GetServers())
+		// v.setServers(&iv)
 		rsc.setMethod(k, &v)
 	}
 	for sqlVerb, dir := range rsc.getSQLVerbs() {

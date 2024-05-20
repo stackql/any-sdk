@@ -22,7 +22,7 @@ type Service interface {
 	GetRequestTranslateAlgorithm() string
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
-	GetServers() []*openapi3.Server
+	GetServers() (openapi3.Servers, bool)
 	GetResources() (map[string]Resource, error)
 	GetComponents() openapi3.Components
 	GetName() string
@@ -149,8 +149,9 @@ func NewService(t *openapi3.T) Service {
 	return svc
 }
 
-func (svc *standardService) GetServers() []*openapi3.Server {
-	return svc.T.Servers
+func (svc *standardService) GetServers() (openapi3.Servers, bool) {
+	rv := openapi3.Servers(svc.T.Servers)
+	return rv, len(svc.T.Servers) > 0
 }
 
 func (svc *standardService) IsPreferred() bool {
