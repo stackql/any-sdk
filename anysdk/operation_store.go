@@ -1069,10 +1069,6 @@ func getServersFromHeirarchy(op *standardOperationStore) openapi3.Servers {
 	if op.PathItem != nil && len(op.PathItem.Servers) > 0 {
 		return op.PathItem.Servers
 	}
-	availableServers, availableServersDoExist := op.getServers()
-	if availableServersDoExist {
-		return availableServers
-	}
 	return nil
 }
 
