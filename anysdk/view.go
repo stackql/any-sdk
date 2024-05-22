@@ -85,7 +85,7 @@ func (v *standardViewContainer) GetPredicate() string {
 
 func (v *standardViewContainer) GetNameNaive() string {
 	if v.Resource != nil {
-		return v.Resource.GetName()
+		return v.Resource.GetID()
 	}
 	return ""
 }
