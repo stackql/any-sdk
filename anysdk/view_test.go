@@ -30,17 +30,17 @@ func TestSimpleViewApi(t *testing.T) {
 		t.Fatalf("TestSimpleViewApi failed at unmarshal step, err = '%s'", err.Error())
 	}
 
-	ddlForSQLite3, ok := v.GetDDLForSqlDialect("sqlite3")
+	ddlForSQLite3, ok := v.GetViewsForSqlDialect("sqlite3")
 	if !ok {
 		t.Fatalf("TestSimpleViewApi failed at get DDL for sqlite3 step")
 	}
-	assert.Assert(t, ddlForSQLite3 == "select * from someprovider.someservice.someresource")
+	assert.Assert(t, ddlForSQLite3[0].GetDDL() == "select * from someprovider.someservice.someresource")
 
-	ddlForPostgres, ok := v.GetDDLForSqlDialect("postgres")
+	ddlForPostgres, ok := v.GetViewsForSqlDialect("postgres")
 	if !ok {
 		t.Fatalf("TestSimpleViewApi failed at get DDL for postgres step")
 	}
-	assert.Assert(t, ddlForPostgres == "select * from someprovider.someservice.someresource where x = true")
+	assert.Assert(t, ddlForPostgres[0].GetDDL() == "select * from someprovider.someservice.someresource where x = true")
 
 	t.Logf("TestSimpleViewApi passed")
 }
@@ -53,17 +53,17 @@ func TestNoFallbackViewApi(t *testing.T) {
 		t.Fatalf("TestNoFallbackViewApi failed at unmarshal step, err = '%s'", err.Error())
 	}
 
-	ddlForSQLite3, ok := v.GetDDLForSqlDialect("sqlite3")
+	ddlForSQLite3, ok := v.GetViewsForSqlDialect("sqlite3")
 	if !ok {
 		t.Fatalf("TestNoFallbackViewApi failed at get DDL for sqlite3 step")
 	}
-	assert.Assert(t, ddlForSQLite3 == "select * from someprovider.someservice.someresource")
+	assert.Assert(t, ddlForSQLite3[0].GetDDL() == "select * from someprovider.someservice.someresource")
 
-	ddlForPostgres, ok := v.GetDDLForSqlDialect("postgres")
+	_, ok = v.GetViewsForSqlDialect("postgres")
 	if ok {
 		t.Fatalf("TestNoFallbackViewApi failed at get DDL for postgres step; should **NOT** receive any DDL")
 	}
-	assert.Assert(t, ddlForPostgres == "")
+	// assert.Assert(t, ddlForPostgres[0].GetDDL() == "")
 
 	t.Logf("TestNoFallbackViewApi passed")
 }

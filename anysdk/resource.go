@@ -30,7 +30,7 @@ type Resource interface {
 	GetFirstMethodFromSQLVerb(sqlVerb string) (OperationStore, string, bool)
 	GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (OperationStore, map[string]interface{}, bool)
 	GetService() (Service, bool)
-	GetViewBodyDDLForSQLDialect(sqlDialect string) (string, bool)
+	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
 	GetMethodsMatched() Methods
 	ToMap(extended bool) map[string]interface{}
 	// unexported mutators
@@ -41,6 +41,7 @@ type Resource interface {
 	getUnionRequiredParameters(method OperationStore) (map[string]Addressable, error)
 	setMethod(string, *standardOperationStore)
 	mutateSQLVerb(k string, idx int, v OperationStoreRef)
+	propogateToConfig() error
 }
 
 type standardResource struct {
@@ -64,6 +65,14 @@ func NewEmptyResource() Resource {
 		Methods:  make(Methods),
 		SQLVerbs: make(map[string][]OperationStoreRef),
 	}
+}
+
+func (r *standardResource) propogateToConfig() error {
+	if r.StackQLConfig == nil {
+		return nil
+	}
+	r.StackQLConfig.setResource(r)
+	return nil
 }
 
 func (r *standardResource) GetService() (Service, bool) {
@@ -148,11 +157,11 @@ func (r *standardResource) GetPaginationRequestTokenSemantic() (TokenSemantic, b
 	return nil, false
 }
 
-func (r *standardResource) GetViewBodyDDLForSQLDialect(sqlDialect string) (string, bool) {
+func (r *standardResource) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
 	if r.StackQLConfig != nil {
-		return r.StackQLConfig.GetViewBodyDDLForSQLDialect(sqlDialect, ViewKeyResourceLevelSelect)
+		return r.StackQLConfig.GetViewsForSqlDialect(sqlDialect, ViewKeyResourceLevelSelect)
 	}
-	return "", false
+	return []View{}, false
 }
 
 func (r *standardResource) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {

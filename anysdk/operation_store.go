@@ -391,11 +391,11 @@ func (op *standardOperationStore) ParameterMatch(params map[string]interface{}) 
 	return op.parameterMatch(params)
 }
 
-func (op *standardOperationStore) GetViewBodyDDLForSQLDialect(sqlDialect string) (string, bool) {
+func (op *standardOperationStore) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
 	if op.StackQLConfig != nil {
-		return op.StackQLConfig.GetViewBodyDDLForSQLDialect(sqlDialect, "")
+		return op.StackQLConfig.GetViewsForSqlDialect(sqlDialect, "")
 	}
-	return "", false
+	return []View{}, false
 }
 
 func (op *standardOperationStore) GetQueryTransposeAlgorithm() string {
