@@ -40,7 +40,7 @@ type standardViewContainer struct {
 func (v *standardViewContainer) getSqlDialectName() string {
 	inputString := v.Predicate
 	for i, name := range sqlDialectRegex.SubexpNames() {
-		if name == "requiredParams" {
+		if name == "sqlDialect" {
 			submatches := sqlDialectRegex.FindStringSubmatch(inputString)
 			if len(submatches) > i {
 				return submatches[i]
