@@ -13,7 +13,7 @@ var (
 
 type StackQLConfig interface {
 	GetAuth() (AuthDTO, bool)
-	GetViewBodyDDLForSQLDialect(sqlDialect string, viewName string) (string, bool)
+	GetViewsForSqlDialect(sqlDialect string, viewName string) ([]View, bool)
 	GetQueryTranspose() (Transform, bool)
 	GetRequestTranslate() (Transform, bool)
 	GetRequestBodyTranslate() (Transform, bool)
@@ -23,15 +23,17 @@ type StackQLConfig interface {
 	GetExternalTables() map[string]SQLExternalTable
 	//
 	isObjectSchemaImplicitlyUnioned() bool
+	setResource(rsc Resource)
 }
 
 type standardStackQLConfig struct {
+	Resource             Resource                            `json:"-" yaml:"-"`
 	QueryTranspose       *standardTransform                  `json:"queryParamTranspose,omitempty" yaml:"queryParamTranspose,omitempty"`
 	RequestTranslate     *standardTransform                  `json:"requestTranslate,omitempty" yaml:"requestTranslate,omitempty"`
 	RequestBodyTranslate *standardTransform                  `json:"requestBodyTranslate,omitempty" yaml:"requestBodyTranslate,omitempty"`
 	Pagination           *standardPagination                 `json:"pagination,omitempty" yaml:"pagination,omitempty"`
 	Variations           *standardVariations                 `json:"variations,omitempty" yaml:"variations,omitempty"`
-	Views                map[string]*standardView            `json:"views" yaml:"views"`
+	Views                map[string]*standardViewContainer   `json:"views" yaml:"views"`
 	ExternalTables       map[string]standardSQLExternalTable `json:"sqlExternalTables" yaml:"sqlExternalTables"`
 	Auth                 *standardAuthDTO                    `json:"auth,omitempty" yaml:"auth,omitempty"`
 }
@@ -56,6 +58,11 @@ func (cfg *standardStackQLConfig) GetQueryTranspose() (Transform, bool) {
 		return nil, false
 	}
 	return cfg.QueryTranspose, true
+}
+
+func (cfg *standardStackQLConfig) setResource(rsc Resource) {
+	cfg.Resource = rsc
+	// TODO: set views resource
 }
 
 func (cfg *standardStackQLConfig) GetRequestTranslate() (Transform, bool) {
@@ -126,13 +133,13 @@ func (cfg *standardStackQLConfig) GetExternalTables() map[string]SQLExternalTabl
 	return nil
 }
 
-func (cfg *standardStackQLConfig) GetViewBodyDDLForSQLDialect(sqlDialect string, viewName string) (string, bool) {
+func (cfg *standardStackQLConfig) GetViewsForSqlDialect(sqlDialect string, viewName string) ([]View, bool) {
 	if cfg.Views != nil {
 		v, ok := cfg.Views[viewName]
 		if !ok || v == nil {
-			return "", false
+			return []View{}, false
 		}
-		return v.GetDDLForSqlDialect(sqlDialect)
+		return v.GetViewsForSqlDialect(sqlDialect)
 	}
-	return "", false
+	return []View{}, false
 }
