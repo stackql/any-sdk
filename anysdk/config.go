@@ -62,7 +62,11 @@ func (cfg *standardStackQLConfig) GetQueryTranspose() (Transform, bool) {
 
 func (cfg *standardStackQLConfig) setResource(rsc Resource) {
 	cfg.Resource = rsc
-	// TODO: set views resource
+	if cfg.Views != nil {
+		for _, v := range cfg.Views {
+			v.setResource(rsc)
+		}
+	}
 }
 
 func (cfg *standardStackQLConfig) GetRequestTranslate() (Transform, bool) {
