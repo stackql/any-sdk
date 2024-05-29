@@ -24,6 +24,7 @@ type View interface {
 	GetDDL() string
 	GetPredicate() string
 	GetNameNaive() string
+	GetRequiredParamNames() []string
 }
 
 func GetTestingView() standardViewContainer {
@@ -55,6 +56,10 @@ func (v *standardViewContainer) setResource(rsc Resource) {
 	if v.Fallback != nil {
 		v.Fallback.setResource(rsc)
 	}
+}
+
+func (v *standardViewContainer) GetRequiredParamNames() []string {
+	return v.getRequiredParamNames()
 }
 
 func (v *standardViewContainer) getRequiredParamNames() []string {
