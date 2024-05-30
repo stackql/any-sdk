@@ -10,7 +10,7 @@ import (
 
 var (
 	sqlDialectRegex    *regexp.Regexp            = regexp.MustCompile(`sqlDialect(?:\s)*==(?:\s)*"(?P<sqlDialect>[^<>"\s]*)"`)
-	requiredParamRegex *regexp.Regexp            = regexp.MustCompile(`requiredParams(?:\s)*==(?:\s)*\[(?P<requiredParams>[\S0-9]*)\]`)
+	requiredParamRegex *regexp.Regexp            = regexp.MustCompile(`requiredParams(?:\s)*==(?:\s)*\[(?P<requiredParams>[^\]]*)\]`)
 	_                  ViewContainer             = &standardViewContainer{}
 	_                  jsonpointer.JSONPointable = standardViewContainer{}
 )
