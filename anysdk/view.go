@@ -71,6 +71,9 @@ func (v *standardViewContainer) getRequiredParamNames() []string {
 				crudeArr := strings.Split(submatches[i], ",")
 				var rv []string
 				for _, v := range crudeArr {
+					if v == "" {
+						continue
+					}
 					rv = append(rv, strings.ReplaceAll(strings.TrimSpace(v), `"`, ``))
 				}
 				return rv
