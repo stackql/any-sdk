@@ -325,7 +325,8 @@ func (l *standardLoader) mergeResource(svc Service,
 	}
 	rsc.setProvider(svc.getProvider())
 	rsc.setProviderService(svc.getProviderService())
-	return nil
+	propogateErr := rsc.propogateToConfig()
+	return propogateErr
 }
 
 func (svc *standardService) ToJson() ([]byte, error) {
