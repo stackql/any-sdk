@@ -19,6 +19,9 @@ type GetQueryToPostFormEncodedTranslator struct {
 
 func (gp *GetQueryToPostFormEncodedTranslator) Translate(req *http.Request) (*http.Request, error) {
 	rv := req.Clone(req.Context())
+	if req.Method != http.MethodGet {
+		return rv, nil
+	}
 	if req.URL == nil {
 		return nil, fmt.Errorf("cannot translate nil URL")
 	}
