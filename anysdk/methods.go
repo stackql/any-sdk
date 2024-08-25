@@ -14,7 +14,7 @@ func (ms Methods) FindMethod(key string) (OperationStore, error) {
 }
 
 func (ms Methods) OrderMethods() ([]OperationStore, error) {
-	var selectBin, insertBin, deleteBin, updateBin, execBin []OperationStore
+	var selectBin, insertBin, deleteBin, updateBin, replaceBin, execBin []OperationStore
 	for k, pv := range ms {
 		v := pv
 		switch v.GetSQLVerb() {
@@ -30,6 +30,9 @@ func (ms Methods) OrderMethods() ([]OperationStore, error) {
 		case "delete":
 			v.setMethodKey(k)
 			deleteBin = append(deleteBin, &v)
+		case "replace":
+			v.setMethodKey(k)
+			replaceBin = append(replaceBin, &v)
 		case "exec":
 			v.setMethodKey(k)
 			execBin = append(execBin, &v)
@@ -39,8 +42,8 @@ func (ms Methods) OrderMethods() ([]OperationStore, error) {
 			execBin = append(execBin, &v)
 		}
 	}
-	sortOperationStoreSlices(selectBin, insertBin, deleteBin, updateBin, execBin)
-	rv := combineOperationStoreSlices(selectBin, insertBin, deleteBin, updateBin, execBin)
+	sortOperationStoreSlices(selectBin, insertBin, deleteBin, updateBin, replaceBin, execBin)
+	rv := combineOperationStoreSlices(selectBin, insertBin, deleteBin, updateBin, replaceBin, execBin)
 	return rv, nil
 }
 
