@@ -947,6 +947,16 @@ func (m *standardOperationStore) getNonBodyParameters() map[string]Addressable {
 					retVal[param.Name] = NewParameter(p.Value, m.Service)
 				}
 			}
+			return retVal
+		}
+		if m.PathRef != nil && m.PathRef.Value != nil {
+			pathItem := m.PathRef.Value
+			for _, p := range pathItem.Parameters {
+				param := p.Value
+				if param != nil {
+					retVal[param.Name] = NewParameter(p.Value, m.Service)
+				}
+			}
 		}
 		return retVal
 	}
