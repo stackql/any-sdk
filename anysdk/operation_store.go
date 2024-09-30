@@ -940,6 +940,14 @@ func (ops *standardOperationStore) getMethod() (*openapi3.Operation, error) {
 func (m *standardOperationStore) getNonBodyParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
 	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
+		if m.PathItem != nil {
+			for _, p := range m.PathItem.Parameters {
+				param := p.Value
+				if param != nil {
+					retVal[param.Name] = NewParameter(p.Value, m.Service)
+				}
+			}
+		}
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
