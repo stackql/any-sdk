@@ -871,7 +871,15 @@ func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
 
 func (m *standardOperationStore) getRequiredNonBodyParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
-	if m.OperationRef.Value == nil || m.OperationRef.Value.Parameters == nil {
+	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
+		if m.PathItem != nil {
+			for _, p := range m.PathItem.Parameters {
+				param := p.Value
+				if param != nil && isOpenapi3ParamRequired(param) {
+					retVal[param.Name] = NewParameter(p.Value, m.Service)
+				}
+			}
+		}
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
@@ -942,16 +950,6 @@ func (m *standardOperationStore) getNonBodyParameters() map[string]Addressable {
 	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
 		if m.PathItem != nil {
 			for _, p := range m.PathItem.Parameters {
-				param := p.Value
-				if param != nil {
-					retVal[param.Name] = NewParameter(p.Value, m.Service)
-				}
-			}
-			return retVal
-		}
-		if m.PathRef != nil && m.PathRef.Value != nil {
-			pathItem := m.PathRef.Value
-			for _, p := range pathItem.Parameters {
 				param := p.Value
 				if param != nil {
 					retVal[param.Name] = NewParameter(p.Value, m.Service)
