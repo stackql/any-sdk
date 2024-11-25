@@ -52,7 +52,7 @@ type standardAuthDTO struct {
 	EnvVarUsername     string           `json:"username_var" yaml:"username_var"`
 	EnvVarPassword     string           `json:"password_var" yaml:"password_var"`
 	Successor          *standardAuthDTO `json:"successor,omitempty" yaml:"successor,omitempty"`
-	Subject            string           `json:"subject" yaml:"subject"`
+	Subject            string           `json:"sub" yaml:"sub"`
 	Location           string           `json:"location,omitempty" yaml:"location,omitempty"`
 }
 
