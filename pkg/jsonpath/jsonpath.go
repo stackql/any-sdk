@@ -1,6 +1,7 @@
 package jsonpath
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/PaesslerAG/gval"
@@ -13,7 +14,7 @@ func Get(path string, value interface{}) (interface{}, error) {
 	return jp.Get(path, value)
 }
 
-func Set(pathStr string, value interface{}, rhs interface{}) (interface{}, error) {
+func Set(inputMap map[string]interface{}, pathStr string, rhs interface{}) (map[string]interface{}, error) {
 	pathStr = strings.TrimPrefix(pathStr, "$.")
 	vs := gval.VariableSelector(func(path gval.Evaluables) gval.Evaluable {
 		return func(c context.Context, v interface{}) (interface{}, error) {
@@ -28,10 +29,14 @@ func Set(pathStr string, value interface{}, rhs interface{}) (interface{}, error
 		[]gval.Language{gval.Base()},
 		vs,
 	)...)
-	rv, err := lang.Evaluate(
+	rawVal, err := lang.Evaluate(
 		pathStr,
-		value,
+		inputMap,
 	)
+	conformedVal, isStringSlice := rawVal.([]string)
+	if !isStringSlice {
+		return nil, fmt.Errorf("cannot accomodate inferred JSON path of type %T", conformedVal)
+	}
 	// rv, err := gval.Evaluate(pathStr,
 	// 	"!",
 	// 	gval.VariableSelector(func(path gval.Evaluables) gval.Evaluable {
@@ -47,5 +52,20 @@ func Set(pathStr string, value interface{}, rhs interface{}) (interface{}, error
 	if err != nil {
 		return nil, err
 	}
-	return rv, nil
+
+	lhs := inputMap
+	var lhsOk bool
+	var k string
+	for i := range conformedVal {
+		k = conformedVal[i]
+		if i == len(conformedVal)-1 {
+			break
+		}
+		lhs, lhsOk = lhs[k].(map[string]interface{})
+		if !lhsOk {
+			return nil, fmt.Errorf("disallowed map traversal into type %T on key %s at index %d", lhs[k], k, i)
+		}
+	}
+	lhs[k] = rhs
+	return inputMap, nil
 }
