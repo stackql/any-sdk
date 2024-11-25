@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/PaesslerAG/jsonpath"
 	"github.com/antchfx/xmlquery"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/stackql/any-sdk/pkg/jsonpath"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/openapitopath"
 	"github.com/stackql/any-sdk/pkg/response"
