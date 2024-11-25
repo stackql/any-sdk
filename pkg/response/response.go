@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/PaesslerAG/jsonpath"
 	"github.com/antchfx/xmlquery"
 	"github.com/stackql/any-sdk/pkg/httpelement"
+	"github.com/stackql/any-sdk/pkg/jsonpath"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/xmlmap"
 )

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/PaesslerAG/jsonpath"
+	"github.com/stackql/any-sdk/pkg/jsonpath"
 )
 
 var (
