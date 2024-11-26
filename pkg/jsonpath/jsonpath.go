@@ -14,8 +14,8 @@ func Get(path string, value interface{}) (interface{}, error) {
 	return jp.Get(path, value)
 }
 
-func SplitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string, error) {
-	return splitSearchPath(inputMap, pathStr)
+func SplitSearchPath(pathStr string) ([]string, error) {
+	return splitSearchPath(map[string]interface{}{}, pathStr)
 }
 
 func splitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string, error) {
@@ -48,7 +48,7 @@ func splitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string,
 }
 
 func Set(inputMap map[string]interface{}, pathStr string, rhs interface{}) (map[string]interface{}, error) {
-	conformedVal, err := splitSearchPath(inputMap, pathStr)
+	conformedVal, err := splitSearchPath(map[string]interface{}{}, pathStr)
 	if err != nil {
 		return nil, err
 	}
