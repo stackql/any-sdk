@@ -14,7 +14,11 @@ func Get(path string, value interface{}) (interface{}, error) {
 	return jp.Get(path, value)
 }
 
-func Set(inputMap map[string]interface{}, pathStr string, rhs interface{}) (map[string]interface{}, error) {
+func SplitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string, error) {
+	return splitSearchPath(inputMap, pathStr)
+}
+
+func splitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string, error) {
 	pathStr = strings.TrimPrefix(pathStr, "$.")
 	vs := gval.VariableSelector(func(path gval.Evaluables) gval.Evaluable {
 		return func(c context.Context, v interface{}) (interface{}, error) {
@@ -37,22 +41,17 @@ func Set(inputMap map[string]interface{}, pathStr string, rhs interface{}) (map[
 	if !isStringSlice {
 		return nil, fmt.Errorf("cannot accomodate inferred JSON path of type %T", conformedVal)
 	}
-	// rv, err := gval.Evaluate(pathStr,
-	// 	"!",
-	// 	gval.VariableSelector(func(path gval.Evaluables) gval.Evaluable {
-	// 		return func(c context.Context, v interface{}) (interface{}, error) {
-	// 			keys, err := path.EvalStrings(c, v)
-	// 			if err != nil {
-	// 				return nil, err
-	// 			}
-	// 			return keys, nil
-	// 		}
-	// 	}),
-	// )
 	if err != nil {
 		return nil, err
 	}
+	return conformedVal, nil
+}
 
+func Set(inputMap map[string]interface{}, pathStr string, rhs interface{}) (map[string]interface{}, error) {
+	conformedVal, err := splitSearchPath(inputMap, pathStr)
+	if err != nil {
+		return nil, err
+	}
 	lhs := inputMap
 	var lhsOk bool
 	var k string
