@@ -3,6 +3,7 @@ package anysdk
 import (
 	"encoding/base64"
 	"fmt"
+	"net/url"
 
 	"github.com/go-openapi/jsonpointer"
 )
@@ -31,6 +32,14 @@ type AuthDTO interface {
 	GetLocation() string
 	GetSubject() string
 	GetName() string
+	GetClientID() string
+	GetClientIDEnvVar() string
+	GetClientSecret() string
+	GetClientSecretEnvVar() string
+	GetTokenURL() string
+	GetGrantType() string
+	GetValues() url.Values
+	GetAuthStyle() int
 }
 
 type standardAuthDTO struct {
@@ -49,11 +58,51 @@ type standardAuthDTO struct {
 	Password           string           `json:"password" yaml:"password"`
 	EnvVarAPIKeyStr    string           `json:"api_key_var" yaml:"api_key_var"`
 	EnvVarAPISecretStr string           `json:"api_secret_var" yaml:"api_secret_var"`
+	TokenURL           string           `json:"token_url" yaml:"token_url"`
+	GrantType          string           `json:"grant_type" yaml:"grant_type"`
+	ClientID           string           `json:"client_id" yaml:"client_id"`
+	ClientSecret       string           `json:"client_secret" yaml:"client_secret"`
+	ClientIDEnvVar     string           `json:"client_id_env_var" yaml:"client_id_env_var"`
+	ClientSecretEnvVar string           `json:"client_secret_env_var" yaml:"client_secret_env_var"`
 	EnvVarUsername     string           `json:"username_var" yaml:"username_var"`
 	EnvVarPassword     string           `json:"password_var" yaml:"password_var"`
 	Successor          *standardAuthDTO `json:"successor,omitempty" yaml:"successor,omitempty"`
 	Subject            string           `json:"sub" yaml:"sub"`
+	Values             url.Values       `json:"values,omitempty" yaml:"values,omitempty"`
 	Location           string           `json:"location,omitempty" yaml:"location,omitempty"`
+	AuthStyle          int              `json:"auth_style" yaml:"auth_style"`
+}
+
+func (qt standardAuthDTO) GetValues() url.Values {
+	return qt.Values
+}
+
+func (qt standardAuthDTO) GetAuthStyle() int {
+	return qt.AuthStyle
+}
+
+func (qt standardAuthDTO) GetClientID() string {
+	return qt.ClientID
+}
+
+func (qt standardAuthDTO) GetClientIDEnvVar() string {
+	return qt.ClientIDEnvVar
+}
+
+func (qt standardAuthDTO) GetClientSecret() string {
+	return qt.ClientSecret
+}
+
+func (qt standardAuthDTO) GetClientSecretEnvVar() string {
+	return qt.ClientSecretEnvVar
+}
+
+func (qt standardAuthDTO) GetTokenURL() string {
+	return qt.TokenURL
+}
+
+func (qt standardAuthDTO) GetGrantType() string {
+	return qt.GrantType
 }
 
 func (qt standardAuthDTO) GetName() string {
