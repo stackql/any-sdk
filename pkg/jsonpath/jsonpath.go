@@ -21,6 +21,9 @@ func SplitSearchPath(pathStr string) ([]string, error) {
 
 func splitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string, error) {
 	pathStr = strings.TrimPrefix(pathStr, "$.")
+	if pathStr == "" {
+		return []string{}, nil
+	}
 	vs := gval.VariableSelector(func(path gval.Evaluables) gval.Evaluable {
 		return func(c context.Context, v interface{}) (interface{}, error) {
 			keys, err := path.EvalStrings(c, v)
@@ -49,6 +52,32 @@ func splitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string,
 }
 
 func Set(input any, pathStr string, rhs interface{}) error {
+	if pathStr == "" {
+		switch input := input.(type) {
+		case map[string]interface{}:
+			rhsMap, rhsIsMap := rhs.(map[string]interface{})
+			if !rhsIsMap {
+				return fmt.Errorf("cannot overwrite map with type %T", rhs)
+			}
+			for k, _ := range input {
+				delete(input, k)
+			}
+			for k, v := range rhsMap {
+				input[k] = v
+			}
+			return nil
+		default:
+			mutatedSer, mutatedSerErr := json.Marshal(rhs)
+			if mutatedSerErr != nil {
+				return mutatedSerErr
+			}
+			overwriteErr := json.Unmarshal(mutatedSer, input)
+			if overwriteErr != nil {
+				return overwriteErr
+			}
+			return nil
+		}
+	}
 	switch input := input.(type) {
 	case map[string]interface{}:
 		return setMap(input, pathStr, rhs)

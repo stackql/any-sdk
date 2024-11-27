@@ -67,6 +67,20 @@ func TestSetStruct(t *testing.T) {
 	assert.Assert(t, reflect.DeepEqual(ms.Principal.Name, "Frank Smith"))
 }
 
+func TestSetStructAll(t *testing.T) {
+	ms := myStruct{}
+	var myTotalOverwrite interface{}
+	jsonErr := json.Unmarshal([]byte(`{"principal": {"name": "Plastic Fantastic"}, "description": "Data point 01 about this dude."}`), &myTotalOverwrite)
+	assert.NilError(t, jsonErr)
+	err := jsonpath.Set(&ms, "", myTotalOverwrite)
+	assert.NilError(t, err)
+	assert.Assert(t, true)
+	rhs := make(map[string]interface{})
+	rhsErr := json.Unmarshal([]byte(`{"a": {"b": 22}}`), &rhs)
+	assert.NilError(t, rhsErr)
+	assert.Assert(t, reflect.DeepEqual(ms.Principal.Name, "Plastic Fantastic"))
+}
+
 func TestSetDollar(t *testing.T) {
 	initVal := make(map[string]interface{})
 	jsonErr := json.Unmarshal([]byte(`{"a": {"b": "c"}}`), &initVal)
