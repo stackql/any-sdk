@@ -3,6 +3,7 @@ package anysdk
 import (
 	"encoding/base64"
 	"fmt"
+	"net/url"
 
 	"github.com/go-openapi/jsonpointer"
 )
@@ -37,6 +38,8 @@ type AuthDTO interface {
 	GetClientSecretEnvVar() string
 	GetTokenURL() string
 	GetGrantType() string
+	GetValues() url.Values
+	GetAuthStyle() int
 }
 
 type standardAuthDTO struct {
@@ -65,7 +68,17 @@ type standardAuthDTO struct {
 	EnvVarPassword     string           `json:"password_var" yaml:"password_var"`
 	Successor          *standardAuthDTO `json:"successor,omitempty" yaml:"successor,omitempty"`
 	Subject            string           `json:"sub" yaml:"sub"`
+	Values             url.Values       `json:"values,omitempty" yaml:"values,omitempty"`
 	Location           string           `json:"location,omitempty" yaml:"location,omitempty"`
+	AuthStyle          int              `json:"auth_style" yaml:"auth_style"`
+}
+
+func (qt standardAuthDTO) GetValues() url.Values {
+	return qt.Values
+}
+
+func (qt standardAuthDTO) GetAuthStyle() int {
+	return qt.AuthStyle
 }
 
 func (qt standardAuthDTO) GetClientID() string {
