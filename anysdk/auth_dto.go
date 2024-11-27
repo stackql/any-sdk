@@ -55,7 +55,7 @@ type standardAuthDTO struct {
 	Password           string           `json:"password" yaml:"password"`
 	EnvVarAPIKeyStr    string           `json:"api_key_var" yaml:"api_key_var"`
 	EnvVarAPISecretStr string           `json:"api_secret_var" yaml:"api_secret_var"`
-	TokenUrl           string           `json:"token_url" yaml:"token_url"`
+	TokenURL           string           `json:"token_url" yaml:"token_url"`
 	GrantType          string           `json:"grant_type" yaml:"grant_type"`
 	ClientID           string           `json:"client_id" yaml:"client_id"`
 	ClientSecret       string           `json:"client_secret" yaml:"client_secret"`
@@ -85,7 +85,7 @@ func (qt standardAuthDTO) GetClientSecretEnvVar() string {
 }
 
 func (qt standardAuthDTO) GetTokenURL() string {
-	return qt.TokenUrl
+	return qt.TokenURL
 }
 
 func (qt standardAuthDTO) GetGrantType() string {
