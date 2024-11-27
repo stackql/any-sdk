@@ -1,6 +1,7 @@
 package jsonpath
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 	"context"
 )
 
-func Get(path string, value interface{}) (interface{}, error) {
+func Get(path string, value any) (interface{}, error) {
 	return jp.Get(path, value)
 }
 
@@ -47,12 +48,42 @@ func splitSearchPath(inputMap map[string]interface{}, pathStr string) ([]string,
 	return conformedVal, nil
 }
 
-func Set(inputMap map[string]interface{}, pathStr string, rhs interface{}) (map[string]interface{}, error) {
+func Set(input any, pathStr string, rhs interface{}) error {
+	switch input := input.(type) {
+	case map[string]interface{}:
+		return setMap(input, pathStr, rhs)
+	default:
+		ser, serErr := json.Marshal(input)
+		if serErr != nil {
+			return serErr
+		}
+		m := map[string]interface{}{}
+		deserErr := json.Unmarshal(ser, &m)
+		if deserErr != nil {
+			return deserErr
+		}
+		mutateErr := setMap(m, pathStr, rhs)
+		if mutateErr != nil {
+			return mutateErr
+		}
+		mutatedSer, mutatedSerErr := json.Marshal(m)
+		if mutatedSerErr != nil {
+			return mutatedSerErr
+		}
+		overwriteErr := json.Unmarshal(mutatedSer, input)
+		if overwriteErr != nil {
+			return overwriteErr
+		}
+	}
+	return nil
+}
+
+func setMap(input map[string]interface{}, pathStr string, rhs interface{}) error {
 	conformedVal, err := splitSearchPath(map[string]interface{}{}, pathStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	lhs := inputMap
+	lhs := input
 	var lhsOk bool
 	var k string
 	for i := range conformedVal {
@@ -62,9 +93,9 @@ func Set(inputMap map[string]interface{}, pathStr string, rhs interface{}) (map[
 		}
 		lhs, lhsOk = lhs[k].(map[string]interface{})
 		if !lhsOk {
-			return nil, fmt.Errorf("disallowed map traversal into type %T on key %s at index %d", lhs[k], k, i)
+			return fmt.Errorf("disallowed map traversal into type %T on key %s at index %d", lhs[k], k, i)
 		}
 	}
 	lhs[k] = rhs
-	return inputMap, nil
+	return nil
 }
