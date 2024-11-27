@@ -31,6 +31,12 @@ type AuthDTO interface {
 	GetLocation() string
 	GetSubject() string
 	GetName() string
+	GetClientID() string
+	GetClientIDEnvVar() string
+	GetClientSecret() string
+	GetClientSecretEnvVar() string
+	GetTokenURL() string
+	GetGrantType() string
 }
 
 type standardAuthDTO struct {
@@ -49,11 +55,41 @@ type standardAuthDTO struct {
 	Password           string           `json:"password" yaml:"password"`
 	EnvVarAPIKeyStr    string           `json:"api_key_var" yaml:"api_key_var"`
 	EnvVarAPISecretStr string           `json:"api_secret_var" yaml:"api_secret_var"`
+	TokenUrl           string           `json:"token_url" yaml:"token_url"`
+	GrantType          string           `json:"grant_type" yaml:"grant_type"`
+	ClientID           string           `json:"client_id" yaml:"client_id"`
+	ClientSecret       string           `json:"client_secret" yaml:"client_secret"`
+	ClientIDEnvVar     string           `json:"client_id_env_var" yaml:"client_id_env_var"`
+	ClientSecretEnvVar string           `json:"client_secret_env_var" yaml:"client_secret_env_var"`
 	EnvVarUsername     string           `json:"username_var" yaml:"username_var"`
 	EnvVarPassword     string           `json:"password_var" yaml:"password_var"`
 	Successor          *standardAuthDTO `json:"successor,omitempty" yaml:"successor,omitempty"`
 	Subject            string           `json:"sub" yaml:"sub"`
 	Location           string           `json:"location,omitempty" yaml:"location,omitempty"`
+}
+
+func (qt standardAuthDTO) GetClientID() string {
+	return qt.ClientID
+}
+
+func (qt standardAuthDTO) GetClientIDEnvVar() string {
+	return qt.ClientIDEnvVar
+}
+
+func (qt standardAuthDTO) GetClientSecret() string {
+	return qt.ClientSecret
+}
+
+func (qt standardAuthDTO) GetClientSecretEnvVar() string {
+	return qt.ClientSecretEnvVar
+}
+
+func (qt standardAuthDTO) GetTokenURL() string {
+	return qt.TokenUrl
+}
+
+func (qt standardAuthDTO) GetGrantType() string {
+	return qt.GrantType
 }
 
 func (qt standardAuthDTO) GetName() string {
