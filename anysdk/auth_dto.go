@@ -40,6 +40,7 @@ type AuthDTO interface {
 	GetGrantType() string
 	GetValues() url.Values
 	GetAuthStyle() int
+	GetAccountID() string
 }
 
 type standardAuthDTO struct {
@@ -71,6 +72,11 @@ type standardAuthDTO struct {
 	Values             url.Values       `json:"values,omitempty" yaml:"values,omitempty"`
 	Location           string           `json:"location,omitempty" yaml:"location,omitempty"`
 	AuthStyle          int              `json:"auth_style" yaml:"auth_style"`
+	AccoountID         string           `json:"account_id" yaml:"account_id"`
+}
+
+func (qt standardAuthDTO) GetAccountID() string {
+	return qt.AccoountID
 }
 
 func (qt standardAuthDTO) GetValues() url.Values {
