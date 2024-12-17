@@ -1322,7 +1322,7 @@ func (s *standardSchema) unmarshalJSONResponseBody(body io.ReadCloser, path stri
 	return processedResponse, target, nil
 }
 
-func (s *standardSchema) unmarshalResponse(r *http.Response) (interface{}, error) {
+func (s *standardSchema) unmarshalResponse(r *http.Response, overrideMediaType string) (interface{}, error) {
 	body := r.Body
 	if body != nil {
 		defer body.Close()
@@ -1333,6 +1333,9 @@ func (s *standardSchema) unmarshalResponse(r *http.Response) (interface{}, error
 	mediaType, err := media.GetResponseMediaType(r, "")
 	if err != nil {
 		return nil, err
+	}
+	if overrideMediaType != "" {
+		mediaType = overrideMediaType
 	}
 	switch mediaType {
 	case media.MediaTypeJson, media.MediaTypeScimJson:
@@ -1393,7 +1396,7 @@ func (s *standardSchema) unmarshalResponseAtPath(r *http.Response, path string, 
 		}
 		fallthrough
 	default:
-		processedResponse, err := s.unmarshalResponse(r)
+		processedResponse, err := s.unmarshalResponse(r, overrideMediaType)
 		if err != nil {
 			return nil, err
 		}
