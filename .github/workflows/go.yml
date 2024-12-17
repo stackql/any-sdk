@@ -3,13 +3,13 @@ name: Go
 on:
   push:
     branches:
-      - master
+      - main
       - develop
     tags:
       - build*
   pull_request:
     branches:
-      - master
+      - main
       - develop
 
 env:
