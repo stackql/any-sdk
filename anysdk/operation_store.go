@@ -1403,7 +1403,11 @@ func (ops *standardOperationStore) lookupSelectItemsKey() string {
 	if responseSchema == nil || err != nil {
 		return ""
 	}
-	switch responseSchema.GetType() {
+	mediaType := responseSchema.GetType()
+	if ops.Response != nil && ops.Response.OverrideBodyMediaType != "" {
+		mediaType = ops.Response.OverrideBodyMediaType
+	}
+	switch mediaType {
 	case "string", "integer":
 		return AnonymousColumnName
 	}
