@@ -15,10 +15,11 @@ type ExpectedResponse interface {
 }
 
 type standardExpectedResponse struct {
-	BodyMediaType string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
-	OpenAPIDocKey string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
-	ObjectKey     string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
-	Schema        Schema
+	OverrideBodyMediaType string `json:"overrideMediaType,omitempty" yaml:"overrideMediaType,omitempty"`
+	BodyMediaType         string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
+	OpenAPIDocKey         string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
+	ObjectKey             string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
+	Schema                Schema
 }
 
 func (er *standardExpectedResponse) setBodyMediaType(s string) {
