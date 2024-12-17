@@ -1304,7 +1304,11 @@ func (op *standardOperationStore) GetResponseBodySchemaAndMediaType() (Schema, s
 
 func (op *standardOperationStore) getResponseBodySchemaAndMediaType() (Schema, string, error) {
 	if op.Response != nil && op.Response.Schema != nil {
-		return op.Response.Schema, op.Response.BodyMediaType, nil
+		mediaType := op.Response.BodyMediaType
+		if op.Response.OverrideBodyMediaType != "" {
+			mediaType = op.Response.OverrideBodyMediaType
+		}
+		return op.Response.Schema, mediaType, nil
 	}
 	return nil, "", fmt.Errorf("no response body for operation =  %s", op.GetName())
 }
@@ -1358,7 +1362,11 @@ func (op *standardOperationStore) ProcessResponse(response *http.Response) (Proc
 	if err != nil {
 		return nil, err
 	}
-	rv, err := responseSchema.processHttpResponse(response, op.lookupSelectItemsKey(), mediaType)
+	overrideMediaType := ""
+	if op.Response != nil {
+		overrideMediaType = op.Response.OverrideBodyMediaType
+	}
+	rv, err := responseSchema.processHttpResponse(response, op.lookupSelectItemsKey(), mediaType, overrideMediaType)
 	var reversal HTTPPreparator
 	inverse, inverseExists := op.GetInverse()
 	if inverseExists {
@@ -1395,7 +1403,11 @@ func (ops *standardOperationStore) lookupSelectItemsKey() string {
 	if responseSchema == nil || err != nil {
 		return ""
 	}
-	switch responseSchema.GetType() {
+	mediaType := responseSchema.GetType()
+	if ops.Response != nil && ops.Response.OverrideBodyMediaType != "" {
+		mediaType = ops.Response.OverrideBodyMediaType
+	}
+	switch mediaType {
 	case "string", "integer":
 		return AnonymousColumnName
 	}
