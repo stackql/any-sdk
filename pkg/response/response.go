@@ -116,7 +116,7 @@ func (r *basicResponse) ExtractElement(e httpelement.HTTPElement) (interface{}, 
 			// This is a guard for odd behaviour by the lib:
 			//    a, err := jsonpath.Get(<array of maps>, myUnprefixedString)
 			//    just returns input and no error.
-			if isSlice(body) && (strings.HasPrefix(rawSearchPath, `$`) || strings.HasPrefix(rawSearchPath, `[`)) {
+			if isSlice(body) && !(strings.HasPrefix(rawSearchPath, `$`) || strings.HasPrefix(rawSearchPath, `[`)) {
 				return nil, fmt.Errorf("invalid json path '%s' for array type", rawSearchPath)
 			}
 			processedResponse, err := jsonpath.Get(e.GetName(), body)
