@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
+	"strings"
 
 	"github.com/antchfx/xmlquery"
 	"github.com/stackql/any-sdk/pkg/httpelement"
@@ -96,21 +98,32 @@ func (r *basicResponse) Error() string {
 	return `{ "httpError": { "message": "unknown error" } }`
 }
 
+func isSlice(v interface{}) bool {
+	return reflect.TypeOf(v).Kind() == reflect.Slice
+}
+
 func (r *basicResponse) ExtractElement(e httpelement.HTTPElement) (interface{}, error) {
 	elementLocation := e.GetLocation()
+	rawSearchPath := e.GetName()
 	switch elementLocation {
 	case httpelement.BodyAttribute:
 		// refactor heaps of shit here
 		switch body := r.rawBody.(type) {
 		case *xmlquery.Node:
-			elem, err := xmlmap.GetSubObjFromNode(body, e.GetName())
+			elem, err := xmlmap.GetSubObjFromNode(body, rawSearchPath)
 			return elem, err
 		default:
+			// This is a guard for odd behaviour by the lib:
+			//    a, err := jsonpath.Get(<array of maps>, myUnprefixedString)
+			//    just returns input and no error.
+			if isSlice(body) && (strings.HasPrefix(rawSearchPath, `$`) || strings.HasPrefix(rawSearchPath, `[`)) {
+				return nil, fmt.Errorf("invalid json path '%s' for array type", rawSearchPath)
+			}
 			processedResponse, err := jsonpath.Get(e.GetName(), body)
 			return processedResponse, err
 		}
 	case httpelement.Header:
-		return r.httpResponse.Header.Values(e.GetName()), nil
+		return r.httpResponse.Header.Values(rawSearchPath), nil
 	default:
 		return nil, fmt.Errorf("http element type '%v' not supported", elementLocation)
 	}
