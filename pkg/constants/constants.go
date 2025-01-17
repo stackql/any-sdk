@@ -19,6 +19,7 @@ const (
 	CSVStr                             string = "csv"
 	TextStr                            string = "text"
 	PostgresIDMaxWidth                 int    = 63
+	PostgresJSONCastSuffix             string = "::json"
 	PrettyTextStr                      string = "pptext"
 	DBEngineSQLite3Embedded            string = "sqlite3_embedded"
 	DBEnginePostgresTCP                string = "postgres_tcp"
@@ -44,6 +45,7 @@ const (
 	DefaultViewsTemplateString         string = "stackql_views.{{ .objectName }}"
 	DefaultAnalyticsRegexpString       string = `^stackql_analytics_(?P<objectName>.*)$`
 	DefaultViewsRegexpString           string = `^stackql_views\.(?P<objectName>.*)$`
+	ControlColumnCount                 int    = 4
 )
 
 const (
@@ -53,6 +55,11 @@ const (
 
 const (
 	LimitsIndirectMaxChainLength int = 1
+)
+
+const (
+	ReversalStreamAlias string = "reversal_stream"
+	ReversalStreamID    int64  = -1
 )
 
 type GCStatus int

@@ -82,11 +82,11 @@ func (cd standardColumnDescriptor) GetRepresentativeSchema() Schema {
 		switch nt := cd.Node.(type) {
 		case *sqlparser.ConvertExpr:
 			if nt.Type != nil && nt.Type.Type != "" {
-				return NewSchema(&openapi3.Schema{Type: nt.Type.Type}, cd.Schema.getService(), cd.Schema.getKey(), "")
+				return newSchema(&openapi3.Schema{Type: nt.Type.Type}, cd.Schema.getService(), cd.Schema.getKey(), "")
 			}
 		// TODO: make this intelligent
 		case *sqlparser.FuncExpr:
-			return NewSchema(&openapi3.Schema{Type: "string"}, cd.Schema.getService(), cd.Schema.getKey(), "")
+			return newSchema(&openapi3.Schema{Type: "string"}, cd.Schema.getService(), cd.Schema.getKey(), "")
 		}
 
 	}
