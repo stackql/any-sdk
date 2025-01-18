@@ -64,6 +64,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.LogLevelStr, "loglevel", "warn", "loglevel")
 
 	rootCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(constCmd)
 
 }
 
