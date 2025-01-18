@@ -246,3 +246,35 @@ func (rc RuntimeCtx) Copy() RuntimeCtx {
 		WorkOffline:                  rc.WorkOffline,
 	}
 }
+
+func (rc RuntimeCtx) GetCABundle() string {
+	return rc.CABundle
+}
+
+func (rc RuntimeCtx) GetHTTPProxyHost() string {
+	return rc.HTTPProxyHost
+}
+
+func (rc RuntimeCtx) GetHTTPProxyUser() string {
+	return rc.HTTPProxyUser
+}
+
+func (rc RuntimeCtx) GetHTTPProxyPassword() string {
+	return rc.HTTPProxyPassword
+}
+
+func (rc RuntimeCtx) GetHTTPProxyPort() int {
+	return rc.HTTPProxyPort
+}
+
+func (rc RuntimeCtx) GetHTTPProxyScheme() string {
+	return rc.HTTPProxyScheme
+}
+
+func (rc RuntimeCtx) GetAPIRequestTimeout() int {
+	return rc.APIRequestTimeout
+}
+
+func (rc RuntimeCtx) GetTLSAllowInsecure() bool {
+	return rc.AllowInsecure
+}
