@@ -45,11 +45,11 @@ var execCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		RunCommand(runtimeCtx, args[0])
+		runReadCommand(runtimeCtx, args[0])
 	},
 }
 
-func RunCommand(rtCtx runtimeContext, arg string) {
+func runReadCommand(rtCtx runtimeContext, arg string) {
 	b, err := os.ReadFile(arg)
 	printErrorAndExitOneIfError(err)
 	l := anysdk.NewLoader()
