@@ -3,11 +3,15 @@ package auth_util
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/stackql/any-sdk/pkg/awssign"
 	"github.com/stackql/any-sdk/pkg/azureauth"
+	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/dto"
+	"github.com/stackql/any-sdk/pkg/google_sdk"
 	"github.com/stackql/any-sdk/pkg/litetemplate"
 	"github.com/stackql/any-sdk/pkg/netutils"
 
@@ -65,6 +69,7 @@ type AssistedTransport interface {
 type AuthUtility interface {
 	ActivateAuth(authCtx *dto.AuthCtx, principal string, authType string)
 	DeactivateAuth(authCtx *dto.AuthCtx)
+	AuthRevoke(authCtx *dto.AuthCtx) error
 	ParseServiceAccountFile(ac *dto.AuthCtx) (serviceAccount, error)
 	GetGoogleJWTConfig(
 		provider string,
@@ -89,6 +94,8 @@ type AuthUtility interface {
 	BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	GCloudOAuth(runtimeCtx dto.RuntimeCtx, authCtx *dto.AuthCtx, enforceRevokeFirst bool) (*http.Client, error)
+	GetCurrentGCloudOauthUser() ([]byte, error)
 }
 
 type authUtil struct {
@@ -206,6 +213,10 @@ func (au *authUtil) ActivateAuth(authCtx *dto.AuthCtx, principal string, authTyp
 	}
 }
 
+func (au *authUtil) GetCurrentGCloudOauthUser() ([]byte, error) {
+	return google_sdk.GetAccessToken()
+}
+
 func (au *authUtil) DeactivateAuth(authCtx *dto.AuthCtx) {
 	authCtx.Active = false
 }
@@ -245,6 +256,46 @@ func (au *authUtil) GetGoogleJWTConfig(
 	default:
 		return nil, fmt.Errorf("service account auth for provider = '%s' currently not supported", provider)
 	}
+}
+
+func (au *authUtil) AuthRevoke(authCtx *dto.AuthCtx) error {
+	switch strings.ToLower(authCtx.Type) {
+	case dto.AuthServiceAccountStr:
+		return errors.New(constants.ServiceAccountRevokeErrStr)
+	case dto.AuthInteractiveStr:
+		err := google_sdk.RevokeGoogleAuth()
+		if err == nil {
+			au.DeactivateAuth(authCtx)
+		}
+		return err
+	}
+	return fmt.Errorf(`Auth revoke for Google Failed; improper auth method: "%s" specified`, authCtx.Type)
+}
+
+func (au *authUtil) GCloudOAuth(runtimeCtx dto.RuntimeCtx, authCtx *dto.AuthCtx, enforceRevokeFirst bool) (*http.Client, error) {
+	var err error
+	var tokenBytes []byte
+	tokenBytes, err = google_sdk.GetAccessToken()
+	if enforceRevokeFirst && authCtx.Type == dto.AuthInteractiveStr && err == nil {
+		return nil, fmt.Errorf(constants.OAuthInteractiveAuthErrStr) //nolint:stylecheck // happy with message
+	}
+	if err != nil {
+		err = google_sdk.OAuthToGoogle()
+		if err == nil {
+			tokenBytes, err = google_sdk.GetAccessToken()
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	au.ActivateAuth(authCtx, "", dto.AuthInteractiveStr)
+	client := netutils.GetHTTPClient(runtimeCtx, nil)
+	tr, err := NewTransport(tokenBytes, AuthTypeBearer, authCtx.ValuePrefix, LocationHeader, "", client.Transport)
+	if err != nil {
+		return nil, err
+	}
+	client.Transport = tr
+	return client, nil
 }
 
 func (au *authUtil) GetGenericClientCredentialsConfig(authCtx *dto.AuthCtx, scopes []string) (*clientcredentials.Config, error) {
