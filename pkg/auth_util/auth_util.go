@@ -28,19 +28,6 @@ var (
 	storageObjectsRegex *regexp.Regexp = regexp.MustCompile(`^storage\.objects\..*$`) //nolint:unused,revive,nolintlint,lll // prefer declarative
 )
 
-/*
-internal/stackql/provider/generic.go:142:4: undefined: deactivateAuth
-internal/stackql/provider/generic.go:216:10: undefined: serviceAccount
-internal/stackql/provider/generic.go:217:13: undefined: parseServiceAccountFile
-internal/stackql/provider/generic.go:225:4: undefined: activateAuth
-internal/stackql/provider/generic.go:238:5: undefined: activateAuth
-internal/stackql/provider/generic.go:268:2: undefined: activateAuth
-internal/stackql/provider/generic.go:270:13: undefined: newTransport
-internal/stackql/provider/generic.go:270:38: undefined: AuthTypeBearer
-internal/stackql/provider/generic.go:270:75: undefined: LocationHeader
-internal/stackql/provider/generic.go:280:9: undefined: googleOauthServiceAccount
-*/
-
 type serviceAccount struct {
 	Email      string `json:"client_email"`
 	PrivateKey string `json:"private_key"`
@@ -98,10 +85,10 @@ type AuthUtility interface {
 		httpContext netutils.HTTPContext,
 	) (*http.Client, error)
 	ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error)
-	awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
-	basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
-	customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
-	azureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 }
 
 type authUtil struct {
@@ -340,7 +327,7 @@ func (au *authUtil) ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTP
 	return httpClient, nil
 }
 
-func (au *authUtil) awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	// Retrieve the AWS access key and secret key.
 	credentialsBytes, err := authCtx.GetCredentialsBytes()
 	if err != nil {
@@ -380,7 +367,7 @@ func (au *authUtil) awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HT
 	return httpClient, nil
 }
 
-func (au *authUtil) basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	b, err := authCtx.GetCredentialsBytes()
 	if err != nil {
 		return nil, fmt.Errorf("credentials error: %w", err)
@@ -395,7 +382,7 @@ func (au *authUtil) basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCon
 	return httpClient, nil
 }
 
-func (au *authUtil) customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	b, err := authCtx.GetCredentialsBytes()
 	if err != nil {
 		return nil, fmt.Errorf("credentials error: %w", err)
@@ -433,7 +420,7 @@ func (au *authUtil) customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCo
 	return httpClient, nil
 }
 
-func (au *authUtil) azureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	azureTokenSource, err := azureauth.NewDefaultCredentialAzureTokenSource()
 	if err != nil {
 		return nil, fmt.Errorf("azure default credentials error: %w", err)
