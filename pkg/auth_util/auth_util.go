@@ -77,7 +77,7 @@ type AssistedTransport interface {
 
 type AuthUtility interface {
 	ActivateAuth(authCtx *dto.AuthCtx, principal string, authType string)
-	DeActivateAuth(authCtx *dto.AuthCtx)
+	DeactivateAuth(authCtx *dto.AuthCtx)
 	ParseServiceAccountFile(ac *dto.AuthCtx) (serviceAccount, error)
 	GetGoogleJWTConfig(
 		provider string,
@@ -219,7 +219,7 @@ func (au *authUtil) ActivateAuth(authCtx *dto.AuthCtx, principal string, authTyp
 	}
 }
 
-func (au *authUtil) DeActivateAuth(authCtx *dto.AuthCtx) {
+func (au *authUtil) DeactivateAuth(authCtx *dto.AuthCtx) {
 	authCtx.Active = false
 }
 
