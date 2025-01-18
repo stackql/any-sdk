@@ -36,8 +36,8 @@ internal/stackql/provider/generic.go:225:4: undefined: activateAuth
 internal/stackql/provider/generic.go:238:5: undefined: activateAuth
 internal/stackql/provider/generic.go:268:2: undefined: activateAuth
 internal/stackql/provider/generic.go:270:13: undefined: newTransport
-internal/stackql/provider/generic.go:270:38: undefined: authTypeBearer
-internal/stackql/provider/generic.go:270:75: undefined: locationHeader
+internal/stackql/provider/generic.go:270:38: undefined: AuthTypeBearer
+internal/stackql/provider/generic.go:270:75: undefined: LocationHeader
 internal/stackql/provider/generic.go:280:9: undefined: googleOauthServiceAccount
 */
 
@@ -137,19 +137,19 @@ func newTransport(
 	underlyingTransport http.RoundTripper,
 ) (AssistedTransport, error) {
 	switch authType {
-	case authTypeBasic, authTypeBearer, authTypeAPIKey:
+	case AuthTypeBasic, AuthTypeBearer, AuthTypeAPIKey:
 		if len(token) < 1 {
 			return nil, fmt.Errorf("no credentials provided for auth type = '%s'", authType)
 		}
-		if tokenLocation != locationHeader {
+		if tokenLocation != LocationHeader {
 			return nil, fmt.Errorf(
 				"improper location provided for auth type = '%s', provided = '%s', expected = '%s'",
-				authType, tokenLocation, locationHeader)
+				authType, tokenLocation, LocationHeader)
 		}
 	default:
 		switch tokenLocation {
-		case locationHeader:
-		case locationQuery:
+		case LocationHeader:
+		case LocationQuery:
 			if key == "" {
 				return nil, fmt.Errorf("key required for query param based auth")
 			}
@@ -171,21 +171,21 @@ func (t *transport) addTokenCfg(tokenConfig *tokenCfg) error {
 }
 
 const (
-	locationHeader string = "header"
-	locationQuery  string = "query"
-	authTypeBasic  string = "BASIC"
-	authTypeCustom string = "custom"
-	authTypeBearer string = "Bearer"
-	authTypeAPIKey string = "api_key"
+	LocationHeader string = "header"
+	LocationQuery  string = "query"
+	AuthTypeBasic  string = "BASIC"
+	AuthTypeCustom string = "custom"
+	AuthTypeBearer string = "Bearer"
+	AuthTypeAPIKey string = "api_key"
 )
 
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	for _, tc := range t.tokenConfigs {
 		tokenConfig := tc
 		switch tokenConfig.tokenLocation {
-		case locationHeader:
+		case LocationHeader:
 			switch tokenConfig.authType {
-			case authTypeBasic, authTypeBearer, authTypeAPIKey:
+			case AuthTypeBasic, AuthTypeBearer, AuthTypeAPIKey:
 				authValuePrefix := tokenConfig.authValuePrefix
 				if tokenConfig.authValuePrefix == "" {
 					authValuePrefix = fmt.Sprintf("%s ", tokenConfig.authType)
@@ -200,7 +200,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 					string(tokenConfig.token),
 				)
 			}
-		case locationQuery:
+		case LocationQuery:
 			qv := req.URL.Query()
 			qv.Set(
 				tokenConfig.key, string(tokenConfig.token),
@@ -332,7 +332,7 @@ func (au *authUtil) ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTP
 	if enforceBearer {
 		valPrefix = "Bearer "
 	}
-	tr, err := newTransport(b, authTypeAPIKey, valPrefix, locationHeader, "", httpClient.Transport)
+	tr, err := newTransport(b, AuthTypeAPIKey, valPrefix, LocationHeader, "", httpClient.Transport)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +387,7 @@ func (au *authUtil) basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCon
 	}
 	au.ActivateAuth(authCtx, "", "basic")
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
-	tr, err := newTransport(b, authTypeBasic, authCtx.ValuePrefix, locationHeader, "", httpClient.Transport)
+	tr, err := newTransport(b, AuthTypeBasic, authCtx.ValuePrefix, LocationHeader, "", httpClient.Transport)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ func (au *authUtil) customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCo
 	}
 	au.ActivateAuth(authCtx, "", "custom")
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
-	tr, err := newTransport(b, authTypeCustom, authCtx.ValuePrefix, authCtx.Location, authCtx.Name, httpClient.Transport)
+	tr, err := newTransport(b, AuthTypeCustom, authCtx.ValuePrefix, authCtx.Location, authCtx.Name, httpClient.Transport)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +415,7 @@ func (au *authUtil) customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCo
 			}
 			successorTokenConfig := newTokenConfig(
 				successorCredentialsBytes,
-				authTypeCustom,
+				AuthTypeCustom,
 				successor.ValuePrefix,
 				successor.Location,
 				successor.Name,
@@ -445,7 +445,7 @@ func (au *authUtil) azureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.
 	tokenString := token.Token
 	au.ActivateAuth(authCtx, "", "azure_default")
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
-	tr, err := newTransport([]byte(tokenString), authTypeBearer, "Bearer ", locationHeader, "", httpClient.Transport)
+	tr, err := newTransport([]byte(tokenString), AuthTypeBearer, "Bearer ", LocationHeader, "", httpClient.Transport)
 	if err != nil {
 		return nil, err
 	}
