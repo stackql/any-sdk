@@ -28,6 +28,19 @@ var (
 	storageObjectsRegex *regexp.Regexp = regexp.MustCompile(`^storage\.objects\..*$`) //nolint:unused,revive,nolintlint,lll // prefer declarative
 )
 
+/*
+internal/stackql/provider/generic.go:142:4: undefined: deactivateAuth
+internal/stackql/provider/generic.go:216:10: undefined: serviceAccount
+internal/stackql/provider/generic.go:217:13: undefined: parseServiceAccountFile
+internal/stackql/provider/generic.go:225:4: undefined: activateAuth
+internal/stackql/provider/generic.go:238:5: undefined: activateAuth
+internal/stackql/provider/generic.go:268:2: undefined: activateAuth
+internal/stackql/provider/generic.go:270:13: undefined: newTransport
+internal/stackql/provider/generic.go:270:38: undefined: authTypeBearer
+internal/stackql/provider/generic.go:270:75: undefined: locationHeader
+internal/stackql/provider/generic.go:280:9: undefined: googleOauthServiceAccount
+*/
+
 type serviceAccount struct {
 	Email      string `json:"client_email"`
 	PrivateKey string `json:"private_key"`
@@ -57,9 +70,62 @@ func newTokenConfig(
 	}
 }
 
+type AssistedTransport interface {
+	addTokenCfg(tokenConfig *tokenCfg) error
+	RoundTrip(req *http.Request) (*http.Response, error)
+}
+
+type AuthUtility interface {
+	ActivateAuth(authCtx *dto.AuthCtx, principal string, authType string)
+	DeActivateAuth(authCtx *dto.AuthCtx)
+	ParseServiceAccountFile(ac *dto.AuthCtx) (serviceAccount, error)
+	GetGoogleJWTConfig(
+		provider string,
+		credentialsBytes []byte,
+		scopes []string,
+		subject string,
+	) (*jwt.Config, error)
+	GetGenericClientCredentialsConfig(authCtx *dto.AuthCtx, scopes []string) (*clientcredentials.Config, error)
+	GoogleOauthServiceAccount(
+		provider string,
+		authCtx *dto.AuthCtx,
+		scopes []string,
+		httpContext netutils.HTTPContext,
+	) (*http.Client, error)
+	GenericOauthClientCredentials(
+		authCtx *dto.AuthCtx,
+		scopes []string,
+		httpContext netutils.HTTPContext,
+	) (*http.Client, error)
+	ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error)
+	awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	azureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+}
+
+type authUtil struct {
+	// Placeholder for future implementation
+}
+
+func NewAuthUtility() AuthUtility {
+	return &authUtil{}
+}
+
 type transport struct {
 	tokenConfigs        []*tokenCfg
 	underlyingTransport http.RoundTripper
+}
+
+func NewTransport(
+	token []byte,
+	authType,
+	authValuePrefix,
+	tokenLocation,
+	key string,
+	underlyingTransport http.RoundTripper,
+) (AssistedTransport, error) {
+	return newTransport(token, authType, authValuePrefix, tokenLocation, key, underlyingTransport)
 }
 
 func newTransport(
@@ -69,7 +135,7 @@ func newTransport(
 	tokenLocation,
 	key string,
 	underlyingTransport http.RoundTripper,
-) (*transport, error) {
+) (AssistedTransport, error) {
 	switch authType {
 	case authTypeBasic, authTypeBearer, authTypeAPIKey:
 		if len(token) < 1 {
@@ -145,7 +211,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.underlyingTransport.RoundTrip(req)
 }
 
-func activateAuth(authCtx *dto.AuthCtx, principal string, authType string) {
+func (au *authUtil) ActivateAuth(authCtx *dto.AuthCtx, principal string, authType string) {
 	authCtx.Active = true
 	authCtx.Type = authType
 	if principal != "" {
@@ -153,11 +219,11 @@ func activateAuth(authCtx *dto.AuthCtx, principal string, authType string) {
 	}
 }
 
-func deactivateAuth(authCtx *dto.AuthCtx) {
+func (au *authUtil) DeActivateAuth(authCtx *dto.AuthCtx) {
 	authCtx.Active = false
 }
 
-func parseServiceAccountFile(ac *dto.AuthCtx) (serviceAccount, error) {
+func (au *authUtil) ParseServiceAccountFile(ac *dto.AuthCtx) (serviceAccount, error) {
 	b, err := ac.GetCredentialsBytes()
 	var c serviceAccount
 	if err != nil {
@@ -166,7 +232,7 @@ func parseServiceAccountFile(ac *dto.AuthCtx) (serviceAccount, error) {
 	return c, json.Unmarshal(b, &c)
 }
 
-func getGoogleJWTConfig(
+func (au *authUtil) GetGoogleJWTConfig(
 	provider string,
 	credentialsBytes []byte,
 	scopes []string,
@@ -194,7 +260,7 @@ func getGoogleJWTConfig(
 	}
 }
 
-func getGenericClientCredentialsConfig(authCtx *dto.AuthCtx, scopes []string) (*clientcredentials.Config, error) {
+func (au *authUtil) GetGenericClientCredentialsConfig(authCtx *dto.AuthCtx, scopes []string) (*clientcredentials.Config, error) {
 	clientID, clientIDErr := authCtx.GetClientID()
 	if clientIDErr != nil {
 		return nil, clientIDErr
@@ -222,7 +288,7 @@ func getGenericClientCredentialsConfig(authCtx *dto.AuthCtx, scopes []string) (*
 	return rv, nil
 }
 
-func googleOauthServiceAccount(
+func (au *authUtil) GoogleOauthServiceAccount(
 	provider string,
 	authCtx *dto.AuthCtx,
 	scopes []string,
@@ -232,35 +298,35 @@ func googleOauthServiceAccount(
 	if err != nil {
 		return nil, fmt.Errorf("service account credentials error: %w", err)
 	}
-	config, errToken := getGoogleJWTConfig(provider, b, scopes, authCtx.Subject)
+	config, errToken := au.GetGoogleJWTConfig(provider, b, scopes, authCtx.Subject)
 	if errToken != nil {
 		return nil, errToken
 	}
-	activateAuth(authCtx, "", dto.AuthServiceAccountStr)
+	au.ActivateAuth(authCtx, "", dto.AuthServiceAccountStr)
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
 	return config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)), nil
 }
 
-func genericOauthClientCredentials(
+func (au *authUtil) GenericOauthClientCredentials(
 	authCtx *dto.AuthCtx,
 	scopes []string,
 	httpContext netutils.HTTPContext,
 ) (*http.Client, error) {
-	config, errToken := getGenericClientCredentialsConfig(authCtx, scopes)
+	config, errToken := au.GetGenericClientCredentialsConfig(authCtx, scopes)
 	if errToken != nil {
 		return nil, errToken
 	}
-	activateAuth(authCtx, "", dto.ClientCredentialsStr)
+	au.ActivateAuth(authCtx, "", dto.ClientCredentialsStr)
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
 	return config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)), nil
 }
 
-func apiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error) {
+func (au *authUtil) ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error) {
 	b, err := authCtx.GetCredentialsBytes()
 	if err != nil {
 		return nil, fmt.Errorf("credentials error: %w", err)
 	}
-	activateAuth(authCtx, "", "api_key")
+	au.ActivateAuth(authCtx, "", "api_key")
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
 	valPrefix := authCtx.ValuePrefix
 	if enforceBearer {
@@ -274,7 +340,7 @@ func apiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforc
 	return httpClient, nil
 }
 
-func awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	// Retrieve the AWS access key and secret key.
 	credentialsBytes, err := authCtx.GetCredentialsBytes()
 	if err != nil {
@@ -297,7 +363,7 @@ func awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*ht
 	sessionToken, _ := authCtx.GetAwsSessionTokenString()
 
 	// Mark the authentication context as active for AWS signing.
-	activateAuth(authCtx, "", dto.AuthAWSSigningv4Str)
+	au.ActivateAuth(authCtx, "", dto.AuthAWSSigningv4Str)
 
 	// Get the HTTP client from the runtime context.
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
@@ -314,12 +380,12 @@ func awsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*ht
 	return httpClient, nil
 }
 
-func basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	b, err := authCtx.GetCredentialsBytes()
 	if err != nil {
 		return nil, fmt.Errorf("credentials error: %w", err)
 	}
-	activateAuth(authCtx, "", "basic")
+	au.ActivateAuth(authCtx, "", "basic")
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
 	tr, err := newTransport(b, authTypeBasic, authCtx.ValuePrefix, locationHeader, "", httpClient.Transport)
 	if err != nil {
@@ -329,12 +395,12 @@ func basicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Cl
 	return httpClient, nil
 }
 
-func customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	b, err := authCtx.GetCredentialsBytes()
 	if err != nil {
 		return nil, fmt.Errorf("credentials error: %w", err)
 	}
-	activateAuth(authCtx, "", "custom")
+	au.ActivateAuth(authCtx, "", "custom")
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
 	tr, err := newTransport(b, authTypeCustom, authCtx.ValuePrefix, authCtx.Location, authCtx.Name, httpClient.Transport)
 	if err != nil {
@@ -367,7 +433,7 @@ func customAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.C
 	return httpClient, nil
 }
 
-func azureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (au *authUtil) azureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	azureTokenSource, err := azureauth.NewDefaultCredentialAzureTokenSource()
 	if err != nil {
 		return nil, fmt.Errorf("azure default credentials error: %w", err)
@@ -377,7 +443,7 @@ func azureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*
 		return nil, fmt.Errorf("azure default credentials token error: %w", err)
 	}
 	tokenString := token.Token
-	activateAuth(authCtx, "", "azure_default")
+	au.ActivateAuth(authCtx, "", "azure_default")
 	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
 	tr, err := newTransport([]byte(tokenString), authTypeBearer, "Bearer ", locationHeader, "", httpClient.Transport)
 	if err != nil {
