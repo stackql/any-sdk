@@ -111,9 +111,9 @@ func providerTypeConditionIsValid(providerType string, lhs string, rhs interface
 	case "string":
 		return reflect.TypeOf(rhs).String() == "string"
 	case "object":
-		return false
+		return reflect.TypeOf(rhs).String() == "string"
 	case "array":
-		return false
+		return reflect.TypeOf(rhs).String() == "string"
 	case "int", "int32", "int64":
 		return reflect.TypeOf(rhs).String() == "int"
 	default:
