@@ -104,6 +104,7 @@ func (gp *genericProvider) Auth(
 func getLogger() *logrus.Logger {
 	logger := logrus.New()
 	logger.SetOutput(os.Stderr)
+	logger.SetLevel(logrus.WarnLevel)
 	return logger
 }
 
@@ -249,7 +250,7 @@ func runQueryCommand(gp *genericProvider, authCtx *dto.AuthCtx, payload *queryCm
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stdout, "response = '%s'\n", string(bodyBytes))
+		fmt.Fprintf(os.Stdout, "%s", string(bodyBytes))
 	}
 	return nil
 }
