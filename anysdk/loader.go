@@ -40,6 +40,7 @@ type DiscoveryDoc interface {
 
 type Loader interface {
 	LoadFromBytes(bytes []byte) (Service, error)
+	LoadFromBytesWithProvider(bytes []byte, prov Provider) (Service, error)
 	LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (Service, error)
 	//
 	extractAndMergeQueryTransposeServiceLevel(svc Service) error
@@ -85,6 +86,15 @@ func (l *standardLoader) LoadFromBytes(bytes []byte) (Service, error) {
 	if err != nil {
 		return nil, err
 	}
+	return svc, nil
+}
+
+func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) (Service, error) {
+	svc, err := l.LoadFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+	svc.setProvider(prov)
 	return svc, nil
 }
 
