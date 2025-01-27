@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/stackql/any-sdk/pkg/dto"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -21,13 +22,8 @@ var (
 
 var SemVersion string = fmt.Sprintf("%s.%s.%s", BuildMajorVersion, BuildMinorVersion, BuildPatchVersion)
 
-type runtimeContext struct {
-	CPUProfile  string
-	LogLevelStr string
-}
-
 var (
-	runtimeCtx      runtimeContext
+	runtimeCtx      dto.RuntimeCtx
 	replicateCtrMgr bool = false
 )
 
@@ -61,10 +57,21 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CPUProfile, "cpuprofile", "", "cpuprofile file, none if empty")
-	rootCmd.PersistentFlags().StringVar(&runtimeCtx.LogLevelStr, "loglevel", "warn", "loglevel")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.LogLevelStr, "loglevel", "warn", "specify a canonical log level")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.AuthRaw, "auth", `{}`, "auth maps json string, keys are provider names")
+	rootCmd.PersistentFlags().BoolVar(&runtimeCtx.AllowInsecure, dto.AllowInsecureKey, false, "Allow trust of insecure certificates (not recommended)")
+	// CLI specific flags
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIPayload, "payload", ``, "string payload eg for HTTP request body")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIPayloadType, "payload-type", `application/json`, "request payload type, eg HTTP request Content-Type such as application/json")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIParameters, "parameters", `{}`, "json string of parameter map")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIProvFilePath, "prov-file-path", ``, "path to provider definition file")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLISvcFilePath, "svc-file-path", ``, "path to service definition file")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIResourceStr, "resource", ``, "resource name")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMethodName, "method", ``, "method name")
 
 	rootCmd.AddCommand(execCmd)
 	rootCmd.AddCommand(constCmd)
+	rootCmd.AddCommand(queryCmd)
 
 }
 
