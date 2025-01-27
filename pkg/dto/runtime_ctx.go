@@ -55,6 +55,13 @@ type RuntimeCtx struct {
 	VerboseFlag                  bool
 	ViperCfgFileName             string
 	WorkOffline                  bool
+	CLIPayload                   string
+	CLIPayloadType               string
+	CLIParameters                string
+	CLIProvFilePath              string
+	CLISvcFilePath               string
+	CLIResourceStr               string
+	CLIMethodName                string
 }
 
 func setInt(iPtr *int, val string) error {

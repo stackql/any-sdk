@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/dto"
 )
 
 // execCmd represents the exec command
@@ -36,7 +37,7 @@ var constCmd = &cobra.Command{
 	},
 }
 
-func runConstCommand(rtCtx runtimeContext) {
+func runConstCommand(rtCtx dto.RuntimeCtx) {
 	constMap := map[string]interface{}{
 		"ExtensionKeyAlwaysRequired": anysdk.ExtensionKeyAlwaysRequired,
 	}

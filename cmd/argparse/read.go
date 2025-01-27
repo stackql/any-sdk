@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/dto"
 )
 
 func printErrorAndExitOneIfNil(subject interface{}, msg string) {
@@ -49,7 +50,7 @@ var execCmd = &cobra.Command{
 	},
 }
 
-func runReadCommand(rtCtx runtimeContext, arg string) {
+func runReadCommand(rtCtx dto.RuntimeCtx, arg string) {
 	b, err := os.ReadFile(arg)
 	printErrorAndExitOneIfError(err)
 	l := anysdk.NewLoader()
