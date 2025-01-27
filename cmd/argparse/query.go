@@ -147,15 +147,6 @@ type queryCmdPayload struct {
 }
 
 func (qcp *queryCmdPayload) getService() (anysdk.Service, error) {
-	b, err := os.ReadFile(qcp.svcFilePath)
-	if err != nil {
-		return nil, err
-	}
-	l := anysdk.NewLoader()
-	svc, err := l.LoadFromBytes(b)
-	if err != nil {
-		return nil, err
-	}
 	pb, err := os.ReadFile(qcp.provFilePath)
 	if err != nil {
 		return nil, err
@@ -164,8 +155,28 @@ func (qcp *queryCmdPayload) getService() (anysdk.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	svc.SetProvider(prov)
+	b, err := os.ReadFile(qcp.svcFilePath)
+	if err != nil {
+		return nil, err
+	}
+	l := anysdk.NewLoader()
+	svc, err := l.LoadFromBytesWithProvider(b, prov)
+	if err != nil {
+		return nil, err
+	}
 	return svc, nil
+}
+
+func (qcp *queryCmdPayload) getProvider() (anysdk.Provider, error) {
+	pb, err := os.ReadFile(qcp.provFilePath)
+	if err != nil {
+		return nil, err
+	}
+	prov, err := anysdk.LoadProviderDocFromBytes(pb)
+	if err != nil {
+		return nil, err
+	}
+	return prov, nil
 }
 
 func newQueryCmdPayload(rtCtx dto.RuntimeCtx) (*queryCmdPayload, error) {
@@ -193,6 +204,10 @@ func newQueryCmdPayload(rtCtx dto.RuntimeCtx) (*queryCmdPayload, error) {
 }
 
 func runQueryCommand(gp *genericProvider, authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
+	prov, err := payload.getProvider()
+	if err != nil {
+		return err
+	}
 	svc, err := payload.getService()
 	if err != nil {
 		return err
@@ -217,7 +232,7 @@ func runQueryCommand(gp *genericProvider, authCtx *dto.AuthCtx, payload *queryCm
 		res,
 	)
 	prep := anysdk.NewHTTPPreparator(
-		svc.GetProvider(),
+		prov,
 		svc,
 		opStore,
 		map[int]map[string]interface{}{
@@ -324,18 +339,20 @@ var queryCmd = &cobra.Command{
 
 		printErrorAndExitOneIfError(err)
 
-		svc, err := payload.getService()
-
-		provStr := svc.GetProvider().GetName()
+		prov, err := payload.getProvider()
 
 		printErrorAndExitOneIfError(err)
 
-		gp := newGenericProvider(runtimeCtx, svc.GetProvider())
+		provStr := prov.GetName()
+
+		printErrorAndExitOneIfError(err)
+
+		gp := newGenericProvider(runtimeCtx, prov)
 
 		auth, isAuthPresent := payload.auth[provStr]
 
 		if !isAuthPresent {
-			authDTO, isAuthPresent := svc.GetProvider().GetAuth()
+			authDTO, isAuthPresent := prov.GetAuth()
 			if !isAuthPresent {
 				printErrorAndExitOneIfError(fmt.Errorf("auth not present"))
 			}

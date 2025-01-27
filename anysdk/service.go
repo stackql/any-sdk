@@ -29,8 +29,6 @@ type Service interface {
 	GetResource(resourceName string) (Resource, error)
 	GetSchema(key string) (Schema, error)
 	GetContactURL() string
-	GetProvider() Provider
-	SetProvider(Provider)
 	//
 	iDiscoveryDoc()
 	isObjectSchemaImplicitlyUnioned() bool
@@ -66,14 +64,6 @@ func (sv *standardService) getPath(k string) (*openapi3.PathItem, bool) {
 
 func (sv *standardService) getProviderService() ProviderService {
 	return sv.ProviderService
-}
-
-func (sv *standardService) GetProvider() Provider {
-	return sv.getProvider()
-}
-
-func (sv *standardService) SetProvider(provider Provider) {
-	sv.setProvider(provider)
 }
 
 func (sv *standardService) getProvider() Provider {
