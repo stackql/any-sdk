@@ -160,9 +160,6 @@ jobs:
         openssl req -x509 -keyout test/server/mtls/credentials/pg_client_key.pem -out test/server/mtls/credentials/pg_client_cert.pem -config test/server/mtls/openssl.cnf -days 365
         openssl req -x509 -keyout test/server/mtls/credentials/pg_rubbish_key.pem -out test/server/mtls/credentials/pg_rubbish_cert.pem -config test/server/mtls/openssl.cnf -days 365 
         python3 test/python/registry-rewrite.py
-        {
-          echo GCP_SERVICE_ACCOUNT_KEY="$(cat test/assets/credentials/dummy/google/functional-test-dummy-sa-key.json)"
-        } >> "${GITHUB_ENV}"
     
     - name: Start Core Test Mocks
       working-directory: stackql-core
@@ -174,7 +171,7 @@ jobs:
     - name: Run core mocked testing
       working-directory: stackql-core
       run: |
-        # export GCP_SERVICE_ACCOUNT_KEY="$(cat test/assets/credentials/dummy/google/functional-test-dummy-sa-key.json)"
+        export GCP_SERVICE_ACCOUNT_KEY="$(cat test/assets/credentials/dummy/google/functional-test-dummy-sa-key.json)"
         bucketsListIDs="$(${{ github.workspace }}/build/anysdk query \
           --svc-file-path="test/registry-mocked/src/googleapis.com/v0.1.2/services/storage-v1.yaml" \
           --prov-file-path="test/registry-mocked/src/googleapis.com/v0.1.2/provider.yaml" \
