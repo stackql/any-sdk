@@ -170,7 +170,7 @@ jobs:
     - name: Run core mocked testing
       working-directory: stackql-core
       run: |
-        bucketsListIDs="$(./build/anysdk query \
+        bucketsListIDs="$(${{ github.workspace }}/build/anysdk query \
           --svc-file-path="test/registry-mocked/src/googleapis.com/v0.1.2/services/storage-v1.yaml" \
           --prov-file-path="test/registry-mocked/src/googleapis.com/v0.1.2/provider.yaml" \
           --resource buckets \
