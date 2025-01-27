@@ -59,7 +59,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CPUProfile, "cpuprofile", "", "cpuprofile file, none if empty")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.LogLevelStr, "loglevel", "warn", "specify a canonical log level")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.AuthRaw, "auth", `{}`, "auth maps json string, keys are provider names")
-
+	rootCmd.PersistentFlags().BoolVar(&runtimeCtx.AllowInsecure, dto.AllowInsecureKey, false, "Allow trust of insecure certificates (not recommended)")
 	// CLI specific flags
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIPayload, "payload", ``, "string payload eg for HTTP request body")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIPayloadType, "payload-type", `application/json`, "request payload type, eg HTTP request Content-Type such as application/json")
