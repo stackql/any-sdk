@@ -164,7 +164,7 @@ jobs:
     - name: Start Core Test Mocks
       working-directory: stackql-core
       run: |
-        pgrep -f flask | xargs kill -9
+        pgrep -f flask | xargs kill -9 || true
         flask --app=./test/python/flask/gcp/app run --cert=./test/server/mtls/credentials/pg_server_cert.pem --key=./test/server/mtls/credentials/pg_server_key.pem  --port  1080 & 
     
     - name: Run core mocked testing
