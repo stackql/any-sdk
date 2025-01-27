@@ -34,11 +34,13 @@ The `const` command is very much a trivial "Hello World":
 export GOOGLE_CREDENTIALS="$(cat cicd/keys/google-ro-credentials.json)"
 
 
-
 ./build/anysdk query \
   --svc-file-path="test/tmp/googleapis.com/v24.11.00274/services/compute.yaml" \
   --prov-file-path="test/tmp/googleapis.com/v24.11.00274/provider.yaml" \
   --resource accelerator_types \
-  --method aggregated_list
+  --method aggregated_list \
+  --parameters '{ "project": "stackql-demo" }' \
+  | jq -r '.items["zones/us-east7-b"]'
+
 
 ```
