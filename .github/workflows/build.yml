@@ -19,6 +19,8 @@ env:
   GH_ACCESS_TOKEN: ${{ secrets.ACTIONS_PRIVATE_PACKAGE_SECRET }}
   PLANCACHEENABLED: "true"
   GOLANG_VERSION: 1.22
+  STACKQL_CORE_REPOSITORY: ${{ vars.STACKQL_CORE_REPOSITORY != '' && vars.STACKQL_CORE_REPOSITORY || 'stackql/stackql' }}
+  STACKQL_CORE_REF: ${{ vars.STACKQL_CORE_REF != '' && vars.STACKQL_CORE_REF || 'main' }}
 
 jobs:
 
@@ -92,6 +94,12 @@ jobs:
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5.0.0
+      with:
+        cache: pip
+        python-version: '3.11' 
       
     - name: Get dependencies
       run: |
@@ -124,17 +132,57 @@ jobs:
       if: success()
       run: go test -timeout 240s -v ./...
     
-    - name: CLI Test
+    - name: Trivial CLI Test
       if: success()
       run: |
         sudo apt-get update
         sudo apt-get install -y jq
         result="$(build/anysdk const | jq -r '.ExtensionKeyAlwaysRequired')"
         if [ "$result" != "x-alwaysRequired" ]; then
-          echo "CLI Test Failed with unexpected result: $result"
+          echo "Trivial CLI Test Failed with unexpected result: $result"
           exit 1
         else
-          echo "CLI Test passed with expected result: $result"
+          echo "Trivial CLI Test passed with expected result: $result"
+        fi
+
+    - name: Download core
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ env.STACKQL_CORE_REPOSITORY }}
+        ref: ${{ env.STACKQL_CORE_REF }}
+        path: stackql-core
+    
+    - name: Create materials for core tests
+      working-directory: stackql-core
+      run: |
+        pip3 install -r cicd/requirements.txt
+        openssl req -x509 -keyout test/server/mtls/credentials/pg_server_key.pem -out test/server/mtls/credentials/pg_server_cert.pem -config test/server/mtls/openssl.cnf -days 365
+        openssl req -x509 -keyout test/server/mtls/credentials/pg_client_key.pem -out test/server/mtls/credentials/pg_client_cert.pem -config test/server/mtls/openssl.cnf -days 365
+        openssl req -x509 -keyout test/server/mtls/credentials/pg_rubbish_key.pem -out test/server/mtls/credentials/pg_rubbish_cert.pem -config test/server/mtls/openssl.cnf -days 365 
+        python3 test/python/registry-rewrite.py
+    
+    - name: Start Core Test Mocks
+      working-directory: stackql-core
+      run: |
+        pgrep -f flask | xargs kill -9
+        flask --app=./test/python/flask/gcp/app run --cert=./test/server/mtls/credentials/pg_server_cert.pem --key=./test/server/mtls/credentials/pg_server_key.pem  --port  1080 & 
+    
+    - name: Run core mocked testing
+      working-directory: stackql-core
+      run: |
+        bucketsListIDs="$(./build/anysdk query \
+          --svc-file-path="test/registry-mocked/src/googleapis.com/v0.1.2/services/storage-v1.yaml" \
+          --prov-file-path="test/registry-mocked/src/googleapis.com/v0.1.2/provider.yaml" \
+          --resource buckets \
+          --method list \
+          --parameters '{ "project": "stackql-demo" }' \
+          | jq -r '.items[].id')" 
+        matchingBuckets="$(echo "${bucketsListIDs}" | grep "stackql-demo" )"
+        if [ "${matchingBuckets}" = "" ]; then
+          echo "Core Test Failed with no matchinh buckets"
+          exit 1
+        else
+          echo "Core Test passed with matching buckets: $matchingBuckets"
         fi
 
   macosbuild:

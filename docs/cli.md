@@ -43,4 +43,12 @@ export GOOGLE_CREDENTIALS="$(cat cicd/keys/google-ro-credentials.json)"
   | jq -r '.items["zones/us-east7-b"]'
 
 
+./build/anysdk query \
+  --svc-file-path="test/tmp/googleapis.com/v24.11.00274/services/storage.yaml" \
+  --prov-file-path="test/tmp/googleapis.com/v24.11.00274/provider.yaml" \
+  --resource buckets \
+  --method list \
+  --parameters '{ "project": "stackql-demo" }' \
+  | jq -r '.items[].id'
+
 ```
