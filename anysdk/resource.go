@@ -26,44 +26,44 @@ type Resource interface {
 	GetRequestTranslateAlgorithm() string
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
-	FindMethod(key string) (OperationStore, error)
-	GetFirstMethodFromSQLVerb(sqlVerb string) (OperationStore, string, bool)
-	GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (OperationStore, map[string]interface{}, bool)
+	FindMethod(key string) (StandardOperationStore, error)
+	GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool)
+	GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
 	GetService() (OpenAPIService, bool)
 	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
 	GetMethodsMatched() Methods
 	ToMap(extended bool) map[string]interface{}
 	// unexported mutators
-	getSQLVerbs() map[string][]OperationStoreRef
+	getSQLVerbs() map[string][]OpenAPIOperationStoreRef
 	setProvider(p Provider)
 	setService(s OpenAPIService)
 	setProviderService(ps ProviderService)
-	getUnionRequiredParameters(method OperationStore) (map[string]Addressable, error)
-	setMethod(string, *standardOperationStore)
-	mutateSQLVerb(k string, idx int, v OperationStoreRef)
+	getUnionRequiredParameters(method StandardOperationStore) (map[string]Addressable, error)
+	setMethod(string, *standardOpenAPIOperationStore)
+	mutateSQLVerb(k string, idx int, v OpenAPIOperationStoreRef)
 	propogateToConfig() error
 }
 
 type standardResource struct {
-	ID                string                         `json:"id" yaml:"id"`       // Required
-	Name              string                         `json:"name" yaml:"name"`   // Required
-	Title             string                         `json:"title" yaml:"title"` // Required
-	Description       string                         `json:"description,omitempty" yaml:"desription,omitempty"`
-	SelectorAlgorithm string                         `json:"selectorAlgorithm,omitempty" yaml:"selectorAlgorithm,omitempty"`
-	Methods           Methods                        `json:"methods" yaml:"methods"`
-	ServiceDocPath    *ServiceRef                    `json:"serviceDoc,omitempty" yaml:"serviceDoc,omitempty"`
-	SQLVerbs          map[string][]OperationStoreRef `json:"sqlVerbs" yaml:"sqlVerbs"`
-	BaseUrl           string                         `json:"baseUrl,omitempty" yaml:"baseUrl,omitempty"` // hack
-	StackQLConfig     *standardStackQLConfig         `json:"config,omitempty" yaml:"config,omitempty"`
-	OpenAPIService    OpenAPIService                 `json:"-" yaml:"-"` // upwards traversal
-	ProviderService   ProviderService                `json:"-" yaml:"-"` // upwards traversal
-	Provider          Provider                       `json:"-" yaml:"-"` // upwards traversal
+	ID                string                                `json:"id" yaml:"id"`       // Required
+	Name              string                                `json:"name" yaml:"name"`   // Required
+	Title             string                                `json:"title" yaml:"title"` // Required
+	Description       string                                `json:"description,omitempty" yaml:"desription,omitempty"`
+	SelectorAlgorithm string                                `json:"selectorAlgorithm,omitempty" yaml:"selectorAlgorithm,omitempty"`
+	Methods           Methods                               `json:"methods" yaml:"methods"`
+	ServiceDocPath    *ServiceRef                           `json:"serviceDoc,omitempty" yaml:"serviceDoc,omitempty"`
+	SQLVerbs          map[string][]OpenAPIOperationStoreRef `json:"sqlVerbs" yaml:"sqlVerbs"`
+	BaseUrl           string                                `json:"baseUrl,omitempty" yaml:"baseUrl,omitempty"` // hack
+	StackQLConfig     *standardStackQLConfig                `json:"config,omitempty" yaml:"config,omitempty"`
+	OpenAPIService    OpenAPIService                        `json:"-" yaml:"-"` // upwards traversal
+	ProviderService   ProviderService                       `json:"-" yaml:"-"` // upwards traversal
+	Provider          Provider                              `json:"-" yaml:"-"` // upwards traversal
 }
 
 func NewEmptyResource() Resource {
 	return &standardResource{
 		Methods:  make(Methods),
-		SQLVerbs: make(map[string][]OperationStoreRef),
+		SQLVerbs: make(map[string][]OpenAPIOperationStoreRef),
 	}
 }
 
@@ -82,7 +82,7 @@ func (r *standardResource) GetService() (OpenAPIService, bool) {
 	return r.OpenAPIService, true
 }
 
-func (r *standardResource) getSQLVerbs() map[string][]OperationStoreRef {
+func (r *standardResource) getSQLVerbs() map[string][]OpenAPIOperationStoreRef {
 	return r.SQLVerbs
 }
 
@@ -90,11 +90,11 @@ func (r *standardResource) setService(s OpenAPIService) {
 	r.OpenAPIService = s
 }
 
-func (r *standardResource) mutateSQLVerb(k string, idx int, v OperationStoreRef) {
+func (r *standardResource) mutateSQLVerb(k string, idx int, v OpenAPIOperationStoreRef) {
 	r.SQLVerbs[k][idx] = v
 }
 
-func (r *standardResource) setMethod(k string, v *standardOperationStore) {
+func (r *standardResource) setMethod(k string, v *standardOpenAPIOperationStore) {
 	if v == nil {
 		return
 	}
@@ -235,11 +235,11 @@ func (rs *standardResource) getMethodsMatched() Methods {
 	return rv
 }
 
-func (rs *standardResource) GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (OperationStore, map[string]interface{}, bool) {
+func (rs *standardResource) GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
 	return rs.getFirstMethodMatchFromSQLVerb(sqlVerb, parameters)
 }
 
-func (rs *standardResource) getFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (OperationStore, map[string]interface{}, bool) {
+func (rs *standardResource) getFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
 	ms, err := rs.getMethodsForSQLVerb(sqlVerb)
 	if err != nil {
 		return nil, parameters, false
@@ -247,11 +247,11 @@ func (rs *standardResource) getFirstMethodMatchFromSQLVerb(sqlVerb string, param
 	return ms.getFirstMatch(parameters)
 }
 
-func (rs *standardResource) GetFirstMethodFromSQLVerb(sqlVerb string) (OperationStore, string, bool) {
+func (rs *standardResource) GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool) {
 	return rs.getFirstMethodFromSQLVerb(sqlVerb)
 }
 
-func (rs *standardResource) getUnionRequiredParameters(method OperationStore) (map[string]Addressable, error) {
+func (rs *standardResource) getUnionRequiredParameters(method StandardOperationStore) (map[string]Addressable, error) {
 	targetSchema, _, err := method.GetSelectSchemaAndObjectPath()
 	if err != nil {
 		return nil, fmt.Errorf("getUnionRequiredParameters(): cannot infer fat required parameters: %s", err.Error())
@@ -281,7 +281,7 @@ func (rs *standardResource) getUnionRequiredParameters(method OperationStore) (m
 	return rv, nil
 }
 
-func (rs *standardResource) getFirstMethodFromSQLVerb(sqlVerb string) (OperationStore, string, bool) {
+func (rs *standardResource) getFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool) {
 	ms, err := rs.getMethodsForSQLVerb(sqlVerb)
 	if err != nil {
 		return nil, "", false
@@ -352,15 +352,15 @@ func (rs *standardResource) GetSelectableObject() string {
 	return ""
 }
 
-func (rs *standardResource) FindOperationStore(sel OperationSelector) (OperationStore, error) {
+func (rs *standardResource) FindOpenAPIOperationStore(sel OperationSelector) (StandardOperationStore, error) {
 	switch rs.SelectorAlgorithm {
 	case "", "standard":
-		return rs.findOperationStoreStandard(sel)
+		return rs.findOpenAPIOperationStoreStandard(sel)
 	}
 	return nil, fmt.Errorf("cannot search for operation with selector algorithm = '%s'", rs.SelectorAlgorithm)
 }
 
-func (rs *standardResource) findOperationStoreStandard(sel OperationSelector) (OperationStore, error) {
+func (rs *standardResource) findOpenAPIOperationStoreStandard(sel OperationSelector) (StandardOperationStore, error) {
 	rv, err := rs.Methods.FindFromSelector(sel)
 	if err == nil {
 		return rv, nil
@@ -377,7 +377,7 @@ func (r *standardResource) FilterBy(predicate func(interface{}) (ITable, error))
 	return predicate(r)
 }
 
-func (r *standardResource) FindMethod(key string) (OperationStore, error) {
+func (r *standardResource) FindMethod(key string) (StandardOperationStore, error) {
 	if r.Methods == nil {
 		return nil, fmt.Errorf("cannot find method with key = '%s' from nil methods", key)
 	}

@@ -19,7 +19,7 @@ type HTTPPreparator interface {
 
 type standardHTTPPreparator struct {
 	prov        Provider
-	m           OperationStore
+	m           StandardOperationStore
 	svc         OpenAPIService
 	paramMap    map[int]map[string]interface{}
 	execContext ExecContext
@@ -30,7 +30,7 @@ type standardHTTPPreparator struct {
 func NewHTTPPreparator(
 	prov Provider,
 	svc OpenAPIService,
-	m OperationStore,
+	m StandardOperationStore,
 	paramMap map[int]map[string]interface{},
 	parameters streaming.MapStream,
 	execContext ExecContext,
@@ -42,7 +42,7 @@ func NewHTTPPreparator(
 func newHTTPPreparator(
 	prov Provider,
 	svc OpenAPIService,
-	m OperationStore,
+	m StandardOperationStore,
 	paramMap map[int]map[string]interface{},
 	parameters streaming.MapStream,
 	execContext ExecContext,
@@ -170,7 +170,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 
 func awsContextHousekeeping(
 	ctx context.Context,
-	method OperationStore,
+	method StandardOperationStore,
 	parameters map[string]interface{},
 ) context.Context {
 	svcName := method.getServiceNameForProvider()
@@ -186,7 +186,7 @@ func awsContextHousekeeping(
 func getRequest(
 	prov Provider,
 	svc OpenAPIService,
-	method OperationStore,
+	method StandardOperationStore,
 	httpParams HttpParameters,
 ) (*http.Request, error) {
 	params, err := httpParams.ToFlatMap()

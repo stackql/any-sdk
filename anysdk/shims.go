@@ -156,7 +156,7 @@ func newObjectWithLineage(val interface{}, schema Schema, parentKey string, path
 	}
 }
 
-func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationStore) (ObjectWithLineage, bool) {
+func parseRequestBodyParam(k string, v interface{}, s Schema, method StandardOperationStore) (ObjectWithLineage, bool) {
 	trimmedKey, revertErr := method.revertRequestBodyAttributeRename(k)
 	var parsedVal interface{}
 	if revertErr == nil { //nolint:nestif // keep for now
@@ -210,7 +210,7 @@ func parseRequestBodyParam(k string, v interface{}, s Schema, method OperationSt
 //nolint:gocognit // not super complex
 func splitHTTPParameters(
 	sqlParamMap map[int]map[string]interface{},
-	method OperationStore,
+	method StandardOperationStore,
 ) ([]HttpParameters, error) {
 	var retVal []HttpParameters
 	var rowKeys []int
