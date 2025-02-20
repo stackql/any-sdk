@@ -161,7 +161,7 @@ type HttpParameters interface {
 }
 
 type standardHttpParameters struct {
-	opStore      OperationStore
+	opStore      StandardOperationStore
 	CookieParams ParamMap
 	HeaderParams ParamMap
 	PathParams   ParamMap
@@ -173,7 +173,7 @@ type standardHttpParameters struct {
 	Region       EncodableString
 }
 
-func NewHttpParameters(method OperationStore) HttpParameters {
+func NewHttpParameters(method StandardOperationStore) HttpParameters {
 	return &standardHttpParameters{
 		opStore:      method,
 		CookieParams: make(ParamMap),
