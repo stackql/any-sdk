@@ -21,6 +21,7 @@ type Service interface {
 	GetResources() (map[string]Resource, error)
 	GetName() string
 	GetResource(resourceName string) (Resource, error)
+	GetSchema(key string) (Schema, error)
 }
 
 type OpenAPIService interface {
