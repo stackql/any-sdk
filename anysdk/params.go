@@ -12,10 +12,10 @@ var (
 
 type standardParameter struct {
 	openapi3.Parameter
-	svc Service
+	svc OpenAPIService
 }
 
-func NewParameter(param *openapi3.Parameter, svc Service) Addressable {
+func NewParameter(param *openapi3.Parameter, svc OpenAPIService) Addressable {
 	return &standardParameter{
 		*param,
 		svc,
@@ -28,10 +28,10 @@ type Params interface {
 
 type parameters struct {
 	openapi3.Parameters
-	svc Service
+	svc OpenAPIService
 }
 
-func NewParameters(params openapi3.Parameters, svc Service) Params {
+func NewParameters(params openapi3.Parameters, svc OpenAPIService) Params {
 	return parameters{
 		params,
 		svc,

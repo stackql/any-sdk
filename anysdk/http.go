@@ -154,7 +154,7 @@ type HttpParameters interface {
 	GetRemainingQueryParamsFlatMap(keysRemaining map[string]interface{}) (map[string]interface{}, error)
 	GetServerParameterFlatMap() (map[string]interface{}, error)
 	SetResponseBodyParam(key string, val interface{})
-	SetServerParam(key string, svc Service, val interface{})
+	SetServerParam(key string, svc OpenAPIService, val interface{})
 	SetRequestBodyParam(key string, val interface{})
 	SetRequestBody(map[string]interface{})
 	GetRequestBody() map[string]interface{}
@@ -218,7 +218,7 @@ func (hp *standardHttpParameters) SetResponseBodyParam(key string, val interface
 	hp.ResponseBody[key] = val
 }
 
-func (hp *standardHttpParameters) SetServerParam(key string, svc Service, val interface{}) {
+func (hp *standardHttpParameters) SetServerParam(key string, svc OpenAPIService, val interface{}) {
 	hp.ServerParams[key] = NewParameterBinding(NewParameter(&openapi3.Parameter{In: "server"}, svc), val)
 }
 
@@ -325,7 +325,7 @@ func (hp *standardHttpParameters) processFuncHTTPParam(key string, param interfa
 			case *sqlparser.AliasedExpr:
 				switch argExpr := ex.Expr.(type) {
 				case *sqlparser.SQLVal:
-					queryTransposer := querytranspose.NewQueryTransposer(hp.opStore.GetQueryTransposeAlgorithm(), argExpr.Val, key)
+					queryTransposer := querytranspose.NewQueryTransposer(hp.opStore.getQueryTransposeAlgorithm(), argExpr.Val, key)
 					return queryTransposer.Transpose()
 				default:
 					return nil, fmt.Errorf("cannot process json function underlying arg of type = '%T'", argExpr)
