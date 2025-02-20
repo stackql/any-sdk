@@ -12,24 +12,27 @@ import (
 )
 
 var (
-	_ Service = &standardService{}
+	_ OpenAPIService = &standardService{}
 )
 
 type Service interface {
-	GetT() *openapi3.T
-	GetQueryTransposeAlgorithm() string
 	IsPreferred() bool
-	GetRequestTranslateAlgorithm() string
-	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
-	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
-	GetServers() (openapi3.Servers, bool)
+	GetServers() (openapi3.Servers, bool) // Difficult to remove, not impossible.
 	GetResources() (map[string]Resource, error)
-	GetComponents() openapi3.Components
 	GetName() string
 	GetResource(resourceName string) (Resource, error)
 	GetSchema(key string) (Schema, error)
-	GetContactURL() string
+}
+
+type OpenAPIService interface {
+	Service
 	//
+	getRequestTranslateAlgorithm() string
+	getComponents() openapi3.Components
+	getPaginationRequestTokenSemantic() (TokenSemantic, bool)
+	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	getQueryTransposeAlgorithm() string
+	getT() *openapi3.T
 	iDiscoveryDoc()
 	isObjectSchemaImplicitlyUnioned() bool
 	getExtension(key string) (interface{}, bool)
@@ -50,13 +53,6 @@ type standardService struct {
 	Provider        Provider        `json:"-" yaml:"-"` // upwards traversal
 }
 
-func (sv *standardService) GetContactURL() string {
-	if sv.Info == nil || sv.Info.Contact == nil {
-		return ""
-	}
-	return sv.Info.Contact.URL
-}
-
 func (sv *standardService) getPath(k string) (*openapi3.PathItem, bool) {
 	rv, ok := sv.T.Paths[k]
 	return rv, ok
@@ -70,7 +66,7 @@ func (sv *standardService) getProvider() Provider {
 	return sv.Provider
 }
 
-func (sv *standardService) GetComponents() openapi3.Components {
+func (sv *standardService) getComponents() openapi3.Components {
 	return sv.T.Components
 }
 
@@ -82,7 +78,7 @@ func (sv *standardService) setProvider(provider Provider) {
 			for _, m := range rsc.Methods {
 				m.setProvider(provider)
 				if m.Inverse != nil {
-					inverseOpStore, inverseOpStoreExists := m.Inverse.getOperationStore()
+					inverseOpStore, inverseOpStoreExists := m.Inverse.getOpenAPIOperationStore()
 					if inverseOpStoreExists {
 						inverseOpStore.setProvider(provider)
 					}
@@ -101,7 +97,7 @@ func (sv *standardService) setProviderService(providerService ProviderService) {
 			for _, m := range rsc.Methods {
 				m.setProviderService(providerService)
 				if m.Inverse != nil {
-					inverseOpStore, inverseOpStoreExists := m.Inverse.getOperationStore()
+					inverseOpStore, inverseOpStoreExists := m.Inverse.getOpenAPIOperationStore()
 					if inverseOpStoreExists {
 						inverseOpStore.setProviderService(providerService)
 					}
@@ -127,7 +123,7 @@ func (sv *standardService) setResourceMap(rsc map[string]*standardResource) {
 
 func (sv *standardService) iDiscoveryDoc() {}
 
-func (sv *standardService) GetT() *openapi3.T {
+func (sv *standardService) getT() *openapi3.T {
 	return sv.T
 }
 
@@ -141,7 +137,7 @@ func (sv *standardService) isObjectSchemaImplicitlyUnioned() bool {
 	return sv.Provider.isObjectSchemaImplicitlyUnioned()
 }
 
-func NewService(t *openapi3.T) Service {
+func NewService(t *openapi3.T) OpenAPIService {
 	svc := &standardService{
 		T:   t,
 		rsc: make(map[string]*standardResource),
@@ -158,7 +154,7 @@ func (svc *standardService) IsPreferred() bool {
 	return false
 }
 
-func (svc *standardService) GetQueryTransposeAlgorithm() string {
+func (svc *standardService) getQueryTransposeAlgorithm() string {
 	if svc.StackQLConfig != nil {
 		qt, qtExists := svc.StackQLConfig.GetQueryTranspose()
 		if qtExists {
@@ -168,7 +164,7 @@ func (svc *standardService) GetQueryTransposeAlgorithm() string {
 	return ""
 }
 
-func (svc *standardService) GetRequestTranslateAlgorithm() string {
+func (svc *standardService) getRequestTranslateAlgorithm() string {
 	if svc.StackQLConfig != nil {
 		rt, rtExists := svc.StackQLConfig.GetRequestTranslate()
 		if rtExists {
@@ -178,7 +174,7 @@ func (svc *standardService) GetRequestTranslateAlgorithm() string {
 	return ""
 }
 
-func (svc *standardService) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
+func (svc *standardService) getPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	if svc.StackQLConfig != nil {
 		pag, pagExists := svc.StackQLConfig.GetPagination()
 		if pagExists && pag.GetRequestToken() != nil {
@@ -188,7 +184,7 @@ func (svc *standardService) GetPaginationRequestTokenSemantic() (TokenSemantic, 
 	return nil, false
 }
 
-func (svc *standardService) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
+func (svc *standardService) getPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	if svc.StackQLConfig != nil {
 		pag, pagExists := svc.StackQLConfig.GetPagination()
 		if pagExists && pag.GetResponseToken() != nil {
@@ -307,7 +303,7 @@ func (svc *standardService) GetResource(resourceName string) (Resource, error) {
 	}
 	rsc, ok := rscs[resourceName]
 	if !ok {
-		return nil, fmt.Errorf("Service.GetResource() failure")
+		return nil, fmt.Errorf("OpenAPIService.GetResource() failure")
 	}
 	return rsc, nil
 }

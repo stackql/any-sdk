@@ -35,14 +35,14 @@ func (oits operationTokens) GetTokenSemantic(key string) (TokenSemantic, bool) {
 
 type OperationInverse interface {
 	JSONLookup(token string) (interface{}, error)
-	GetOperationStore() (OperationStore, bool)
+	GetOperationStore() (StandardOperationStore, bool)
 	GetTokens() (OperationTokens, bool)
 	GetParamMap(response.Response) (map[string]interface{}, error)
 }
 
 type operationInverse struct {
-	OpRef         *OperationStoreRef `json:"sqlVerb" yaml:"sqlVerb"`
-	ReverseTokens operationTokens    `json:"tokens,omitempty" yaml:"tokens,omitempty"`
+	OpRef         *OpenAPIOperationStoreRef `json:"sqlVerb" yaml:"sqlVerb"`
+	ReverseTokens operationTokens           `json:"tokens,omitempty" yaml:"tokens,omitempty"`
 }
 
 func (oi *operationInverse) JSONLookup(token string) (interface{}, error) {
@@ -56,11 +56,11 @@ func (oi *operationInverse) JSONLookup(token string) (interface{}, error) {
 	}
 }
 
-func (oi *operationInverse) GetOperationStore() (OperationStore, bool) {
-	return oi.getOperationStore()
+func (oi *operationInverse) GetOperationStore() (StandardOperationStore, bool) {
+	return oi.getOpenAPIOperationStore()
 }
 
-func (oi *operationInverse) getOperationStore() (OperationStore, bool) {
+func (oi *operationInverse) getOpenAPIOperationStore() (StandardOperationStore, bool) {
 	if oi.OpRef != nil && (oi.OpRef.Ref == "" || oi.OpRef.Value == nil) {
 		return nil, false
 	}

@@ -4,102 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"runtime/pprof"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
 	"github.com/stackql/any-sdk/anysdk"
-	"github.com/stackql/any-sdk/pkg/auth_util"
 	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/internaldto"
-	"github.com/stackql/any-sdk/pkg/netutils"
 )
-
-type genericProvider struct {
-	provider   anysdk.Provider
-	runtimeCtx dto.RuntimeCtx
-	authUtil   auth_util.AuthUtility
-}
-
-func newGenericProvider(rtCtx dto.RuntimeCtx, prov anysdk.Provider) *genericProvider {
-	return &genericProvider{
-		runtimeCtx: rtCtx,
-		authUtil:   auth_util.NewAuthUtility(),
-		provider:   prov,
-	}
-}
-
-func (gp *genericProvider) inferAuthType(authCtx dto.AuthCtx, authTypeRequested string) string {
-	ft := strings.ToLower(authTypeRequested)
-	switch ft {
-	case dto.AuthAzureDefaultStr:
-		return dto.AuthAzureDefaultStr
-	case dto.AuthAPIKeyStr:
-		return dto.AuthAPIKeyStr
-	case dto.AuthBasicStr:
-		return dto.AuthBasicStr
-	case dto.AuthBearerStr:
-		return dto.AuthBearerStr
-	case dto.AuthServiceAccountStr:
-		return dto.AuthServiceAccountStr
-	case dto.AuthInteractiveStr:
-		return dto.AuthInteractiveStr
-	case dto.AuthNullStr:
-		return dto.AuthNullStr
-	case dto.AuthAWSSigningv4Str:
-		return dto.AuthAWSSigningv4Str
-	case dto.AuthCustomStr:
-		return dto.AuthCustomStr
-	case dto.OAuth2Str:
-		return dto.OAuth2Str
-	}
-	if authCtx.KeyFilePath != "" || authCtx.KeyEnvVar != "" {
-		return dto.AuthServiceAccountStr
-	}
-	return dto.AuthNullStr
-}
-
-func (gp *genericProvider) Auth(
-	authCtx *dto.AuthCtx,
-	authTypeRequested string,
-	enforceRevokeFirst bool,
-) (*http.Client, error) {
-	authCtx = authCtx.Clone()
-	at := gp.inferAuthType(*authCtx, authTypeRequested)
-	switch at {
-	case dto.AuthAPIKeyStr:
-		return gp.authUtil.ApiTokenAuth(authCtx, gp.runtimeCtx, false)
-	case dto.AuthBearerStr:
-		return gp.authUtil.ApiTokenAuth(authCtx, gp.runtimeCtx, true)
-	case dto.AuthServiceAccountStr:
-		scopes := authCtx.Scopes
-		return gp.authUtil.GoogleOauthServiceAccount(gp.provider.GetName(), authCtx, scopes, gp.runtimeCtx)
-	case dto.OAuth2Str:
-		if authCtx.GrantType == dto.ClientCredentialsStr {
-			scopes := authCtx.Scopes
-			return gp.authUtil.GenericOauthClientCredentials(authCtx, scopes, gp.runtimeCtx)
-		}
-	case dto.AuthBasicStr:
-		return gp.authUtil.BasicAuth(authCtx, gp.runtimeCtx)
-	case dto.AuthCustomStr:
-		return gp.authUtil.CustomAuth(authCtx, gp.runtimeCtx)
-	case dto.AuthAzureDefaultStr:
-		return gp.authUtil.AzureDefaultAuth(authCtx, gp.runtimeCtx)
-	case dto.AuthInteractiveStr:
-		return gp.authUtil.GCloudOAuth(gp.runtimeCtx, authCtx, enforceRevokeFirst)
-	case dto.AuthAWSSigningv4Str:
-		return gp.authUtil.AwsSigningAuth(authCtx, gp.runtimeCtx)
-	case dto.AuthNullStr:
-		return netutils.GetHTTPClient(gp.runtimeCtx, http.DefaultClient), nil
-	}
-	return nil, fmt.Errorf("could not infer auth type")
-}
 
 func getLogger() *logrus.Logger {
 	logger := logrus.New()
@@ -146,7 +62,7 @@ type queryCmdPayload struct {
 	auth         map[string]*dto.AuthCtx
 }
 
-func (qcp *queryCmdPayload) getService() (anysdk.Service, error) {
+func (qcp *queryCmdPayload) getService() (anysdk.OpenAPIService, error) {
 	pb, err := os.ReadFile(qcp.provFilePath)
 	if err != nil {
 		return nil, err
@@ -203,7 +119,7 @@ func newQueryCmdPayload(rtCtx dto.RuntimeCtx) (*queryCmdPayload, error) {
 	}, nil
 }
 
-func runQueryCommand(gp *genericProvider, authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
+func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 	prov, err := payload.getProvider()
 	if err != nil {
 		return err
@@ -242,26 +158,28 @@ func runQueryCommand(gp *genericProvider, authCtx *dto.AuthCtx, payload *queryCm
 		execCtx,
 		getLogger(),
 	)
-	httpClient, err := gp.Auth(
-		authCtx,
-		authCtx.Type,
-		false,
-	)
-	if err != nil {
-		return err
-	}
 	armoury, err := prep.BuildHTTPRequestCtx()
 	if err != nil {
 		return err
 	}
 	for _, v := range armoury.GetRequestParams() {
-		req := v.GetRequest()
-		response, err := httpClient.Do(req)
-		if err != nil {
+		argList := v.GetArgList()
+
+		cc := anysdk.NewAnySdkClientConfigurator(
+			payload.rtCtx,
+			prov.GetName(),
+		)
+		response, apiErr := anysdk.CallFromSignature(
+			cc, payload.rtCtx, authCtx, authCtx.Type, false, os.Stderr, prov, anysdk.NewAnySdkOpStoreDesignation(opStore), argList)
+		if apiErr != nil {
 			return err
 		}
-		defer response.Body.Close()
-		bodyBytes, err := io.ReadAll(response.Body)
+		httpResponse, httpResponseErr := response.GetHttpResponse()
+		if httpResponseErr != nil {
+			return httpResponseErr
+		}
+		defer httpResponse.Body.Close()
+		bodyBytes, err := io.ReadAll(httpResponse.Body)
 		if err != nil {
 			return err
 		}
@@ -347,8 +265,6 @@ var queryCmd = &cobra.Command{
 
 		printErrorAndExitOneIfError(err)
 
-		gp := newGenericProvider(runtimeCtx, prov)
-
 		auth, isAuthPresent := payload.auth[provStr]
 
 		if !isAuthPresent {
@@ -360,7 +276,6 @@ var queryCmd = &cobra.Command{
 		}
 
 		err = runQueryCommand(
-			gp,
 			auth,
 			payload,
 		)

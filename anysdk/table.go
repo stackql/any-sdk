@@ -2,6 +2,7 @@ package anysdk
 
 import (
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/stackql-parser/go/sqltypes"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
@@ -99,6 +100,14 @@ func NewColumnDescriptor(alias string, name string, qualifier string, decoratedC
 
 func newColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema Schema, val *sqlparser.SQLVal) ColumnDescriptor {
 	return standardColumnDescriptor{Alias: alias, Name: name, Qualifier: qualifier, DecoratedCol: decoratedCol, Schema: schema, Val: val, Node: node}
+}
+
+func newNilTabulation(svc OpenAPIService, key string, path string) Tabulation {
+	return newStandardTabulation(
+		constants.NilTabulationName,
+		[]ColumnDescriptor{},
+		newExmptyObjectStandardSchema(svc, key, path),
+	)
 }
 
 type Tabulation interface {

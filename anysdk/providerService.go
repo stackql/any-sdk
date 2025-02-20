@@ -16,19 +16,19 @@ var (
 
 type ProviderService interface {
 	ITable
-	GetQueryTransposeAlgorithm() string
+	getQueryTransposeAlgorithm() string
 	GetProvider() (Provider, bool)
-	GetService() (Service, error)
+	GetService() (OpenAPIService, error)
 	GetRequestTranslateAlgorithm() string
 	GetResourcesShallow() (ResourceRegister, error)
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
-	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	ConditionIsValid(lhs string, rhs interface{}) bool
 	GetID() string
-	GetServiceFragment(resourceKey string) (Service, error)
+	GetServiceFragment(resourceKey string) (OpenAPIService, error)
 	GetResourcesRefRef() string
-	PeekServiceFragment(resourceKey string) (Service, bool)
-	SetServiceRefVal(Service) bool
+	PeekServiceFragment(resourceKey string) (OpenAPIService, bool)
+	SetServiceRefVal(OpenAPIService) bool
 	IsPreferred() bool
 	GetTitle() string
 	GetVersion() string
@@ -37,25 +37,25 @@ type ProviderService interface {
 	getResourcesShallowWithRegistry(registry RegistryAPI) (ResourceRegister, error)
 	getServiceRefRef() string
 	getResourcesRefRef() string
-	setService(svc Service)
-	getServiceWithRegistry(registry RegistryAPI) (Service, error)
+	setService(svc OpenAPIService)
+	getServiceWithRegistry(registry RegistryAPI) (OpenAPIService, error)
 	getServiceDocRef(rr ResourceRegister, rsc Resource) ServiceRef
 	setProvider(provider Provider)
 }
 
 type standardProviderService struct {
 	openapi3.ExtensionProps
-	ID            string                 `json:"id" yaml:"id"`           // Required
-	Name          string                 `json:"name" yaml:"name"`       // Required
-	Title         string                 `json:"title" yaml:"title"`     // Required
-	Version       string                 `json:"version" yaml:"version"` // Required
-	Description   string                 `json:"description" yaml:"description"`
-	Preferred     bool                   `json:"preferred" yaml:"preferred"`
-	ServiceRef    *ServiceRef            `json:"service,omitempty" yaml:"service,omitempty"`     // will be lazy evaluated
-	ResourcesRef  *ResourcesRef          `json:"resources,omitempty" yaml:"resources,omitempty"` // will be lazy evaluated
-	Provider      Provider               `json:"-" yaml:"-"`                                     // upwards traversal
-	StackQLConfig *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
-	Service       Service                `json:"-" yaml:"-"`
+	ID             string                 `json:"id" yaml:"id"`           // Required
+	Name           string                 `json:"name" yaml:"name"`       // Required
+	Title          string                 `json:"title" yaml:"title"`     // Required
+	Version        string                 `json:"version" yaml:"version"` // Required
+	Description    string                 `json:"description" yaml:"description"`
+	Preferred      bool                   `json:"preferred" yaml:"preferred"`
+	ServiceRef     *ServiceRef            `json:"service,omitempty" yaml:"service,omitempty"`     // will be lazy evaluated
+	ResourcesRef   *ResourcesRef          `json:"resources,omitempty" yaml:"resources,omitempty"` // will be lazy evaluated
+	Provider       Provider               `json:"-" yaml:"-"`                                     // upwards traversal
+	StackQLConfig  *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
+	OpenAPIService OpenAPIService         `json:"-" yaml:"-"`
 }
 
 func NewEmptyProviderService() ProviderService {
@@ -78,7 +78,7 @@ func (sv *standardProviderService) IsPreferred() bool {
 	return sv.Preferred
 }
 
-func (sv *standardProviderService) SetServiceRefVal(svc Service) bool {
+func (sv *standardProviderService) SetServiceRefVal(svc OpenAPIService) bool {
 	switch svc := svc.(type) {
 	case *standardService:
 		sv.ServiceRef.Value = svc
@@ -96,8 +96,8 @@ func (sv *standardProviderService) GetID() string {
 	return sv.ID
 }
 
-func (sv *standardProviderService) setService(svc Service) {
-	sv.Service = svc
+func (sv *standardProviderService) setService(svc OpenAPIService) {
+	sv.OpenAPIService = svc
 }
 
 func (sv *standardProviderService) getServiceRefRef() string {
@@ -122,7 +122,7 @@ func (sv *standardProviderService) GetProvider() (Provider, bool) {
 	return sv.Provider, sv.Provider != nil
 }
 
-func (sv *standardProviderService) GetQueryTransposeAlgorithm() string {
+func (sv *standardProviderService) getQueryTransposeAlgorithm() string {
 	if sv.StackQLConfig != nil {
 		qt, qtExists := sv.StackQLConfig.GetQueryTranspose()
 		if qtExists {
@@ -146,7 +146,7 @@ func (sv *standardProviderService) GetPaginationRequestTokenSemantic() (TokenSem
 	return sv.StackQLConfig.Pagination.RequestToken, true
 }
 
-func (sv *standardProviderService) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
+func (sv *standardProviderService) getPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	if sv.StackQLConfig == nil || sv.StackQLConfig.Pagination == nil || sv.StackQLConfig.Pagination.ResponseToken == nil {
 		return nil, false
 	}
@@ -158,7 +158,7 @@ func (sv *standardProviderService) ConditionIsValid(lhs string, rhs interface{})
 	return reflect.TypeOf(elem) == reflect.TypeOf(rhs)
 }
 
-func extractService(ps ProviderService) (Service, error) {
+func extractService(ps ProviderService) (OpenAPIService, error) {
 	b, err := getServiceDocBytes(ps.getServiceRefRef())
 	if err != nil {
 		return nil, err
@@ -213,7 +213,7 @@ func (ps *standardProviderService) GetKey(lhs string) (interface{}, error) {
 	return val, nil
 }
 
-func (ps *standardProviderService) getServiceWithRegistry(registry RegistryAPI) (Service, error) {
+func (ps *standardProviderService) getServiceWithRegistry(registry RegistryAPI) (OpenAPIService, error) {
 	if ps.ServiceRef.Value != nil {
 		return ps.ServiceRef.Value, nil
 	}
@@ -224,13 +224,13 @@ func (ps *standardProviderService) getServiceWithRegistry(registry RegistryAPI) 
 	if err != nil {
 		return nil, err
 	}
-	ps.Service = svc
-	return ps.Service, nil
+	ps.OpenAPIService = svc
+	return ps.OpenAPIService, nil
 }
 
-func (ps *standardProviderService) GetService() (Service, error) {
-	if ps.Service != nil {
-		return ps.Service, nil
+func (ps *standardProviderService) GetService() (OpenAPIService, error) {
+	if ps.OpenAPIService != nil {
+		return ps.OpenAPIService, nil
 	}
 	if ps.ServiceRef.Value != nil {
 		return ps.ServiceRef.Value, nil
@@ -239,11 +239,11 @@ func (ps *standardProviderService) GetService() (Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps.Service = svc
-	return ps.Service, nil
+	ps.OpenAPIService = svc
+	return ps.OpenAPIService, nil
 }
 
-func (ps *standardProviderService) extractService() (Service, error) {
+func (ps *standardProviderService) extractService() (OpenAPIService, error) {
 	if ps.ServiceRef.Value != nil {
 		return ps.ServiceRef.Value, nil
 	}
@@ -251,8 +251,8 @@ func (ps *standardProviderService) extractService() (Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps.Service = svc
-	return ps.Service, nil
+	ps.OpenAPIService = svc
+	return ps.OpenAPIService, nil
 }
 
 func (ps *standardProviderService) getServiceDocRef(rr ResourceRegister, rsc Resource) ServiceRef {
@@ -269,7 +269,7 @@ func (ps *standardProviderService) getServiceDocRef(rr ResourceRegister, rsc Res
 	return rv
 }
 
-func (ps *standardProviderService) GetServiceFragment(resourceKey string) (Service, error) {
+func (ps *standardProviderService) GetServiceFragment(resourceKey string) (OpenAPIService, error) {
 
 	if ps.ResourcesRef == nil || ps.ResourcesRef.Ref == "" {
 		return ps.GetService()
@@ -297,11 +297,11 @@ func (ps *standardProviderService) GetServiceFragment(resourceKey string) (Servi
 	if err != nil {
 		return nil, err
 	}
-	ps.Service = svc
-	return ps.Service, nil
+	ps.OpenAPIService = svc
+	return ps.OpenAPIService, nil
 }
 
-func (ps *standardProviderService) PeekServiceFragment(resourceKey string) (Service, bool) {
+func (ps *standardProviderService) PeekServiceFragment(resourceKey string) (OpenAPIService, bool) {
 	if ps.ServiceRef == nil || ps.ServiceRef.Value == nil || ps.ServiceRef.Value.rsc == nil {
 		return nil, false
 	}
