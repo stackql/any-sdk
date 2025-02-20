@@ -20,7 +20,7 @@ type HTTPPreparator interface {
 type standardHTTPPreparator struct {
 	prov        Provider
 	m           OperationStore
-	svc         Service
+	svc         OpenAPIService
 	paramMap    map[int]map[string]interface{}
 	execContext ExecContext
 	logger      *logrus.Logger
@@ -29,7 +29,7 @@ type standardHTTPPreparator struct {
 
 func NewHTTPPreparator(
 	prov Provider,
-	svc Service,
+	svc OpenAPIService,
 	m OperationStore,
 	paramMap map[int]map[string]interface{},
 	parameters streaming.MapStream,
@@ -41,7 +41,7 @@ func NewHTTPPreparator(
 
 func newHTTPPreparator(
 	prov Provider,
-	svc Service,
+	svc OpenAPIService,
 	m OperationStore,
 	paramMap map[int]map[string]interface{},
 	parameters streaming.MapStream,
@@ -185,7 +185,7 @@ func awsContextHousekeeping(
 
 func getRequest(
 	prov Provider,
-	svc Service,
+	svc OpenAPIService,
 	method OperationStore,
 	httpParams HttpParameters,
 ) (*http.Request, error) {
