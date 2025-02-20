@@ -15,7 +15,7 @@ type ResourceRegister interface {
 	//
 	getProvider() Provider
 	getProviderService() ProviderService
-	setOpStore(resourceString string, methodString string, opStore OperationStore)
+	setOpStore(resourceString string, methodString string, opStore StandardOperationStore)
 }
 
 func NewResourceRegister() ResourceRegister {
@@ -41,8 +41,8 @@ func (rr *standardResourceRegister) GetResource(resourceKey string) (Resource, b
 	return rsc, ok
 }
 
-func (rr *standardResourceRegister) setOpStore(resourceString string, methodString string, opStore OperationStore) {
-	rr.Resources[resourceString].setMethod(methodString, opStore.(*standardOperationStore))
+func (rr *standardResourceRegister) setOpStore(resourceString string, methodString string, opStore StandardOperationStore) {
+	rr.Resources[resourceString].setMethod(methodString, opStore.(*standardOpenAPIOperationStore))
 }
 
 func (rr *standardResourceRegister) getProvider() Provider {

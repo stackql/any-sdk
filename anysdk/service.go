@@ -77,7 +77,7 @@ func (sv *standardService) setProvider(provider Provider) {
 			for _, m := range rsc.Methods {
 				m.setProvider(provider)
 				if m.Inverse != nil {
-					inverseOpStore, inverseOpStoreExists := m.Inverse.getOperationStore()
+					inverseOpStore, inverseOpStoreExists := m.Inverse.getOpenAPIOperationStore()
 					if inverseOpStoreExists {
 						inverseOpStore.setProvider(provider)
 					}
@@ -96,7 +96,7 @@ func (sv *standardService) setProviderService(providerService ProviderService) {
 			for _, m := range rsc.Methods {
 				m.setProviderService(providerService)
 				if m.Inverse != nil {
-					inverseOpStore, inverseOpStoreExists := m.Inverse.getOperationStore()
+					inverseOpStore, inverseOpStoreExists := m.Inverse.getOpenAPIOperationStore()
 					if inverseOpStoreExists {
 						inverseOpStore.setProviderService(providerService)
 					}

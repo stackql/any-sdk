@@ -19,7 +19,7 @@ type HTTPArmouryParameters interface {
 	GetRequest() *http.Request
 	SetBodyBytes(b []byte)
 	SetHeaderKV(k string, v []string)
-	SetNextPage(ops OperationStore, token string, tokenKey internaldto.HTTPElement) (*http.Request, error)
+	SetNextPage(ops StandardOperationStore, token string, tokenKey internaldto.HTTPElement) (*http.Request, error)
 	SetParameters(HttpParameters)
 	SetRawQuery(string)
 	SetRequest(*http.Request)
@@ -103,7 +103,7 @@ func (hap *standardHTTPArmouryParameters) Encode() string {
 }
 
 func (hap *standardHTTPArmouryParameters) SetNextPage(
-	ops OperationStore, token string, tokenKey internaldto.HTTPElement) (*http.Request, error) {
+	ops StandardOperationStore, token string, tokenKey internaldto.HTTPElement) (*http.Request, error) {
 	rv := hap.request.Clone(hap.request.Context())
 	switch tokenKey.GetType() { //nolint:exhaustive	// acceptable for now
 	case internaldto.QueryParam:

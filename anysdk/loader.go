@@ -49,11 +49,11 @@ type Loader interface {
 type standardLoader struct {
 	*openapi3.Loader
 	//
-	visitedExpectedRequest  map[Schema]struct{}
-	visitedExpectedResponse map[Schema]struct{}
-	visitedOperation        map[*openapi3.Operation]struct{}
-	visitedOperationStore   map[OperationStore]struct{}
-	visitedPathItem         map[*openapi3.PathItem]struct{}
+	visitedExpectedRequest       map[Schema]struct{}
+	visitedExpectedResponse      map[Schema]struct{}
+	visitedOperation             map[*openapi3.Operation]struct{}
+	visitedOpenAPIOperationStore map[StandardOperationStore]struct{}
+	visitedPathItem              map[*openapi3.PathItem]struct{}
 }
 
 func LoadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, error) {
@@ -144,7 +144,7 @@ func (l *standardLoader) extractResources(svc OpenAPIService) error {
 	return l.mergeResources(svc, castMap, nil)
 }
 
-func (l *standardLoader) extractAndMergeGraphQL(operation OperationStore) error {
+func (l *standardLoader) extractAndMergeGraphQL(operation StandardOperationStore) error {
 	if operation.GetOperationRef() == nil || operation.GetOperationRef().Value == nil {
 		return nil
 	}
@@ -192,7 +192,7 @@ func extractStackQLConfig(qt interface{}) (StackQLConfig, error) {
 	return &rv, nil
 }
 
-func (l *standardLoader) extractAndMergeQueryTransposeOpLevel(_ OperationStore) error {
+func (l *standardLoader) extractAndMergeQueryTransposeOpLevel(_ StandardOperationStore) error {
 	// if operation.GetOperationRef() == nil || operation.GetOperationRef().Value == nil {
 	// 	return nil
 	// }
@@ -383,7 +383,7 @@ func NewLoader() Loader {
 		make(map[Schema]struct{}),
 		make(map[Schema]struct{}),
 		make(map[*openapi3.Operation]struct{}),
-		make(map[OperationStore]struct{}),
+		make(map[StandardOperationStore]struct{}),
 		make(map[*openapi3.PathItem]struct{}),
 	}
 }
@@ -565,7 +565,7 @@ func resourceregisterLoadBackwardsCompatibility(rr ResourceRegister) {
 	}
 }
 
-func operationBackwardsCompatibility(component OperationStore, sr *ServiceRef) {
+func operationBackwardsCompatibility(component StandardOperationStore, sr *ServiceRef) {
 	// backwards compatibility
 	if component.GetPathRef() != nil {
 		stub := "#/paths/"
@@ -579,7 +579,7 @@ func operationBackwardsCompatibility(component OperationStore, sr *ServiceRef) {
 	//
 }
 
-func (loader *standardLoader) resolveOperationRef(doc OpenAPIService, rsc Resource, component OperationStore, _ *PathItemRef, sr *ServiceRef) (err error) {
+func (loader *standardLoader) resolveOperationRef(doc OpenAPIService, rsc Resource, component StandardOperationStore, _ *PathItemRef, sr *ServiceRef) (err error) {
 
 	if component == nil {
 		return errors.New("invalid operation: value MUST be an object")
@@ -707,15 +707,15 @@ func (loader *standardLoader) resolveExpectedRequest(doc OpenAPIService, op *ope
 	return nil
 }
 
-func (loader *standardLoader) resolveSQLVerb(rsc Resource, component *OperationStoreRef, sqlVerb string) (err error) {
+func (loader *standardLoader) resolveSQLVerb(rsc Resource, component *OpenAPIOperationStoreRef, sqlVerb string) (err error) {
 	if component != nil && component.hasValue() {
-		if loader.visitedOperationStore == nil {
-			loader.visitedOperationStore = make(map[OperationStore]struct{})
+		if loader.visitedOpenAPIOperationStore == nil {
+			loader.visitedOpenAPIOperationStore = make(map[StandardOperationStore]struct{})
 		}
-		if _, ok := loader.visitedOperationStore[component.Value]; ok {
+		if _, ok := loader.visitedOpenAPIOperationStore[component.Value]; ok {
 			return nil
 		}
-		loader.visitedOperationStore[component.Value] = struct{}{}
+		loader.visitedOpenAPIOperationStore[component.Value] = struct{}{}
 	}
 
 	resolved, err := resolveSQLVerbFromResource(rsc, component, sqlVerb)
@@ -730,7 +730,7 @@ func (loader *standardLoader) resolveSQLVerb(rsc Resource, component *OperationS
 	return nil
 }
 
-func resolveSQLVerbFromResource(rsc Resource, component *OperationStoreRef, sqlVerb string) (*standardOperationStore, error) {
+func resolveSQLVerbFromResource(rsc Resource, component *OpenAPIOperationStoreRef, sqlVerb string) (*standardOpenAPIOperationStore, error) {
 
 	if component == nil {
 		return nil, fmt.Errorf("operation store ref not supplied")
@@ -739,7 +739,7 @@ func resolveSQLVerbFromResource(rsc Resource, component *OperationStoreRef, sqlV
 	if err != nil {
 		return nil, err
 	}
-	resolved, ok := osv.(*standardOperationStore)
+	resolved, ok := osv.(*standardOpenAPIOperationStore)
 	if !ok {
 		return nil, fmt.Errorf("operation store ref type '%T' not supported", osv)
 	}
@@ -748,7 +748,7 @@ func resolveSQLVerbFromResource(rsc Resource, component *OperationStoreRef, sqlV
 	return rv, nil
 }
 
-func (l *standardLoader) latePassResolveInverse(svc OpenAPIService, component *OperationStoreRef) error {
+func (l *standardLoader) latePassResolveInverse(svc OpenAPIService, component *OpenAPIOperationStoreRef) error {
 	if component == nil || component.Value == nil {
 		return fmt.Errorf("late pass: operation store ref not supplied")
 	}
