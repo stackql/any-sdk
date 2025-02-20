@@ -14,7 +14,11 @@ A golang library to support:
 
 From those who brought you
 
-[![StackQL](https://stackql.io/img/stackql-banner.png)](https://stackql.io/) 
+[![StackQL](https://stackql.io/img/stackql-banner.png)](https://stackql.io/)
+
+## Evolution to protocol agnostic
+
+The basic idea is a full decouple and abstraction of the interface from openapi.
 
 ## Acknowledgements
 

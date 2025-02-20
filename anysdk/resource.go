@@ -16,7 +16,7 @@ var (
 
 type Resource interface {
 	ITable
-	GetQueryTransposeAlgorithm() string
+	getQueryTransposeAlgorithm() string
 	GetID() string
 	GetTitle() string
 	GetDescription() string
@@ -29,14 +29,14 @@ type Resource interface {
 	FindMethod(key string) (OperationStore, error)
 	GetFirstMethodFromSQLVerb(sqlVerb string) (OperationStore, string, bool)
 	GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (OperationStore, map[string]interface{}, bool)
-	GetService() (Service, bool)
+	GetService() (OpenAPIService, bool)
 	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
 	GetMethodsMatched() Methods
 	ToMap(extended bool) map[string]interface{}
 	// unexported mutators
 	getSQLVerbs() map[string][]OperationStoreRef
 	setProvider(p Provider)
-	setService(s Service)
+	setService(s OpenAPIService)
 	setProviderService(ps ProviderService)
 	getUnionRequiredParameters(method OperationStore) (map[string]Addressable, error)
 	setMethod(string, *standardOperationStore)
@@ -55,7 +55,7 @@ type standardResource struct {
 	SQLVerbs          map[string][]OperationStoreRef `json:"sqlVerbs" yaml:"sqlVerbs"`
 	BaseUrl           string                         `json:"baseUrl,omitempty" yaml:"baseUrl,omitempty"` // hack
 	StackQLConfig     *standardStackQLConfig         `json:"config,omitempty" yaml:"config,omitempty"`
-	Service           Service                        `json:"-" yaml:"-"` // upwards traversal
+	OpenAPIService    OpenAPIService                 `json:"-" yaml:"-"` // upwards traversal
 	ProviderService   ProviderService                `json:"-" yaml:"-"` // upwards traversal
 	Provider          Provider                       `json:"-" yaml:"-"` // upwards traversal
 }
@@ -75,19 +75,19 @@ func (r *standardResource) propogateToConfig() error {
 	return nil
 }
 
-func (r *standardResource) GetService() (Service, bool) {
-	if r.Service == nil {
+func (r *standardResource) GetService() (OpenAPIService, bool) {
+	if r.OpenAPIService == nil {
 		return nil, false
 	}
-	return r.Service, true
+	return r.OpenAPIService, true
 }
 
 func (r *standardResource) getSQLVerbs() map[string][]OperationStoreRef {
 	return r.SQLVerbs
 }
 
-func (r *standardResource) setService(s Service) {
-	r.Service = s
+func (r *standardResource) setService(s OpenAPIService) {
+	r.OpenAPIService = s
 }
 
 func (r *standardResource) mutateSQLVerb(k string, idx int, v OperationStoreRef) {
@@ -133,7 +133,7 @@ func (r *standardResource) GetServiceDocPath() *ServiceRef {
 	return r.ServiceDocPath
 }
 
-func (r *standardResource) GetQueryTransposeAlgorithm() string {
+func (r *standardResource) getQueryTransposeAlgorithm() string {
 	if r.StackQLConfig == nil || r.StackQLConfig.QueryTranspose == nil {
 		return ""
 	}
@@ -191,7 +191,7 @@ func (rsc standardResource) JSONLookup(token string) (interface{}, error) {
 		}
 		return &m, nil
 	default:
-		val, _, err := jsonpointer.GetForToken(rsc.Service.GetT(), token)
+		val, _, err := jsonpointer.GetForToken(rsc.OpenAPIService.getT(), token)
 		return val, err
 	}
 }

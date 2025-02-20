@@ -72,14 +72,14 @@ type OperationStore interface {
 	GetParameterizedPath() string
 	GetProviderService() ProviderService
 	GetProvider() Provider
-	GetService() Service
+	GetService() OpenAPIService
 	GetResource() Resource
 	ParameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
 	GetOperationParameter(key string) (Addressable, bool)
-	GetQueryTransposeAlgorithm() string
+	getQueryTransposeAlgorithm() string
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
 	ProcessResponse(*http.Response) (ProcessedOperationResponse, error)
-	Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
+	Parameterize(prov Provider, parentDoc OpenAPIService, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
 	GetSelectItemsKey() string
 	GetResponseBodySchemaAndMediaType() (Schema, string, error)
 	GetRequiredParameters() map[string]Addressable
@@ -120,7 +120,7 @@ type OperationStore interface {
 	setProvider(Provider)
 	setProviderService(ProviderService)
 	setResource(Resource)
-	setService(Service)
+	setService(OpenAPIService)
 	setOperationRef(*OperationRef)
 	setPathItem(*openapi3.PathItem)
 	renameRequestBodyAttribute(string) (string, error)
@@ -154,7 +154,7 @@ type standardOperationStore struct {
 	parameterizedPath string          `json:"-" yaml:"-"`
 	ProviderService   ProviderService `json:"-" yaml:"-"` // upwards traversal
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
-	Service           Service         `json:"-" yaml:"-"` // upwards traversal
+	OpenAPIService    OpenAPIService  `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
 }
 
@@ -173,8 +173,8 @@ func (op *standardOperationStore) getServiceNameForProvider() string {
 	if op.ServiceName != "" {
 		return op.ServiceName
 	}
-	if op.Service != nil {
-		return op.Service.GetName()
+	if op.OpenAPIService != nil {
+		return op.OpenAPIService.GetName()
 	}
 	return ""
 }
@@ -236,8 +236,8 @@ func (op *standardOperationStore) setPathItem(pi *openapi3.PathItem) {
 	op.PathItem = pi
 }
 
-func (op *standardOperationStore) setService(svc Service) {
-	op.Service = svc
+func (op *standardOperationStore) setService(svc OpenAPIService) {
+	op.OpenAPIService = svc
 }
 
 func (op *standardOperationStore) setOperationRef(opr *OperationRef) {
@@ -367,8 +367,8 @@ func (op *standardOperationStore) getServers() (openapi3.Servers, bool) {
 	if op.Servers != nil {
 		return *(op.Servers), true
 	}
-	if op.Service != nil {
-		return op.Service.GetServers()
+	if op.OpenAPIService != nil {
+		return op.OpenAPIService.GetServers()
 	}
 	return nil, false
 }
@@ -381,8 +381,8 @@ func (op *standardOperationStore) GetProvider() Provider {
 	return op.Provider
 }
 
-func (op *standardOperationStore) GetService() Service {
-	return op.Service
+func (op *standardOperationStore) GetService() OpenAPIService {
+	return op.OpenAPIService
 }
 
 func (op *standardOperationStore) GetResource() Resource {
@@ -400,24 +400,24 @@ func (op *standardOperationStore) GetViewsForSqlDialect(sqlDialect string) ([]Vi
 	return []View{}, false
 }
 
-func (op *standardOperationStore) GetQueryTransposeAlgorithm() string {
+func (op *standardOperationStore) getQueryTransposeAlgorithm() string {
 	if op.StackQLConfig != nil {
 		transpose, transposeExists := op.StackQLConfig.GetQueryTranspose()
 		if transposeExists && transpose.GetAlgorithm() != "" {
 			return transpose.GetAlgorithm()
 		}
 	}
-	if op.Resource != nil && op.Resource.GetQueryTransposeAlgorithm() != "" {
-		return op.Resource.GetQueryTransposeAlgorithm()
+	if op.Resource != nil && op.Resource.getQueryTransposeAlgorithm() != "" {
+		return op.Resource.getQueryTransposeAlgorithm()
 	}
-	if op.Service != nil && op.Service.GetQueryTransposeAlgorithm() != "" {
-		return op.Service.GetQueryTransposeAlgorithm()
+	if op.OpenAPIService != nil && op.OpenAPIService.getQueryTransposeAlgorithm() != "" {
+		return op.OpenAPIService.getQueryTransposeAlgorithm()
 	}
-	if op.ProviderService != nil && op.ProviderService.GetQueryTransposeAlgorithm() != "" {
-		return op.ProviderService.GetQueryTransposeAlgorithm()
+	if op.ProviderService != nil && op.ProviderService.getQueryTransposeAlgorithm() != "" {
+		return op.ProviderService.getQueryTransposeAlgorithm()
 	}
-	if op.Provider != nil && op.Provider.GetQueryTransposeAlgorithm() != "" {
-		return op.Provider.GetQueryTransposeAlgorithm()
+	if op.Provider != nil && op.Provider.getQueryTransposeAlgorithm() != "" {
+		return op.Provider.getQueryTransposeAlgorithm()
 	}
 	return ""
 }
@@ -432,8 +432,8 @@ func (op *standardOperationStore) GetRequestTranslateAlgorithm() string {
 	if op.Resource != nil && op.Resource.GetRequestTranslateAlgorithm() != "" {
 		return op.Resource.GetRequestTranslateAlgorithm()
 	}
-	if op.Service != nil && op.Service.GetRequestTranslateAlgorithm() != "" {
-		return op.Service.GetRequestTranslateAlgorithm()
+	if op.OpenAPIService != nil && op.OpenAPIService.getRequestTranslateAlgorithm() != "" {
+		return op.OpenAPIService.getRequestTranslateAlgorithm()
 	}
 	if op.ProviderService != nil && op.ProviderService.GetRequestTranslateAlgorithm() != "" {
 		return op.ProviderService.GetRequestTranslateAlgorithm()
@@ -456,8 +456,8 @@ func (op *standardOperationStore) GetPaginationRequestTokenSemantic() (TokenSema
 			return ts, true
 		}
 	}
-	if op.Service != nil {
-		if ts, ok := op.Service.GetPaginationRequestTokenSemantic(); ok {
+	if op.OpenAPIService != nil {
+		if ts, ok := op.OpenAPIService.getPaginationRequestTokenSemantic(); ok {
 			return ts, true
 		}
 	}
@@ -486,18 +486,18 @@ func (op *standardOperationStore) GetPaginationResponseTokenSemantic() (TokenSem
 			return ts, true
 		}
 	}
-	if op.Service != nil {
-		if ts, ok := op.Service.GetPaginationResponseTokenSemantic(); ok {
+	if op.OpenAPIService != nil {
+		if ts, ok := op.OpenAPIService.getPaginationResponseTokenSemantic(); ok {
 			return ts, true
 		}
 	}
 	if op.ProviderService != nil {
-		if ts, ok := op.ProviderService.GetPaginationResponseTokenSemantic(); ok {
+		if ts, ok := op.ProviderService.getPaginationResponseTokenSemantic(); ok {
 			return ts, true
 		}
 	}
 	if op.Provider != nil {
-		if ts, ok := op.ProviderService.GetPaginationResponseTokenSemantic(); ok {
+		if ts, ok := op.ProviderService.getPaginationResponseTokenSemantic(); ok {
 			return ts, true
 		}
 	}
@@ -881,7 +881,7 @@ func (m *standardOperationStore) getRequiredNonBodyParameters() map[string]Addre
 		for _, p := range m.PathItem.Parameters {
 			param := p.Value
 			if param != nil && isOpenapi3ParamRequired(param) {
-				retVal[param.Name] = NewParameter(p.Value, m.Service)
+				retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 			}
 		}
 	}
@@ -892,7 +892,7 @@ func (m *standardOperationStore) getRequiredNonBodyParameters() map[string]Addre
 	for _, p := range m.OperationRef.Value.Parameters {
 		param := p.Value
 		if param != nil && isOpenapi3ParamRequired(param) {
-			retVal[param.Name] = NewParameter(p.Value, m.Service)
+			retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 		}
 	}
 	return retVal
@@ -910,7 +910,7 @@ func (m *standardOperationStore) getRequiredParameters() map[string]Addressable 
 	availableServers, availableServersDoExist := m.getServers()
 	if availableServersDoExist {
 		sv := availableServers[0]
-		serverVarMap := getServerVariablesMap(sv, m.Service)
+		serverVarMap := getServerVariablesMap(sv, m.OpenAPIService)
 		for k, v := range serverVarMap {
 			retVal[k] = v
 		}
@@ -932,7 +932,7 @@ func (m *standardOperationStore) getOptionalParameters() map[string]Addressable 
 		param := p.Value
 		// TODO: handle the `?param` where value is not only not required but should NEVER be sent
 		if param != nil && !param.Required {
-			retVal[param.Name] = NewParameter(p.Value, m.Service)
+			retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 		}
 	}
 	ss, err := m.getOptionalRequestBodyAttributes()
@@ -958,7 +958,7 @@ func (m *standardOperationStore) getNonBodyParameters() map[string]Addressable {
 		for _, p := range m.PathItem.Parameters {
 			param := p.Value
 			if param != nil {
-				retVal[param.Name] = NewParameter(p.Value, m.Service)
+				retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 			}
 		}
 	}
@@ -968,7 +968,7 @@ func (m *standardOperationStore) getNonBodyParameters() map[string]Addressable {
 	for _, p := range m.OperationRef.Value.Parameters {
 		param := p.Value
 		if param != nil {
-			retVal[param.Name] = NewParameter(p.Value, m.Service)
+			retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 		}
 	}
 	return retVal
@@ -1034,7 +1034,7 @@ func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]int
 	availableServers, availableServersDoExist := m.getServers()
 	if availableServersDoExist {
 		sv := availableServers[0]
-		serverVarMap := getServerVariablesMap(sv, m.Service)
+		serverVarMap := getServerVariablesMap(sv, m.OpenAPIService)
 		for k := range serverVarMap {
 			requiredServerParamNames = append(requiredServerParamNames, k)
 		}
@@ -1063,7 +1063,7 @@ func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]int
 }
 
 func (op *standardOperationStore) GetOperationParameters() Params {
-	return NewParameters(op.OperationRef.Value.Parameters, op.Service)
+	return NewParameters(op.OperationRef.Value.Parameters, op.OpenAPIService)
 }
 
 func (op *standardOperationStore) GetOperationParameter(key string) (Addressable, bool) {
@@ -1136,7 +1136,7 @@ func (op *standardOperationStore) marshalBody(body interface{}, expectedRequest 
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }
 
-func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
+func (op *standardOperationStore) Parameterize(prov Provider, parentDoc OpenAPIService, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
 	params := op.OperationRef.Value.Parameters
 	copyParams := make(map[string]interface{})
 	flatParameters, err := inputParams.ToFlatMap()
@@ -1202,7 +1202,7 @@ func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service,
 		q.Set(k, fmt.Sprintf("%v", v))
 		delete(copyParams, k)
 	}
-	router, err := queryrouter.NewRouter(parentDoc.GetT())
+	router, err := queryrouter.NewRouter(parentDoc.getT())
 	if err != nil {
 		return nil, err
 	}

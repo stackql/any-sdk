@@ -39,11 +39,11 @@ type DiscoveryDoc interface {
 }
 
 type Loader interface {
-	LoadFromBytes(bytes []byte) (Service, error)
-	LoadFromBytesWithProvider(bytes []byte, prov Provider) (Service, error)
-	LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (Service, error)
+	LoadFromBytes(bytes []byte) (OpenAPIService, error)
+	LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
+	LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
 	//
-	extractAndMergeQueryTransposeServiceLevel(svc Service) error
+	extractAndMergeQueryTransposeServiceLevel(svc OpenAPIService) error
 }
 
 type standardLoader struct {
@@ -76,7 +76,7 @@ func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, erro
 	return rv, nil
 }
 
-func (l *standardLoader) LoadFromBytes(bytes []byte) (Service, error) {
+func (l *standardLoader) LoadFromBytes(bytes []byte) (OpenAPIService, error) {
 	doc, err := l.LoadFromData(bytes)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func (l *standardLoader) LoadFromBytes(bytes []byte) (Service, error) {
 	return svc, nil
 }
 
-func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) (Service, error) {
+func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error) {
 	svc, err := l.LoadFromBytes(bytes)
 	if err != nil {
 		return nil, err
@@ -98,7 +98,7 @@ func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) 
 	return svc, nil
 }
 
-func (l *standardLoader) LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (Service, error) {
+func (l *standardLoader) LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
 	doc, err := l.LoadFromData(bytes)
 	if err != nil {
 		return nil, err
@@ -116,10 +116,10 @@ func (l *standardLoader) LoadFromBytesAndResources(rr ResourceRegister, resource
 	return svc, nil
 }
 
-func (l *standardLoader) extractResources(svc Service) error {
-	rscs, ok := svc.GetComponents().Extensions[ExtensionKeyResources]
+func (l *standardLoader) extractResources(svc OpenAPIService) error {
+	rscs, ok := svc.getComponents().Extensions[ExtensionKeyResources]
 	if !ok {
-		return fmt.Errorf("Service.extractResources() failure")
+		return fmt.Errorf("OpenAPIService.extractResources() failure")
 	}
 	var bt []byte
 	var err error
@@ -208,7 +208,7 @@ func (l *standardLoader) extractAndMergeQueryTransposeOpLevel(_ OperationStore) 
 	return nil
 }
 
-func (l *standardLoader) extractAndMergeQueryTransposeServiceLevel(svc Service) error {
+func (l *standardLoader) extractAndMergeQueryTransposeServiceLevel(svc OpenAPIService) error {
 	qt, ok := svc.getExtension(ExtensionKeyConfig)
 	if !ok {
 		return nil
@@ -221,7 +221,7 @@ func (l *standardLoader) extractAndMergeQueryTransposeServiceLevel(svc Service) 
 	return nil
 }
 
-func (l *standardLoader) extractAndMergeConfigServiceLevel(svc Service) error {
+func (l *standardLoader) extractAndMergeConfigServiceLevel(svc OpenAPIService) error {
 	qt, ok := svc.getExtension(ExtensionKeyConfig)
 	if !ok {
 		return nil
@@ -234,7 +234,7 @@ func (l *standardLoader) extractAndMergeConfigServiceLevel(svc Service) error {
 	return nil
 }
 
-func (l *standardLoader) mergeResources(svc Service, rscMap map[string]Resource, sdRef *ServiceRef) error {
+func (l *standardLoader) mergeResources(svc OpenAPIService, rscMap map[string]Resource, sdRef *ServiceRef) error {
 	rscCast := make(map[string]*standardResource, len(rscMap))
 	for k, rsc := range rscMap {
 		rscCast[k] = rsc.(*standardResource)
@@ -254,7 +254,7 @@ func (l *standardLoader) mergeResources(svc Service, rscMap map[string]Resource,
 	return nil
 }
 
-func (l *standardLoader) mergeResourcesScoped(svc Service, svcUrl string, rr ResourceRegister) error {
+func (l *standardLoader) mergeResourcesScoped(svc OpenAPIService, svcUrl string, rr ResourceRegister) error {
 	scopedMap := make(map[string]Resource)
 	for k, rsc := range rr.GetResources() {
 		if rr.ObtainServiceDocUrl(k) == svcUrl {
@@ -277,7 +277,7 @@ func (l *standardLoader) mergeResourcesScoped(svc Service, svcUrl string, rr Res
 	return nil
 }
 
-func (l *standardLoader) mergeResource(svc Service,
+func (l *standardLoader) mergeResource(svc OpenAPIService,
 	rsc Resource,
 	sr *ServiceRef,
 ) error {
@@ -308,8 +308,6 @@ func (l *standardLoader) mergeResource(svc Service,
 		if err != nil {
 			return err
 		}
-		// iv := openapi3.Servers(svc.GetServers())
-		// v.setServers(&iv)
 		rsc.setMethod(k, &v)
 	}
 	for sqlVerb, dir := range rsc.getSQLVerbs() {
@@ -390,7 +388,7 @@ func NewLoader() Loader {
 	}
 }
 
-func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) {
+func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
 	return loadServiceDocFromBytes(ps, bytes)
 }
 
@@ -398,7 +396,7 @@ func LoadProviderDocFromBytes(bytes []byte) (Provider, error) {
 	return loadProviderDocFromBytes(bytes)
 }
 
-func LoadServiceDocFromFile(ps ProviderService, fileName string) (Service, error) {
+func LoadServiceDocFromFile(ps ProviderService, fileName string) (OpenAPIService, error) {
 	bytes, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return nil, err
@@ -512,7 +510,7 @@ func getProviderDoc(provider string) (string, error) {
 	return findLatestDoc(path.Join(OpenapiFileRoot, provider))
 }
 
-func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) {
+func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
 	loader := NewLoader()
 	rv, err := loader.LoadFromBytes(bytes)
 	if err != nil {
@@ -531,7 +529,7 @@ func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) 
 	return rv, nil
 }
 
-func LoadServiceSubsetDocFromBytes(rr ResourceRegister, resourceKey string, bytes []byte) (Service, error) {
+func LoadServiceSubsetDocFromBytes(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
 	loader := NewLoader()
 	return loader.LoadFromBytesAndResources(rr, resourceKey, bytes)
 }
@@ -581,7 +579,7 @@ func operationBackwardsCompatibility(component OperationStore, sr *ServiceRef) {
 	//
 }
 
-func (loader *standardLoader) resolveOperationRef(doc Service, rsc Resource, component OperationStore, _ *PathItemRef, sr *ServiceRef) (err error) {
+func (loader *standardLoader) resolveOperationRef(doc OpenAPIService, rsc Resource, component OperationStore, _ *PathItemRef, sr *ServiceRef) (err error) {
 
 	if component == nil {
 		return errors.New("invalid operation: value MUST be an object")
@@ -633,7 +631,7 @@ func (loader *standardLoader) resolveOperationRef(doc Service, rsc Resource, com
 	return loader.extractAndMergeGraphQL(component)
 }
 
-func (loader *standardLoader) resolveContentDefault(content openapi3.Content, svc Service) (Schema, string, bool) {
+func (loader *standardLoader) resolveContentDefault(content openapi3.Content, svc OpenAPIService) (Schema, string, bool) {
 	if content == nil {
 		return nil, "", false
 	}
@@ -671,7 +669,7 @@ func (loader *standardLoader) findBestResponseDefault(responses openapi3.Respons
 	return nil, false
 }
 
-func (loader *standardLoader) resolveExpectedRequest(doc Service, op *openapi3.Operation, component ExpectedRequest) (err error) {
+func (loader *standardLoader) resolveExpectedRequest(doc OpenAPIService, op *openapi3.Operation, component ExpectedRequest) (err error) {
 	switch component.(type) {
 	case nil:
 		return nil
@@ -750,7 +748,7 @@ func resolveSQLVerbFromResource(rsc Resource, component *OperationStoreRef, sqlV
 	return rv, nil
 }
 
-func (l *standardLoader) latePassResolveInverse(svc Service, component *OperationStoreRef) error {
+func (l *standardLoader) latePassResolveInverse(svc OpenAPIService, component *OperationStoreRef) error {
 	if component == nil || component.Value == nil {
 		return fmt.Errorf("late pass: operation store ref not supplied")
 	}
@@ -768,7 +766,7 @@ func (l *standardLoader) latePassResolveInverse(svc Service, component *Operatio
 	return nil
 }
 
-func (loader *standardLoader) resolveExpectedResponse(doc Service, op *openapi3.Operation, component ExpectedResponse) (err error) {
+func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *openapi3.Operation, component ExpectedResponse) (err error) {
 	if component != nil && component.GetSchema() != nil {
 		if loader.visitedExpectedResponse == nil {
 			loader.visitedExpectedResponse = make(map[Schema]struct{})
