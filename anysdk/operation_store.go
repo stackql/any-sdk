@@ -78,7 +78,7 @@ type OperationStore interface {
 	GetOperationParameter(key string) (Addressable, bool)
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
 	ProcessResponse(*http.Response) (ProcessedOperationResponse, error) // to be removed
-	Parameterize(prov Provider, parentDoc OpenAPIService, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
+	Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
 	GetSelectItemsKey() string
 	GetResponseBodySchemaAndMediaType() (Schema, string, error)
 	GetRequiredParameters() map[string]Addressable
@@ -101,6 +101,7 @@ type OperationStore interface {
 	RevertRequestBodyAttributeRename(string) (string, error)
 	IsRequestBodyAttributeRenamed(string) bool
 	GetRequiredNonBodyParameters() map[string]Addressable
+	getServiceNameForProvider() string
 }
 
 type StandardOperationStore interface {
@@ -108,7 +109,6 @@ type StandardOperationStore interface {
 	//
 	getQueryTransposeAlgorithm() string
 	getRequiredNonBodyParameters() map[string]Addressable
-	getServiceNameForProvider() string
 	getDefaultRequestBodyBytes() []byte
 	getBaseRequestBodyBytes() []byte
 	getName() string
@@ -219,7 +219,7 @@ func (op *standardOpenAPIOperationStore) getRequestBodyStringifiedPaths() (map[s
 	return rv, nil
 }
 
-func NewEmptyOpenAPIOperationStore() StandardOperationStore {
+func NewEmptyOperationStore() StandardOperationStore {
 	return &standardOpenAPIOperationStore{
 		Parameters: make(map[string]interface{}),
 	}
@@ -1140,7 +1140,8 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }
 
-func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc OpenAPIService, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
+func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
+
 	params := op.OperationRef.Value.Parameters
 	copyParams := make(map[string]interface{})
 	flatParameters, err := inputParams.ToFlatMap()
@@ -1206,7 +1207,11 @@ func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc O
 		q.Set(k, fmt.Sprintf("%v", v))
 		delete(copyParams, k)
 	}
-	router, err := queryrouter.NewRouter(parentDoc.getT())
+	openapiSvc, openapiSvcOk := op.OpenAPIService.(OpenAPIService)
+	if !openapiSvcOk {
+		return nil, fmt.Errorf("could not cast OpenAPIService to standardOpenAPIServiceStore")
+	}
+	router, err := queryrouter.NewRouter(openapiSvc.getT())
 	if err != nil {
 		return nil, err
 	}
