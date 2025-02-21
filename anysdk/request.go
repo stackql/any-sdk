@@ -19,8 +19,8 @@ type HTTPPreparator interface {
 
 type standardHTTPPreparator struct {
 	prov        Provider
-	m           StandardOperationStore
-	svc         OpenAPIService
+	m           OperationStore
+	svc         Service
 	paramMap    map[int]map[string]interface{}
 	execContext ExecContext
 	logger      *logrus.Logger
@@ -29,8 +29,8 @@ type standardHTTPPreparator struct {
 
 func NewHTTPPreparator(
 	prov Provider,
-	svc OpenAPIService,
-	m StandardOperationStore,
+	svc Service,
+	m OperationStore,
 	paramMap map[int]map[string]interface{},
 	parameters streaming.MapStream,
 	execContext ExecContext,
@@ -41,8 +41,8 @@ func NewHTTPPreparator(
 
 func newHTTPPreparator(
 	prov Provider,
-	svc OpenAPIService,
-	m StandardOperationStore,
+	svc Service,
+	m OperationStore,
 	paramMap map[int]map[string]interface{},
 	parameters streaming.MapStream,
 	execContext ExecContext,
@@ -65,6 +65,10 @@ func newHTTPPreparator(
 
 //nolint:funlen,gocognit // TODO: review
 func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
+	method, methodOk := pr.m.(StandardOperationStore)
+	if !methodOk {
+		return nil, fmt.Errorf("operation store is not a standard operation store")
+	}
 	var err error
 	httpArmoury := NewHTTPArmoury()
 	var requestSchema, responseSchema Schema
@@ -78,7 +82,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 	}
 	httpArmoury.SetRequestSchema(requestSchema)
 	httpArmoury.SetResponseSchema(responseSchema)
-	paramList, err := splitHTTPParameters(pr.paramMap, pr.m)
+	paramList, err := splitHTTPParameters(pr.paramMap, method)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +98,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 			params.SetRequestBody(pr.execContext.GetExecPayload().GetPayloadMap())
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
 			m := make(map[string]interface{})
-			baseRequestBytes := pr.m.getBaseRequestBodyBytes()
+			baseRequestBytes := method.getBaseRequestBodyBytes()
 			if len(baseRequestBytes) > 0 {
 				mapErr := json.Unmarshal(baseRequestBytes, &m)
 				if mapErr != nil {
@@ -113,14 +117,14 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 			if reqExists {
 				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
 			}
-		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
-			pm.SetBodyBytes(pr.m.getDefaultRequestBodyBytes())
-			req, reqExists := pr.m.GetRequest() //nolint:govet // intentional shadowing
+		} else if len(method.getDefaultRequestBodyBytes()) > 0 {
+			pm.SetBodyBytes(method.getDefaultRequestBodyBytes())
+			req, reqExists := method.GetRequest() //nolint:govet // intentional shadowing
 			if reqExists {
 				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
 			}
 		}
-		resp, respExists := pr.m.GetResponse()
+		resp, respExists := method.GetResponse()
 		if respExists {
 			if resp.GetBodyMediaType() != "" && pr.prov.GetName() != "aws" {
 				pm.SetHeaderKV("Accept", []string{resp.GetBodyMediaType()})
@@ -132,12 +136,12 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 	secondPassParams := httpArmoury.GetRequestParams()
 	for i, param := range secondPassParams {
 		p := param
-		if len(p.GetParameters().GetRequestBody()) == 0 && len(pr.m.getDefaultRequestBodyBytes()) == 0 {
+		if len(p.GetParameters().GetRequestBody()) == 0 && len(method.getDefaultRequestBodyBytes()) == 0 {
 			p.SetRequestBodyMap(nil)
-		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 && len(p.GetParameters().GetRequestBody()) == 0 {
+		} else if len(method.getDefaultRequestBodyBytes()) > 0 && len(p.GetParameters().GetRequestBody()) == 0 {
 			bm := make(map[string]interface{})
 			// TODO: support types other than json
-			err := json.Unmarshal(pr.m.getDefaultRequestBodyBytes(), &bm)
+			err := json.Unmarshal(method.getDefaultRequestBodyBytes(), &bm)
 			if err == nil {
 				p.SetRequestBodyMap(bm)
 			}
@@ -170,7 +174,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
 
 func awsContextHousekeeping(
 	ctx context.Context,
-	method StandardOperationStore,
+	method OperationStore,
 	parameters map[string]interface{},
 ) context.Context {
 	svcName := method.getServiceNameForProvider()
@@ -185,8 +189,8 @@ func awsContextHousekeeping(
 
 func getRequest(
 	prov Provider,
-	svc OpenAPIService,
-	method StandardOperationStore,
+	svc Service,
+	method OperationStore,
 	httpParams HttpParameters,
 ) (*http.Request, error) {
 	params, err := httpParams.ToFlatMap()
@@ -208,6 +212,10 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 	var err error
 	httpArmoury := NewHTTPArmoury()
 	var requestSchema, responseSchema Schema
+	httpMethod, httpMethodOk := pr.m.(StandardOperationStore)
+	if !httpMethodOk {
+		return nil, fmt.Errorf("operation store is not an http method")
+	}
 	req, reqExists := pr.m.GetRequest()
 	if reqExists && req.GetSchema() != nil {
 		requestSchema = req.GetSchema()
@@ -234,7 +242,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 			return nil, oErr
 		}
 	}
-	paramList, err := splitHTTPParameters(paramMap, pr.m)
+	paramList, err := splitHTTPParameters(paramMap, httpMethod)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +257,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 			params.SetRequestBody(pr.execContext.GetExecPayload().GetPayloadMap())
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
 			m := make(map[string]interface{})
-			baseRequestBytes := pr.m.getBaseRequestBodyBytes()
+			baseRequestBytes := httpMethod.getBaseRequestBodyBytes()
 			if len(baseRequestBytes) > 0 {
 				mapErr := json.Unmarshal(baseRequestBytes, &m)
 				if mapErr != nil {
@@ -268,8 +276,8 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 			if reqExists {
 				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
 			}
-		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
-			pm.SetBodyBytes(pr.m.getDefaultRequestBodyBytes())
+		} else if len(httpMethod.getDefaultRequestBodyBytes()) > 0 {
+			pm.SetBodyBytes(httpMethod.getDefaultRequestBodyBytes())
 			req, reqExists := pr.m.GetRequest() //nolint:govet // intentional shadowing
 			if reqExists {
 				pm.SetHeaderKV("Content-Type", []string{req.GetBodyMediaType()})
@@ -287,12 +295,12 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 	secondPassParams := httpArmoury.GetRequestParams()
 	for i, param := range secondPassParams {
 		p := param
-		if len(p.GetParameters().GetRequestBody()) == 0 && len(pr.m.getDefaultRequestBodyBytes()) == 0 {
+		if len(p.GetParameters().GetRequestBody()) == 0 && len(httpMethod.getDefaultRequestBodyBytes()) == 0 {
 			p.SetRequestBodyMap(nil)
-		} else if len(pr.m.getDefaultRequestBodyBytes()) > 0 {
+		} else if len(httpMethod.getDefaultRequestBodyBytes()) > 0 {
 			bm := make(map[string]interface{})
 			// TODO: support types other than json
-			err := json.Unmarshal(pr.m.getDefaultRequestBodyBytes(), &bm)
+			err := json.Unmarshal(httpMethod.getDefaultRequestBodyBytes(), &bm)
 			if err == nil {
 				p.SetRequestBodyMap(bm)
 			}
