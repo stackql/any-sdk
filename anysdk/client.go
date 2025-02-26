@@ -363,6 +363,9 @@ func HTTPApiCallFromRequest(
 			newAnySdkHTTPArg(translatedRequest),
 		),
 	)
+	if err != nil {
+		return nil, err
+	}
 	httpResponse, _ := r.GetHttpResponse()
 	responseErrorBodyToPublish, reponseParseErr := parseReponseBodyIfErroneous(httpResponse)
 	if reponseParseErr != nil {
