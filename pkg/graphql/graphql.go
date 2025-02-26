@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"text/template"
 
@@ -76,7 +75,7 @@ func newAnySdkGraphQLHTTPDesignation(url *url.URL) client.AnySdkDesignation {
 }
 
 func (hd *anySdkGraphQLHTTPDesignation) GetDesignation() (interface{}, bool) {
-	return hd.url, hd.url != nil && reflect.TypeOf(hd.url) == reflect.TypeOf((*url.URL)(nil))
+	return hd.url, hd.url != nil
 }
 
 type anySdkArgList struct {
