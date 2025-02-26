@@ -2,9 +2,11 @@ package anysdk
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 
@@ -336,6 +338,28 @@ func HTTPApiCallFromRequest(
 		method,
 		request,
 	)
+}
+
+func GetMonitorRequest(urlStr string) (client.AnySdkArgList, error) {
+	urlObj, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	if strings.ToLower(urlObj.Scheme) != "http" && strings.ToLower(urlObj.Scheme) != "https" {
+		return nil, fmt.Errorf("url scheme '%s' disallowed; must be http or https", urlObj.Scheme)
+	}
+	req, err := http.NewRequest(
+		http.MethodGet,
+		urlStr,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(context.Background())
+	return newAnySdkArgList(
+		newAnySdkHTTPArg(req),
+	), nil
 }
 
 func CallFromSignature(
