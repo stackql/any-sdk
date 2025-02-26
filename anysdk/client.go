@@ -376,9 +376,9 @@ func CallFromSignature(
 	if !hasRawDesignation {
 		return nil, fmt.Errorf("could not get raw designation")
 	}
-	switch designation := rawDesignation.(type) {
-	case *anySdkHTTPDesignation:
-		method := designation.method
+	switch castRawDesignation := rawDesignation.(type) {
+	case OperationStore:
+		method := castRawDesignation
 		firstArg := argList.GetArgs()[0]
 		arg, hasFirstArg := firstArg.GetArg()
 		if !hasFirstArg {
@@ -404,7 +404,7 @@ func CallFromSignature(
 		anySdkHttpResponse := newAnySdkHttpReponse(httpResponse)
 		return anySdkHttpResponse, nil
 	default:
-		return nil, fmt.Errorf("could not cast designation to anySdkHTTPDesignation")
+		return nil, fmt.Errorf("could not cast designation of type '%T' to OperationStore", designation)
 	}
 }
 
