@@ -20,6 +20,13 @@ Aspirationally, socketless (network) protocols, sundry inter-process communicati
 
 */
 
+type ClientProtocolType int
+
+const (
+	HTTP ClientProtocolType = iota
+	Disallowed
+)
+
 type AnySdkResponse interface {
 	IsErroneous() bool
 	GetHttpResponse() (*http.Response, error)
@@ -35,6 +42,7 @@ type AnySdkArg interface {
 
 type AnySdkArgList interface {
 	GetArgs() []AnySdkArg
+	// GetProtocolType() ClientProtocolType
 }
 
 type AnySdkInvocation interface {
