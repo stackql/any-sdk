@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 
 	"github.com/stackql/any-sdk/pkg/auth_util"
@@ -307,7 +306,7 @@ func newAnySdkOpStoreDesignation(method OperationStore) client.AnySdkDesignation
 }
 
 func (hd *anySdkHTTPDesignation) GetDesignation() (interface{}, bool) {
-	return hd.method, hd.method != nil && reflect.TypeOf(hd.method) == reflect.TypeOf((*OperationStore)(nil))
+	return hd.method, hd.method != nil
 }
 
 func inferMaxResultsElement(OperationStore) internaldto.HTTPElement {
