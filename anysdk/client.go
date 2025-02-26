@@ -294,7 +294,11 @@ type anySdkHTTPDesignation struct {
 	method OperationStore
 }
 
-func newAnySdkHTTPDesignation(method OperationStore) client.AnySdkDesignation {
+func NewAnySdkOpStoreDesignation(method OperationStore) client.AnySdkDesignation {
+	return newAnySdkOpStoreDesignation(method)
+}
+
+func newAnySdkOpStoreDesignation(method OperationStore) client.AnySdkDesignation {
 	return &anySdkHTTPDesignation{
 		method: method,
 	}
@@ -319,6 +323,75 @@ func HTTPApiCallFromRequest(
 	enforceRevokeFirst bool,
 	outErrFile io.Writer,
 	prov Provider,
+	method OperationStore,
+	request *http.Request,
+) (*http.Response, error) {
+	return httpApiCallFromRequest(
+		cc,
+		runtimeCtx,
+		authCtx,
+		authTypeRequested,
+		enforceRevokeFirst,
+		outErrFile,
+		method,
+		request,
+	)
+}
+
+func CallFromSignature(
+	cc client.AnySdkClientConfigurator,
+	runtimeCtx dto.RuntimeCtx,
+	authCtx *dto.AuthCtx,
+	authTypeRequested string,
+	enforceRevokeFirst bool,
+	outErrFile io.Writer,
+	prov Provider,
+	designation client.AnySdkDesignation,
+	argList client.AnySdkArgList,
+) (client.AnySdkResponse, error) {
+	rawDesignation, hasRawDesignation := designation.GetDesignation()
+	if !hasRawDesignation {
+		return nil, fmt.Errorf("could not get raw designation")
+	}
+	switch designation := rawDesignation.(type) {
+	case *anySdkHTTPDesignation:
+		method := designation.method
+		firstArg := argList.GetArgs()[0]
+		arg, hasFirstArg := firstArg.GetArg()
+		if !hasFirstArg {
+			return nil, fmt.Errorf("could not get first argument")
+		}
+		httpReq, isHttpRequest := arg.(*http.Request)
+		if !isHttpRequest {
+			return nil, fmt.Errorf("could not cast first argument to http.Request")
+		}
+		httpResponse, httpResponseErr := httpApiCallFromRequest(
+			cc,
+			runtimeCtx,
+			authCtx,
+			authTypeRequested,
+			enforceRevokeFirst,
+			outErrFile,
+			method,
+			httpReq,
+		)
+		if httpResponseErr != nil {
+			return nil, httpResponseErr
+		}
+		anySdkHttpResponse := newAnySdkHttpReponse(httpResponse)
+		return anySdkHttpResponse, nil
+	default:
+		return nil, fmt.Errorf("could not cast designation to anySdkHTTPDesignation")
+	}
+}
+
+func httpApiCallFromRequest(
+	cc client.AnySdkClientConfigurator,
+	runtimeCtx dto.RuntimeCtx,
+	authCtx *dto.AuthCtx,
+	authTypeRequested string,
+	enforceRevokeFirst bool,
+	outErrFile io.Writer,
 	method OperationStore,
 	request *http.Request,
 ) (*http.Response, error) {
@@ -358,7 +431,7 @@ func HTTPApiCallFromRequest(
 		}
 	}
 	r, err := httpClient.Do(
-		newAnySdkHTTPDesignation(method),
+		newAnySdkOpStoreDesignation(method),
 		newAnySdkArgList(
 			newAnySdkHTTPArg(translatedRequest),
 		),

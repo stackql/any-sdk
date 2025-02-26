@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/internaldto"
 )
 
@@ -17,6 +18,7 @@ type HTTPArmouryParameters interface {
 	GetParameters() HttpParameters
 	GetQuery() url.Values
 	GetRequest() *http.Request
+	GetArgList() client.AnySdkArgList
 	SetBodyBytes(b []byte)
 	SetHeaderKV(k string, v []string)
 	SetNextPage(ops OperationStore, token string, tokenKey internaldto.HTTPElement) (*http.Request, error)
@@ -54,6 +56,12 @@ func (hap *standardHTTPArmouryParameters) SetRequest(req *http.Request) {
 
 func (hap *standardHTTPArmouryParameters) GetRequest() *http.Request {
 	return hap.request
+}
+
+func (hap *standardHTTPArmouryParameters) GetArgList() client.AnySdkArgList {
+	return newAnySdkArgList(
+		newAnySdkHTTPArg(hap.request),
+	)
 }
 
 func (hap *standardHTTPArmouryParameters) SetRequestBodyMap(body BodyMap) {
