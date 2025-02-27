@@ -403,7 +403,9 @@ func CallFromSignature(
 			enforceRevokeFirst,
 			outErrFile,
 			method,
-			httpReq,
+			httpReq.Clone(
+				httpReq.Context(),
+			),
 		)
 		if httpResponseErr != nil {
 			return nil, httpResponseErr
