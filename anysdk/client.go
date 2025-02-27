@@ -33,6 +33,14 @@ func newAnySdkHttpClient(client *http.Client) client.AnySdkClient {
 	}
 }
 
+func NewwHTTPAnySdkArgList(req *http.Request) client.AnySdkArgList {
+	return &anySdkArgList{
+		args: []client.AnySdkArg{
+			newAnySdkHTTPArg(req),
+		},
+	}
+}
+
 type anySdkHttpResponse struct {
 	reponse *http.Response
 }
