@@ -70,7 +70,14 @@ type anySdkHTTPArg struct {
 }
 
 func (ha *anySdkHTTPArg) GetArg() (interface{}, bool) {
-	return ha.arg, ha.arg != nil
+	precursor := ha.arg
+	isNil := ha.arg == nil
+	if isNil {
+		return nil, false
+	}
+	return precursor.Clone(
+		precursor.Context(),
+	), true
 }
 
 func newAnySdkHTTPArg(arg *http.Request) client.AnySdkArg {
