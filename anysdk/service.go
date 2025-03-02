@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/stackql-parser/go/sqltypes"
 	yaml "gopkg.in/yaml.v3"
 )
@@ -22,6 +23,7 @@ type Service interface {
 	GetName() string
 	GetResource(resourceName string) (Resource, error)
 	GetSchema(key string) (Schema, error)
+	GetClientProtocol() constants.ClientProtocol
 }
 
 type OpenAPIService interface {
@@ -60,6 +62,10 @@ func (sv *standardService) getPath(k string) (*openapi3.PathItem, bool) {
 
 func (sv *standardService) getProviderService() ProviderService {
 	return sv.ProviderService
+}
+
+func (sv *standardService) GetClientProtocol() constants.ClientProtocol {
+	return constants.ClientProtocolHTTP
 }
 
 func (sv *standardService) getProvider() Provider {

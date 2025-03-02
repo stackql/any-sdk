@@ -6,6 +6,7 @@ import (
 	"github.com/getkin/kin-openapi/jsoninfo"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/constants"
 )
 
 var (
@@ -33,6 +34,7 @@ type Provider interface {
 	JSONLookup(token string) (interface{}, error)
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
+	GetClientProtocol() constants.ClientProtocol
 	//
 	getResourcesShallowWithRegistry(registry RegistryAPI, serviceKey string) (ResourceRegister, error)
 	isObjectSchemaImplicitlyUnioned() bool
@@ -68,6 +70,10 @@ func (pr *standardProvider) GetProviderServices() map[string]ProviderService {
 
 func (pr *standardProvider) GetName() string {
 	return pr.Name
+}
+
+func (pr *standardProvider) GetClientProtocol() constants.ClientProtocol {
+	return constants.ClientProtocolHTTP
 }
 
 func (pr *standardProvider) GetStackQLConfig() (StackQLConfig, bool) {

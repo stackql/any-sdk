@@ -78,3 +78,10 @@ const (
 	BackendNop
 	BackendTableObject
 )
+
+type ClientProtocol int
+
+const (
+	ClientProtocolHTTP ClientProtocol = iota
+	ClientProtocolSystemCall
+)
