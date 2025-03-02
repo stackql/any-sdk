@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/stackql-parser/go/sqltypes"
 )
 
@@ -33,6 +34,7 @@ type Resource interface {
 	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
 	GetMethodsMatched() Methods
 	ToMap(extended bool) map[string]interface{}
+	GetClientProtocol() constants.ClientProtocol
 	// unexported mutators
 	getSQLVerbs() map[string][]OpenAPIOperationStoreRef
 	setProvider(p Provider)
@@ -80,6 +82,10 @@ func (r *standardResource) GetService() (OpenAPIService, bool) {
 		return nil, false
 	}
 	return r.OpenAPIService, true
+}
+
+func (r *standardResource) GetClientProtocol() constants.ClientProtocol {
+	return constants.ClientProtocolHTTP
 }
 
 func (r *standardResource) getSQLVerbs() map[string][]OpenAPIOperationStoreRef {

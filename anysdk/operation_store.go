@@ -15,6 +15,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/fuzzymatch"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/parametertranslate"
@@ -99,6 +100,7 @@ type OperationStore interface {
 	GetColumnOrder(extended bool) []string
 	RenameRequestBodyAttribute(string) (string, error)
 	RevertRequestBodyAttributeRename(string) (string, error)
+	GetClientProtocol() constants.ClientProtocol
 	IsRequestBodyAttributeRenamed(string) bool
 	GetRequiredNonBodyParameters() map[string]Addressable
 	getServiceNameForProvider() string
@@ -160,6 +162,10 @@ type standardOpenAPIOperationStore struct {
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
 	OpenAPIService    OpenAPIService  `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (op *standardOpenAPIOperationStore) GetClientProtocol() constants.ClientProtocol {
+	return constants.ClientProtocolHTTP
 }
 
 func (op *standardOpenAPIOperationStore) getXMLDeclaration() string {
