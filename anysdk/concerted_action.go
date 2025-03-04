@@ -20,11 +20,33 @@ type standardMethodAnalysisInput struct {
 	method               OperationStore
 	service              OpenAPIService
 	isNilResponseAllowed bool
-	columns              []Column
+	columns              []ColumnDescriptor
+}
+
+func NewMethodAnalysisInput(
+	method OperationStore,
+	service OpenAPIService,
+	isNilResponseAllowed bool,
+	columns []ColumnDescriptor,
+) MethodAnalysisInput {
+	return &standardMethodAnalysisInput{
+		method:               method,
+		service:              service,
+		isNilResponseAllowed: isNilResponseAllowed,
+		columns:              columns,
+	}
 }
 
 func (mi *standardMethodAnalysisInput) GetMethod() OperationStore {
 	return mi.method
+}
+
+func (mi *standardMethodAnalysisInput) GetService() OpenAPIService {
+	return mi.service
+}
+
+func (mi *standardMethodAnalysisInput) GetColumns() []ColumnDescriptor {
+	return mi.columns
 }
 
 func (mi *standardMethodAnalysisInput) IsNilResponseAllowed() bool {
@@ -75,6 +97,10 @@ func newMethodAnalysisOutput(
 	}
 }
 
+func NewMethodAnalyzer() MethodAnalyzer {
+	return &standardMethodAnalyzer{}
+}
+
 type MethodAnalyzer interface {
 	AnalyzeUnaryAction(MethodAnalysisInput) (MethodAnalysisOutput, error)
 }
@@ -109,10 +135,11 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 		}
 		// rscStr, _ := tbl.GetResourceStr()
 		if itemObjS == nil && !isNilResponseAllowed {
-			return nil, fmt.Errorf(unsuitableSchemaMsg)
+			return nil, fmt.Errorf("%s", unsuitableSchemaMsg)
 		}
 		if len(cols) == 0 && itemObjS != nil {
 			cols = itemObjS.getPropertiesColumns()
+			// TODO: order
 		}
 		insertTabulation = itemObjS.Tabulate(false, "")
 
