@@ -58,6 +58,10 @@ const (
 )
 
 const (
+	NilTabulationName string = "__any__sdk__nil__"
+)
+
+const (
 	ReversalStreamAlias string = "reversal_stream"
 	ReversalStreamID    int64  = -1
 )

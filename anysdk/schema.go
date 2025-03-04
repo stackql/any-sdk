@@ -302,6 +302,13 @@ func NewStringSchema(svc OpenAPIService, key string, path string) Schema {
 	return newSchema(sc, svc, key, path)
 }
 
+func newExmptyObjectStandardSchema(svc OpenAPIService, key string, path string) *standardSchema {
+	sc := openapi3.NewSchema()
+	sc.Type = "object"
+	sc.Properties = openapi3.Schemas{}
+	return newStandardSchema(sc, svc, key, path)
+}
+
 func NewTestSchema(sc *openapi3.Schema, svc OpenAPIService, key string, path string) Schema {
 	return newSchema(sc, svc, key, path)
 }
@@ -318,6 +325,15 @@ func (sc *standardSchema) GetAdditionalProperties() (Schema, bool) {
 }
 
 func newSchema(sc *openapi3.Schema, svc OpenAPIService, key string, path string) Schema {
+	return newStandardSchema(
+		sc,
+		svc,
+		key,
+		path,
+	)
+}
+
+func newStandardSchema(sc *openapi3.Schema, svc OpenAPIService, key string, path string) *standardSchema {
 	var alwaysRequired bool
 	if sc.Extensions != nil {
 		if ar, ok := sc.Extensions[ExtensionKeyAlwaysRequired]; ok {
