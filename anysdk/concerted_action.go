@@ -2,15 +2,10 @@ package anysdk
 
 import (
 	"fmt"
-	"strings"
 )
 
-func GetS(in string) string {
-	return strings.TrimPrefix(in, "poly")
-}
-
 type MethodAnalysisInput interface {
-	GetService() OpenAPIService
+	GetService() Service
 	GetMethod() OperationStore
 	IsNilResponseAllowed() bool
 	GetColumns() []ColumnDescriptor
@@ -18,14 +13,14 @@ type MethodAnalysisInput interface {
 
 type standardMethodAnalysisInput struct {
 	method               OperationStore
-	service              OpenAPIService
+	service              Service
 	isNilResponseAllowed bool
 	columns              []ColumnDescriptor
 }
 
 func NewMethodAnalysisInput(
 	method OperationStore,
-	service OpenAPIService,
+	service Service,
 	isNilResponseAllowed bool,
 	columns []ColumnDescriptor,
 ) MethodAnalysisInput {
@@ -41,7 +36,7 @@ func (mi *standardMethodAnalysisInput) GetMethod() OperationStore {
 	return mi.method
 }
 
-func (mi *standardMethodAnalysisInput) GetService() OpenAPIService {
+func (mi *standardMethodAnalysisInput) GetService() Service {
 	return mi.service
 }
 
@@ -111,7 +106,11 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 	methodAnalysisInput MethodAnalysisInput,
 ) (MethodAnalysisOutput, error) {
 	method := methodAnalysisInput.GetMethod()
-	service := methodAnalysisInput.GetService()
+	svc := methodAnalysisInput.GetService()
+	service, serviceOk := svc.(OpenAPIService)
+	if !serviceOk {
+		return nil, fmt.Errorf("AnalyzeUnaryAction(): service is not an OpenAPIService")
+	}
 	isNilResponseAllowed := methodAnalysisInput.IsNilResponseAllowed()
 	cols := methodAnalysisInput.GetColumns()
 
