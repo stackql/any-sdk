@@ -53,6 +53,8 @@ type MethodAnalysisOutput interface {
 	GetInsertTabulation() Tabulation
 	GetSelectTabulation() Tabulation
 	GetColumns() []ColumnDescriptor
+	GetItemSchema() (Schema, bool)
+	GetResponseSchema() (Schema, bool)
 }
 
 type analysisOutput struct {
@@ -60,10 +62,20 @@ type analysisOutput struct {
 	insertTabulation Tabulation
 	selectTabulation Tabulation
 	columns          []ColumnDescriptor
+	responseSchema   Schema
+	itemSchema       Schema
 }
 
 func (ao *analysisOutput) GetSelectItemsKey() string {
 	return ao.selectItemsKey
+}
+
+func (ao *analysisOutput) GetItemSchema() (Schema, bool) {
+	return ao.itemSchema, ao.itemSchema != nil
+}
+
+func (ao *analysisOutput) GetResponseSchema() (Schema, bool) {
+	return ao.responseSchema, ao.responseSchema != nil
 }
 
 func (ao *analysisOutput) GetInsertTabulation() Tabulation {
@@ -83,12 +95,16 @@ func newMethodAnalysisOutput(
 	insertTabulation Tabulation,
 	selectTabulation Tabulation,
 	columns []ColumnDescriptor,
+	responseSchema Schema,
+	itemSchema Schema,
 ) MethodAnalysisOutput {
 	return &analysisOutput{
 		selectItemsKey:   selectItemsKey,
 		insertTabulation: insertTabulation,
 		selectTabulation: selectTabulation,
 		columns:          columns,
+		responseSchema:   responseSchema,
+		itemSchema:       itemSchema,
 	}
 }
 
@@ -122,11 +138,13 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 	if err != nil && !isNilResponseAllowed {
 		return nil, err
 	}
+	itemSchema := schema
 	if err == nil {
 		itemObjS, selectItemsKeyRet, err := schema.GetSelectSchema(method.GetSelectItemsKey(), mediaType)
 		if selectItemsKeyRet != "" {
 			selectItemsKey = selectItemsKeyRet
 		}
+		itemSchema = itemObjS
 		// rscStr, _ := tbl.GetResourceStr()
 		unsuitableSchemaMsg := "analyzeUnarySelection(): schema unsuitable for select query"
 		if err != nil && !isNilResponseAllowed {
@@ -150,5 +168,7 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 		insertTabulation,
 		selectTabulation,
 		cols,
+		schema,
+		itemSchema,
 	), nil
 }
