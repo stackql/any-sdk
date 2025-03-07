@@ -56,20 +56,26 @@ type MethodAnalysisOutput interface {
 	GetColumns() []ColumnDescriptor
 	GetItemSchema() (Schema, bool)
 	GetResponseSchema() (Schema, bool)
+	IsNilResponseAllowed() bool
 }
 
 type analysisOutput struct {
-	method           OperationStore
-	selectItemsKey   string
-	insertTabulation Tabulation
-	selectTabulation Tabulation
-	columns          []ColumnDescriptor
-	responseSchema   Schema
-	itemSchema       Schema
+	method               OperationStore
+	selectItemsKey       string
+	insertTabulation     Tabulation
+	selectTabulation     Tabulation
+	columns              []ColumnDescriptor
+	responseSchema       Schema
+	itemSchema           Schema
+	isNilResponseAllowed bool
 }
 
 func (ao *analysisOutput) GetMethod() OperationStore {
 	return ao.method
+}
+
+func (ao *analysisOutput) IsNilResponseAllowed() bool {
+	return ao.isNilResponseAllowed
 }
 
 func (ao *analysisOutput) GetSelectItemsKey() string {
@@ -104,15 +110,17 @@ func newMethodAnalysisOutput(
 	columns []ColumnDescriptor,
 	responseSchema Schema,
 	itemSchema Schema,
+	isNilResponseAllowed bool,
 ) MethodAnalysisOutput {
 	return &analysisOutput{
-		method:           method,
-		selectItemsKey:   selectItemsKey,
-		insertTabulation: insertTabulation,
-		selectTabulation: selectTabulation,
-		columns:          columns,
-		responseSchema:   responseSchema,
-		itemSchema:       itemSchema,
+		method:               method,
+		selectItemsKey:       selectItemsKey,
+		insertTabulation:     insertTabulation,
+		selectTabulation:     selectTabulation,
+		columns:              columns,
+		responseSchema:       responseSchema,
+		itemSchema:           itemSchema,
+		isNilResponseAllowed: isNilResponseAllowed,
 	}
 }
 
@@ -182,5 +190,6 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 		cols,
 		schema,
 		itemSchema,
+		isNilResponseAllowed,
 	), nil
 }
