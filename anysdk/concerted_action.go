@@ -146,6 +146,9 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 	if err != nil && !isNilResponseAllowed {
 		return nil, err
 	}
+	if err != nil {
+		schema = newExmptyObjectStandardSchema(service, "", "")
+	}
 	itemSchema := schema
 	if err == nil {
 		itemObjS, selectItemsKeyRet, err := schema.GetSelectSchema(method.GetSelectItemsKey(), mediaType)
