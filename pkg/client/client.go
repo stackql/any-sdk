@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/stackql/any-sdk/pkg/dto"
@@ -23,9 +24,26 @@ Aspirationally, socketless (network) protocols, sundry inter-process communicati
 type ClientProtocolType int
 
 const (
+	ClientProtocolTypeHTTP           string = "http"
+	ClientProtocolTypeLocalTemplated string = "local_templated"
+)
+
+const (
 	HTTP ClientProtocolType = iota
+	LocalTemplated
 	Disallowed
 )
+
+func ClientProtocolTypeFromString(s string) (ClientProtocolType, error) {
+	switch s {
+	case ClientProtocolTypeHTTP:
+		return HTTP, nil
+	case ClientProtocolTypeLocalTemplated:
+		return LocalTemplated, nil
+	default:
+		return Disallowed, fmt.Errorf("unsupported protocol type: %s", s)
+	}
+}
 
 type AnySdkResponse interface {
 	IsErroneous() bool
@@ -42,7 +60,7 @@ type AnySdkArg interface {
 
 type AnySdkArgList interface {
 	GetArgs() []AnySdkArg
-	// GetProtocolType() ClientProtocolType
+	GetProtocolType() ClientProtocolType
 }
 
 type AnySdkInvocation interface {

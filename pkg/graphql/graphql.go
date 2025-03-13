@@ -78,16 +78,20 @@ func (hd *anySdkGraphQLHTTPDesignation) GetDesignation() (interface{}, bool) {
 	return hd.url, hd.url != nil
 }
 
-type anySdkArgList struct {
+type graphqlAnySdkArgList struct {
 	args []client.AnySdkArg
 }
 
-func (al *anySdkArgList) GetArgs() []client.AnySdkArg {
+func (al *graphqlAnySdkArgList) GetArgs() []client.AnySdkArg {
 	return al.args
 }
 
-func newAnySdkArgList(args ...client.AnySdkArg) client.AnySdkArgList {
-	return &anySdkArgList{
+func (al *graphqlAnySdkArgList) GetProtocolType() client.ClientProtocolType {
+	return client.HTTP
+}
+
+func newGraphqlAnySdkArgList(args ...client.AnySdkArg) client.AnySdkArgList {
+	return &graphqlAnySdkArgList{
 		args: args,
 	}
 }
@@ -120,7 +124,7 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 	req.Header.Set("Content-Type", "application/json")
 	r, err := gq.anySdkClient.Do(
 		newAnySdkGraphQLHTTPDesignation(req.URL),
-		newAnySdkArgList(newAnySdkHTTPArg(req)),
+		newGraphqlAnySdkArgList(newAnySdkHTTPArg(req)),
 	)
 	if err != nil {
 		return nil, err

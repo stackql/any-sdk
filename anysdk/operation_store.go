@@ -64,6 +64,7 @@ type OperationStore interface {
 	GetParameters() map[string]Addressable
 	GetPathItem() *openapi3.PathItem
 	GetAPIMethod() string
+	GetInline() []string
 	GetOperationRef() *OperationRef
 	GetPathRef() *PathItemRef
 	GetRequest() (ExpectedRequest, bool)
@@ -74,11 +75,11 @@ type OperationStore interface {
 	GetProvider() Provider
 	GetService() OpenAPIService
 	GetResource() Resource
-	ParameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
+	parameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
 	GetOperationParameter(key string) (Addressable, bool)
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
 	ProcessResponse(*http.Response) (ProcessedOperationResponse, error) // to be removed
-	Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
+	parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
 	GetSelectItemsKey() string
 	GetResponseBodySchemaAndMediaType() (Schema, string, error)
 	GetRequiredParameters() map[string]Addressable
@@ -144,22 +145,30 @@ type standardOpenAPIOperationStore struct {
 	GraphQL       GraphQL                `json:"-" yaml:"-"`
 	StackQLConfig *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
 	// Optional parameters.
-	Parameters   map[string]interface{}    `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	PathItem     *openapi3.PathItem        `json:"-" yaml:"-"`                 // Required
-	APIMethod    string                    `json:"apiMethod" yaml:"apiMethod"` // Required
-	OperationRef *OperationRef             `json:"operation" yaml:"operation"` // Required
-	PathRef      *PathItemRef              `json:"path" yaml:"path"`           // Deprecated
-	Request      *standardExpectedRequest  `json:"request" yaml:"request"`
-	Response     *standardExpectedResponse `json:"response" yaml:"response"`
-	Servers      *openapi3.Servers         `json:"servers" yaml:"servers"`
-	Inverse      *operationInverse         `json:"inverse" yaml:"inverse"`
-	ServiceName  string                    `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
+	Parameters   map[string]map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	PathItem     *openapi3.PathItem                `json:"-" yaml:"-"`                 // Required
+	APIMethod    string                            `json:"apiMethod" yaml:"apiMethod"` // Required
+	OperationRef *OperationRef                     `json:"operation" yaml:"operation"` // Required
+	InlineOp     []string                          `json:"inline" yaml:"inline"`       // Deprecated
+	PathRef      *PathItemRef                      `json:"path" yaml:"path"`           // Deprecated
+	Request      *standardExpectedRequest          `json:"request" yaml:"request"`
+	Response     *standardExpectedResponse         `json:"response" yaml:"response"`
+	Servers      *openapi3.Servers                 `json:"servers" yaml:"servers"`
+	Inverse      *operationInverse                 `json:"inverse" yaml:"inverse"`
+	ServiceName  string                            `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
 	// private
 	parameterizedPath string          `json:"-" yaml:"-"`
 	ProviderService   ProviderService `json:"-" yaml:"-"` // upwards traversal
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
 	OpenAPIService    OpenAPIService  `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (op *standardOpenAPIOperationStore) GetInline() []string {
+	if op.InlineOp != nil {
+		return op.InlineOp
+	}
+	return []string{}
 }
 
 func (op *standardOpenAPIOperationStore) getXMLDeclaration() string {
@@ -221,7 +230,7 @@ func (op *standardOpenAPIOperationStore) getRequestBodyStringifiedPaths() (map[s
 
 func NewEmptyOperationStore() StandardOperationStore {
 	return &standardOpenAPIOperationStore{
-		Parameters: make(map[string]interface{}),
+		Parameters: make(map[string]map[string]interface{}),
 	}
 }
 
@@ -391,10 +400,6 @@ func (op *standardOpenAPIOperationStore) GetService() OpenAPIService {
 
 func (op *standardOpenAPIOperationStore) GetResource() Resource {
 	return op.Resource
-}
-
-func (op *standardOpenAPIOperationStore) ParameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
-	return op.parameterMatch(params)
 }
 
 func (op *standardOpenAPIOperationStore) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
@@ -881,6 +886,21 @@ func (m *standardOpenAPIOperationStore) GetRequiredNonBodyParameters() map[strin
 
 func (m *standardOpenAPIOperationStore) getRequiredNonBodyParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
+	for k, v := range m.Parameters {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			continue
+		}
+		paramObj := NewParameter(&param, m.OpenAPIService)
+		if paramObj.IsRequired() {
+			retVal[k] = paramObj
+		}
+	}
 	if m.PathItem != nil {
 		for _, p := range m.PathItem.Parameters {
 			param := p.Value
@@ -889,8 +909,7 @@ func (m *standardOpenAPIOperationStore) getRequiredNonBodyParameters() map[strin
 			}
 		}
 	}
-	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
-
+	if m.OperationRef == nil || m.OperationRef.Value == nil || m.OperationRef.Value.Parameters == nil {
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
@@ -929,7 +948,22 @@ func (m *standardOpenAPIOperationStore) GetOptionalParameters() map[string]Addre
 
 func (m *standardOpenAPIOperationStore) getOptionalParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
-	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
+	for k, v := range m.Parameters {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			continue
+		}
+		paramObj := NewParameter(&param, m.OpenAPIService)
+		if !paramObj.IsRequired() {
+			retVal[k] = paramObj
+		}
+	}
+	if m.OperationRef == nil || m.OperationRef.Value == nil || m.OperationRef.Value.Parameters == nil {
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
@@ -1071,6 +1105,26 @@ func (op *standardOpenAPIOperationStore) GetOperationParameters() Params {
 }
 
 func (op *standardOpenAPIOperationStore) GetOperationParameter(key string) (Addressable, bool) {
+	paramLocal, isParamLocal := op.Parameters[key]
+	if isParamLocal {
+		b, err := json.Marshal(paramLocal)
+		if err != nil {
+			return nil, false
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			return nil, false
+		}
+		if param.Name == "" && param.In == "inline" {
+			param.Name = key
+		}
+		paramObj := NewParameter(&param, op.OpenAPIService)
+		return paramObj, true
+	}
+	if op.OperationRef == nil || op.OperationRef.Value == nil || op.OperationRef.Value.Parameters == nil {
+		return nil, false
+	}
 	params := NewParameters(op.OperationRef.Value.Parameters, op.GetService())
 	if op.OperationRef.Value.Parameters == nil {
 		return nil, false
@@ -1090,7 +1144,7 @@ func (op *standardOpenAPIOperationStore) getServerVariable(key string) (*openapi
 }
 
 func getServersFromHeirarchy(op *standardOpenAPIOperationStore) openapi3.Servers {
-	if op.OperationRef.Value.Servers != nil && len(*op.OperationRef.Value.Servers) > 0 {
+	if op.OperationRef != nil && op.OperationRef.Value != nil && op.OperationRef.Value.Servers != nil && len(*op.OperationRef.Value.Servers) > 0 {
 		return *op.OperationRef.Value.Servers
 	}
 	if op.PathItem != nil && len(op.PathItem.Servers) > 0 {
@@ -1140,7 +1194,7 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }
 
-func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
+func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
 
 	params := op.OperationRef.Value.Parameters
 	copyParams := make(map[string]interface{})
@@ -1168,7 +1222,7 @@ func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc S
 			} else if p.Value != nil && p.Value.Schema != nil && p.Value.Schema.Value != nil && p.Value.Schema.Value.Default != nil {
 				prefilledHeader.Set(name, fmt.Sprintf("%v", p.Value.Schema.Value.Default))
 			} else if isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOpenAPIOperationStore.Parameterize() failure; missing required header '%s'", name)
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required header '%s'", name)
 			}
 		}
 		if p.Value.In == openapi3.ParameterInPath {
@@ -1178,7 +1232,7 @@ func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc S
 				delete(copyParams, name)
 			}
 			if !present && isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOpenAPIOperationStore.Parameterize() failure; missing required path parameter '%s'", name)
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required path parameter '%s'", name)
 			}
 		} else if p.Value.In == openapi3.ParameterInQuery {
 			queryParamsRemaining, err := inputParams.GetRemainingQueryParamsFlatMap(copyParams)
@@ -1312,6 +1366,9 @@ func (op *standardOpenAPIOperationStore) GetResponseBodySchemaAndMediaType() (Sc
 }
 
 func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Schema, string, error) {
+	if op.Response != nil && op.Response.OverrideSchema != nil {
+		return newSchema(op.Response.OverrideSchema, op.GetService(), "", ""), "", nil
+	}
 	if op.Response != nil && op.Response.Schema != nil {
 		mediaType := op.Response.BodyMediaType
 		if op.Response.OverrideBodyMediaType != "" {
@@ -1324,6 +1381,9 @@ func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Sc
 
 func (op *standardOpenAPIOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	k := op.lookupSelectItemsKey()
+	if op.Response != nil && op.Response.OverrideSchema != nil {
+		return newSchema(op.Response.OverrideSchema, op.GetService(), "", ""), k, nil
+	}
 	if op.Response != nil && op.Response.Schema != nil {
 		return op.Response.Schema.getSelectItemsSchema(k, op.getOptimalResponseMediaType())
 	}

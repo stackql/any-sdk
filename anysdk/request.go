@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/streaming"
 )
 
@@ -197,7 +198,7 @@ func getRequest(
 	if err != nil {
 		return nil, err
 	}
-	validationParams, err := method.Parameterize(prov, svc, httpParams, httpParams.GetRequestBody())
+	validationParams, err := method.parameterize(prov, svc, httpParams, httpParams.GetRequestBody())
 	if err != nil {
 		return nil, err
 	}
@@ -306,23 +307,29 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmou
 			}
 		}
 		var baseRequestCtx *http.Request
-		baseRequestCtx, err = getRequest(pr.prov, pr.svc, pr.m, p.GetParameters())
-		if err != nil {
-			return nil, err
+		protocolType, protocolTypeErr := pr.prov.GetProtocolType()
+		if protocolTypeErr != nil {
+			return nil, protocolTypeErr
 		}
-		for k, v := range p.GetHeader() {
-			for _, vi := range v {
-				baseRequestCtx.Header.Set(k, vi)
+		if protocolType == client.HTTP {
+			baseRequestCtx, err = getRequest(pr.prov, pr.svc, pr.m, p.GetParameters())
+			if err != nil {
+				return nil, err
 			}
-		}
+			for k, v := range p.GetHeader() {
+				for _, vi := range v {
+					baseRequestCtx.Header.Set(k, vi)
+				}
+			}
 
-		p.SetRequest(baseRequestCtx)
-		pr.logger.Infoln(
-			fmt.Sprintf("pre transform: httpArmoury.RequestParams[%d] = %s",
-				i, string(p.GetBodyBytes())))
-		pr.logger.Infoln(
-			fmt.Sprintf("post transform: httpArmoury.RequestParams[%d] = %s",
-				i, string(p.GetBodyBytes())))
+			p.SetRequest(baseRequestCtx)
+			pr.logger.Infoln(
+				fmt.Sprintf("pre transform: httpArmoury.RequestParams[%d] = %s",
+					i, string(p.GetBodyBytes())))
+			pr.logger.Infoln(
+				fmt.Sprintf("post transform: httpArmoury.RequestParams[%d] = %s",
+					i, string(p.GetBodyBytes())))
+		}
 		secondPassParams[i] = p
 	}
 	httpArmoury.SetRequestParams(secondPassParams)

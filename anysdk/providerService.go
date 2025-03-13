@@ -6,6 +6,7 @@ import (
 
 	"github.com/getkin/kin-openapi/jsoninfo"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/stackql-parser/go/sqltypes"
 )
 
@@ -18,17 +19,18 @@ type ProviderService interface {
 	ITable
 	getQueryTransposeAlgorithm() string
 	GetProvider() (Provider, bool)
-	GetService() (OpenAPIService, error)
+	GetProtocolType() (client.ClientProtocolType, error)
+	GetService() (Service, error)
 	GetRequestTranslateAlgorithm() string
 	GetResourcesShallow() (ResourceRegister, error)
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	ConditionIsValid(lhs string, rhs interface{}) bool
 	GetID() string
-	GetServiceFragment(resourceKey string) (OpenAPIService, error)
+	GetServiceFragment(resourceKey string) (Service, error)
 	GetResourcesRefRef() string
-	PeekServiceFragment(resourceKey string) (OpenAPIService, bool)
-	SetServiceRefVal(OpenAPIService) bool
+	PeekServiceFragment(resourceKey string) (Service, bool)
+	SetServiceRefVal(Service) bool
 	IsPreferred() bool
 	GetTitle() string
 	GetVersion() string
@@ -37,8 +39,8 @@ type ProviderService interface {
 	getResourcesShallowWithRegistry(registry RegistryAPI) (ResourceRegister, error)
 	getServiceRefRef() string
 	getResourcesRefRef() string
-	setService(svc OpenAPIService)
-	getServiceWithRegistry(registry RegistryAPI) (OpenAPIService, error)
+	setService(svc Service) bool
+	getServiceWithRegistry(registry RegistryAPI) (Service, error)
 	getServiceDocRef(rr ResourceRegister, rsc Resource) ServiceRef
 	setProvider(provider Provider)
 }
@@ -51,11 +53,13 @@ type standardProviderService struct {
 	Version        string                 `json:"version" yaml:"version"` // Required
 	Description    string                 `json:"description" yaml:"description"`
 	Preferred      bool                   `json:"preferred" yaml:"preferred"`
+	ProtocolType   string                 `json:"protocolType" yaml:"protocolType"`
 	ServiceRef     *ServiceRef            `json:"service,omitempty" yaml:"service,omitempty"`     // will be lazy evaluated
 	ResourcesRef   *ResourcesRef          `json:"resources,omitempty" yaml:"resources,omitempty"` // will be lazy evaluated
 	Provider       Provider               `json:"-" yaml:"-"`                                     // upwards traversal
 	StackQLConfig  *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
 	OpenAPIService OpenAPIService         `json:"-" yaml:"-"`
+	GenericService Service                `json:"-" yaml:"-"`
 }
 
 func NewEmptyProviderService() ProviderService {
@@ -64,6 +68,17 @@ func NewEmptyProviderService() ProviderService {
 
 func (sv *standardProviderService) GetTitle() string {
 	return sv.Title
+}
+
+func (sv *standardProviderService) GetProtocolType() (client.ClientProtocolType, error) {
+	if sv.ProtocolType != "" {
+		return client.ClientProtocolTypeFromString(sv.ProtocolType)
+	}
+	prov, provOk := sv.GetProvider()
+	if provOk {
+		return prov.GetProtocolType()
+	}
+	return client.ClientProtocolTypeFromString(client.ClientProtocolTypeHTTP)
 }
 
 func (sv *standardProviderService) GetVersion() string {
@@ -78,7 +93,7 @@ func (sv *standardProviderService) IsPreferred() bool {
 	return sv.Preferred
 }
 
-func (sv *standardProviderService) SetServiceRefVal(svc OpenAPIService) bool {
+func (sv *standardProviderService) SetServiceRefVal(svc Service) bool {
 	switch svc := svc.(type) {
 	case *standardService:
 		sv.ServiceRef.Value = svc
@@ -96,8 +111,13 @@ func (sv *standardProviderService) GetID() string {
 	return sv.ID
 }
 
-func (sv *standardProviderService) setService(svc OpenAPIService) {
-	sv.OpenAPIService = svc
+func (sv *standardProviderService) setService(svc Service) bool {
+	openApiSvc, isOpenApiSvc := svc.(OpenAPIService)
+	if !isOpenApiSvc {
+		return false
+	}
+	sv.OpenAPIService = openApiSvc
+	return true
 }
 
 func (sv *standardProviderService) getServiceRefRef() string {
@@ -158,7 +178,7 @@ func (sv *standardProviderService) ConditionIsValid(lhs string, rhs interface{})
 	return reflect.TypeOf(elem) == reflect.TypeOf(rhs)
 }
 
-func extractService(ps ProviderService) (OpenAPIService, error) {
+func extractService(ps ProviderService) (Service, error) {
 	b, err := getServiceDocBytes(ps.getServiceRefRef())
 	if err != nil {
 		return nil, err
@@ -213,7 +233,7 @@ func (ps *standardProviderService) GetKey(lhs string) (interface{}, error) {
 	return val, nil
 }
 
-func (ps *standardProviderService) getServiceWithRegistry(registry RegistryAPI) (OpenAPIService, error) {
+func (ps *standardProviderService) getServiceWithRegistry(registry RegistryAPI) (Service, error) {
 	if ps.ServiceRef.Value != nil {
 		return ps.ServiceRef.Value, nil
 	}
@@ -224,11 +244,15 @@ func (ps *standardProviderService) getServiceWithRegistry(registry RegistryAPI) 
 	if err != nil {
 		return nil, err
 	}
-	ps.OpenAPIService = svc
+	openapiSvc, isOpenapiSvc := svc.(OpenAPIService)
+	if !isOpenapiSvc {
+		return nil, fmt.Errorf("disallowed type for openapi service '%T'", svc)
+	}
+	ps.OpenAPIService = openapiSvc
 	return ps.OpenAPIService, nil
 }
 
-func (ps *standardProviderService) GetService() (OpenAPIService, error) {
+func (ps *standardProviderService) GetService() (Service, error) {
 	if ps.OpenAPIService != nil {
 		return ps.OpenAPIService, nil
 	}
@@ -239,7 +263,11 @@ func (ps *standardProviderService) GetService() (OpenAPIService, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps.OpenAPIService = svc
+	openApiSvc, isOpenApiSvc := svc.(OpenAPIService)
+	if !isOpenApiSvc {
+		return nil, fmt.Errorf("disallowed type for openapi service '%T'", svc)
+	}
+	ps.OpenAPIService = openApiSvc
 	return ps.OpenAPIService, nil
 }
 
@@ -251,7 +279,11 @@ func (ps *standardProviderService) extractService() (OpenAPIService, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps.OpenAPIService = svc
+	openApiSvc, isOpenApiSvc := svc.(OpenAPIService)
+	if !isOpenApiSvc {
+		return nil, fmt.Errorf("disallowed type for openapi service '%T'", svc)
+	}
+	ps.OpenAPIService = openApiSvc
 	return ps.OpenAPIService, nil
 }
 
@@ -269,7 +301,7 @@ func (ps *standardProviderService) getServiceDocRef(rr ResourceRegister, rsc Res
 	return rv
 }
 
-func (ps *standardProviderService) GetServiceFragment(resourceKey string) (OpenAPIService, error) {
+func (ps *standardProviderService) GetServiceFragment(resourceKey string) (Service, error) {
 
 	if ps.ResourcesRef == nil || ps.ResourcesRef.Ref == "" {
 		return ps.GetService()
@@ -301,7 +333,7 @@ func (ps *standardProviderService) GetServiceFragment(resourceKey string) (OpenA
 	return ps.OpenAPIService, nil
 }
 
-func (ps *standardProviderService) PeekServiceFragment(resourceKey string) (OpenAPIService, bool) {
+func (ps *standardProviderService) PeekServiceFragment(resourceKey string) (Service, bool) {
 	if ps.ServiceRef == nil || ps.ServiceRef.Value == nil || ps.ServiceRef.Value.rsc == nil {
 		return nil, false
 	}

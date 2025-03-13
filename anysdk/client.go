@@ -41,6 +41,16 @@ func NewwHTTPAnySdkArgList(req *http.Request) client.AnySdkArgList {
 	}
 }
 
+func NewAnySdkArgList(argList any) (client.AnySdkArgList, error) {
+	switch argList := argList.(type) {
+	case *http.Request:
+		req := argList
+		return NewwHTTPAnySdkArgList(req), nil
+	default:
+		return nil, fmt.Errorf("could not cast argList of type '%T' to *http.Request", argList)
+	}
+}
+
 type anySdkHttpResponse struct {
 	reponse *http.Response
 }
@@ -60,16 +70,22 @@ func newAnySdkHttpReponse(httpResponse *http.Response) client.AnySdkResponse {
 }
 
 type anySdkArgList struct {
-	args []client.AnySdkArg
+	args         []client.AnySdkArg
+	protocolType client.ClientProtocolType
 }
 
 func (al *anySdkArgList) GetArgs() []client.AnySdkArg {
 	return al.args
 }
 
-func newAnySdkArgList(args ...client.AnySdkArg) client.AnySdkArgList {
+func (al *anySdkArgList) GetProtocolType() client.ClientProtocolType {
+	return al.protocolType
+}
+
+func newAnySdkArgList(protocolType client.ClientProtocolType, args ...client.AnySdkArg) client.AnySdkArgList {
 	return &anySdkArgList{
-		args: args,
+		args:         args,
+		protocolType: protocolType,
 	}
 }
 
@@ -372,6 +388,7 @@ func GetMonitorRequest(urlStr string) (client.AnySdkArgList, error) {
 	}
 	req = req.WithContext(context.Background())
 	return newAnySdkArgList(
+		client.HTTP,
 		newAnySdkHTTPArg(req),
 	), nil
 }
@@ -473,6 +490,7 @@ func httpApiCallFromRequest(
 	r, err := httpClient.Do(
 		newAnySdkOpStoreDesignation(method),
 		newAnySdkArgList(
+			client.HTTP,
 			newAnySdkHTTPArg(translatedRequest),
 		),
 	)

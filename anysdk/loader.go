@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -17,6 +16,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	yamlconv "github.com/ghodss/yaml"
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/client"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -27,7 +27,7 @@ const (
 var (
 	IgnoreEmbedded  bool
 	OpenapiFileRoot string
-	_               Loader = &standardLoader{}
+	_               anySdkLoader = &standardLoader{}
 )
 
 func init() {
@@ -38,12 +38,17 @@ type DiscoveryDoc interface {
 	iDiscoveryDoc()
 }
 
-type Loader interface {
-	LoadFromBytes(bytes []byte) (OpenAPIService, error)
-	LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
-	LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
+type anySdkLoader interface {
+	loadFromBytes(bytes []byte) (OpenAPIService, error)
+	loadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
+	loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
 	//
 	extractAndMergeQueryTransposeServiceLevel(svc OpenAPIService) error
+	mergeLocalResource(
+		svc Service,
+		rsc Resource,
+		// sr *ServiceRef,
+	) error
 }
 
 type standardLoader struct {
@@ -58,6 +63,55 @@ type standardLoader struct {
 
 func LoadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, error) {
 	return loadResourcesShallow(ps, bt)
+}
+
+func LoadProviderAndServiceFromPaths(
+	provFilePath string,
+	svcFilePath string,
+) (Service, error) {
+	pb, err := os.ReadFile(provFilePath)
+	if err != nil {
+		return nil, err
+	}
+	prov, err := LoadProviderDocFromBytes(pb)
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(svcFilePath)
+	if err != nil {
+		return nil, err
+	}
+	protocolType, err := prov.GetProtocolType()
+	if err != nil {
+		return nil, err
+	}
+	switch protocolType {
+	case client.HTTP:
+		l := newLoader()
+		svc, err := l.loadFromBytesWithProvider(b, prov)
+		if err != nil {
+			return nil, err
+		}
+		return svc, nil
+	case client.LocalTemplated:
+		rv := new(localTemplatedService)
+		err = yamlconv.Unmarshal(b, rv)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range rv.Rsc {
+			l := newLoader()
+			rsc := v
+			mergeErr := l.mergeLocalResource(rv, rsc)
+			if mergeErr != nil {
+				return nil, mergeErr
+			}
+		}
+		rv.Provider = prov
+		return rv, nil
+	default:
+		return nil, fmt.Errorf("loader unsupported protocol type '%v'", protocolType)
+	}
 }
 
 func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, error) {
@@ -76,7 +130,7 @@ func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, erro
 	return rv, nil
 }
 
-func (l *standardLoader) LoadFromBytes(bytes []byte) (OpenAPIService, error) {
+func (l *standardLoader) loadFromBytes(bytes []byte) (OpenAPIService, error) {
 	doc, err := l.LoadFromData(bytes)
 	if err != nil {
 		return nil, err
@@ -89,8 +143,8 @@ func (l *standardLoader) LoadFromBytes(bytes []byte) (OpenAPIService, error) {
 	return svc, nil
 }
 
-func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error) {
-	svc, err := l.LoadFromBytes(bytes)
+func (l *standardLoader) loadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error) {
+	svc, err := l.loadFromBytes(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +152,7 @@ func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) 
 	return svc, nil
 }
 
-func (l *standardLoader) LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
+func (l *standardLoader) loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
 	doc, err := l.LoadFromData(bytes)
 	if err != nil {
 		return nil, err
@@ -337,6 +391,71 @@ func (l *standardLoader) mergeResource(svc OpenAPIService,
 	return propogateErr
 }
 
+func (l *standardLoader) mergeLocalResource(
+	svc Service,
+	rsc Resource,
+	// sr *ServiceRef,
+) error {
+	// rsc.setService(svc) // must happen before resolving inverses
+	for k, vOp := range rsc.GetMethods() {
+		v := vOp
+		v.setResource(rsc)
+		rsc.setMethod(k, &v)
+	}
+	// 	v := vOp
+	// 	v.setMethodKey(k)
+	// 	// TODO: replicate this for the damned inverse
+	// 	err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	req, reqExists := v.GetRequest()
+	// 	if !reqExists && v.GetOperationRef().Value.RequestBody != nil {
+	// 		req = &standardExpectedRequest{}
+	// 		v.setRequest(req.(*standardExpectedRequest))
+	// 	}
+	// 	err = l.resolveExpectedRequest(svc, v.GetOperationRef().Value, req)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	response, responseExists := v.GetResponse()
+	// 	if !responseExists && v.GetOperationRef().Value.Responses != nil {
+	// 		response = &standardExpectedResponse{}
+	// 		v.setResponse(response.(*standardExpectedResponse))
+	// 	}
+	// 	err = l.resolveExpectedResponse(svc, v.GetOperationRef().Value, response)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	rsc.setMethod(k, &v)
+	// }
+	for sqlVerb, dir := range rsc.getSQLVerbs() {
+		for i, v := range dir {
+			cur := v
+			err := l.resolveSQLVerb(rsc, &cur, sqlVerb)
+			if err != nil {
+				return err
+			}
+			rsc.mutateSQLVerb(sqlVerb, i, cur)
+		}
+	}
+	// TODO: add second pass for inverse ops
+	for sqlVerb, dir := range rsc.getSQLVerbs() {
+		for i, v := range dir {
+			cur := v
+			err := l.latePassResolveInverse(svc, &cur)
+			if err != nil {
+				return err
+			}
+			rsc.mutateSQLVerb(sqlVerb, i, cur)
+		}
+	}
+	// rsc.setProvider(svc.getProvider())
+	// rsc.setProviderService(svc.getProviderService())
+	propogateErr := rsc.propogateToConfig()
+	return propogateErr
+}
+
 func (svc *standardService) ToJson() ([]byte, error) {
 	return svc.MarshalJSON()
 }
@@ -377,7 +496,7 @@ func (pr *standardProvider) ToYamlFile(filePath string) error {
 	return os.WriteFile(filePath, bytes, ConfigFilesMode)
 }
 
-func NewLoader() Loader {
+func newLoader() anySdkLoader {
 	return &standardLoader{
 		&openapi3.Loader{Context: context.Background()},
 		make(map[Schema]struct{}),
@@ -388,24 +507,49 @@ func NewLoader() Loader {
 	}
 }
 
-func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
-	return loadServiceDocFromBytes(ps, bytes)
+func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) {
+	protocolType, err := ps.GetProtocolType()
+	if err != nil {
+		return nil, err
+	}
+	switch protocolType {
+	case client.HTTP:
+		return loadOpenapiServiceDocFromBytes(ps, bytes)
+	case client.LocalTemplated:
+		rv := new(localTemplatedService)
+		err = yamlconv.Unmarshal(bytes, rv)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range rv.Rsc {
+			l := newLoader()
+			rsc := v
+			mergeErr := l.mergeLocalResource(rv, rsc)
+			if mergeErr != nil {
+				return nil, mergeErr
+			}
+		}
+		rv.ProviderService = ps
+		return rv, nil
+	default:
+		return nil, fmt.Errorf("loader unsupported protocol type '%v'", protocolType)
+	}
 }
 
 func LoadProviderDocFromBytes(bytes []byte) (Provider, error) {
 	return loadProviderDocFromBytes(bytes)
 }
 
-func LoadServiceDocFromFile(ps ProviderService, fileName string) (OpenAPIService, error) {
-	bytes, err := ioutil.ReadFile(fileName)
+func LoadServiceDocFromFile(ps ProviderService, fileName string) (Service, error) {
+	bytes, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, err
 	}
-	return loadServiceDocFromBytes(ps, bytes)
+	return LoadServiceDocFromBytes(ps, bytes)
 }
 
 func LoadProviderDocFromFile(fileName string) (Provider, error) {
-	bytes, err := ioutil.ReadFile(fileName)
+	bytes, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, err
 	}
@@ -431,6 +575,12 @@ func getServiceDocBytes(url string) ([]byte, error) {
 	}
 	defer f.Close()
 	return io.ReadAll(f)
+}
+
+func ReadService(b []byte) (Service, error) {
+	l := newLoader()
+	svc, err := l.loadFromBytes(b)
+	return svc, err
 }
 
 func GetResourcesRegisterDocBytes(url string) ([]byte, error) {
@@ -510,9 +660,9 @@ func getProviderDoc(provider string) (string, error) {
 	return findLatestDoc(path.Join(OpenapiFileRoot, provider))
 }
 
-func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
-	loader := NewLoader()
-	rv, err := loader.LoadFromBytes(bytes)
+func loadOpenapiServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
+	loader := newLoader()
+	rv, err := loader.loadFromBytes(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -530,8 +680,8 @@ func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, 
 }
 
 func LoadServiceSubsetDocFromBytes(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
-	loader := NewLoader()
-	return loader.LoadFromBytesAndResources(rr, resourceKey, bytes)
+	loader := newLoader()
+	return loader.loadFromBytesAndResources(rr, resourceKey, bytes)
 }
 
 func loadProviderDocFromBytes(bytes []byte) (Provider, error) {
@@ -748,7 +898,7 @@ func resolveSQLVerbFromResource(rsc Resource, component *OpenAPIOperationStoreRe
 	return rv, nil
 }
 
-func (l *standardLoader) latePassResolveInverse(svc OpenAPIService, component *OpenAPIOperationStoreRef) error {
+func (l *standardLoader) latePassResolveInverse(svc Service, component *OpenAPIOperationStoreRef) error {
 	if component == nil || component.Value == nil {
 		return fmt.Errorf("late pass: operation store ref not supplied")
 	}
@@ -782,7 +932,11 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 	}
 	bmt := component.GetBodyMediaType()
 	ek := component.GetOpenAPIDocKey()
-	if bmt != "" && ek != "" {
+	overrideSchema, isOverrideSchema := component.getOverrideSchema()
+	if isOverrideSchema {
+		s := newSchema(overrideSchema, doc, "", "")
+		component.setSchema(s)
+	} else if bmt != "" && ek != "" {
 		ekObj, ok := op.Responses[ek]
 		if !ok || ekObj.Value == nil || ekObj.Value.Content == nil || ekObj.Value.Content[bmt] == nil || ekObj.Value.Content[bmt].Schema == nil || ekObj.Value.Content[bmt].Schema.Value == nil {
 			return nil

@@ -44,9 +44,9 @@ type RegistryAPI interface {
 	GetResourcesShallowFromProvider(Provider, string) (ResourceRegister, error)
 	GetResourcesShallowFromProviderService(ProviderService) (ResourceRegister, error)
 	GetResourcesShallowFromURL(ps ProviderService) (ResourceRegister, error)
-	GetService(ps ProviderService) (OpenAPIService, error)
-	GetServiceFragment(ProviderService, string) (OpenAPIService, error)
-	GetServiceFromProviderService(ProviderService) (OpenAPIService, error)
+	GetService(ps ProviderService) (Service, error)
+	GetServiceFragment(ProviderService, string) (Service, error)
+	GetServiceFromProviderService(ProviderService) (Service, error)
 	GetServiceDocBytes(string) ([]byte, error)
 	GetResourcesRegisterDocBytes(string) ([]byte, error)
 	LoadProviderByName(string, string) (Provider, error)
@@ -312,7 +312,7 @@ func (r *Registry) GetResourcesRegisterDocBytes(url string) ([]byte, error) {
 	return r.getVerifiedDocBytes(url)
 }
 
-func (r *Registry) GetService(ps ProviderService) (OpenAPIService, error) {
+func (r *Registry) GetService(ps ProviderService) (Service, error) {
 	url := ps.getServiceRefRef()
 	b, err := r.getVerifiedDocBytes(url)
 	if err != nil {
@@ -337,14 +337,14 @@ func (r *Registry) GetResourcesShallowFromURL(ps ProviderService) (ResourceRegis
 	return loadResourcesShallow(ps, b)
 }
 
-func (r *Registry) GetServiceFromProviderService(ps ProviderService) (OpenAPIService, error) {
+func (r *Registry) GetServiceFromProviderService(ps ProviderService) (Service, error) {
 	if ps.getServiceRefRef() == "" {
 		return nil, fmt.Errorf("no service reachable for %s", ps.GetName())
 	}
 	return r.GetService(ps)
 }
 
-func (r *Registry) GetServiceFragment(ps ProviderService, resourceKey string) (OpenAPIService, error) {
+func (r *Registry) GetServiceFragment(ps ProviderService, resourceKey string) (Service, error) {
 
 	if ps.getResourcesRefRef() == "" {
 		if ps.getServiceRefRef() == "" {

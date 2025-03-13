@@ -7,11 +7,10 @@ import (
 
 	"gotest.tools/assert"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stackql/any-sdk/pkg/fileutil"
 	. "github.com/stackql/any-sdk/pkg/xmlmap"
 	"github.com/stackql/any-sdk/test/pkg/testutil"
-
-	"github.com/getkin/kin-openapi/openapi3"
 )
 
 func getFileRoot(t *testing.T) string {
