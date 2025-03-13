@@ -42,7 +42,7 @@ type AnySdkArg interface {
 
 type AnySdkArgList interface {
 	GetArgs() []AnySdkArg
-	// GetProtocolType() ClientProtocolType
+	GetProtocolType() ClientProtocolType
 }
 
 type AnySdkInvocation interface {

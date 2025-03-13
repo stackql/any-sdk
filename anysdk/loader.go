@@ -388,7 +388,7 @@ func NewLoader() Loader {
 	}
 }
 
-func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
+func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) {
 	return loadServiceDocFromBytes(ps, bytes)
 }
 
@@ -396,8 +396,8 @@ func LoadProviderDocFromBytes(bytes []byte) (Provider, error) {
 	return loadProviderDocFromBytes(bytes)
 }
 
-func LoadServiceDocFromFile(ps ProviderService, fileName string) (OpenAPIService, error) {
-	bytes, err := ioutil.ReadFile(fileName)
+func LoadServiceDocFromFile(ps ProviderService, fileName string) (Service, error) {
+	bytes, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, err
 	}

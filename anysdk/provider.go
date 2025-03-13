@@ -121,7 +121,7 @@ func (pr *standardProvider) UnmarshalJSON(data []byte) error {
 	return jsoninfo.UnmarshalStrictStruct(data, pr)
 }
 
-func (pr *standardProvider) getServiceWithRegistry(registry RegistryAPI, key string) (OpenAPIService, error) {
+func (pr *standardProvider) getServiceWithRegistry(registry RegistryAPI, key string) (Service, error) {
 	sh, err := pr.getProviderService(key)
 	if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (pr *standardProvider) getServiceWithRegistry(registry RegistryAPI, key str
 	return sh.getServiceWithRegistry(registry)
 }
 
-func (pr *standardProvider) GetService(key string) (OpenAPIService, error) {
+func (pr *standardProvider) GetService(key string) (Service, error) {
 	sh, err := pr.getProviderService(key)
 	if err != nil {
 		return nil, err

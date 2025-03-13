@@ -41,6 +41,16 @@ func NewwHTTPAnySdkArgList(req *http.Request) client.AnySdkArgList {
 	}
 }
 
+func NewAnySdkArgList(argList any) (client.AnySdkArgList, error) {
+	switch argList := argList.(type) {
+	case *http.Request:
+		req := argList
+		return NewwHTTPAnySdkArgList(req), nil
+	default:
+		return nil, fmt.Errorf("could not cast argList of type '%T' to *http.Request", argList)
+	}
+}
+
 type anySdkHttpResponse struct {
 	reponse *http.Response
 }
@@ -65,6 +75,10 @@ type anySdkArgList struct {
 
 func (al *anySdkArgList) GetArgs() []client.AnySdkArg {
 	return al.args
+}
+
+func (al *anySdkArgList) GetProtocolType() client.ClientProtocolType {
+	return client.HTTP
 }
 
 func newAnySdkArgList(args ...client.AnySdkArg) client.AnySdkArgList {

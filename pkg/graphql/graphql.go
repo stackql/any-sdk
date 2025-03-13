@@ -86,6 +86,10 @@ func (al *anySdkArgList) GetArgs() []client.AnySdkArg {
 	return al.args
 }
 
+func (al *anySdkArgList) GetProtocolType() client.ClientProtocolType {
+	return client.HTTP
+}
+
 func newAnySdkArgList(args ...client.AnySdkArg) client.AnySdkArgList {
 	return &anySdkArgList{
 		args: args,

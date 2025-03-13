@@ -309,8 +309,12 @@ func newExmptyObjectStandardSchema(svc OpenAPIService, key string, path string) 
 	return newStandardSchema(sc, svc, key, path)
 }
 
-func NewTestSchema(sc *openapi3.Schema, svc OpenAPIService, key string, path string) Schema {
-	return newSchema(sc, svc, key, path)
+func NewTestSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema {
+	openapiSvc, ok := svc.(OpenAPIService)
+	if !ok {
+		panic("NewTestSchema() requires an OpenAPIService")
+	}
+	return newSchema(sc, openapiSvc, key, path)
 }
 
 func (sc *standardSchema) GetPath() string {
