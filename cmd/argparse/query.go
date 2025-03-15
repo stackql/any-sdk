@@ -63,24 +63,7 @@ type queryCmdPayload struct {
 }
 
 func (qcp *queryCmdPayload) getService() (anysdk.Service, error) {
-	pb, err := os.ReadFile(qcp.provFilePath)
-	if err != nil {
-		return nil, err
-	}
-	prov, err := anysdk.LoadProviderDocFromBytes(pb)
-	if err != nil {
-		return nil, err
-	}
-	b, err := os.ReadFile(qcp.svcFilePath)
-	if err != nil {
-		return nil, err
-	}
-	l := anysdk.NewLoader()
-	svc, err := l.LoadFromBytesWithProvider(b, prov)
-	if err != nil {
-		return nil, err
-	}
-	return svc, nil
+	return anysdk.LoadProviderAndServiceFromPaths(qcp.provFilePath, qcp.svcFilePath)
 }
 
 func (qcp *queryCmdPayload) getProvider() (anysdk.Provider, error) {

@@ -40,7 +40,7 @@ type DiscoveryDoc interface {
 
 type Loader interface {
 	loadFromBytes(bytes []byte) (OpenAPIService, error)
-	LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
+	loadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
 	loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
 	//
 	extractAndMergeQueryTransposeServiceLevel(svc OpenAPIService) error
@@ -58,6 +58,30 @@ type standardLoader struct {
 
 func LoadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, error) {
 	return loadResourcesShallow(ps, bt)
+}
+
+func LoadProviderAndServiceFromPaths(
+	provFilePath string,
+	svcFilePath string,
+) (Service, error) {
+	pb, err := os.ReadFile(provFilePath)
+	if err != nil {
+		return nil, err
+	}
+	prov, err := LoadProviderDocFromBytes(pb)
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(svcFilePath)
+	if err != nil {
+		return nil, err
+	}
+	l := NewLoader()
+	svc, err := l.loadFromBytesWithProvider(b, prov)
+	if err != nil {
+		return nil, err
+	}
+	return svc, nil
 }
 
 func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, error) {
@@ -89,7 +113,7 @@ func (l *standardLoader) loadFromBytes(bytes []byte) (OpenAPIService, error) {
 	return svc, nil
 }
 
-func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error) {
+func (l *standardLoader) loadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error) {
 	svc, err := l.loadFromBytes(bytes)
 	if err != nil {
 		return nil, err
