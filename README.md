@@ -20,6 +20,8 @@ From those who brought you
 
 The basic idea is a full decouple and abstraction of the interface from openapi.
 
+Based upon the fact that [golang text templates are Turing complete](https://linuxtut.com/en/2072207ec0565a80d2b2/), as are numerous other DSLs, we can use these to define and route SQL input to arbitrary interfaces.  For instance, here is [the brainf@$& interpreter](https://github.com/Syuparn/go-template-bf-interpreter/blob/1b7f6a3720295c93ffa99b58a81f153bd8d7ecc8/bf-interpreter.tpl) described in the article.
+
 ## Acknowledgements
 
 Extensions, adaptations and shims of the following support our work:
