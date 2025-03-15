@@ -2,7 +2,7 @@ package anysdk
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -24,7 +24,7 @@ func TestPlaceholder(t *testing.T) {
 	res := &http.Response{
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		StatusCode: 200,
-		Body:       ioutil.NopCloser(strings.NewReader(`{"a": { "b": [ "c" ] } }`)),
+		Body:       io.NopCloser(strings.NewReader(`{"a": { "b": [ "c" ] } }`)),
 	}
 	s := NewStringSchema(nil, "", "")
 	pr, err := s.ProcessHttpResponseTesting(res, "", "", "")

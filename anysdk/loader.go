@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -429,7 +428,7 @@ func LoadServiceDocFromFile(ps ProviderService, fileName string) (Service, error
 }
 
 func LoadProviderDocFromFile(fileName string) (Provider, error) {
-	bytes, err := ioutil.ReadFile(fileName)
+	bytes, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, err
 	}
