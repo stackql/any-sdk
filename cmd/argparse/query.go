@@ -62,7 +62,7 @@ type queryCmdPayload struct {
 	auth         map[string]*dto.AuthCtx
 }
 
-func (qcp *queryCmdPayload) getService() (anysdk.OpenAPIService, error) {
+func (qcp *queryCmdPayload) getService() (anysdk.Service, error) {
 	pb, err := os.ReadFile(qcp.provFilePath)
 	if err != nil {
 		return nil, err

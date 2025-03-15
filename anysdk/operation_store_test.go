@@ -1,4 +1,4 @@
-package anysdk_test
+package anysdk
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
-	. "github.com/stackql/any-sdk/anysdk"
 
 	"github.com/stackql/any-sdk/test/pkg/testutil"
 
@@ -49,7 +47,7 @@ func TestXPathHandle(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -97,7 +95,7 @@ func TestJSONPathHandle(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -146,7 +144,7 @@ func TestJSONPathHandleEnforcedResponseMediaType(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -187,7 +185,7 @@ func TestXMLSchemaInterrogation(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -231,7 +229,7 @@ func TestVariableHostRouting(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -296,7 +294,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -361,7 +359,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -435,7 +433,7 @@ func TestStaticHostRouting(t *testing.T) {
 
 	l := NewLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)

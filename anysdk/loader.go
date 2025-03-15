@@ -39,9 +39,9 @@ type DiscoveryDoc interface {
 }
 
 type Loader interface {
-	LoadFromBytes(bytes []byte) (OpenAPIService, error)
+	loadFromBytes(bytes []byte) (OpenAPIService, error)
 	LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
-	LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
+	loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
 	//
 	extractAndMergeQueryTransposeServiceLevel(svc OpenAPIService) error
 }
@@ -76,7 +76,7 @@ func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, erro
 	return rv, nil
 }
 
-func (l *standardLoader) LoadFromBytes(bytes []byte) (OpenAPIService, error) {
+func (l *standardLoader) loadFromBytes(bytes []byte) (OpenAPIService, error) {
 	doc, err := l.LoadFromData(bytes)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (l *standardLoader) LoadFromBytes(bytes []byte) (OpenAPIService, error) {
 }
 
 func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error) {
-	svc, err := l.LoadFromBytes(bytes)
+	svc, err := l.loadFromBytes(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (l *standardLoader) LoadFromBytesWithProvider(bytes []byte, prov Provider) 
 	return svc, nil
 }
 
-func (l *standardLoader) LoadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
+func (l *standardLoader) loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
 	doc, err := l.LoadFromData(bytes)
 	if err != nil {
 		return nil, err
@@ -433,6 +433,12 @@ func getServiceDocBytes(url string) ([]byte, error) {
 	return io.ReadAll(f)
 }
 
+func ReadService(b []byte) (Service, error) {
+	l := NewLoader()
+	svc, err := l.loadFromBytes(b)
+	return svc, err
+}
+
 func GetResourcesRegisterDocBytes(url string) ([]byte, error) {
 	return getServiceDocBytes(url)
 }
@@ -512,7 +518,7 @@ func getProviderDoc(provider string) (string, error) {
 
 func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
 	loader := NewLoader()
-	rv, err := loader.LoadFromBytes(bytes)
+	rv, err := loader.loadFromBytes(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +537,7 @@ func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, 
 
 func LoadServiceSubsetDocFromBytes(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
 	loader := NewLoader()
-	return loader.LoadFromBytesAndResources(rr, resourceKey, bytes)
+	return loader.loadFromBytesAndResources(rr, resourceKey, bytes)
 }
 
 func loadProviderDocFromBytes(bytes []byte) (Provider, error) {

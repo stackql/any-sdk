@@ -10,11 +10,11 @@ import (
 func main() {
 	// Define a template.
 	const letter = `
-{{ .parameters.executable }} req -x509 -keyout {{ .parameters.key_out_file }} -out {{ .parameters.cert_out_file }} -config {{ .parameters.config_file }} -days {{ .parameters.days }}
+{{ or .parameters.executable "openssl" }} req -x509 -keyout {{ .parameters.key_out_file }} -out {{ .parameters.cert_out_file }} -config {{ .parameters.config_file }} -days {{ .parameters.days }}
 `
 
 	var recipientStr = `[
-		{"parameters": { "executable": "openssl", "key_out_file": "test/key.pem", "cert_out_file": "test/cert.pem", "config_file": "test/openssl.conf", "days": 365 }}
+		{"parameters": { "key_out_file": "test/key.pem", "cert_out_file": "test/cert.pem", "config_file": "test/openssl.conf", "days": 365 }}
 	]`
 
 	var recipients []map[string]interface{}

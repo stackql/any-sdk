@@ -1,4 +1,4 @@
-package anysdk_test
+package anysdk
 
 import (
 	"encoding/json"
@@ -7,10 +7,22 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/fileutil"
 
 	"gotest.tools/assert"
+)
+
+var (
+	awsTestableVersions = []string{
+		"v0.1.0",
+	}
+	oktaTestableVersions = []string{
+		"v0.1.0",
+	}
+	googleTestableVersions = []string{
+		// "v0.1.0",
+		"v0.1.2",
+	}
 )
 
 func setupFileRoot(t *testing.T) {
@@ -60,7 +72,7 @@ func TestSimpleOktaApplicationServiceReadAndDump(t *testing.T) {
 
 		l := NewLoader()
 
-		svc, err := l.LoadFromBytes(b)
+		svc, err := l.loadFromBytes(b)
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -85,7 +97,7 @@ func TestSimpleOktaApplicationServiceReadAndDumpString(t *testing.T) {
 
 		l := NewLoader()
 
-		svc, err := l.LoadFromBytes(b)
+		svc, err := l.loadFromBytes(b)
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -120,7 +132,7 @@ func TestSimpleOktaApplicationServiceJsonReadAndDumpString(t *testing.T) {
 
 		l := NewLoader()
 
-		svc, err := l.LoadFromBytes(b)
+		svc, err := l.loadFromBytes(b)
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -158,7 +170,7 @@ func TestSimpleAWSec2ServiceJsonReadAndDumpString(t *testing.T) {
 
 		l := NewLoader()
 
-		svc, err := l.LoadFromBytes(b)
+		svc, err := l.loadFromBytes(b)
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -232,7 +244,7 @@ func TestSimpleGoogleComputeServiceJsonReadAndDumpString(t *testing.T) {
 			t.Fatalf("Test failed: %v", err)
 		}
 
-		svc, err := l.LoadFromBytesAndResources(rr, "subnetworks", b)
+		svc, err := l.loadFromBytesAndResources(rr, "subnetworks", b)
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
