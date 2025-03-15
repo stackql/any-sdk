@@ -45,7 +45,7 @@ func TestXPathHandle(t *testing.T) {
 		t.Fatalf("Test failed: %v", err)
 	}
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 
@@ -93,7 +93,7 @@ func TestJSONPathHandle(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 
@@ -142,7 +142,7 @@ func TestJSONPathHandleEnforcedResponseMediaType(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "expt"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 
@@ -183,7 +183,7 @@ func TestXMLSchemaInterrogation(t *testing.T) {
 		t.Fatalf("Test failed: %v", err)
 	}
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 
@@ -227,7 +227,7 @@ func TestVariableHostRouting(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 
@@ -292,7 +292,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.1"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 
@@ -357,7 +357,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("contrivedprovider/%s/services/contrived_service.yaml", "v0.1.0"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 
@@ -431,7 +431,7 @@ func TestStaticHostRouting(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/services/cloudresourcemanager-v3.yaml", "v0.1.2"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
 	svc, err := l.loadFromBytes(b)
 

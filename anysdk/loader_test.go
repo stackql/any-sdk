@@ -70,7 +70,7 @@ func TestSimpleOktaApplicationServiceReadAndDump(t *testing.T) {
 			t.Fatalf("Test failed: %v", err)
 		}
 
-		l := NewLoader()
+		l := newLoader()
 
 		svc, err := l.loadFromBytes(b)
 		if err != nil {
@@ -95,7 +95,7 @@ func TestSimpleOktaApplicationServiceReadAndDumpString(t *testing.T) {
 			t.Fatalf("Test failed: %v", err)
 		}
 
-		l := NewLoader()
+		l := newLoader()
 
 		svc, err := l.loadFromBytes(b)
 		if err != nil {
@@ -130,7 +130,7 @@ func TestSimpleOktaApplicationServiceJsonReadAndDumpString(t *testing.T) {
 			t.Fatalf("Test failed: %v", err)
 		}
 
-		l := NewLoader()
+		l := newLoader()
 
 		svc, err := l.loadFromBytes(b)
 		if err != nil {
@@ -168,7 +168,7 @@ func TestSimpleAWSec2ServiceJsonReadAndDumpString(t *testing.T) {
 			t.Fatalf("Test failed: %v", err)
 		}
 
-		l := NewLoader()
+		l := newLoader()
 
 		svc, err := l.loadFromBytes(b)
 		if err != nil {
@@ -237,7 +237,7 @@ func TestSimpleGoogleComputeServiceJsonReadAndDumpString(t *testing.T) {
 			t.Fatalf("Test failed: %v", err)
 		}
 
-		l := NewLoader()
+		l := newLoader()
 
 		rr, err := LoadResourcesShallow(ps, br)
 		if err != nil {

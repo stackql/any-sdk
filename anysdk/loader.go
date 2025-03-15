@@ -27,7 +27,7 @@ const (
 var (
 	IgnoreEmbedded  bool
 	OpenapiFileRoot string
-	_               Loader = &standardLoader{}
+	_               anySdkLoader = &standardLoader{}
 )
 
 func init() {
@@ -38,7 +38,7 @@ type DiscoveryDoc interface {
 	iDiscoveryDoc()
 }
 
-type Loader interface {
+type anySdkLoader interface {
 	loadFromBytes(bytes []byte) (OpenAPIService, error)
 	loadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
 	loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
@@ -76,7 +76,7 @@ func LoadProviderAndServiceFromPaths(
 	if err != nil {
 		return nil, err
 	}
-	l := NewLoader()
+	l := newLoader()
 	svc, err := l.loadFromBytesWithProvider(b, prov)
 	if err != nil {
 		return nil, err
@@ -401,7 +401,7 @@ func (pr *standardProvider) ToYamlFile(filePath string) error {
 	return os.WriteFile(filePath, bytes, ConfigFilesMode)
 }
 
-func NewLoader() Loader {
+func newLoader() anySdkLoader {
 	return &standardLoader{
 		&openapi3.Loader{Context: context.Background()},
 		make(map[Schema]struct{}),
@@ -458,7 +458,7 @@ func getServiceDocBytes(url string) ([]byte, error) {
 }
 
 func ReadService(b []byte) (Service, error) {
-	l := NewLoader()
+	l := newLoader()
 	svc, err := l.loadFromBytes(b)
 	return svc, err
 }
@@ -541,7 +541,7 @@ func getProviderDoc(provider string) (string, error) {
 }
 
 func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
-	loader := NewLoader()
+	loader := newLoader()
 	rv, err := loader.loadFromBytes(bytes)
 	if err != nil {
 		return nil, err
@@ -560,7 +560,7 @@ func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, 
 }
 
 func LoadServiceSubsetDocFromBytes(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error) {
-	loader := NewLoader()
+	loader := newLoader()
 	return loader.loadFromBytesAndResources(rr, resourceKey, bytes)
 }
 
