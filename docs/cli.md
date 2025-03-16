@@ -61,12 +61,10 @@ export GOOGLE_CREDENTIALS="$(cat cicd/keys/google-ro-credentials.json)"
   --resource rsa \
   --method create_key_pair \
   --parameters '{ 
-    "parameters": {
 			"config_file":   "test/openssl/openssl.cnf",
 			"key_out_file":  "test/tmp/key.pem",
 			"cert_out_file": "test/tmp/cert.pem",
 			"days":          90
-      }
 		}'
 
 ```

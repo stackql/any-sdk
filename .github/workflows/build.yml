@@ -189,6 +189,29 @@ jobs:
         else
           echo "Core Test passed with matching buckets: $matchingBuckets"
         fi
+            
+    - name: Run local templated openssl test
+      working-directory: stackql-core
+      run: |
+        rm -rf test/tmp/*.pem
+        ${{ github.workspace }}/build/anysdk query \
+          --svc-file-path="test/registry/src/local_openssl/v0.1.0/services/keys.yaml"  \
+          --prov-file-path="test/registry/src/local_openssl/v0.1.0/provider.yaml" \
+          --resource rsa \
+          --method create_key_pair \
+          --parameters '{ 
+            "config_file":   "test/openssl/openssl.cnf",
+            "key_out_file":  "test/tmp/key.pem",
+            "cert_out_file": "test/tmp/cert.pem",
+            "days":          90
+          }'
+        endDateFound="$(openssl x509 -in test/tmp/cert.pem -noout -dates | grep "notAfter")"
+        if [ "${endDateFound}" = "" ]; then
+          echo "Core Test Failed with no matching end date"
+          exit 1
+        else
+          echo "Core Test passed with matching end date info: $endDateFound"
+        fi
 
   macosbuild:
     name: MacOS Build

@@ -148,7 +148,7 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 			nil,
 		)
 		resp, err := executor.Execute(
-			payload.parameters,
+			map[string]any{"parameters": payload.parameters},
 		)
 		if err != nil {
 			return err
