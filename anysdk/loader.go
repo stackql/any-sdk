@@ -16,6 +16,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	yamlconv "github.com/ghodss/yaml"
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/client"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -412,7 +413,24 @@ func newLoader() anySdkLoader {
 }
 
 func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) {
-	return loadServiceDocFromBytes(ps, bytes)
+	protocolType, err := ps.GetProtocolType()
+	if err != nil {
+		return nil, err
+	}
+	switch protocolType {
+	case client.HTTP:
+		return loadOpenapiServiceDocFromBytes(ps, bytes)
+	case client.LocalTemplated:
+		rv := new(localTemplatedService)
+		err = yaml.Unmarshal(bytes, rv)
+		if err != nil {
+			return nil, err
+		}
+		rv.ProviderService = ps
+		return rv, nil
+	default:
+		return nil, fmt.Errorf("loader unsupported protocol type '%v'", protocolType)
+	}
 }
 
 func LoadProviderDocFromBytes(bytes []byte) (Provider, error) {
@@ -424,7 +442,7 @@ func LoadServiceDocFromFile(ps ProviderService, fileName string) (Service, error
 	if err != nil {
 		return nil, err
 	}
-	return loadServiceDocFromBytes(ps, bytes)
+	return LoadServiceDocFromBytes(ps, bytes)
 }
 
 func LoadProviderDocFromFile(fileName string) (Provider, error) {
@@ -539,7 +557,7 @@ func getProviderDoc(provider string) (string, error) {
 	return findLatestDoc(path.Join(OpenapiFileRoot, provider))
 }
 
-func loadServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
+func loadOpenapiServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
 	loader := newLoader()
 	rv, err := loader.loadFromBytes(bytes)
 	if err != nil {

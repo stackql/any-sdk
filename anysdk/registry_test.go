@@ -557,6 +557,68 @@ func execTestRegistryCanHandlePolymorphismAllOf(t *testing.T, r RegistryAPI) {
 
 }
 
+func TestRegistryLocalTemplated(t *testing.T) {
+	execLocalRegistryTestOnly(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryLocalTemplated)
+}
+
+func execTestRegistryLocalTemplated(t *testing.T, r RegistryAPI) {
+
+	for _, vr := range []string{"v0.1.0"} {
+		pr, err := r.LoadProviderByName("local_openssl", vr)
+		if err != nil {
+			t.Fatalf("Test failed: %v", err)
+		}
+
+		sh, err := pr.GetProviderService("keys")
+
+		if err != nil {
+			t.Fatalf("Test failed: %v", err)
+		}
+
+		assert.Assert(t, sh != nil)
+
+		sv, err := r.GetServiceFragment(sh, "keys")
+
+		assert.NilError(t, err)
+
+		assert.Assert(t, sv != nil)
+
+		// sn := sv.GetName()
+
+		// assert.Equal(t, sn, "repos")
+
+		rsc, err := sv.GetResource("rsa")
+
+		assert.NilError(t, err)
+
+		_, ok := rsc.GetMethods().FindMethod("create_key_pair")
+
+		assert.Assert(t, ok)
+
+		// assert.Equal(t, os.GetOperationRef().Value.OperationID, "apps/create-from-manifest")
+
+		// assert.Equal(t, os.GetOperationRef().Value.Responses["201"].Value.Content["application/json"].Schema.Value.Type, "")
+
+		// sVal := NewTestSchema(os.GetOperationRef().Value.Responses["201"].Value.Content["application/json"].Schema.Value, sv, "", os.GetOperationRef().Value.Responses["201"].Value.Content["application/json"].Schema.Ref)
+
+		// tab := sVal.Tabulate(false, "")
+
+		// colz := tab.GetColumns()
+
+		// for _, expectedProperty := range []string{"pem", "description"} {
+		// 	found := false
+		// 	for _, col := range colz {
+		// 		if col.GetName() == expectedProperty {
+		// 			found = true
+		// 			break
+		// 		}
+		// 	}
+		// 	assert.Assert(t, found)
+		// }
+	}
+
+}
+
 func TestRegistryProviderLatestVersion(t *testing.T) {
 
 	rc, err := getRegistryCfgFromString(individualDownloadAllowedRegistryCfgStr)

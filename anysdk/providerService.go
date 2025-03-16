@@ -6,6 +6,7 @@ import (
 
 	"github.com/getkin/kin-openapi/jsoninfo"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/stackql-parser/go/sqltypes"
 )
 
@@ -18,6 +19,7 @@ type ProviderService interface {
 	ITable
 	getQueryTransposeAlgorithm() string
 	GetProvider() (Provider, bool)
+	GetProtocolType() (client.ClientProtocolType, error)
 	GetService() (Service, error)
 	GetRequestTranslateAlgorithm() string
 	GetResourcesShallow() (ResourceRegister, error)
@@ -51,11 +53,13 @@ type standardProviderService struct {
 	Version        string                 `json:"version" yaml:"version"` // Required
 	Description    string                 `json:"description" yaml:"description"`
 	Preferred      bool                   `json:"preferred" yaml:"preferred"`
+	ProtocolType   string                 `json:"protocolType" yaml:"protocolType"`
 	ServiceRef     *ServiceRef            `json:"service,omitempty" yaml:"service,omitempty"`     // will be lazy evaluated
 	ResourcesRef   *ResourcesRef          `json:"resources,omitempty" yaml:"resources,omitempty"` // will be lazy evaluated
 	Provider       Provider               `json:"-" yaml:"-"`                                     // upwards traversal
 	StackQLConfig  *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
 	OpenAPIService OpenAPIService         `json:"-" yaml:"-"`
+	GenericService Service                `json:"-" yaml:"-"`
 }
 
 func NewEmptyProviderService() ProviderService {
@@ -64,6 +68,17 @@ func NewEmptyProviderService() ProviderService {
 
 func (sv *standardProviderService) GetTitle() string {
 	return sv.Title
+}
+
+func (sv *standardProviderService) GetProtocolType() (client.ClientProtocolType, error) {
+	if sv.ProtocolType != "" {
+		return client.ClientProtocolTypeFromString(sv.ProtocolType)
+	}
+	prov, provOk := sv.GetProvider()
+	if provOk {
+		return prov.GetProtocolType()
+	}
+	return client.ClientProtocolTypeFromString(client.ClientProtocolTypeHTTP)
 }
 
 func (sv *standardProviderService) GetVersion() string {

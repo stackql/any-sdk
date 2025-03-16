@@ -1,7 +1,7 @@
 id: local_openssl
 name: local_openssl
 version: v0.1.0
-type: local_command_templated
+protocolType: local_templated
 providerServices:
   keys:
     description: Key management through openssl.
