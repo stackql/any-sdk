@@ -895,7 +895,10 @@ func (m *standardOpenAPIOperationStore) getRequiredNonBodyParameters() map[strin
 		if err != nil {
 			continue
 		}
-		retVal[k] = NewParameter(&param, m.OpenAPIService)
+		paramObj := NewParameter(&param, m.OpenAPIService)
+		if paramObj.IsRequired() {
+			retVal[k] = paramObj
+		}
 	}
 	if m.PathItem != nil {
 		for _, p := range m.PathItem.Parameters {
