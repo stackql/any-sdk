@@ -28,7 +28,7 @@
                 "--method",
                 "create_key_pair",
                 "--parameters",
-                "{ \"parameters\": { \"config_file\":   \"${workspaceFolder}/test/openssl/openssl.cnf\", \"key_out_file\": \"${workspaceFolder}/test/tmp/key.pem\", \"cert_out_file\": \"${workspaceFolder}/test/tmp/cert.pem\", \"days\":          90}}"
+                "{ \"parameters\": { \"config_file\":   \"${workspaceFolder}/test/openssl/openssl.cnf\", \"key_out_file\": \"${workspaceFolder}/test/tmp/key.pem\", \"cert_out_file\": \"${workspaceFolder}/test/tmp/cert.pem\", \"days\": 90}}"
             ]
         }
     ]

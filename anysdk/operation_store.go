@@ -885,6 +885,18 @@ func (m *standardOpenAPIOperationStore) GetRequiredNonBodyParameters() map[strin
 
 func (m *standardOpenAPIOperationStore) getRequiredNonBodyParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
+	for k, v := range m.Parameters {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			continue
+		}
+		retVal[k] = NewParameter(&param, m.OpenAPIService)
+	}
 	if m.PathItem != nil {
 		for _, p := range m.PathItem.Parameters {
 			param := p.Value
@@ -893,8 +905,7 @@ func (m *standardOpenAPIOperationStore) getRequiredNonBodyParameters() map[strin
 			}
 		}
 	}
-	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
-
+	if m.OperationRef == nil || m.OperationRef.Value == nil || m.OperationRef.Value.Parameters == nil {
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
