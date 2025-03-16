@@ -191,7 +191,6 @@ jobs:
         fi
             
     - name: Run local templated openssl test
-      working-directory: stackql-core
       run: |
         rm -rf test/tmp/*.pem
         ${{ github.workspace }}/build/anysdk query \
