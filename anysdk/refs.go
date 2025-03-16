@@ -13,14 +13,14 @@ import (
 type OperationRef struct {
 	Ref    string `json:"$ref" yaml:"$ref"`
 	Value  *openapi3.Operation
-	Inline string `json:"inline" yaml:"inline"`
+	Inline []string `json:"inline" yaml:"inline"`
 }
 
 func (opr OperationRef) ExtractPathItem() string {
 	return opr.extractPathItem()
 }
 
-func (opr OperationRef) GetInline() string {
+func (opr OperationRef) GetInline() []string {
 	return opr.Inline
 }
 

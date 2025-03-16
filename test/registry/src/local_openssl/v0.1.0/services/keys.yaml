@@ -193,7 +193,18 @@ resources:
             Classical usage:
             openssl req -x509 -keyout test/server/mtls/credentials/pg_server_key.pem -out test/server/mtls/credentials/pg_server_cert.pem -config test/server/mtls/openssl.cnf -days 365
           operation:
-            inline: '{{ or .parameters.executable "openssl" }} req -x509 -keyout {{ .parameters.key_out_file }} -out {{ .parameters.cert_out_file }} -config {{ .parameters.config_file }} -days {{ or .parameters.days 365 }}'
+            inline:
+              - '{{ or .parameters.executable "openssl" }}'
+              - req 
+              - -x509
+              - -keyout 
+              - '{{ .parameters.key_out_file }}' 
+              - -out 
+              - '{{ .parameters.cert_out_file }}'
+              - -config 
+              - '{{ .parameters.config_file }}'
+              - -days 
+              - '{{ or .parameters.days 365 }}'
           parameters:
             key_out_file:
               in: inline

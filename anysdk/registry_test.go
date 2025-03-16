@@ -591,9 +591,11 @@ func execTestRegistryLocalTemplated(t *testing.T, r RegistryAPI) {
 
 		assert.NilError(t, err)
 
-		_, ok := rsc.GetMethods().FindMethod("create_key_pair")
+		method, ok := rsc.GetMethods().FindMethod("create_key_pair")
 
 		assert.Assert(t, ok)
+
+		assert.Assert(t, method != nil)
 
 		// assert.Equal(t, os.GetOperationRef().Value.OperationID, "apps/create-from-manifest")
 
