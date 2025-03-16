@@ -12,9 +12,11 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/internaldto"
+	"github.com/stackql/any-sdk/pkg/local_template_executor"
 )
 
 func getLogger() *logrus.Logger {
@@ -130,45 +132,79 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 		execPayload,
 		res,
 	)
-	prep := anysdk.NewHTTPPreparator(
-		prov,
-		svc,
-		opStore,
-		map[int]map[string]interface{}{
-			0: payload.parameters,
-		},
-		nil,
-		execCtx,
-		getLogger(),
-	)
-	armoury, err := prep.BuildHTTPRequestCtx()
-	if err != nil {
-		return err
+	protocolType, protocolTypeErr := prov.GetProtocolType()
+	if protocolTypeErr != nil {
+		return protocolTypeErr
 	}
-	for _, v := range armoury.GetRequestParams() {
-		argList := v.GetArgList()
-
-		cc := anysdk.NewAnySdkClientConfigurator(
-			payload.rtCtx,
-			prov.GetName(),
+	switch protocolType {
+	case client.LocalTemplated:
+		inlines := opStore.GetInline()
+		if len(inlines) == 0 {
+			return fmt.Errorf("no inlines found")
+		}
+		executor := local_template_executor.NewLocalTemplateExecutor(
+			inlines[0],
+			inlines[1:],
+			nil,
 		)
-		response, apiErr := anysdk.CallFromSignature(
-			cc, payload.rtCtx, authCtx, authCtx.Type, false, os.Stderr, prov, anysdk.NewAnySdkOpStoreDesignation(opStore), argList)
-		if apiErr != nil {
-			return err
-		}
-		httpResponse, httpResponseErr := response.GetHttpResponse()
-		if httpResponseErr != nil {
-			return httpResponseErr
-		}
-		defer httpResponse.Body.Close()
-		bodyBytes, err := io.ReadAll(httpResponse.Body)
+		resp, err := executor.Execute(
+			payload.parameters,
+		)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stdout, "%s", string(bodyBytes))
+		stdOut, stdOutExists := resp.GetStdOut()
+		if stdOutExists {
+			fmt.Fprintf(os.Stdout, "%s", stdOut.String())
+		}
+		stdErr, stdErrExists := resp.GetStdErr()
+		if stdErrExists {
+			fmt.Fprintf(os.Stderr, "%s", stdErr.String())
+		}
+		return nil
+	case client.HTTP:
+		prep := anysdk.NewHTTPPreparator(
+			prov,
+			svc,
+			opStore,
+			map[int]map[string]interface{}{
+				0: payload.parameters,
+			},
+			nil,
+			execCtx,
+			getLogger(),
+		)
+		armoury, err := prep.BuildHTTPRequestCtx()
+		if err != nil {
+			return err
+		}
+		for _, v := range armoury.GetRequestParams() {
+			argList := v.GetArgList()
+
+			cc := anysdk.NewAnySdkClientConfigurator(
+				payload.rtCtx,
+				prov.GetName(),
+			)
+			response, apiErr := anysdk.CallFromSignature(
+				cc, payload.rtCtx, authCtx, authCtx.Type, false, os.Stderr, prov, anysdk.NewAnySdkOpStoreDesignation(opStore), argList)
+			if apiErr != nil {
+				return err
+			}
+			httpResponse, httpResponseErr := response.GetHttpResponse()
+			if httpResponseErr != nil {
+				return httpResponseErr
+			}
+			defer httpResponse.Body.Close()
+			bodyBytes, err := io.ReadAll(httpResponse.Body)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "%s", string(bodyBytes))
+		}
+		return nil
+	default:
+		return fmt.Errorf("protocol type = '%v' not supported", protocolType)
 	}
-	return nil
 }
 
 func transformOpenapiStackqlAuthToLocal(authDTO anysdk.AuthDTO) *dto.AuthCtx {
@@ -246,11 +282,13 @@ var queryCmd = &cobra.Command{
 
 		provStr := prov.GetName()
 
-		printErrorAndExitOneIfError(err)
+		protocolType, protocolTypeErr := prov.GetProtocolType()
+
+		printErrorAndExitOneIfError(protocolTypeErr)
 
 		auth, isAuthPresent := payload.auth[provStr]
 
-		if !isAuthPresent {
+		if !isAuthPresent && protocolType == client.HTTP {
 			authDTO, isAuthPresent := prov.GetAuth()
 			if !isAuthPresent {
 				printErrorAndExitOneIfError(fmt.Errorf("auth not present"))

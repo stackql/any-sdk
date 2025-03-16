@@ -52,3 +52,21 @@ export GOOGLE_CREDENTIALS="$(cat cicd/keys/google-ro-credentials.json)"
   | jq -r '.items[].id'
 
 ```
+
+```bash
+
+./build/anysdk query \
+  --svc-file-path="test/registry/src/local_openssl/v0.1.0/services/keys.yaml" \
+  --prov-file-path="test/registry/src/local_openssl/v0.1.0/provider.yaml" \
+  --resource rsa \
+  --method create_key_pair \
+  --parameters '{ 
+    "parameters": {
+			"config_file":   "test/openssl/openssl.cnf",
+			"key_out_file":  "test/tmp/key.pem",
+			"cert_out_file": "test/tmp/cert.pem",
+			"days":          90
+      }
+		}'
+
+```
