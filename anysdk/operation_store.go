@@ -145,16 +145,16 @@ type standardOpenAPIOperationStore struct {
 	GraphQL       GraphQL                `json:"-" yaml:"-"`
 	StackQLConfig *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
 	// Optional parameters.
-	Parameters   map[string]interface{}    `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	PathItem     *openapi3.PathItem        `json:"-" yaml:"-"`                 // Required
-	APIMethod    string                    `json:"apiMethod" yaml:"apiMethod"` // Required
-	OperationRef *OperationRef             `json:"operation" yaml:"operation"` // Required
-	PathRef      *PathItemRef              `json:"path" yaml:"path"`           // Deprecated
-	Request      *standardExpectedRequest  `json:"request" yaml:"request"`
-	Response     *standardExpectedResponse `json:"response" yaml:"response"`
-	Servers      *openapi3.Servers         `json:"servers" yaml:"servers"`
-	Inverse      *operationInverse         `json:"inverse" yaml:"inverse"`
-	ServiceName  string                    `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
+	Parameters   map[string]map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	PathItem     *openapi3.PathItem                `json:"-" yaml:"-"`                 // Required
+	APIMethod    string                            `json:"apiMethod" yaml:"apiMethod"` // Required
+	OperationRef *OperationRef                     `json:"operation" yaml:"operation"` // Required
+	PathRef      *PathItemRef                      `json:"path" yaml:"path"`           // Deprecated
+	Request      *standardExpectedRequest          `json:"request" yaml:"request"`
+	Response     *standardExpectedResponse         `json:"response" yaml:"response"`
+	Servers      *openapi3.Servers                 `json:"servers" yaml:"servers"`
+	Inverse      *operationInverse                 `json:"inverse" yaml:"inverse"`
+	ServiceName  string                            `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
 	// private
 	parameterizedPath string          `json:"-" yaml:"-"`
 	ProviderService   ProviderService `json:"-" yaml:"-"` // upwards traversal
@@ -229,7 +229,7 @@ func (op *standardOpenAPIOperationStore) getRequestBodyStringifiedPaths() (map[s
 
 func NewEmptyOperationStore() StandardOperationStore {
 	return &standardOpenAPIOperationStore{
-		Parameters: make(map[string]interface{}),
+		Parameters: make(map[string]map[string]interface{}),
 	}
 }
 
