@@ -1105,7 +1105,7 @@ func (op *standardOpenAPIOperationStore) getServerVariable(key string) (*openapi
 }
 
 func getServersFromHeirarchy(op *standardOpenAPIOperationStore) openapi3.Servers {
-	if op.OperationRef.Value.Servers != nil && len(*op.OperationRef.Value.Servers) > 0 {
+	if op.OperationRef.Value != nil && op.OperationRef.Value.Servers != nil && len(*op.OperationRef.Value.Servers) > 0 {
 		return *op.OperationRef.Value.Servers
 	}
 	if op.PathItem != nil && len(op.PathItem.Servers) > 0 {
