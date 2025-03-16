@@ -24,6 +24,7 @@ type ClientProtocolType int
 
 const (
 	HTTP ClientProtocolType = iota
+	LocalTemplated
 	Disallowed
 )
 

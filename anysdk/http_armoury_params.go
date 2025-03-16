@@ -60,6 +60,7 @@ func (hap *standardHTTPArmouryParameters) GetRequest() *http.Request {
 
 func (hap *standardHTTPArmouryParameters) GetArgList() client.AnySdkArgList {
 	return newAnySdkArgList(
+		client.HTTP,
 		newAnySdkHTTPArg(hap.request),
 	)
 }

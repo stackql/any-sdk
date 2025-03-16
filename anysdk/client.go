@@ -70,7 +70,8 @@ func newAnySdkHttpReponse(httpResponse *http.Response) client.AnySdkResponse {
 }
 
 type anySdkArgList struct {
-	args []client.AnySdkArg
+	args         []client.AnySdkArg
+	protocolType client.ClientProtocolType
 }
 
 func (al *anySdkArgList) GetArgs() []client.AnySdkArg {
@@ -78,12 +79,13 @@ func (al *anySdkArgList) GetArgs() []client.AnySdkArg {
 }
 
 func (al *anySdkArgList) GetProtocolType() client.ClientProtocolType {
-	return client.HTTP
+	return al.protocolType
 }
 
-func newAnySdkArgList(args ...client.AnySdkArg) client.AnySdkArgList {
+func newAnySdkArgList(protocolType client.ClientProtocolType, args ...client.AnySdkArg) client.AnySdkArgList {
 	return &anySdkArgList{
-		args: args,
+		args:         args,
+		protocolType: protocolType,
 	}
 }
 
@@ -386,6 +388,7 @@ func GetMonitorRequest(urlStr string) (client.AnySdkArgList, error) {
 	}
 	req = req.WithContext(context.Background())
 	return newAnySdkArgList(
+		client.HTTP,
 		newAnySdkHTTPArg(req),
 	), nil
 }
@@ -487,6 +490,7 @@ func httpApiCallFromRequest(
 	r, err := httpClient.Do(
 		newAnySdkOpStoreDesignation(method),
 		newAnySdkArgList(
+			client.HTTP,
 			newAnySdkHTTPArg(translatedRequest),
 		),
 	)
