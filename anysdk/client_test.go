@@ -5,16 +5,25 @@ import (
 	"path"
 	"testing"
 
-	"github.com/stackql/any-sdk/anysdk"
 	. "github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/fileutil"
 
 	"gotest.tools/assert"
+
+	"github.com/stackql/any-sdk/pkg/local_template_executor"
+)
+
+var (
+	testRoot string
 )
 
 func init() {
 	var err error
 	OpenapiFileRoot, err = fileutil.GetFilePathFromRepositoryRoot("test/registry/src")
+	if err != nil {
+		os.Exit(1)
+	}
+	testRoot, err = fileutil.GetFilePathFromRepositoryRoot("test")
 	if err != nil {
 		os.Exit(1)
 	}
@@ -27,7 +36,7 @@ func TestLocalTemplateClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error loading provider doc: %v", err)
 	}
-	prov, err := anysdk.LoadProviderDocFromBytes(pb)
+	prov, err := LoadProviderDocFromBytes(pb)
 	if err != nil {
 		t.Fatalf("error loading provider doc: %v", err)
 	}
@@ -45,4 +54,25 @@ func TestLocalTemplateClient(t *testing.T) {
 		t.Fatalf("error loading method: %v", err)
 	}
 	assert.Assert(t, opStore != nil)
+	args := opStore.GetInline()
+	if len(args) == 0 {
+		t.Fatalf("no args found")
+	}
+	executor := local_template_executor.NewLocalTemplateExecutor(args[0], args[1:], nil)
+	resp, err := executor.Execute(map[string]any{
+		"parameters": map[string]any{
+			"config_file":   path.Join(testRoot, "openssl/openssl.cnf"),
+			"key_out_file":  path.Join(testRoot, "tmp/key.pem"),
+			"cert_out_file": path.Join(testRoot, "tmp/cert.pem"),
+			"days":          90,
+		},
+	})
+	if err != nil {
+		t.Fatalf("error executing command: %v", err)
+	}
+	stdOut, ok := resp.GetStdOut()
+	if !ok {
+		t.Fatalf("no stdout")
+	}
+	t.Logf("stdout: %s", stdOut.String())
 }

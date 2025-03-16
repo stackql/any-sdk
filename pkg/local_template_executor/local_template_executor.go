@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os/exec"
+	"text/template"
 )
 
 var (
@@ -18,7 +19,7 @@ type ExecutionResponse interface {
 }
 
 type Executor interface {
-	Execute() (ExecutionResponse, error)
+	Execute(map[string]any) (ExecutionResponse, error)
 }
 
 func NewLocalTemplateExecutor(commandName string, commandArgs []string, stdInStream *bytes.Buffer) Executor {
@@ -58,13 +59,36 @@ type localTemplateExecutor struct {
 	stdErrBuffer *bytes.Buffer
 }
 
-func (lt *localTemplateExecutor) Execute() (ExecutionResponse, error) {
+func (lt *localTemplateExecutor) Execute(context map[string]any) (ExecutionResponse, error) {
 	// Execute the template file.
-	cmd := exec.Command(lt.commandName, lt.commandArgs...)
-	cmd.Stdin = lt.stdInStream
+	cmdTpl, cmdTplErr := template.New("letter").Parse(lt.commandName)
+	if cmdTplErr != nil {
+		return nil, cmdTplErr
+	}
+	var cmdBuffer bytes.Buffer
+	err := cmdTpl.Execute(&cmdBuffer, context)
+	if err != nil {
+		return nil, err
+	}
+	cmdString := cmdBuffer.String()
+	var commandStrArgs []string
+	for _, arg := range lt.commandArgs {
+		cmdTpl, cmdTplErr = template.New("letter").Parse(arg)
+		if cmdTplErr != nil {
+			return nil, cmdTplErr
+		}
+		cmdBuffer.Reset()
+		err = cmdTpl.Execute(&cmdBuffer, context)
+		if err != nil {
+			return nil, err
+		}
+		commandStrArgs = append(commandStrArgs, cmdBuffer.String())
+	}
+	cmd := exec.Command(cmdString, commandStrArgs...)
+	// cmd.Stdin = lt.stdInStream
 	cmd.Stdout = lt.stdOutBuffer
 	cmd.Stderr = lt.stdErrBuffer
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return nil, err
 	}

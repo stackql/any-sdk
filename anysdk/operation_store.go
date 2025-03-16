@@ -64,6 +64,7 @@ type OperationStore interface {
 	GetParameters() map[string]Addressable
 	GetPathItem() *openapi3.PathItem
 	GetAPIMethod() string
+	GetInline() []string
 	GetOperationRef() *OperationRef
 	GetPathRef() *PathItemRef
 	GetRequest() (ExpectedRequest, bool)
@@ -160,6 +161,13 @@ type standardOpenAPIOperationStore struct {
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
 	OpenAPIService    OpenAPIService  `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (op *standardOpenAPIOperationStore) GetInline() []string {
+	if op.OperationRef != nil {
+		return op.OperationRef.GetInline()
+	}
+	return []string{}
 }
 
 func (op *standardOpenAPIOperationStore) getXMLDeclaration() string {
