@@ -76,12 +76,29 @@ func LoadProviderAndServiceFromPaths(
 	if err != nil {
 		return nil, err
 	}
-	l := newLoader()
-	svc, err := l.loadFromBytesWithProvider(b, prov)
+	protocolType, err := prov.GetProtocolType()
 	if err != nil {
 		return nil, err
 	}
-	return svc, nil
+	switch protocolType {
+	case client.HTTP:
+		l := newLoader()
+		svc, err := l.loadFromBytesWithProvider(b, prov)
+		if err != nil {
+			return nil, err
+		}
+		return svc, nil
+	case client.LocalTemplated:
+		rv := new(localTemplatedService)
+		err = yaml.Unmarshal(b, rv)
+		if err != nil {
+			return nil, err
+		}
+		rv.Provider = prov
+		return rv, nil
+	default:
+		return nil, fmt.Errorf("loader unsupported protocol type '%v'", protocolType)
+	}
 }
 
 func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, error) {
