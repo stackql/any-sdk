@@ -197,7 +197,7 @@ func getRequest(
 	if err != nil {
 		return nil, err
 	}
-	validationParams, err := method.Parameterize(prov, svc, httpParams, httpParams.GetRequestBody())
+	validationParams, err := method.parameterize(prov, svc, httpParams, httpParams.GetRequestBody())
 	if err != nil {
 		return nil, err
 	}

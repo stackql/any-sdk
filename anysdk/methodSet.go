@@ -12,7 +12,7 @@ func (ms MethodSet) GetFirst() (StandardOperationStore, string, bool) {
 
 func (ms MethodSet) getFirstMatch(params map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
 	for _, m := range ms {
-		if remainingParams, ok := m.ParameterMatch(params); ok {
+		if remainingParams, ok := m.parameterMatch(params); ok {
 			return m, remainingParams, true
 		}
 	}

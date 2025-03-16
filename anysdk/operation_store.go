@@ -74,11 +74,11 @@ type OperationStore interface {
 	GetProvider() Provider
 	GetService() OpenAPIService
 	GetResource() Resource
-	ParameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
+	parameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
 	GetOperationParameter(key string) (Addressable, bool)
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
 	ProcessResponse(*http.Response) (ProcessedOperationResponse, error) // to be removed
-	Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
+	parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
 	GetSelectItemsKey() string
 	GetResponseBodySchemaAndMediaType() (Schema, string, error)
 	GetRequiredParameters() map[string]Addressable
@@ -391,10 +391,6 @@ func (op *standardOpenAPIOperationStore) GetService() OpenAPIService {
 
 func (op *standardOpenAPIOperationStore) GetResource() Resource {
 	return op.Resource
-}
-
-func (op *standardOpenAPIOperationStore) ParameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
-	return op.parameterMatch(params)
 }
 
 func (op *standardOpenAPIOperationStore) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
@@ -1140,7 +1136,7 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }
 
-func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
+func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
 
 	params := op.OperationRef.Value.Parameters
 	copyParams := make(map[string]interface{})
@@ -1168,7 +1164,7 @@ func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc S
 			} else if p.Value != nil && p.Value.Schema != nil && p.Value.Schema.Value != nil && p.Value.Schema.Value.Default != nil {
 				prefilledHeader.Set(name, fmt.Sprintf("%v", p.Value.Schema.Value.Default))
 			} else if isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOpenAPIOperationStore.Parameterize() failure; missing required header '%s'", name)
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required header '%s'", name)
 			}
 		}
 		if p.Value.In == openapi3.ParameterInPath {
@@ -1178,7 +1174,7 @@ func (op *standardOpenAPIOperationStore) Parameterize(prov Provider, parentDoc S
 				delete(copyParams, name)
 			}
 			if !present && isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOpenAPIOperationStore.Parameterize() failure; missing required path parameter '%s'", name)
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required path parameter '%s'", name)
 			}
 		} else if p.Value.In == openapi3.ParameterInQuery {
 			queryParamsRemaining, err := inputParams.GetRemainingQueryParamsFlatMap(copyParams)

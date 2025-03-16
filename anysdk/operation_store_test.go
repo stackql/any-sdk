@@ -262,7 +262,7 @@ func TestVariableHostRouting(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "k8shost"})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -270,7 +270,7 @@ func TestVariableHostRouting(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "201.0.255.3"})
 	assert.NilError(t, err)
 
-	rvi, err = ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err = ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -327,7 +327,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "k8shost"})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -335,7 +335,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "201.0.255.3"})
 	assert.NilError(t, err)
 
-	rvi, err = ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err = ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -397,7 +397,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyContrivedProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyContrivedProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -409,7 +409,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	rvi, err = ops.Parameterize(dummmyContrivedProv, svc, params, nil)
+	rvi, err = ops.parameterize(dummmyContrivedProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -475,7 +475,7 @@ func TestStaticHostRouting(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"parent": "organizations/123123123123"})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyGoogleProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyGoogleProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
