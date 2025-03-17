@@ -44,6 +44,11 @@ type anySdkLoader interface {
 	loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
 	//
 	extractAndMergeQueryTransposeServiceLevel(svc OpenAPIService) error
+	mergeLocalResource(
+		svc Service,
+		rsc Resource,
+		// sr *ServiceRef,
+	) error
 }
 
 type standardLoader struct {
@@ -93,6 +98,14 @@ func LoadProviderAndServiceFromPaths(
 		err = yaml.Unmarshal(b, rv)
 		if err != nil {
 			return nil, err
+		}
+		for _, v := range rv.Rsc {
+			l := newLoader()
+			rsc := v
+			mergeErr := l.mergeLocalResource(rv, rsc)
+			if mergeErr != nil {
+				return nil, mergeErr
+			}
 		}
 		rv.Provider = prov
 		return rv, nil
@@ -374,6 +387,67 @@ func (l *standardLoader) mergeResource(svc OpenAPIService,
 	}
 	rsc.setProvider(svc.getProvider())
 	rsc.setProviderService(svc.getProviderService())
+	propogateErr := rsc.propogateToConfig()
+	return propogateErr
+}
+
+func (l *standardLoader) mergeLocalResource(
+	svc Service,
+	rsc Resource,
+	// sr *ServiceRef,
+) error {
+	// rsc.setService(svc) // must happen before resolving inverses
+	// for k, vOp := range rsc.GetMethods() {
+	// 	v := vOp
+	// 	v.setMethodKey(k)
+	// 	// TODO: replicate this for the damned inverse
+	// 	err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	req, reqExists := v.GetRequest()
+	// 	if !reqExists && v.GetOperationRef().Value.RequestBody != nil {
+	// 		req = &standardExpectedRequest{}
+	// 		v.setRequest(req.(*standardExpectedRequest))
+	// 	}
+	// 	err = l.resolveExpectedRequest(svc, v.GetOperationRef().Value, req)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	response, responseExists := v.GetResponse()
+	// 	if !responseExists && v.GetOperationRef().Value.Responses != nil {
+	// 		response = &standardExpectedResponse{}
+	// 		v.setResponse(response.(*standardExpectedResponse))
+	// 	}
+	// 	err = l.resolveExpectedResponse(svc, v.GetOperationRef().Value, response)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	rsc.setMethod(k, &v)
+	// }
+	for sqlVerb, dir := range rsc.getSQLVerbs() {
+		for i, v := range dir {
+			cur := v
+			err := l.resolveSQLVerb(rsc, &cur, sqlVerb)
+			if err != nil {
+				return err
+			}
+			rsc.mutateSQLVerb(sqlVerb, i, cur)
+		}
+	}
+	// TODO: add second pass for inverse ops
+	for sqlVerb, dir := range rsc.getSQLVerbs() {
+		for i, v := range dir {
+			cur := v
+			err := l.latePassResolveInverse(svc, &cur)
+			if err != nil {
+				return err
+			}
+			rsc.mutateSQLVerb(sqlVerb, i, cur)
+		}
+	}
+	// rsc.setProvider(svc.getProvider())
+	// rsc.setProviderService(svc.getProviderService())
 	propogateErr := rsc.propogateToConfig()
 	return propogateErr
 }
@@ -812,7 +886,7 @@ func resolveSQLVerbFromResource(rsc Resource, component *OpenAPIOperationStoreRe
 	return rv, nil
 }
 
-func (l *standardLoader) latePassResolveInverse(svc OpenAPIService, component *OpenAPIOperationStoreRef) error {
+func (l *standardLoader) latePassResolveInverse(svc Service, component *OpenAPIOperationStoreRef) error {
 	if component == nil || component.Value == nil {
 		return fmt.Errorf("late pass: operation store ref not supplied")
 	}
