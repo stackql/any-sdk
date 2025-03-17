@@ -1104,6 +1104,23 @@ func (op *standardOpenAPIOperationStore) GetOperationParameters() Params {
 }
 
 func (op *standardOpenAPIOperationStore) GetOperationParameter(key string) (Addressable, bool) {
+	paramLocal, isParamLocal := op.Parameters[key]
+	if isParamLocal {
+		b, err := json.Marshal(paramLocal)
+		if err != nil {
+			return nil, false
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			return nil, false
+		}
+		paramObj := NewParameter(&param, op.OpenAPIService)
+		return paramObj, true
+	}
+	if op.OperationRef == nil || op.OperationRef.Value == nil || op.OperationRef.Value.Parameters == nil {
+		return nil, false
+	}
 	params := NewParameters(op.OperationRef.Value.Parameters, op.GetService())
 	if op.OperationRef.Value.Parameters == nil {
 		return nil, false
