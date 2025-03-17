@@ -517,6 +517,14 @@ func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) 
 		if err != nil {
 			return nil, err
 		}
+		for _, v := range rv.Rsc {
+			l := newLoader()
+			rsc := v
+			mergeErr := l.mergeLocalResource(rv, rsc)
+			if mergeErr != nil {
+				return nil, mergeErr
+			}
+		}
 		rv.ProviderService = ps
 		return rv, nil
 	default:
