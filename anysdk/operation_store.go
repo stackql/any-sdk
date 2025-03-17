@@ -947,7 +947,22 @@ func (m *standardOpenAPIOperationStore) GetOptionalParameters() map[string]Addre
 
 func (m *standardOpenAPIOperationStore) getOptionalParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
-	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
+	for k, v := range m.Parameters {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			continue
+		}
+		paramObj := NewParameter(&param, m.OpenAPIService)
+		if !paramObj.IsRequired() {
+			retVal[k] = paramObj
+		}
+	}
+	if m.OperationRef == nil || m.OperationRef.Value == nil || m.OperationRef.Value.Parameters == nil {
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
