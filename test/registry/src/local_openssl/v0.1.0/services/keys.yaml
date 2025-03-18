@@ -181,6 +181,32 @@ components:
   callbacks: {}
   requestBodies: {}
 resources:
+    x509:
+      id: openssl_local.keys.x509
+      name: x509
+      title: x509
+      methods:
+        describe_certificate:
+          summary: Describe an x509 certificate.
+          description: | 
+            Describe an x509 certificate. 
+            Classical usage:
+            openssl x509 -in test/server/mtls/credentials/pg_server_cert.pem -noout -text
+          operation:
+            inline:
+              - '{{ or .parameters.executable "openssl" }}'
+              - x509
+              - -in
+              - '{{ .parameters.cert_file }}'
+              - -noout
+              - -text
+          parameters:
+            cert_file:
+              in: inline
+              required: true
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
     rsa:
       id: openssl_local.keys.rsa
       name: rsa
@@ -209,36 +235,23 @@ resources:
             key_out_file:
               in: inline
               required: true
-              schema:
-                type: string
             cert_out_file:
               in: inline
               required: true
-              schema:
-                type: string
             config_file:
               in: inline
               required: true
-              schema:
-                type: string
             days:
               in: inline
               required: false
-              schema:
-                type: integer
-                default: 365
             executable:
               in: inline
               required: false
-              schema:
-                type: string
-                default: openssl
           response:
             mediaType: application/json
             openAPIDocKey: '200'
       sqlVerbs:
-        select:
-          - $ref: '#/components/x-stackQL-resources/rsa/methods/create_key_pair'
+        select: []
         insert:
           - $ref: '#/components/x-stackQL-resources/rsa/methods/create_key_pair'
         update: []

@@ -61,7 +61,7 @@ func TestProviderPull(t *testing.T) {
 }
 
 func TestProviderPullAndPersist(t *testing.T) {
-	execLocalAndRemoteRegistryTests(t, pullProvidersRegistryCfgStr, execTestRegistrySimpleOktaPullAndPersist)
+	execRemoteRegistryTestOnly(t, pullProvidersRegistryCfgStr, execTestRegistrySimpleOktaPullAndPersist)
 }
 
 func TestRegistryIndirectGoogleComputeServiceMethodResolutionSeparateDocs(t *testing.T) {

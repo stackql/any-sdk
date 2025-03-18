@@ -13,3 +13,6 @@ providerServices:
     title: openssl Key Management
     version: v0.1.0
 openapi: 3.0.3
+config:
+  auth:
+    type: "null_auth"
