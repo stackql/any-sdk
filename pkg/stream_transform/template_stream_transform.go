@@ -89,6 +89,9 @@ func (tst *templateStreamTransfomer) Transform() error {
 	for {
 		obj, readErr := tst.inStream.Read()
 		if obj == nil {
+			if readErr != nil && readErr != io.EOF {
+				return readErr
+			}
 			break
 		}
 		execErr := tst.tpl.Execute(tst.outStream, obj)
