@@ -4,7 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"strings"
 	"text/template"
+
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/stackql/any-sdk/pkg/xmlmap"
+)
+
+var (
+	_ io.ReadCloser = (*readClosableBuffer)(nil)
 )
 
 // full acknowledgment to https://stackoverflow.com/a/42663928
@@ -17,6 +25,11 @@ func separator(s string) func() string {
 		}
 		return s
 	}
+}
+
+func getXPath(xml string, path string) (string, error) {
+	ss := NewXMLStringShorthand()
+	return ss.GetFirstInner(xml, path)
 }
 
 type ObjectReader interface {
@@ -39,6 +52,61 @@ func (jr *jsonReader) Read() (interface{}, error) {
 	return v, err
 }
 
+type textReader struct {
+	inStream io.Reader
+}
+
+func NewTextReader(inStream io.Reader) ObjectReader {
+	return &textReader{
+		inStream: inStream,
+	}
+}
+
+func (tr *textReader) Read() (interface{}, error) {
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(tr.inStream)
+	if err != nil {
+		return "", err
+	}
+	rv := buf.String()
+	return rv, io.EOF
+}
+
+type readClosableBuffer struct {
+	buf *bytes.Buffer
+}
+
+func (rcb *readClosableBuffer) Read(p []byte) (n int, err error) {
+	return rcb.buf.Read(p)
+}
+
+func (rcb *readClosableBuffer) Close() error {
+	return nil
+}
+
+func NewReadClosableBuffer(input string) io.ReadCloser {
+	return &readClosableBuffer{
+		buf: bytes.NewBufferString(input),
+	}
+}
+
+type xmlReader struct {
+	inStream io.ReadCloser
+	schema   *openapi3.Schema
+}
+
+func NewXMLReader(inStream io.ReadCloser, schema *openapi3.Schema) ObjectReader {
+	return &xmlReader{
+		inStream: inStream,
+		schema:   schema,
+	}
+}
+
+func (xr *xmlReader) Read() (interface{}, error) {
+	rv, _, err := xmlmap.GetSubObjTyped(xr.inStream, "/*", xr.schema)
+	return rv, err
+}
+
 func jsonMapFromString(s string) (map[string]interface{}, error) {
 	var v map[string]interface{}
 	err := json.Unmarshal([]byte(s), &v)
@@ -57,7 +125,7 @@ type templateStreamTransfomer struct {
 
 func NewTemplateStreamTransformer(
 	tplStr string,
-	inStream io.Reader,
+	inStream ObjectReader,
 	outStream io.Writer,
 ) (StreamTransformer, error) {
 	return newTemplateStreamTransformer(tplStr, inStream, outStream)
@@ -65,12 +133,14 @@ func NewTemplateStreamTransformer(
 
 func newTemplateStreamTransformer(
 	tplStr string,
-	inStream io.Reader,
+	inStream ObjectReader,
 	outStream io.Writer,
 ) (StreamTransformer, error) {
 	tpl, tplErr := template.New("__stream_tfm__").Funcs(template.FuncMap{
 		"separator":         separator,
 		"jsonMapFromString": jsonMapFromString,
+		"getXPath":          getXPath,
+		"title":             strings.Title,
 	}).Parse(tplStr)
 	if tplErr != nil {
 		return nil, tplErr
@@ -80,7 +150,7 @@ func newTemplateStreamTransformer(
 	}
 	return &templateStreamTransfomer{
 		tpl:       tpl,
-		inStream:  NewJSONReader(inStream),
+		inStream:  inStream,
 		outStream: outStream,
 	}, nil
 }

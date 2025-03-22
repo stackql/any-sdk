@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	. "github.com/stackql/any-sdk/pkg/stream_transform"
 )
 
@@ -57,6 +58,75 @@ var (
 		</meta>
 	</root>  	
 	  `
+	xmlSchema = &openapi3.Schema{
+		Type: "object",
+		Properties: openapi3.Schemas{
+			"meta": &openapi3.SchemaRef{
+				Value: &openapi3.Schema{
+					Type: "object",
+					Properties: openapi3.Schemas{
+						"institution": &openapi3.SchemaRef{
+							Value: &openapi3.Schema{
+								Type: "string",
+							},
+						},
+						"total_votes": &openapi3.SchemaRef{
+							Value: &openapi3.Schema{
+								Type: "integer",
+							},
+						},
+						"total_bank_balance": &openapi3.SchemaRef{
+							Value: &openapi3.Schema{
+								Type: "number",
+							},
+						},
+					},
+				},
+			},
+			"animals": &openapi3.SchemaRef{
+				Value: &openapi3.Schema{
+					Type: "list",
+					Items: &openapi3.SchemaRef{
+						Value: &openapi3.Schema{
+							Type: "object",
+							Properties: openapi3.Schemas{
+								"name": &openapi3.SchemaRef{
+									Value: &openapi3.Schema{
+										Type: "string",
+									},
+								},
+								"order": &openapi3.SchemaRef{
+									Value: &openapi3.Schema{
+										Type: "string",
+									},
+								},
+								"votes": &openapi3.SchemaRef{
+									Value: &openapi3.Schema{
+										Type: "integer",
+									},
+								},
+								"bank_balance": &openapi3.SchemaRef{
+									Value: &openapi3.Schema{
+										Type: "number",
+									},
+								},
+								"premierships": &openapi3.SchemaRef{
+									Value: &openapi3.Schema{
+										Type: "list",
+										Items: &openapi3.SchemaRef{
+											Value: &openapi3.Schema{
+												Type: "integer",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 	yamlExample = `---
 animals:
 	- name: Platypus
@@ -86,6 +156,7 @@ meta:
 	{{- call $s}}{"name": "{{ $animal.name }}", "democratic_votes": {{ $animal.votes }}} 
 	{{- end -}}
 	]`
+	xmlTmpl            = `[{ "name": "{{- getXPath . "/root/animals/animal/name" }}"}]`
 	expectedJsonOutput = `[{"name": "Platypus", "democratic_votes": 1}, {"name": "Quokka", "democratic_votes": 3}, {"name": "Quoll", "democratic_votes": 2}]`
 )
 
@@ -93,7 +164,7 @@ func TestSimpleStreamTransform(t *testing.T) {
 	input := fmt.Sprintf(`"Hello, %s!"`, "World")
 	t.Log("TestSimpleStream")
 	tmpl := `{{.}}`
-	inStream := bytes.NewBufferString(input)
+	inStream := NewJSONReader(bytes.NewBufferString(input))
 	outStream := bytes.NewBuffer(nil)
 	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
 	if err != nil {
@@ -112,7 +183,7 @@ func TestMeaningfulStreamTransform(t *testing.T) {
 	input := jsonExample
 	t.Log("TestSimpleStream")
 	tmpl := jsonTmpl
-	inStream := bytes.NewBufferString(input)
+	inStream := NewJSONReader(bytes.NewBufferString(input))
 	outStream := bytes.NewBuffer(nil)
 	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
 	if err != nil {
@@ -124,5 +195,25 @@ func TestMeaningfulStreamTransform(t *testing.T) {
 	outputStr := outStream.String()
 	if outputStr != expectedJsonOutput {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expectedJsonOutput)
+	}
+}
+
+func TestSimpleXMLStreamTransform(t *testing.T) {
+	input := xmlExample
+	t.Log("v")
+	tmpl := xmlTmpl
+	inStream := NewTextReader(bytes.NewBufferString(input))
+	outStream := bytes.NewBuffer(nil)
+	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	if err != nil {
+		t.Fatalf("failed to create transformer: %v", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		t.Fatalf("failed to transform: %v", err)
+	}
+	outputStr := outStream.String()
+	expected := `[{ "name": "Platypus"}]`
+	if outputStr != expected {
+		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
 	}
 }
