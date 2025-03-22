@@ -220,7 +220,7 @@ func TestSimpleXMLStreamTransform(t *testing.T) {
 
 func TestMeaningfulXMLStreamTransform(t *testing.T) {
 	input := xmlExample
-	t.Log("v")
+	t.Log("TestMeaningfulXMLStreamTransform")
 	tmpl := `
 	{{- $s := separator ", " -}}
 	[

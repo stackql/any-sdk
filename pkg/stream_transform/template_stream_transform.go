@@ -5,13 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"text/template"
-
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/stackql/any-sdk/pkg/xmlmap"
-)
-
-var (
-	_ io.ReadCloser = (*readClosableBuffer)(nil)
 )
 
 // full acknowledgment to https://stackoverflow.com/a/42663928
@@ -74,41 +67,6 @@ func (tr *textReader) Read() (interface{}, error) {
 	}
 	rv := buf.String()
 	return rv, io.EOF
-}
-
-type readClosableBuffer struct {
-	buf *bytes.Buffer
-}
-
-func (rcb *readClosableBuffer) Read(p []byte) (n int, err error) {
-	return rcb.buf.Read(p)
-}
-
-func (rcb *readClosableBuffer) Close() error {
-	return nil
-}
-
-func NewReadClosableBuffer(input string) io.ReadCloser {
-	return &readClosableBuffer{
-		buf: bytes.NewBufferString(input),
-	}
-}
-
-type xmlReader struct {
-	inStream io.ReadCloser
-	schema   *openapi3.Schema
-}
-
-func NewXMLReader(inStream io.ReadCloser, schema *openapi3.Schema) ObjectReader {
-	return &xmlReader{
-		inStream: inStream,
-		schema:   schema,
-	}
-}
-
-func (xr *xmlReader) Read() (interface{}, error) {
-	rv, _, err := xmlmap.GetSubObjTyped(xr.inStream, "/*", xr.schema)
-	return rv, err
 }
 
 func jsonMapFromString(s string) (map[string]interface{}, error) {
