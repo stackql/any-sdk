@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"strings"
 	"text/template"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -27,9 +26,14 @@ func separator(s string) func() string {
 	}
 }
 
-func getXPath(xml string, path string) (string, error) {
+func getXPathInner(xml string, path string) (string, error) {
 	ss := NewXMLStringShorthand()
 	return ss.GetFirstInner(xml, path)
+}
+
+func getXPathAllOuter(xml string, path string) ([]string, error) {
+	ss := NewXMLStringShorthand()
+	return ss.GetAllFull(xml, path)
 }
 
 type ObjectReader interface {
@@ -139,8 +143,8 @@ func newTemplateStreamTransformer(
 	tpl, tplErr := template.New("__stream_tfm__").Funcs(template.FuncMap{
 		"separator":         separator,
 		"jsonMapFromString": jsonMapFromString,
-		"getXPath":          getXPath,
-		"title":             strings.Title,
+		"getXPath":          getXPathInner,
+		"getXPathAllOuter":  getXPathAllOuter,
 	}).Parse(tplStr)
 	if tplErr != nil {
 		return nil, tplErr

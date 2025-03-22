@@ -217,3 +217,33 @@ func TestSimpleXMLStreamTransform(t *testing.T) {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
 	}
 }
+
+func TestMeaningfulXMLStreamTransform(t *testing.T) {
+	input := xmlExample
+	t.Log("v")
+	tmpl := `
+	{{- $s := separator ", " -}}
+	[
+	{{- $animals := getXPathAllOuter . "/root/animals/animal" -}}
+	{{- range $animal := $animals -}}
+	{{- call $s -}}
+	{{- $animalName := getXPath $animal "/animal/name" -}}
+	{{- $animalVotes := getXPath $animal "/animal/votes" -}}
+	{"name": "{{ $animalName }}", "democratic_votes": {{ $animalVotes }}}
+	{{- end -}}
+	]`
+	inStream := NewTextReader(bytes.NewBufferString(input))
+	outStream := bytes.NewBuffer(nil)
+	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	if err != nil {
+		t.Fatalf("failed to create transformer: %v", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		t.Fatalf("failed to transform: %v", err)
+	}
+	outputStr := outStream.String()
+	expected := `[{"name": "Platypus", "democratic_votes": 1}, {"name": "Quokka", "democratic_votes": 3}, {"name": "Quoll", "democratic_votes": 2}]`
+	if outputStr != expected {
+		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
+	}
+}
