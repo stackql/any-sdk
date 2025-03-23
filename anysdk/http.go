@@ -185,6 +185,7 @@ func NewHttpParameters(method StandardOperationStore) HttpParameters {
 		RequestBody:  make(BodyMap),
 		ResponseBody: make(BodyMap),
 		ServerParams: make(ParamMap),
+		InlineParams: make(ParamMap),
 		Unassigned:   make(ParamMap),
 	}
 }
