@@ -97,6 +97,11 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
     
+    - name: Setup system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+    
     - name: Setup Python
       uses: actions/setup-python@v5.0.0
       with:
@@ -137,8 +142,6 @@ jobs:
     - name: Trivial CLI Test
       if: success()
       run: |
-        sudo apt-get update
-        sudo apt-get install -y jq
         result="$(build/anysdk const | jq -r '.ExtensionKeyAlwaysRequired')"
         if [ "$result" != "x-alwaysRequired" ]; then
           echo "Trivial CLI Test Failed with unexpected result: $result"
@@ -190,7 +193,7 @@ jobs:
           echo "Core Test passed with matching buckets: $matchingBuckets"
         fi
             
-    - name: Run local templated openssl test
+    - name: Run local templated openssl mutate test
       run: |
         rm -rf test/tmp/*.pem
         ${{ github.workspace }}/build/anysdk query \
@@ -210,6 +213,25 @@ jobs:
           exit 1
         else
           echo "Core Test passed with matching end date info: $endDateFound"
+        fi   
+
+    - name: Run local templated openssl select test
+      run: |
+        rm -rf test/tmp/*.pem
+        response="$(${{ github.workspace }}/build/anysdk query \
+          --svc-file-path="test/registry/src/local_openssl/v0.1.0/services/keys.yaml"  \
+          --prov-file-path="test/registry/src/local_openssl/v0.1.0/provider.yaml" \
+          --resource rsa \
+          --method describe_certificate \
+          --parameters '{
+            "cert_file": "test/tmp/cert.pem"
+          }')"
+        publicKeyAlgorithm="$(echo "$response" | jq -r '.public_key_algorithm')"
+        if [ "${publicKeyAlgorithm}" != "rsaEncryption" ]; then
+          echo "Core Test Failed with unexpected public key algorithm '$publicKeyAlgorithm'"
+          exit 1
+        else
+          echo "Core Test passed with matching public key algorithm: '$publicKeyAlgorithm'"
         fi
 
   macosbuild:
