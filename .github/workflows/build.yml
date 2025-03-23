@@ -221,7 +221,7 @@ jobs:
         response="$(${{ github.workspace }}/build/anysdk query \
           --svc-file-path="test/registry/src/local_openssl/v0.1.0/services/keys.yaml"  \
           --prov-file-path="test/registry/src/local_openssl/v0.1.0/provider.yaml" \
-          --resource rsa \
+          --resource x509 \
           --method describe_certificate \
           --parameters '{
             "cert_file": "test/tmp/cert.pem"
