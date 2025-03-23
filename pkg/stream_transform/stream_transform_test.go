@@ -271,7 +271,9 @@ func TestOpensslCertTextStreamTransform(t *testing.T) {
 	{{- $s := separator ", " -}}
 	{{- $root := . -}}
 	{{- $pubKeyAlgo := getRegexpFirstMatch $root "Public Key Algorithm: (?<anything>.*)" -}}
-	{ "type": "x509", "public_key_algorithm": "{{ $pubKeyAlgo }}"}`
+	{{- $notBefore := getRegexpFirstMatch $root "Not Before: (.*)" -}}
+	{{- $notAfter := getRegexpFirstMatch $root "Not After(?:[ ]*): (.*)" -}}
+	{ "type": "x509", "public_key_algorithm": "{{ $pubKeyAlgo }}", "not_before": "{{ $notBefore }}", "not_after": "{{ $notAfter }}"}`
 	inStream := NewTextReader(bytes.NewBufferString(input))
 	outStream := bytes.NewBuffer(nil)
 	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
@@ -282,7 +284,7 @@ func TestOpensslCertTextStreamTransform(t *testing.T) {
 		t.Fatalf("failed to transform: %v", err)
 	}
 	outputStr := outStream.String()
-	expected := `{ "type": "x509", "public_key_algorithm": "rsaEncryption"}`
+	expected := `{ "type": "x509", "public_key_algorithm": "rsaEncryption", "not_before": "Mar 22 02:50:46 2025 GMT", "not_after": "Jun 20 02:50:46 2025 GMT"}`
 	if outputStr != expected {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
 	}
