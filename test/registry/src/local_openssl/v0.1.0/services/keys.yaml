@@ -46,6 +46,18 @@ components:
           type: string
         status:
           type: string
+    cert_display:
+      title: Key Display
+      type: object
+      properties:
+        type:
+          type: string
+          description: The key type
+          example: key
+        value:
+          type: string
+          description: The value
+          example: value
     page:
       type: object
       properties:
@@ -191,7 +203,7 @@ resources:
           description: | 
             Describe an x509 certificate. 
             Classical usage:
-            openssl x509 -in test/server/mtls/credentials/pg_server_cert.pem -noout -text
+            openssl x509 -in test/tmp/cert.pem -noout -text
           operation:
             inline:
               - '{{ or .parameters.executable "openssl" }}'
@@ -205,8 +217,12 @@ resources:
               in: inline
               required: true
           response:
-            mediaType: application/json
-            openAPIDocKey: '200'
+            schema_override:
+              $ref: '#/components/schemas/cert_display'
+            transform:
+              body: '{ "type": "x509", "base64": "{{ . }}" }'
+              type: 'golang_template'
+
     rsa:
       id: openssl_local.keys.rsa
       name: rsa

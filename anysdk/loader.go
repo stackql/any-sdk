@@ -928,7 +928,19 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 	}
 	bmt := component.GetBodyMediaType()
 	ek := component.GetOpenAPIDocKey()
-	if bmt != "" && ek != "" {
+	overrideSchemaRef, isOverrideSchema := component.getOverrideSchemaRef()
+	if isOverrideSchema {
+		sr, ok := doc.getT().Components.Schemas[overrideSchemaRef.Ref]
+		if !ok {
+			return fmt.Errorf("schema not found for ref = '%s'", overrideSchemaRef.Ref)
+		}
+		val := sr.Value
+		if val == nil {
+			return fmt.Errorf("schema value not found for ref = '%s'", overrideSchemaRef.Ref)
+		}
+		s := newSchema(val, doc, overrideSchemaRef.Ref, overrideSchemaRef.Ref)
+		component.setSchema(s)
+	} else if bmt != "" && ek != "" {
 		ekObj, ok := op.Responses[ek]
 		if !ok || ekObj.Value == nil || ekObj.Value.Content == nil || ekObj.Value.Content[bmt] == nil || ekObj.Value.Content[bmt].Schema == nil || ekObj.Value.Content[bmt].Schema.Value == nil {
 			return nil

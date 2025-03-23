@@ -24,6 +24,16 @@ func getXPathInner(xml string, path string) (string, error) {
 	return ss.GetFirstInner(xml, path)
 }
 
+func getRegexpFirstMatch(input string, pattern string) (string, error) {
+	rs := NewRegexpShorthand()
+	return rs.GetFirstMatch(input, pattern)
+}
+
+func getRegexpAllMatches(input string, pattern string) ([]string, error) {
+	rs := NewRegexpShorthand()
+	return rs.GetAllMatches(input, pattern)
+}
+
 func getXPathAllOuter(xml string, path string) ([]string, error) {
 	ss := NewXMLStringShorthand()
 	return ss.GetAllFull(xml, path)
@@ -99,10 +109,12 @@ func newTemplateStreamTransformer(
 	outStream io.Writer,
 ) (StreamTransformer, error) {
 	tpl, tplErr := template.New("__stream_tfm__").Funcs(template.FuncMap{
-		"separator":         separator,
-		"jsonMapFromString": jsonMapFromString,
-		"getXPath":          getXPathInner,
-		"getXPathAllOuter":  getXPathAllOuter,
+		"separator":           separator,
+		"jsonMapFromString":   jsonMapFromString,
+		"getXPath":            getXPathInner,
+		"getXPathAllOuter":    getXPathAllOuter,
+		"getRegexpFirstMatch": getRegexpFirstMatch,
+		"getRegexpAllMatches": getRegexpAllMatches,
 	}).Parse(tplStr)
 	if tplErr != nil {
 		return nil, tplErr
