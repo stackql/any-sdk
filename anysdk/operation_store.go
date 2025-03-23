@@ -1116,6 +1116,9 @@ func (op *standardOpenAPIOperationStore) GetOperationParameter(key string) (Addr
 		if err != nil {
 			return nil, false
 		}
+		if param.Name == "" && param.In == "inline" {
+			param.Name = key
+		}
 		paramObj := NewParameter(&param, op.OpenAPIService)
 		return paramObj, true
 	}
