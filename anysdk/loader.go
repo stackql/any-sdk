@@ -95,7 +95,7 @@ func LoadProviderAndServiceFromPaths(
 		return svc, nil
 	case client.LocalTemplated:
 		rv := new(localTemplatedService)
-		err = yaml.Unmarshal(b, rv)
+		err = yamlconv.Unmarshal(b, rv)
 		if err != nil {
 			return nil, err
 		}

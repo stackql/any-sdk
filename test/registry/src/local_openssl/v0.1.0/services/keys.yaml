@@ -186,14 +186,13 @@ resources:
             Describe an x509 certificate. 
             Classical usage:
             openssl x509 -in test/tmp/cert.pem -noout -text
-          operation:
-            inline:
-              - '{{ or .parameters.executable "openssl" }}'
-              - x509
-              - -in
-              - '{{ .parameters.cert_file }}'
-              - -noout
-              - -text
+          inline:
+            - '{{ or .parameters.executable "openssl" }}'
+            - x509
+            - -in
+            - '{{ .parameters.cert_file }}'
+            - -noout
+            - -text
           parameters:
             cert_file:
               in: inline
@@ -204,23 +203,18 @@ resources:
               type: object
               properties:
                 type:
-                  Value:
                     type: string
                     description: The key type
                     example: x509
                 not_before:
-                  $ref: "some_thing"
-                  Value:
                     type: string
                     description: Textual date representation of the key's not before date.
                     example: Mar 22 02:50:46 2025 GMT
                 not_after:
-                  Value:
                     type: string
                     description: Textual date representation of the key's not after date.
                     example: Mar 22 02:50:46 2025 GMT
                 public_key_algorithm:
-                  Value:
                     type: string
                     description: The public key algorithm used by the key.
                     example: rsaEncryption
@@ -245,19 +239,18 @@ resources:
             Create a new RSA key pair. 
             Classical usage:
             openssl req -x509 -keyout test/server/mtls/credentials/pg_server_key.pem -out test/server/mtls/credentials/pg_server_cert.pem -config test/server/mtls/openssl.cnf -days 365
-          operation:
-            inline:
-              - '{{ or .parameters.executable "openssl" }}'
-              - req 
-              - -x509
-              - -keyout 
-              - '{{ .parameters.key_out_file }}' 
-              - -out 
-              - '{{ .parameters.cert_out_file }}'
-              - -config 
-              - '{{ .parameters.config_file }}'
-              - -days 
-              - '{{ or .parameters.days 365 }}'
+          inline:
+            - '{{ or .parameters.executable "openssl" }}'
+            - req 
+            - -x509
+            - -keyout 
+            - '{{ .parameters.key_out_file }}' 
+            - -out 
+            - '{{ .parameters.cert_out_file }}'
+            - -config 
+            - '{{ .parameters.config_file }}'
+            - -days 
+            - '{{ or .parameters.days 365 }}'
           parameters:
             key_out_file:
               in: inline

@@ -149,6 +149,7 @@ type standardOpenAPIOperationStore struct {
 	PathItem     *openapi3.PathItem                `json:"-" yaml:"-"`                 // Required
 	APIMethod    string                            `json:"apiMethod" yaml:"apiMethod"` // Required
 	OperationRef *OperationRef                     `json:"operation" yaml:"operation"` // Required
+	InlineOp     []string                          `json:"inline" yaml:"inline"`       // Deprecated
 	PathRef      *PathItemRef                      `json:"path" yaml:"path"`           // Deprecated
 	Request      *standardExpectedRequest          `json:"request" yaml:"request"`
 	Response     *standardExpectedResponse         `json:"response" yaml:"response"`
@@ -164,8 +165,8 @@ type standardOpenAPIOperationStore struct {
 }
 
 func (op *standardOpenAPIOperationStore) GetInline() []string {
-	if op.OperationRef != nil {
-		return op.OperationRef.GetInline()
+	if op.InlineOp != nil {
+		return op.InlineOp
 	}
 	return []string{}
 }
