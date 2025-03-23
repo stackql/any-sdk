@@ -397,9 +397,10 @@ func (l *standardLoader) mergeLocalResource(
 	// sr *ServiceRef,
 ) error {
 	// rsc.setService(svc) // must happen before resolving inverses
-	for _, vOp := range rsc.GetMethods() {
+	for k, vOp := range rsc.GetMethods() {
 		v := vOp
 		v.setResource(rsc)
+		rsc.setMethod(k, &v)
 	}
 	// 	v := vOp
 	// 	v.setMethodKey(k)
