@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	_ Service        = &localTemplatedService{}
 	_ OpenAPIService = &standardService{}
 )
 
@@ -43,6 +44,50 @@ type OpenAPIService interface {
 	getProviderService() ProviderService
 	setProviderService(providerService ProviderService)
 	getPath(k string) (*openapi3.PathItem, bool)
+}
+
+type localTemplatedService struct {
+	Name            string                       `json:"name" yaml:"name"`
+	Rsc             map[string]*standardResource `json:"resources" yaml:"resources"`
+	StackQLConfig   StackQLConfig                `json:"-" yaml:"-"`
+	ProviderService ProviderService              `json:"-" yaml:"-"` // upwards traversal
+	Provider        Provider                     `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (sv *localTemplatedService) GetServers() (openapi3.Servers, bool) {
+	return nil, false
+}
+
+func (sv *localTemplatedService) IsPreferred() bool {
+	return true
+}
+
+func (sv *localTemplatedService) GetResources() (map[string]Resource, error) {
+	rv := make(map[string]Resource)
+	for k, v := range sv.Rsc {
+		rv[k] = v
+	}
+	return rv, nil
+}
+
+func (sv *localTemplatedService) GetResource(resourceName string) (Resource, error) {
+	rscs, err := sv.GetResources()
+	if err != nil {
+		return nil, err
+	}
+	rsc, ok := rscs[resourceName]
+	if !ok {
+		return nil, fmt.Errorf("OpenAPIService.GetResource() failure")
+	}
+	return rsc, nil
+}
+
+func (sv *localTemplatedService) GetName() string {
+	return sv.Name
+}
+
+func (sv *localTemplatedService) GetSchema(key string) (Schema, error) {
+	return nil, fmt.Errorf("GetSchema not implemented for localTemplatedService")
 }
 
 type standardService struct {

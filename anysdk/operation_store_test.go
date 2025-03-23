@@ -1,13 +1,11 @@
-package anysdk_test
+package anysdk
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
-
-	. "github.com/stackql/any-sdk/anysdk"
 
 	"github.com/stackql/any-sdk/test/pkg/testutil"
 
@@ -26,7 +24,7 @@ func TestPlaceholder(t *testing.T) {
 	res := &http.Response{
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		StatusCode: 200,
-		Body:       ioutil.NopCloser(strings.NewReader(`{"a": { "b": [ "c" ] } }`)),
+		Body:       io.NopCloser(strings.NewReader(`{"a": { "b": [ "c" ] } }`)),
 	}
 	s := NewStringSchema(nil, "", "")
 	pr, err := s.ProcessHttpResponseTesting(res, "", "", "")
@@ -47,9 +45,9 @@ func TestXPathHandle(t *testing.T) {
 		t.Fatalf("Test failed: %v", err)
 	}
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -95,9 +93,9 @@ func TestJSONPathHandle(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -144,9 +142,9 @@ func TestJSONPathHandleEnforcedResponseMediaType(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "expt"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -185,9 +183,9 @@ func TestXMLSchemaInterrogation(t *testing.T) {
 		t.Fatalf("Test failed: %v", err)
 	}
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -229,9 +227,9 @@ func TestVariableHostRouting(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -264,7 +262,7 @@ func TestVariableHostRouting(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "k8shost"})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -272,7 +270,7 @@ func TestVariableHostRouting(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "201.0.255.3"})
 	assert.NilError(t, err)
 
-	rvi, err = ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err = ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -294,9 +292,9 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.1"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -329,7 +327,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "k8shost"})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -337,7 +335,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"cluster_addr": "201.0.255.3"})
 	assert.NilError(t, err)
 
-	rvi, err = ops.Parameterize(dummmyK8sProv, svc, params, nil)
+	rvi, err = ops.parameterize(dummmyK8sProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -359,9 +357,9 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("contrivedprovider/%s/services/contrived_service.yaml", "v0.1.0"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -399,7 +397,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyContrivedProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyContrivedProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -411,7 +409,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	rvi, err = ops.Parameterize(dummmyContrivedProv, svc, params, nil)
+	rvi, err = ops.parameterize(dummmyContrivedProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 
@@ -433,9 +431,9 @@ func TestStaticHostRouting(t *testing.T) {
 	b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/services/cloudresourcemanager-v3.yaml", "v0.1.2"))
 	assert.NilError(t, err)
 
-	l := NewLoader()
+	l := newLoader()
 
-	svc, err := l.LoadFromBytes(b)
+	svc, err := l.loadFromBytes(b)
 
 	assert.NilError(t, err)
 	assert.Assert(t, svc != nil)
@@ -477,7 +475,7 @@ func TestStaticHostRouting(t *testing.T) {
 	err = params.IngestMap(map[string]interface{}{"parent": "organizations/123123123123"})
 	assert.NilError(t, err)
 
-	rvi, err := ops.Parameterize(dummmyGoogleProv, svc, params, nil)
+	rvi, err := ops.parameterize(dummmyGoogleProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
 

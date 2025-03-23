@@ -11,12 +11,17 @@ import (
 )
 
 type OperationRef struct {
-	Ref   string `json:"$ref" yaml:"$ref"`
-	Value *openapi3.Operation
+	Ref    string `json:"$ref" yaml:"$ref"`
+	Value  *openapi3.Operation
+	Inline []string `json:"inline" yaml:"inline"`
 }
 
 func (opr OperationRef) ExtractPathItem() string {
 	return opr.extractPathItem()
+}
+
+func (opr OperationRef) GetInline() []string {
+	return opr.Inline
 }
 
 func (opr OperationRef) extractPathItem() string {
@@ -83,6 +88,19 @@ func (osr *OpenAPIOperationStoreRef) hasValue() bool {
 
 func (osr *OpenAPIOperationStoreRef) extractMethodItem() string {
 	return extractSuffix(osr.Ref)
+}
+
+type LocalSchemaRef struct {
+	Ref   string `json:"$ref" yaml:"$ref"`
+	Value *standardSchema
+}
+
+func (osr *LocalSchemaRef) hasValue() bool {
+	return osr.Value != nil
+}
+
+func (osr *LocalSchemaRef) getSchema() (*standardSchema, bool) {
+	return osr.Value, osr.hasValue()
 }
 
 type PathItemRef struct {

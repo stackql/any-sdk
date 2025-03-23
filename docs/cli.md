@@ -28,6 +28,7 @@ The `const` command is very much a trivial "Hello World":
 
 ### Query
 
+HTTP Provider:
 
 ```bash
 
@@ -50,5 +51,38 @@ export GOOGLE_CREDENTIALS="$(cat cicd/keys/google-ro-credentials.json)"
   --method list \
   --parameters '{ "project": "stackql-demo" }' \
   | jq -r '.items[].id'
+
+```
+
+Local templated provider mutation:
+
+```bash
+
+./build/anysdk query \
+  --svc-file-path="test/registry/src/local_openssl/v0.1.0/services/keys.yaml" \
+  --prov-file-path="test/registry/src/local_openssl/v0.1.0/provider.yaml" \
+  --resource rsa \
+  --method create_key_pair \
+  --parameters '{ 
+			"config_file":   "test/openssl/openssl.cnf",
+			"key_out_file":  "test/tmp/key.pem",
+			"cert_out_file": "test/tmp/cert.pem",
+			"days":          90
+		}'
+
+```
+
+Local templated provider selection:
+
+```bash
+
+./build/anysdk query \
+  --svc-file-path="test/registry/src/local_openssl/v0.1.0/services/keys.yaml" \
+  --prov-file-path="test/registry/src/local_openssl/v0.1.0/provider.yaml" \
+  --resource x509 \
+  --method describe_certificate \
+  --parameters '{
+			"cert_file": "test/tmp/cert.pem"
+		}'
 
 ```
