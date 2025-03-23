@@ -158,6 +158,7 @@ type HttpParameters interface {
 	SetRequestBodyParam(key string, val interface{})
 	SetRequestBody(map[string]interface{})
 	GetRequestBody() map[string]interface{}
+	GetInlineParameterFlatMap() (map[string]interface{}, error)
 }
 
 type standardHttpParameters struct {
@@ -169,6 +170,7 @@ type standardHttpParameters struct {
 	RequestBody  BodyMap
 	ResponseBody BodyMap
 	ServerParams ParamMap
+	InlineParams ParamMap
 	Unassigned   ParamMap
 	Region       EncodableString
 }
@@ -273,6 +275,10 @@ func (hp *standardHttpParameters) StoreParameter(param Addressable, val interfac
 		hp.ServerParams[param.GetName()] = NewParameterBinding(param, val)
 		return
 	}
+	if param.GetLocation() == "inline" {
+		hp.InlineParams[param.GetName()] = NewParameterBinding(param, val)
+		return
+	}
 }
 
 func (hp *standardHttpParameters) GetParameter(paramName, paramIn string) (ParameterBinding, bool) {
@@ -305,7 +311,7 @@ func (hp *standardHttpParameters) GetParameter(paramName, paramIn string) (Param
 		return rv, true
 	}
 	if paramIn == "server" {
-		rv, ok := hp.CookieParams[paramName]
+		rv, ok := hp.ServerParams[paramName]
 		if !ok {
 			return nil, false
 		}
@@ -403,6 +409,18 @@ func (hp *standardHttpParameters) GetServerParameterFlatMap() (map[string]interf
 	rv := make(map[string]interface{})
 	visited := make(map[string]struct{})
 	for k, v := range hp.ServerParams {
+		err := hp.updateStuff(k, v, rv, visited)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rv, nil
+}
+
+func (hp *standardHttpParameters) GetInlineParameterFlatMap() (map[string]interface{}, error) {
+	rv := make(map[string]interface{})
+	visited := make(map[string]struct{})
+	for k, v := range hp.InlineParams {
 		err := hp.updateStuff(k, v, rv, visited)
 		if err != nil {
 			return nil, err
