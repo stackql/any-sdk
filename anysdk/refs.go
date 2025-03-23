@@ -90,6 +90,19 @@ func (osr *OpenAPIOperationStoreRef) extractMethodItem() string {
 	return extractSuffix(osr.Ref)
 }
 
+type LocalSchemaRef struct {
+	Ref   string `json:"$ref" yaml:"$ref"`
+	Value *standardSchema
+}
+
+func (osr *LocalSchemaRef) hasValue() bool {
+	return osr.Value != nil
+}
+
+func (osr *LocalSchemaRef) getSchema() (*standardSchema, bool) {
+	return osr.Value, osr.hasValue()
+}
+
 type PathItemRef struct {
 	Ref   string `json:"$ref" yaml:"$ref"`
 	Value *openapi3.PathItem

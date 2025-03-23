@@ -11,7 +11,8 @@ type ExpectedResponse interface {
 	GetOpenAPIDocKey() string
 	GetObjectKey() string
 	GetSchema() Schema
-	getOverrideSchemaRef() (*openapi3.SchemaRef, bool)
+	getOverrideSchema() (*openapi3.Schema, bool)
+	GetTransform() (Transform, bool)
 	//
 	setSchema(Schema)
 	setBodyMediaType(string)
@@ -23,8 +24,8 @@ type standardExpectedResponse struct {
 	OpenAPIDocKey         string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
 	ObjectKey             string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
 	Schema                Schema
-	OverrideSchemaRef     *openapi3.SchemaRef `json:"overrideSchema,omitempty" yaml:"overrideSchema,omitempty"`
-	Transform             *standardTransform  `json:"transform,omitempty" yaml:"transform,omitempty"`
+	OverrideSchema        *openapi3.Schema   `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
+	Transform             *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
 }
 
 func (er *standardExpectedResponse) setBodyMediaType(s string) {
@@ -51,8 +52,13 @@ func (er *standardExpectedResponse) GetSchema() Schema {
 	return er.Schema
 }
 
-func (er *standardExpectedResponse) getOverrideSchemaRef() (*openapi3.SchemaRef, bool) {
-	return er.OverrideSchemaRef, er.OverrideSchemaRef != nil
+func (er *standardExpectedResponse) getOverrideSchema() (*openapi3.Schema, bool) {
+	isNilSchema := er.OverrideSchema == nil
+	if isNilSchema {
+		return nil, false
+	}
+	overrideSchema := er.OverrideSchema
+	return overrideSchema, true
 }
 
 func (er *standardExpectedResponse) GetTransform() (Transform, bool) {

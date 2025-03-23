@@ -4,33 +4,7 @@ info:
   contact:
     name: Support
     url: https://support.contrivedservice.contrivedprovider.com/contact
-paths:
-  /repos/{owner}/{repo}/pages:
-    get:
-      summary: Get a Pages site
-      servers:
-        - url: '{protocol}://{origin:^(?:[^\:/]+(?:\:[0-9]+)?|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(?:\:[0-9]+)?)$}/'
-          variables:
-            protocol:
-              default: https
-              enum:
-                - https
-                - http
-            origin:
-              default: pages.contrivedservice.contrivedprovider.com
-      operationId: contrivedservice/get-pages
-      parameters:
-        - $ref: '#/components/parameters/owner'
-        - $ref: '#/components/parameters/repo'
-      responses:
-        '200':
-          description: Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/page'
-        '404':
-          $ref: '#/components/responses/not_found'
+paths: {}
 components:
   schemas:
     basic-error:
@@ -53,11 +27,19 @@ components:
         type:
           type: string
           description: The key type
-          example: key
-        value:
+          example: x509
+        not_before:
           type: string
-          description: The value
-          example: value
+          description: Textual date representation of the key's not before date.
+          example: Mar 22 02:50:46 2025 GMT
+        not_after:
+          type: string
+          description: Textual date representation of the key's not after date.
+          example: Mar 22 02:50:46 2025 GMT
+        public_key_algorithm:
+          type: string
+          description: The public key algorithm used by the key.
+          example: rsaEncryption
     page:
       type: object
       properties:
@@ -218,10 +200,39 @@ resources:
               required: true
           response:
             schema_override:
-              $ref: '#/components/schemas/cert_display'
+              title: Key Display
+              type: object
+              properties:
+                type:
+                  Value:
+                    type: string
+                    description: The key type
+                    example: x509
+                not_before:
+                  $ref: "some_thing"
+                  Value:
+                    type: string
+                    description: Textual date representation of the key's not before date.
+                    example: Mar 22 02:50:46 2025 GMT
+                not_after:
+                  Value:
+                    type: string
+                    description: Textual date representation of the key's not after date.
+                    example: Mar 22 02:50:46 2025 GMT
+                public_key_algorithm:
+                  Value:
+                    type: string
+                    description: The public key algorithm used by the key.
+                    example: rsaEncryption
             transform:
-              body: '{ "type": "x509", "base64": "{{ . }}" }'
-              type: 'golang_template'
+              body: >
+                {{- $s := separator ", " -}}
+                {{- $root := . -}}
+                {{- $pubKeyAlgo := getRegexpFirstMatch $root "Public Key Algorithm: (?<anything>.*)" -}}
+                {{- $notBefore := getRegexpFirstMatch $root "Not Before: (.*)" -}}
+                {{- $notAfter := getRegexpFirstMatch $root "Not After(?:[ ]*): (.*)" -}}
+                { "type": "x509", "public_key_algorithm": "{{ $pubKeyAlgo }}", "not_before": "{{ $notBefore }}", "not_after": "{{ $notAfter }}"}
+              type: 'golang_template_v0.1.0'
 
     rsa:
       id: openssl_local.keys.rsa
