@@ -49,6 +49,9 @@ func (er *standardExpectedResponse) GetObjectKey() string {
 }
 
 func (er *standardExpectedResponse) GetSchema() Schema {
+	if er.OverrideSchema != nil {
+		return newSchema(er.OverrideSchema, nil, "", "")
+	}
 	return er.Schema
 }
 
