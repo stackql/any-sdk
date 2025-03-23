@@ -1363,6 +1363,9 @@ func (op *standardOpenAPIOperationStore) GetResponseBodySchemaAndMediaType() (Sc
 }
 
 func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Schema, string, error) {
+	if op.Response != nil && op.Response.OverrideSchema != nil {
+		return newSchema(op.Response.OverrideSchema, op.GetService(), "", ""), "", nil
+	}
 	if op.Response != nil && op.Response.Schema != nil {
 		mediaType := op.Response.BodyMediaType
 		if op.Response.OverrideBodyMediaType != "" {
