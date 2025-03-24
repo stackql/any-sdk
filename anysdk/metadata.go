@@ -60,11 +60,11 @@ func GetResourcesHeader(extended bool) []string {
 }
 
 type MetadataStore struct {
-	Store map[string]Service
+	Store map[string]OpenAPIService
 }
 
-func (ms *MetadataStore) GetServices() ([]Service, error) {
-	var retVal []Service
+func (ms *MetadataStore) GetServices() ([]OpenAPIService, error) {
+	var retVal []OpenAPIService
 	for _, svc := range ms.Store {
 		retVal = append(retVal, svc)
 	}

@@ -59,7 +59,16 @@ func getMockHttpRegistry(vc RegistryConfig) (RegistryAPI, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewRegistry(RegistryConfig{RegistryURL: defaultRegistryUrlString, LocalDocRoot: localRegPath, SrcPrefix: vc.SrcPrefix, AllowSrcDownload: vc.AllowSrcDownload}, rt)
+	return NewRegistry(
+		RegistryConfig{
+			RegistryURL:      defaultRegistryUrlString,
+			LocalDocRoot:     localRegPath,
+			SrcPrefix:        vc.SrcPrefix,
+			AllowSrcDownload: vc.AllowSrcDownload,
+			VerfifyConfig:    vc.VerfifyConfig,
+		},
+		rt,
+	)
 }
 
 func getMockFileRegistry(vc RegistryConfig, registryRoot string, useEmbedded bool) (RegistryAPI, error) {

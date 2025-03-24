@@ -26,67 +26,67 @@ var (
 )
 
 const (
-	individualDownloadAllowedRegistryCfgStr string = `{"allowSrcDownload": true }`
-	pullProvidersRegistryCfgStr             string = `{"srcPrefix": "test-src" }`
-	deprecatedRegistryCfgStr                string = `{"srcPrefix": "deprecated-src" }`
+	individualDownloadAllowedRegistryCfgStr string = `{"allowSrcDownload": true,  "verifyConfig": { "nopVerify": true } }`
+	pullProvidersRegistryCfgStr             string = `{"srcPrefix": "test-src",  "verifyConfig": { "nopVerify": true }   }`
+	deprecatedRegistryCfgStr                string = `{"srcPrefix": "deprecated-src",  "verifyConfig": { "nopVerify": true }   }`
 	unsignedProvidersRegistryCfgStr         string = `{"srcPrefix": "unsigned-src",  "verifyConfig": { "nopVerify": true }  }`
 )
 
 func init() {
 	var err error
-	OpenapiFileRoot, err = fileutil.GetFilePathFromRepositoryRoot("providers")
+	OpenapiFileRoot, err = fileutil.GetFilePathFromRepositoryRoot("test/registry/src")
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
-// func TestRegistrySimpleOktaApplicationServiceRead(t *testing.T) {
-// 	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistrySimpleOktaApplicationServiceRead)
-// }
+func TestRegistrySimpleOktaApplicationServiceRead(t *testing.T) {
+	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistrySimpleOktaApplicationServiceRead)
+}
 
-// func TestRegistryIndirectGoogleComputeResourcesJsonRead(t *testing.T) {
-// 	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryIndirectGoogleComputeResourcesJsonRead)
-// }
+func TestRegistryIndirectGoogleComputeResourcesJsonRead(t *testing.T) {
+	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryIndirectGoogleComputeResourcesJsonRead)
+}
 
-// func TestRegistryIndirectGoogleComputeServiceSubsetAccess(t *testing.T) {
-// 	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryIndirectGoogleComputeServiceSubsetAccess)
-// }
+func TestRegistryIndirectGoogleComputeServiceSubsetAccess(t *testing.T) {
+	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryIndirectGoogleComputeServiceSubsetAccess)
+}
 
-// func TestLocalRegistryIndirectGoogleComputeServiceSubsetAccess(t *testing.T) {
-// 	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryIndirectGoogleComputeServiceSubsetAccess)
-// }
+func TestLocalRegistryIndirectGoogleComputeServiceSubsetAccess(t *testing.T) {
+	execLocalAndRemoteRegistryTests(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryIndirectGoogleComputeServiceSubsetAccess)
+}
 
-// func TestProviderPull(t *testing.T) {
-// 	execLocalAndRemoteRegistryTests(t, pullProvidersRegistryCfgStr, execTestRegistrySimpleOktaPull)
-// }
+func TestProviderPull(t *testing.T) {
+	execLocalAndRemoteRegistryTests(t, pullProvidersRegistryCfgStr, execTestRegistrySimpleOktaPull)
+}
 
-// func TestProviderPullAndPersist(t *testing.T) {
-// 	execLocalAndRemoteRegistryTests(t, pullProvidersRegistryCfgStr, execTestRegistrySimpleOktaPullAndPersist)
-// }
+func TestProviderPullAndPersist(t *testing.T) {
+	execRemoteRegistryTestOnly(t, pullProvidersRegistryCfgStr, execTestRegistrySimpleOktaPullAndPersist)
+}
 
-// func TestRegistryIndirectGoogleComputeServiceMethodResolutionSeparateDocs(t *testing.T) {
-// 	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryIndirectGoogleComputeServiceMethodResolutionSeparateDocs)
-// }
+func TestRegistryIndirectGoogleComputeServiceMethodResolutionSeparateDocs(t *testing.T) {
+	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryIndirectGoogleComputeServiceMethodResolutionSeparateDocs)
+}
 
-// func TestRegistryArrayTopLevelResponse(t *testing.T) {
-// 	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryCanHandleArrayResponts)
-// }
+func TestRegistryArrayTopLevelResponse(t *testing.T) {
+	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryCanHandleArrayResponts)
+}
 
-// func TestRegistryCanHandleUnspecifiedResponseWithDefaults(t *testing.T) {
-// 	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryCanHandleUnspecifiedResponseWithDefaults)
-// }
+func TestRegistryCanHandleUnspecifiedResponseWithDefaults(t *testing.T) {
+	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryCanHandleUnspecifiedResponseWithDefaults)
+}
 
-// func TestRegistryCanHandlePolymorphismAllOf(t *testing.T) {
-// 	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryCanHandlePolymorphismAllOf)
-// }
+func TestRegistryCanHandlePolymorphismAllOf(t *testing.T) {
+	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryCanHandlePolymorphismAllOf)
+}
 
-// func TestListProvidersRegistry(t *testing.T) {
-// 	execRemoteRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryProvidersList)
-// }
+func TestListProvidersRegistry(t *testing.T) {
+	execRemoteRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryProvidersList)
+}
 
-// func TestListProviderVersionsRegistry(t *testing.T) {
-// 	execRemoteRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryProviderVersionsList)
-// }
+func TestListProviderVersionsRegistry(t *testing.T) {
+	execRemoteRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestRegistryProviderVersionsList)
+}
 
 func execLocalAndRemoteRegistryTests(t *testing.T, registryConfigStr string, tf func(t *testing.T, r RegistryAPI)) {
 
@@ -557,29 +557,93 @@ func execTestRegistryCanHandlePolymorphismAllOf(t *testing.T, r RegistryAPI) {
 
 }
 
-// func TestRegistryProviderLatestVersion(t *testing.T) {
+func TestRegistryLocalTemplated(t *testing.T) {
+	execLocalRegistryTestOnly(t, individualDownloadAllowedRegistryCfgStr, execTestRegistryLocalTemplated)
+}
 
-// 	rc, err := getRegistryCfgFromString(individualDownloadAllowedRegistryCfgStr)
-// 	assert.NilError(t, err)
-// 	r, err := GetMockLocalRegistry(rc)
-// 	assert.NilError(t, err)
-// 	v, err := r.GetLatestAvailableVersion("google")
-// 	assert.NilError(t, err)
-// 	assert.Equal(t, v, "v0.1.2")
-// 	vo, err := r.GetLatestAvailableVersion("okta")
-// 	assert.NilError(t, err)
-// 	assert.Equal(t, vo, "v0.1.0")
+func execTestRegistryLocalTemplated(t *testing.T, r RegistryAPI) {
 
-// 	rc, err = getRegistryCfgFromString(deprecatedRegistryCfgStr)
-// 	assert.NilError(t, err)
-// 	r, err = GetMockLocalRegistry(rc)
-// 	assert.NilError(t, err)
-// 	v, err = r.GetLatestAvailableVersion("google")
-// 	assert.NilError(t, err)
-// 	assert.Equal(t, v, "v1")
-// 	vo, err = r.GetLatestAvailableVersion("okta")
-// 	assert.NilError(t, err)
-// 	assert.Equal(t, vo, "v1")
+	for _, vr := range []string{"v0.1.0"} {
+		pr, err := r.LoadProviderByName("local_openssl", vr)
+		if err != nil {
+			t.Fatalf("Test failed: %v", err)
+		}
 
-// 	t.Logf("TestRegistryProviderLatestVersion passed\n")
-// }
+		sh, err := pr.GetProviderService("keys")
+
+		if err != nil {
+			t.Fatalf("Test failed: %v", err)
+		}
+
+		assert.Assert(t, sh != nil)
+
+		sv, err := r.GetServiceFragment(sh, "keys")
+
+		assert.NilError(t, err)
+
+		assert.Assert(t, sv != nil)
+
+		// sn := sv.GetName()
+
+		// assert.Equal(t, sn, "repos")
+
+		rsc, err := sv.GetResource("rsa")
+
+		assert.NilError(t, err)
+
+		method, ok := rsc.GetMethods().FindMethod("create_key_pair")
+
+		assert.Assert(t, ok)
+
+		assert.Assert(t, method != nil)
+
+		// assert.Equal(t, os.GetOperationRef().Value.OperationID, "apps/create-from-manifest")
+
+		// assert.Equal(t, os.GetOperationRef().Value.Responses["201"].Value.Content["application/json"].Schema.Value.Type, "")
+
+		// sVal := NewTestSchema(os.GetOperationRef().Value.Responses["201"].Value.Content["application/json"].Schema.Value, sv, "", os.GetOperationRef().Value.Responses["201"].Value.Content["application/json"].Schema.Ref)
+
+		// tab := sVal.Tabulate(false, "")
+
+		// colz := tab.GetColumns()
+
+		// for _, expectedProperty := range []string{"pem", "description"} {
+		// 	found := false
+		// 	for _, col := range colz {
+		// 		if col.GetName() == expectedProperty {
+		// 			found = true
+		// 			break
+		// 		}
+		// 	}
+		// 	assert.Assert(t, found)
+		// }
+	}
+
+}
+
+func TestRegistryProviderLatestVersion(t *testing.T) {
+
+	rc, err := getRegistryCfgFromString(individualDownloadAllowedRegistryCfgStr)
+	assert.NilError(t, err)
+	r, err := GetMockLocalRegistry(rc)
+	assert.NilError(t, err)
+	v, err := r.GetLatestAvailableVersion("google")
+	assert.NilError(t, err)
+	assert.Equal(t, v, "v0.1.2")
+	vo, err := r.GetLatestAvailableVersion("okta")
+	assert.NilError(t, err)
+	assert.Equal(t, vo, "v0.1.0")
+
+	rc, err = getRegistryCfgFromString(deprecatedRegistryCfgStr)
+	assert.NilError(t, err)
+	r, err = GetMockLocalRegistry(rc)
+	assert.NilError(t, err)
+	v, err = r.GetLatestAvailableVersion("google")
+	assert.NilError(t, err)
+	assert.Equal(t, v, "v1")
+	vo, err = r.GetLatestAvailableVersion("okta")
+	assert.NilError(t, err)
+	assert.Equal(t, vo, "v1")
+
+	t.Logf("TestRegistryProviderLatestVersion passed\n")
+}

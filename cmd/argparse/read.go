@@ -53,8 +53,7 @@ var execCmd = &cobra.Command{
 func runReadCommand(rtCtx dto.RuntimeCtx, arg string) {
 	b, err := os.ReadFile(arg)
 	printErrorAndExitOneIfError(err)
-	l := anysdk.NewLoader()
-	svc, err := l.LoadFromBytes(b)
+	svc, err := anysdk.ReadService(b)
 	printErrorAndExitOneIfError(err)
 	printErrorAndExitOneIfNil(svc, "doc parse gave me doughnuts!!!\n\n")
 	fmt.Fprintf(os.Stdout, "\nsuccessfully parsed svc = '%s'\n", svc.GetName())

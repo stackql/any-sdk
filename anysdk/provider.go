@@ -6,6 +6,7 @@ import (
 	"github.com/getkin/kin-openapi/jsoninfo"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/client"
 )
 
 var (
@@ -18,6 +19,7 @@ type ResponseKeys struct {
 }
 
 type Provider interface {
+	GetProtocolType() (client.ClientProtocolType, error)
 	Debug() string
 	GetAuth() (AuthDTO, bool)
 	GetDeleteItemsKey() string
@@ -26,7 +28,7 @@ type Provider interface {
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	GetProviderService(key string) (ProviderService, error)
-	GetQueryTransposeAlgorithm() string
+	getQueryTransposeAlgorithm() string
 	GetRequestTranslateAlgorithm() string
 	GetResourcesShallow(serviceKey string) (ResourceRegister, error)
 	GetStackQLConfig() (StackQLConfig, bool)
@@ -46,6 +48,7 @@ type standardProvider struct {
 	Name             string                              `json:"name" yaml:"name"`
 	Title            string                              `json:"title" yaml:"title"`
 	Version          string                              `json:"version" yaml:"version"`
+	ProtocolType     string                              `json:"protocolType" yaml:"protocolType"`
 	Description      string                              `json:"description,omitempty" yaml:"desription,omitempty"`
 	ProviderServices map[string]*standardProviderService `json:"providerServices,omitempty" yaml:"providerServices,omitempty"`
 	StackQLConfig    *standardStackQLConfig              `json:"config,omitempty" yaml:"config,omitempty"`
@@ -70,6 +73,13 @@ func (pr *standardProvider) GetName() string {
 	return pr.Name
 }
 
+func (sv *standardProvider) GetProtocolType() (client.ClientProtocolType, error) {
+	if sv.ProtocolType == "" {
+		return client.ClientProtocolTypeFromString(client.ClientProtocolTypeHTTP)
+	}
+	return client.ClientProtocolTypeFromString(sv.ProtocolType)
+}
+
 func (pr *standardProvider) GetStackQLConfig() (StackQLConfig, bool) {
 	return pr.StackQLConfig, pr.StackQLConfig != nil
 }
@@ -78,7 +88,7 @@ func (pr *standardProvider) GetDeleteItemsKey() string {
 	return pr.DeleteItemsKey
 }
 
-func (pr *standardProvider) GetQueryTransposeAlgorithm() string {
+func (pr *standardProvider) getQueryTransposeAlgorithm() string {
 	if pr.StackQLConfig == nil || pr.StackQLConfig.QueryTranspose == nil {
 		return ""
 	}

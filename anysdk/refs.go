@@ -11,12 +11,17 @@ import (
 )
 
 type OperationRef struct {
-	Ref   string `json:"$ref" yaml:"$ref"`
-	Value *openapi3.Operation
+	Ref    string `json:"$ref" yaml:"$ref"`
+	Value  *openapi3.Operation
+	Inline []string `json:"inline" yaml:"inline"`
 }
 
 func (opr OperationRef) ExtractPathItem() string {
 	return opr.extractPathItem()
+}
+
+func (opr OperationRef) GetInline() []string {
+	return opr.Inline
 }
 
 func (opr OperationRef) extractPathItem() string {
@@ -72,17 +77,30 @@ func (opr OperationRef) extractFragment() string {
 	return extractFragment(opr.Ref)
 }
 
-type OperationStoreRef struct {
+type OpenAPIOperationStoreRef struct {
 	Ref   string `json:"$ref" yaml:"$ref"`
-	Value *standardOperationStore
+	Value *standardOpenAPIOperationStore
 }
 
-func (osr *OperationStoreRef) hasValue() bool {
+func (osr *OpenAPIOperationStoreRef) hasValue() bool {
 	return osr.Value != nil
 }
 
-func (osr *OperationStoreRef) extractMethodItem() string {
+func (osr *OpenAPIOperationStoreRef) extractMethodItem() string {
 	return extractSuffix(osr.Ref)
+}
+
+type LocalSchemaRef struct {
+	Ref   string `json:"$ref" yaml:"$ref"`
+	Value *standardSchema
+}
+
+func (osr *LocalSchemaRef) hasValue() bool {
+	return osr.Value != nil
+}
+
+func (osr *LocalSchemaRef) getSchema() (*standardSchema, bool) {
+	return osr.Value, osr.hasValue()
 }
 
 type PathItemRef struct {
@@ -126,24 +144,24 @@ func (value OperationRef) JSONLookup(token string) (interface{}, error) {
 	return ptr, err
 }
 
-var _ jsonpointer.JSONPointable = (*OperationStoreRef)(nil)
+var _ jsonpointer.JSONPointable = (*OpenAPIOperationStoreRef)(nil)
 
-func (value *OperationStoreRef) MarshalJSON() ([]byte, error) {
+func (value *OpenAPIOperationStoreRef) MarshalJSON() ([]byte, error) {
 	return jsoninfo.MarshalRef(value.Ref, value.Value)
 }
 
-func (value *OperationStoreRef) UnmarshalJSON(data []byte) error {
+func (value *OpenAPIOperationStoreRef) UnmarshalJSON(data []byte) error {
 	return jsoninfo.UnmarshalRef(data, &value.Ref, &value.Value)
 }
 
-// func (value *OperationStoreRef) Validate(ctx context.Context) error {
+// func (value *OpenAPIOperationStoreRef) Validate(ctx context.Context) error {
 // 	if v := value.Value; v != nil {
 // 		return v.Validate(ctx)
 // 	}
 // 	return foundUnresolvedRef(value.Ref)
 // }
 
-func (value OperationStoreRef) JSONLookup(token string) (interface{}, error) {
+func (value OpenAPIOperationStoreRef) JSONLookup(token string) (interface{}, error) {
 	if token == "$ref" {
 		return value.Ref, nil
 	}

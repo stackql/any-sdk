@@ -1,0 +1,54 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "go",
+            "request": "launch",
+            "name": "Run standalone file",
+            "mode": "auto",
+            "program": "${file}",
+            "envFile": "${workspaceFolder}/.vscode/.env",
+        },
+        {
+            "type": "go",
+            "request": "launch",
+            "name": "CLI local: rsa openssl create",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/interrogate",
+            "envFile": "${workspaceFolder}/.vscode/.env",
+            "args": [
+                "query",
+                "--svc-file-path=${workspaceFolder}/test/registry/src/local_openssl/v0.1.0/services/keys.yaml",
+                "--prov-file-path=${workspaceFolder}/test/registry/src/local_openssl/v0.1.0/provider.yaml",
+                "--resource",
+                "rsa",
+                "--method",
+                "create_key_pair",
+                "--parameters",
+                "{ \"config_file\":   \"${workspaceFolder}/test/openssl/openssl.cnf\", \"key_out_file\": \"${workspaceFolder}/test/tmp/key.pem\", \"cert_out_file\": \"${workspaceFolder}/test/tmp/cert.pem\", \"days\": 90}"
+            ]
+        },
+        {
+            "type": "go",
+            "request": "launch",
+            "name": "CLI local: x509 openssl describe",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/interrogate",
+            "envFile": "${workspaceFolder}/.vscode/.env",
+            "args": [
+                "query",
+                "--svc-file-path=${workspaceFolder}/test/registry/src/local_openssl/v0.1.0/services/keys.yaml",
+                "--prov-file-path=${workspaceFolder}/test/registry/src/local_openssl/v0.1.0/provider.yaml",
+                "--resource",
+                "x509",
+                "--method",
+                "describe_certificate",
+                "--parameters",
+                "{ \"cert_file\": \"${workspaceFolder}/test/tmp/cert.pem\"}"
+            ]
+        }
+    ]
+}

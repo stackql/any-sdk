@@ -154,14 +154,15 @@ type HttpParameters interface {
 	GetRemainingQueryParamsFlatMap(keysRemaining map[string]interface{}) (map[string]interface{}, error)
 	GetServerParameterFlatMap() (map[string]interface{}, error)
 	SetResponseBodyParam(key string, val interface{})
-	SetServerParam(key string, svc Service, val interface{})
+	SetServerParam(key string, svc OpenAPIService, val interface{})
 	SetRequestBodyParam(key string, val interface{})
 	SetRequestBody(map[string]interface{})
 	GetRequestBody() map[string]interface{}
+	GetInlineParameterFlatMap() (map[string]interface{}, error)
 }
 
 type standardHttpParameters struct {
-	opStore      OperationStore
+	opStore      StandardOperationStore
 	CookieParams ParamMap
 	HeaderParams ParamMap
 	PathParams   ParamMap
@@ -169,11 +170,12 @@ type standardHttpParameters struct {
 	RequestBody  BodyMap
 	ResponseBody BodyMap
 	ServerParams ParamMap
+	InlineParams ParamMap
 	Unassigned   ParamMap
 	Region       EncodableString
 }
 
-func NewHttpParameters(method OperationStore) HttpParameters {
+func NewHttpParameters(method StandardOperationStore) HttpParameters {
 	return &standardHttpParameters{
 		opStore:      method,
 		CookieParams: make(ParamMap),
@@ -183,6 +185,7 @@ func NewHttpParameters(method OperationStore) HttpParameters {
 		RequestBody:  make(BodyMap),
 		ResponseBody: make(BodyMap),
 		ServerParams: make(ParamMap),
+		InlineParams: make(ParamMap),
 		Unassigned:   make(ParamMap),
 	}
 }
@@ -218,7 +221,7 @@ func (hp *standardHttpParameters) SetResponseBodyParam(key string, val interface
 	hp.ResponseBody[key] = val
 }
 
-func (hp *standardHttpParameters) SetServerParam(key string, svc Service, val interface{}) {
+func (hp *standardHttpParameters) SetServerParam(key string, svc OpenAPIService, val interface{}) {
 	hp.ServerParams[key] = NewParameterBinding(NewParameter(&openapi3.Parameter{In: "server"}, svc), val)
 }
 
@@ -273,6 +276,10 @@ func (hp *standardHttpParameters) StoreParameter(param Addressable, val interfac
 		hp.ServerParams[param.GetName()] = NewParameterBinding(param, val)
 		return
 	}
+	if param.GetLocation() == "inline" {
+		hp.InlineParams[param.GetName()] = NewParameterBinding(param, val)
+		return
+	}
 }
 
 func (hp *standardHttpParameters) GetParameter(paramName, paramIn string) (ParameterBinding, bool) {
@@ -305,7 +312,7 @@ func (hp *standardHttpParameters) GetParameter(paramName, paramIn string) (Param
 		return rv, true
 	}
 	if paramIn == "server" {
-		rv, ok := hp.CookieParams[paramName]
+		rv, ok := hp.ServerParams[paramName]
 		if !ok {
 			return nil, false
 		}
@@ -325,7 +332,7 @@ func (hp *standardHttpParameters) processFuncHTTPParam(key string, param interfa
 			case *sqlparser.AliasedExpr:
 				switch argExpr := ex.Expr.(type) {
 				case *sqlparser.SQLVal:
-					queryTransposer := querytranspose.NewQueryTransposer(hp.opStore.GetQueryTransposeAlgorithm(), argExpr.Val, key)
+					queryTransposer := querytranspose.NewQueryTransposer(hp.opStore.getQueryTransposeAlgorithm(), argExpr.Val, key)
 					return queryTransposer.Transpose()
 				default:
 					return nil, fmt.Errorf("cannot process json function underlying arg of type = '%T'", argExpr)
@@ -403,6 +410,18 @@ func (hp *standardHttpParameters) GetServerParameterFlatMap() (map[string]interf
 	rv := make(map[string]interface{})
 	visited := make(map[string]struct{})
 	for k, v := range hp.ServerParams {
+		err := hp.updateStuff(k, v, rv, visited)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rv, nil
+}
+
+func (hp *standardHttpParameters) GetInlineParameterFlatMap() (map[string]interface{}, error) {
+	rv := make(map[string]interface{})
+	visited := make(map[string]struct{})
+	for k, v := range hp.InlineParams {
 		err := hp.updateStuff(k, v, rv, visited)
 		if err != nil {
 			return nil, err

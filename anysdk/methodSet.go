@@ -1,25 +1,25 @@
 package anysdk
 
-type MethodSet []OperationStore
+type MethodSet []StandardOperationStore
 
-func (ms MethodSet) GetFirstMatch(params map[string]interface{}) (OperationStore, map[string]interface{}, bool) {
+func (ms MethodSet) GetFirstMatch(params map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
 	return ms.getFirstMatch(params)
 }
 
-func (ms MethodSet) GetFirst() (OperationStore, string, bool) {
+func (ms MethodSet) GetFirst() (StandardOperationStore, string, bool) {
 	return ms.getFirst()
 }
 
-func (ms MethodSet) getFirstMatch(params map[string]interface{}) (OperationStore, map[string]interface{}, bool) {
+func (ms MethodSet) getFirstMatch(params map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
 	for _, m := range ms {
-		if remainingParams, ok := m.ParameterMatch(params); ok {
+		if remainingParams, ok := m.parameterMatch(params); ok {
 			return m, remainingParams, true
 		}
 	}
 	return nil, params, false
 }
 
-func (ms MethodSet) getFirst() (OperationStore, string, bool) {
+func (ms MethodSet) getFirst() (StandardOperationStore, string, bool) {
 	for _, m := range ms {
 		return m, m.getName(), true
 	}

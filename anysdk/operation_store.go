@@ -35,10 +35,10 @@ const (
 )
 
 var (
-	_ OperationStore = &standardOperationStore{}
+	_ StandardOperationStore = &standardOpenAPIOperationStore{}
 )
 
-func sortOperationStoreSlices(opSlices ...[]OperationStore) {
+func sortOpenAPIOperationStoreSlices(opSlices ...[]StandardOperationStore) {
 	for _, opSlice := range opSlices {
 		sort.SliceStable(opSlice, func(i, j int) bool {
 			return opSlice[i].GetMethodKey() < opSlice[j].GetMethodKey()
@@ -46,8 +46,8 @@ func sortOperationStoreSlices(opSlices ...[]OperationStore) {
 	}
 }
 
-func combineOperationStoreSlices(opSlices ...[]OperationStore) []OperationStore {
-	var rv []OperationStore
+func combineOpenAPIOperationStoreSlices(opSlices ...[]StandardOperationStore) []StandardOperationStore {
+	var rv []StandardOperationStore
 	for _, sl := range opSlices {
 		rv = append(rv, sl...)
 	}
@@ -64,6 +64,7 @@ type OperationStore interface {
 	GetParameters() map[string]Addressable
 	GetPathItem() *openapi3.PathItem
 	GetAPIMethod() string
+	GetInline() []string
 	GetOperationRef() *OperationRef
 	GetPathRef() *PathItemRef
 	GetRequest() (ExpectedRequest, bool)
@@ -72,14 +73,13 @@ type OperationStore interface {
 	GetParameterizedPath() string
 	GetProviderService() ProviderService
 	GetProvider() Provider
-	GetService() Service
+	GetService() OpenAPIService
 	GetResource() Resource
-	ParameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
+	parameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
 	GetOperationParameter(key string) (Addressable, bool)
-	GetQueryTransposeAlgorithm() string
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
-	ProcessResponse(*http.Response) (ProcessedOperationResponse, error)
-	Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
+	ProcessResponse(*http.Response) (ProcessedOperationResponse, error) // to be removed
+	parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
 	GetSelectItemsKey() string
 	GetResponseBodySchemaAndMediaType() (Schema, string, error)
 	GetRequiredParameters() map[string]Addressable
@@ -102,9 +102,14 @@ type OperationStore interface {
 	RevertRequestBodyAttributeRename(string) (string, error)
 	IsRequestBodyAttributeRenamed(string) bool
 	GetRequiredNonBodyParameters() map[string]Addressable
-	//
-	getRequiredNonBodyParameters() map[string]Addressable
 	getServiceNameForProvider() string
+}
+
+type StandardOperationStore interface {
+	OperationStore
+	//
+	getQueryTransposeAlgorithm() string
+	getRequiredNonBodyParameters() map[string]Addressable
 	getDefaultRequestBodyBytes() []byte
 	getBaseRequestBodyBytes() []byte
 	getName() string
@@ -120,7 +125,7 @@ type OperationStore interface {
 	setProvider(Provider)
 	setProviderService(ProviderService)
 	setResource(Resource)
-	setService(Service)
+	setService(OpenAPIService)
 	setOperationRef(*OperationRef)
 	setPathItem(*openapi3.PathItem)
 	renameRequestBodyAttribute(string) (string, error)
@@ -134,31 +139,39 @@ type OperationStore interface {
 	// getRequestBodyAttributeLineage(string) (string, error)
 }
 
-type standardOperationStore struct {
+type standardOpenAPIOperationStore struct {
 	MethodKey     string                 `json:"-" yaml:"-"`
 	SQLVerb       string                 `json:"-" yaml:"-"`
 	GraphQL       GraphQL                `json:"-" yaml:"-"`
 	StackQLConfig *standardStackQLConfig `json:"config,omitempty" yaml:"config,omitempty"`
 	// Optional parameters.
-	Parameters   map[string]interface{}    `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	PathItem     *openapi3.PathItem        `json:"-" yaml:"-"`                 // Required
-	APIMethod    string                    `json:"apiMethod" yaml:"apiMethod"` // Required
-	OperationRef *OperationRef             `json:"operation" yaml:"operation"` // Required
-	PathRef      *PathItemRef              `json:"path" yaml:"path"`           // Deprecated
-	Request      *standardExpectedRequest  `json:"request" yaml:"request"`
-	Response     *standardExpectedResponse `json:"response" yaml:"response"`
-	Servers      *openapi3.Servers         `json:"servers" yaml:"servers"`
-	Inverse      *operationInverse         `json:"inverse" yaml:"inverse"`
-	ServiceName  string                    `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
+	Parameters   map[string]map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	PathItem     *openapi3.PathItem                `json:"-" yaml:"-"`                 // Required
+	APIMethod    string                            `json:"apiMethod" yaml:"apiMethod"` // Required
+	OperationRef *OperationRef                     `json:"operation" yaml:"operation"` // Required
+	InlineOp     []string                          `json:"inline" yaml:"inline"`       // Deprecated
+	PathRef      *PathItemRef                      `json:"path" yaml:"path"`           // Deprecated
+	Request      *standardExpectedRequest          `json:"request" yaml:"request"`
+	Response     *standardExpectedResponse         `json:"response" yaml:"response"`
+	Servers      *openapi3.Servers                 `json:"servers" yaml:"servers"`
+	Inverse      *operationInverse                 `json:"inverse" yaml:"inverse"`
+	ServiceName  string                            `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
 	// private
 	parameterizedPath string          `json:"-" yaml:"-"`
 	ProviderService   ProviderService `json:"-" yaml:"-"` // upwards traversal
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
-	Service           Service         `json:"-" yaml:"-"` // upwards traversal
+	OpenAPIService    OpenAPIService  `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
 }
 
-func (op *standardOperationStore) getXMLDeclaration() string {
+func (op *standardOpenAPIOperationStore) GetInline() []string {
+	if op.InlineOp != nil {
+		return op.InlineOp
+	}
+	return []string{}
+}
+
+func (op *standardOpenAPIOperationStore) getXMLDeclaration() string {
 	rv := ""
 	if op.Request != nil {
 		rv = op.Request.XMLDeclaration
@@ -169,17 +182,17 @@ func (op *standardOperationStore) getXMLDeclaration() string {
 	return rv
 }
 
-func (op *standardOperationStore) getServiceNameForProvider() string {
+func (op *standardOpenAPIOperationStore) getServiceNameForProvider() string {
 	if op.ServiceName != "" {
 		return op.ServiceName
 	}
-	if op.Service != nil {
-		return op.Service.GetName()
+	if op.OpenAPIService != nil {
+		return op.OpenAPIService.GetName()
 	}
 	return ""
 }
 
-func (op *standardOperationStore) getXMLRootAnnotation() string {
+func (op *standardOpenAPIOperationStore) getXMLRootAnnotation() string {
 	rv := ""
 	if op.Request != nil {
 		rv = op.Request.XMLRootAnnotation
@@ -187,7 +200,7 @@ func (op *standardOperationStore) getXMLRootAnnotation() string {
 	return rv
 }
 
-func (op *standardOperationStore) getXMLTransform() string {
+func (op *standardOpenAPIOperationStore) getXMLTransform() string {
 	rv := ""
 	if op.Request != nil {
 		rv = op.Request.XMLTransform
@@ -198,7 +211,7 @@ func (op *standardOperationStore) getXMLTransform() string {
 	return rv
 }
 
-func (op *standardOperationStore) getRequestBodyStringifiedPaths() (map[string]struct{}, error) {
+func (op *standardOpenAPIOperationStore) getRequestBodyStringifiedPaths() (map[string]struct{}, error) {
 	rv := make(map[string]struct{})
 	requestBodySchema, schemaErr := op.getRequestBodySchema()
 	if schemaErr != nil {
@@ -215,60 +228,60 @@ func (op *standardOperationStore) getRequestBodyStringifiedPaths() (map[string]s
 	return rv, nil
 }
 
-func NewEmptyOperationStore() OperationStore {
-	return &standardOperationStore{
-		Parameters: make(map[string]interface{}),
+func NewEmptyOperationStore() StandardOperationStore {
+	return &standardOpenAPIOperationStore{
+		Parameters: make(map[string]map[string]interface{}),
 	}
 }
 
-func (op *standardOperationStore) getRequestBodyMediaType() string {
+func (op *standardOpenAPIOperationStore) getRequestBodyMediaType() string {
 	if op.Request != nil {
 		return op.Request.BodyMediaType
 	}
 	return ""
 }
 
-func (op *standardOperationStore) getRequestBodyMediaTypeNormalised() string {
+func (op *standardOpenAPIOperationStore) getRequestBodyMediaTypeNormalised() string {
 	return media.NormaliseMediaType(op.getRequestBodyMediaType())
 }
 
-func (op *standardOperationStore) setPathItem(pi *openapi3.PathItem) {
+func (op *standardOpenAPIOperationStore) setPathItem(pi *openapi3.PathItem) {
 	op.PathItem = pi
 }
 
-func (op *standardOperationStore) setService(svc Service) {
-	op.Service = svc
+func (op *standardOpenAPIOperationStore) setService(svc OpenAPIService) {
+	op.OpenAPIService = svc
 }
 
-func (op *standardOperationStore) setOperationRef(opr *OperationRef) {
+func (op *standardOpenAPIOperationStore) setOperationRef(opr *OperationRef) {
 	op.OperationRef = opr
 }
 
-func (op *standardOperationStore) setProvider(pr Provider) {
+func (op *standardOpenAPIOperationStore) setProvider(pr Provider) {
 	op.Provider = pr
 }
 
-func (op *standardOperationStore) setProviderService(ps ProviderService) {
+func (op *standardOpenAPIOperationStore) setProviderService(ps ProviderService) {
 	op.ProviderService = ps
 }
 
-func (op *standardOperationStore) setResource(rs Resource) {
+func (op *standardOpenAPIOperationStore) setResource(rs Resource) {
 	op.Resource = rs
 }
 
-func (op *standardOperationStore) setServers(servers *openapi3.Servers) {
+func (op *standardOpenAPIOperationStore) setServers(servers *openapi3.Servers) {
 	op.Servers = servers
 }
 
-func (op *standardOperationStore) setGraphQL(gql GraphQL) {
+func (op *standardOpenAPIOperationStore) setGraphQL(gql GraphQL) {
 	op.GraphQL = gql
 }
 
-func (op *standardOperationStore) setRequest(req *standardExpectedRequest) {
+func (op *standardOpenAPIOperationStore) setRequest(req *standardExpectedRequest) {
 	op.Request = req
 }
 
-func (op *standardOperationStore) getDefaultRequestBodyBytes() []byte {
+func (op *standardOpenAPIOperationStore) getDefaultRequestBodyBytes() []byte {
 	var rv []byte
 	if op.Request != nil && op.Request.Default != "" {
 		rv = []byte(op.Request.Default)
@@ -276,7 +289,7 @@ func (op *standardOperationStore) getDefaultRequestBodyBytes() []byte {
 	return rv
 }
 
-func (op *standardOperationStore) getBaseRequestBodyBytes() []byte {
+func (op *standardOpenAPIOperationStore) getBaseRequestBodyBytes() []byte {
 	var rv []byte
 	if op.Request != nil && op.Request.Base != "" {
 		rv = []byte(op.Request.Base)
@@ -284,35 +297,35 @@ func (op *standardOperationStore) getBaseRequestBodyBytes() []byte {
 	return rv
 }
 
-func (op *standardOperationStore) setResponse(resp *standardExpectedResponse) {
+func (op *standardOpenAPIOperationStore) setResponse(resp *standardExpectedResponse) {
 	op.Response = resp
 }
 
-func (op *standardOperationStore) setMethodKey(methodKey string) {
+func (op *standardOpenAPIOperationStore) setMethodKey(methodKey string) {
 	op.MethodKey = methodKey
 }
 
-func (op *standardOperationStore) setSQLVerb(sqlVerb string) {
+func (op *standardOpenAPIOperationStore) setSQLVerb(sqlVerb string) {
 	op.SQLVerb = sqlVerb
 }
 
-func (op *standardOperationStore) GetMethodKey() string {
+func (op *standardOpenAPIOperationStore) GetMethodKey() string {
 	return op.MethodKey
 }
 
-func (op *standardOperationStore) GetSQLVerb() string {
+func (op *standardOpenAPIOperationStore) GetSQLVerb() string {
 	return op.SQLVerb
 }
 
-func (op *standardOperationStore) GetGraphQL() GraphQL {
+func (op *standardOpenAPIOperationStore) GetGraphQL() GraphQL {
 	return op.GraphQL
 }
 
-func (op *standardOperationStore) GetInverse() (OperationInverse, bool) {
+func (op *standardOpenAPIOperationStore) GetInverse() (OperationInverse, bool) {
 	return op.Inverse, op.Inverse != nil
 }
 
-func (op *standardOperationStore) GetStackQLConfig() StackQLConfig {
+func (op *standardOpenAPIOperationStore) GetStackQLConfig() StackQLConfig {
 	rv, isPresent := op.getStackQLConfig()
 	if !isPresent {
 		return nil
@@ -320,46 +333,46 @@ func (op *standardOperationStore) GetStackQLConfig() StackQLConfig {
 	return rv
 }
 
-func (op *standardOperationStore) getStackQLConfig() (StackQLConfig, bool) {
+func (op *standardOpenAPIOperationStore) getStackQLConfig() (StackQLConfig, bool) {
 	rv := op.StackQLConfig
 	return rv, rv != nil
 }
 
-func (op *standardOperationStore) GetAPIMethod() string {
+func (op *standardOpenAPIOperationStore) GetAPIMethod() string {
 	return op.APIMethod
 }
 
-func (op *standardOperationStore) GetOperationRef() *OperationRef {
+func (op *standardOpenAPIOperationStore) GetOperationRef() *OperationRef {
 	return op.OperationRef
 }
 
-func (op *standardOperationStore) GetPathRef() *PathItemRef {
+func (op *standardOpenAPIOperationStore) GetPathRef() *PathItemRef {
 	return op.PathRef
 }
 
-func (op *standardOperationStore) GetPathItem() *openapi3.PathItem {
+func (op *standardOpenAPIOperationStore) GetPathItem() *openapi3.PathItem {
 	return op.PathItem
 }
 
-func (op *standardOperationStore) GetRequest() (ExpectedRequest, bool) {
+func (op *standardOpenAPIOperationStore) GetRequest() (ExpectedRequest, bool) {
 	if op.Request == nil {
 		return nil, false
 	}
 	return op.Request, true
 }
 
-func (op *standardOperationStore) GetResponse() (ExpectedResponse, bool) {
+func (op *standardOpenAPIOperationStore) GetResponse() (ExpectedResponse, bool) {
 	if op.Response == nil {
 		return nil, false
 	}
 	return op.Response, true
 }
 
-func (op *standardOperationStore) GetServers() (openapi3.Servers, bool) {
+func (op *standardOpenAPIOperationStore) GetServers() (openapi3.Servers, bool) {
 	return op.getServers()
 }
 
-func (op *standardOperationStore) getServers() (openapi3.Servers, bool) {
+func (op *standardOpenAPIOperationStore) getServers() (openapi3.Servers, bool) {
 	servers := getServersFromHeirarchy(op)
 	if len(servers) > 0 {
 		return servers, true
@@ -367,62 +380,58 @@ func (op *standardOperationStore) getServers() (openapi3.Servers, bool) {
 	if op.Servers != nil {
 		return *(op.Servers), true
 	}
-	if op.Service != nil {
-		return op.Service.GetServers()
+	if op.OpenAPIService != nil {
+		return op.OpenAPIService.GetServers()
 	}
 	return nil, false
 }
 
-func (op *standardOperationStore) GetProviderService() ProviderService {
+func (op *standardOpenAPIOperationStore) GetProviderService() ProviderService {
 	return op.ProviderService
 }
 
-func (op *standardOperationStore) GetProvider() Provider {
+func (op *standardOpenAPIOperationStore) GetProvider() Provider {
 	return op.Provider
 }
 
-func (op *standardOperationStore) GetService() Service {
-	return op.Service
+func (op *standardOpenAPIOperationStore) GetService() OpenAPIService {
+	return op.OpenAPIService
 }
 
-func (op *standardOperationStore) GetResource() Resource {
+func (op *standardOpenAPIOperationStore) GetResource() Resource {
 	return op.Resource
 }
 
-func (op *standardOperationStore) ParameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
-	return op.parameterMatch(params)
-}
-
-func (op *standardOperationStore) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
+func (op *standardOpenAPIOperationStore) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
 	if op.StackQLConfig != nil {
 		return op.StackQLConfig.GetViewsForSqlDialect(sqlDialect, "")
 	}
 	return []View{}, false
 }
 
-func (op *standardOperationStore) GetQueryTransposeAlgorithm() string {
+func (op *standardOpenAPIOperationStore) getQueryTransposeAlgorithm() string {
 	if op.StackQLConfig != nil {
 		transpose, transposeExists := op.StackQLConfig.GetQueryTranspose()
 		if transposeExists && transpose.GetAlgorithm() != "" {
 			return transpose.GetAlgorithm()
 		}
 	}
-	if op.Resource != nil && op.Resource.GetQueryTransposeAlgorithm() != "" {
-		return op.Resource.GetQueryTransposeAlgorithm()
+	if op.Resource != nil && op.Resource.getQueryTransposeAlgorithm() != "" {
+		return op.Resource.getQueryTransposeAlgorithm()
 	}
-	if op.Service != nil && op.Service.GetQueryTransposeAlgorithm() != "" {
-		return op.Service.GetQueryTransposeAlgorithm()
+	if op.OpenAPIService != nil && op.OpenAPIService.getQueryTransposeAlgorithm() != "" {
+		return op.OpenAPIService.getQueryTransposeAlgorithm()
 	}
-	if op.ProviderService != nil && op.ProviderService.GetQueryTransposeAlgorithm() != "" {
-		return op.ProviderService.GetQueryTransposeAlgorithm()
+	if op.ProviderService != nil && op.ProviderService.getQueryTransposeAlgorithm() != "" {
+		return op.ProviderService.getQueryTransposeAlgorithm()
 	}
-	if op.Provider != nil && op.Provider.GetQueryTransposeAlgorithm() != "" {
-		return op.Provider.GetQueryTransposeAlgorithm()
+	if op.Provider != nil && op.Provider.getQueryTransposeAlgorithm() != "" {
+		return op.Provider.getQueryTransposeAlgorithm()
 	}
 	return ""
 }
 
-func (op *standardOperationStore) GetRequestTranslateAlgorithm() string {
+func (op *standardOpenAPIOperationStore) GetRequestTranslateAlgorithm() string {
 	if op.StackQLConfig != nil {
 		translate, translateExists := op.StackQLConfig.GetRequestTranslate()
 		if translateExists && translate.GetAlgorithm() != "" {
@@ -432,8 +441,8 @@ func (op *standardOperationStore) GetRequestTranslateAlgorithm() string {
 	if op.Resource != nil && op.Resource.GetRequestTranslateAlgorithm() != "" {
 		return op.Resource.GetRequestTranslateAlgorithm()
 	}
-	if op.Service != nil && op.Service.GetRequestTranslateAlgorithm() != "" {
-		return op.Service.GetRequestTranslateAlgorithm()
+	if op.OpenAPIService != nil && op.OpenAPIService.getRequestTranslateAlgorithm() != "" {
+		return op.OpenAPIService.getRequestTranslateAlgorithm()
 	}
 	if op.ProviderService != nil && op.ProviderService.GetRequestTranslateAlgorithm() != "" {
 		return op.ProviderService.GetRequestTranslateAlgorithm()
@@ -444,7 +453,7 @@ func (op *standardOperationStore) GetRequestTranslateAlgorithm() string {
 	return ""
 }
 
-func (op *standardOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
+func (op *standardOpenAPIOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	if op.StackQLConfig != nil {
 		pag, pagExists := op.StackQLConfig.GetPagination()
 		if pagExists && pag.GetRequestToken() != nil {
@@ -456,8 +465,8 @@ func (op *standardOperationStore) GetPaginationRequestTokenSemantic() (TokenSema
 			return ts, true
 		}
 	}
-	if op.Service != nil {
-		if ts, ok := op.Service.GetPaginationRequestTokenSemantic(); ok {
+	if op.OpenAPIService != nil {
+		if ts, ok := op.OpenAPIService.getPaginationRequestTokenSemantic(); ok {
 			return ts, true
 		}
 	}
@@ -474,7 +483,7 @@ func (op *standardOperationStore) GetPaginationRequestTokenSemantic() (TokenSema
 	return nil, false
 }
 
-func (op *standardOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
+func (op *standardOpenAPIOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	if op.StackQLConfig != nil {
 		pag, pagExists := op.StackQLConfig.GetPagination()
 		if pagExists && pag.GetResponseToken() != nil {
@@ -486,25 +495,25 @@ func (op *standardOperationStore) GetPaginationResponseTokenSemantic() (TokenSem
 			return ts, true
 		}
 	}
-	if op.Service != nil {
-		if ts, ok := op.Service.GetPaginationResponseTokenSemantic(); ok {
+	if op.OpenAPIService != nil {
+		if ts, ok := op.OpenAPIService.getPaginationResponseTokenSemantic(); ok {
 			return ts, true
 		}
 	}
 	if op.ProviderService != nil {
-		if ts, ok := op.ProviderService.GetPaginationResponseTokenSemantic(); ok {
+		if ts, ok := op.ProviderService.getPaginationResponseTokenSemantic(); ok {
 			return ts, true
 		}
 	}
 	if op.Provider != nil {
-		if ts, ok := op.ProviderService.GetPaginationResponseTokenSemantic(); ok {
+		if ts, ok := op.ProviderService.getPaginationResponseTokenSemantic(); ok {
 			return ts, true
 		}
 	}
 	return nil, false
 }
 
-func (op *standardOperationStore) parameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
+func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
 	copiedParams := make(map[string]interface{})
 	for k, v := range params {
 		copiedParams[k] = v
@@ -545,27 +554,27 @@ func (op *standardOperationStore) parameterMatch(params map[string]interface{}) 
 	return copiedParams, false
 }
 
-func (op *standardOperationStore) GetParameterizedPath() string {
+func (op *standardOpenAPIOperationStore) GetParameterizedPath() string {
 	return op.parameterizedPath
 }
 
-func (op *standardOperationStore) GetOptimalResponseMediaType() string {
+func (op *standardOpenAPIOperationStore) GetOptimalResponseMediaType() string {
 	return op.getOptimalResponseMediaType()
 }
 
-func (op *standardOperationStore) getOptimalResponseMediaType() string {
+func (op *standardOpenAPIOperationStore) getOptimalResponseMediaType() string {
 	if op.Response != nil && op.Response.BodyMediaType != "" {
 		return op.Response.BodyMediaType
 	}
 	return media.MediaTypeJson
 }
 
-func (op *standardOperationStore) IsNullary() bool {
+func (op *standardOpenAPIOperationStore) IsNullary() bool {
 	rbs, _, _ := op.GetResponseBodySchemaAndMediaType()
 	return rbs == nil
 }
 
-func (m *standardOperationStore) KeyExists(lhs string) bool {
+func (m *standardOpenAPIOperationStore) KeyExists(lhs string) bool {
 	if lhs == MethodName {
 		return true
 	}
@@ -600,26 +609,26 @@ func (m *standardOperationStore) KeyExists(lhs string) bool {
 	return false
 }
 
-func (m *standardOperationStore) GetSelectItemsKey() string {
+func (m *standardOpenAPIOperationStore) GetSelectItemsKey() string {
 	return m.getSelectItemsKeySimple()
 }
 
-func (m *standardOperationStore) GetUnionRequiredParameters() (map[string]Addressable, error) {
+func (m *standardOpenAPIOperationStore) GetUnionRequiredParameters() (map[string]Addressable, error) {
 	return m.getUnionRequiredParameters()
 }
 
-func (m *standardOperationStore) getUnionRequiredParameters() (map[string]Addressable, error) {
+func (m *standardOpenAPIOperationStore) getUnionRequiredParameters() (map[string]Addressable, error) {
 	return m.Resource.getUnionRequiredParameters(m)
 }
 
-func (m *standardOperationStore) getSelectItemsKeySimple() string {
+func (m *standardOpenAPIOperationStore) getSelectItemsKeySimple() string {
 	if m.Response != nil {
 		return m.Response.ObjectKey
 	}
 	return ""
 }
 
-func (m *standardOperationStore) GetKey(lhs string) (interface{}, error) {
+func (m *standardOpenAPIOperationStore) GetKey(lhs string) (interface{}, error) {
 	val, ok := m.ToPresentationMap(true)[lhs]
 	if !ok {
 		return nil, fmt.Errorf("key '%s' no preset in metadata_method", lhs)
@@ -627,7 +636,7 @@ func (m *standardOperationStore) GetKey(lhs string) (interface{}, error) {
 	return val, nil
 }
 
-func (m *standardOperationStore) GetColumnOrder(extended bool) []string {
+func (m *standardOpenAPIOperationStore) GetColumnOrder(extended bool) []string {
 	retVal := []string{
 		MethodName,
 		RequiredParams,
@@ -639,7 +648,7 @@ func (m *standardOperationStore) GetColumnOrder(extended bool) []string {
 	return retVal
 }
 
-func (m *standardOperationStore) IsAwaitable() bool {
+func (m *standardOpenAPIOperationStore) IsAwaitable() bool {
 	rs, _, err := m.GetResponseBodySchemaAndMediaType()
 	if err != nil {
 		return false
@@ -647,11 +656,11 @@ func (m *standardOperationStore) IsAwaitable() bool {
 	return strings.HasSuffix(rs.getKey(), "Operation")
 }
 
-func (m *standardOperationStore) FilterBy(predicate func(interface{}) (ITable, error)) (ITable, error) {
+func (m *standardOpenAPIOperationStore) FilterBy(predicate func(interface{}) (ITable, error)) (ITable, error) {
 	return predicate(m)
 }
 
-func (m *standardOperationStore) GetKeyAsSqlVal(lhs string) (sqltypes.Value, error) {
+func (m *standardOpenAPIOperationStore) GetKeyAsSqlVal(lhs string) (sqltypes.Value, error) {
 	val, ok := m.ToPresentationMap(true)[lhs]
 	rv, err := InterfaceToSQLType(val)
 	if !ok {
@@ -661,11 +670,11 @@ func (m *standardOperationStore) GetKeyAsSqlVal(lhs string) (sqltypes.Value, err
 }
 
 // This method needs to incorporate request body parameters
-func (m *standardOperationStore) GetRequiredParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) GetRequiredParameters() map[string]Addressable {
 	return m.getRequiredParameters()
 }
 
-func (m *standardOperationStore) getRequestBodyAttributes() (map[string]Addressable, error) {
+func (m *standardOpenAPIOperationStore) getRequestBodyAttributes() (map[string]Addressable, error) {
 	s, err := m.getRequestBodySchema()
 	if err != nil {
 		return nil, err
@@ -689,7 +698,7 @@ func (m *standardOperationStore) getRequestBodyAttributes() (map[string]Addressa
 	return rv, nil
 }
 
-func (m *standardOperationStore) getRequestBodyAttributesNoRename() (map[string]Addressable, error) {
+func (m *standardOpenAPIOperationStore) getRequestBodyAttributesNoRename() (map[string]Addressable, error) {
 	s, err := m.getRequestBodySchema()
 	if err != nil {
 		return nil, err
@@ -709,15 +718,15 @@ func (m *standardOperationStore) getRequestBodyAttributesNoRename() (map[string]
 	return rv, nil
 }
 
-func (m *standardOperationStore) getRequiredRequestBodyAttributes() (map[string]Addressable, error) {
+func (m *standardOpenAPIOperationStore) getRequiredRequestBodyAttributes() (map[string]Addressable, error) {
 	return m.getIndicatedRequestBodyAttributes(true)
 }
 
-func (m *standardOperationStore) getOptionalRequestBodyAttributes() (map[string]Addressable, error) {
+func (m *standardOpenAPIOperationStore) getOptionalRequestBodyAttributes() (map[string]Addressable, error) {
 	return m.getIndicatedRequestBodyAttributes(false)
 }
 
-func (m *standardOperationStore) getIndicatedRequestBodyAttributes(required bool) (map[string]Addressable, error) {
+func (m *standardOpenAPIOperationStore) getIndicatedRequestBodyAttributes(required bool) (map[string]Addressable, error) {
 	rv := make(map[string]Addressable)
 	allAttr, err := m.getRequestBodyAttributes()
 	if err != nil {
@@ -731,11 +740,11 @@ func (m *standardOperationStore) getIndicatedRequestBodyAttributes(required bool
 	return rv, nil
 }
 
-func (m *standardOperationStore) RenameRequestBodyAttribute(k string) (string, error) {
+func (m *standardOpenAPIOperationStore) RenameRequestBodyAttribute(k string) (string, error) {
 	return m.renameRequestBodyAttribute(k)
 }
 
-func (m *standardOperationStore) renameRequestBodyAttribute(k string) (string, error) {
+func (m *standardOpenAPIOperationStore) renameRequestBodyAttribute(k string) (string, error) {
 	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
 	if translatorInferErr != nil {
 		return "", translatorInferErr
@@ -744,11 +753,11 @@ func (m *standardOperationStore) renameRequestBodyAttribute(k string) (string, e
 	return output, outputErr
 }
 
-func (m *standardOperationStore) RevertRequestBodyAttributeRename(k string) (string, error) {
+func (m *standardOpenAPIOperationStore) RevertRequestBodyAttributeRename(k string) (string, error) {
 	return m.revertRequestBodyAttributeRename(k)
 }
 
-func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (string, error) {
+func (m *standardOpenAPIOperationStore) revertRequestBodyAttributeRename(k string) (string, error) {
 	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
 	if translatorInferErr != nil {
 		return "", translatorInferErr
@@ -757,7 +766,7 @@ func (m *standardOperationStore) revertRequestBodyAttributeRename(k string) (str
 	return output, outputErr
 }
 
-func (m *standardOperationStore) getRequestBodyAttributeParentKey(algorithm string) (string, bool) {
+func (m *standardOpenAPIOperationStore) getRequestBodyAttributeParentKey(algorithm string) (string, bool) {
 	algorithmPrefix := extractAlgorithmPrefix(algorithm)
 	algorithmSuffix := extractAlgorithmSuffix(algorithm, algorithmPrefix)
 	if algorithmPrefix == translateAlgorithmNaiveNaming {
@@ -766,15 +775,15 @@ func (m *standardOperationStore) getRequestBodyAttributeParentKey(algorithm stri
 	return "", false
 }
 
-// func (op *standardOperationStore) getRequestBodyAttributeLineage(rawKey string) (string, error) {
+// func (op *standardOpenAPIOperationStore) getRequestBodyAttributeLineage(rawKey string) (string, error) {
 // 	return "", nil
 // }
 
-func (m *standardOperationStore) getDefaultRequestBodyMatcher() fuzzymatch.FuzzyMatcher[string] {
+func (m *standardOpenAPIOperationStore) getDefaultRequestBodyMatcher() fuzzymatch.FuzzyMatcher[string] {
 	return requestBodyBaseKeyFuzzyMatcher
 }
 
-func (m *standardOperationStore) getRequestBodySchemaAttributeMatcher(path string) (fuzzymatch.FuzzyMatcher[string], error) {
+func (m *standardOpenAPIOperationStore) getRequestBodySchemaAttributeMatcher(path string) (fuzzymatch.FuzzyMatcher[string], error) {
 	schemaOfInterest, err := m.getRequestBodySchema()
 	if err != nil {
 		return nil, err
@@ -822,7 +831,7 @@ func extractAlgorithmPrefix(algorithm string) string {
 	return algorithm
 }
 
-func (m *standardOperationStore) inferTranslator(algorithm string) (parametertranslate.ParameterTranslator, error) {
+func (m *standardOpenAPIOperationStore) inferTranslator(algorithm string) (parametertranslate.ParameterTranslator, error) {
 	algorithmPrefix := extractAlgorithmPrefix(algorithm)
 	algorithmSuffix := extractAlgorithmSuffix(algorithm, algorithmPrefix)
 	switch algorithmPrefix {
@@ -847,7 +856,7 @@ func (m *standardOperationStore) inferTranslator(algorithm string) (parametertra
 	}
 }
 
-func (m *standardOperationStore) getRequestBodyTranslateAlgorithmString() string {
+func (m *standardOpenAPIOperationStore) getRequestBodyTranslateAlgorithmString() string {
 	retVal := ""
 	cfg, cfgExists := m.getStackQLConfig()
 	if cfgExists {
@@ -862,7 +871,7 @@ func (m *standardOperationStore) getRequestBodyTranslateAlgorithmString() string
 	return retVal
 }
 
-func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
+func (m *standardOpenAPIOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
 	paramTranslator, translatorInferErr := m.inferTranslator(m.getRequestBodyTranslateAlgorithmString())
 	if translatorInferErr != nil {
 		return false
@@ -871,34 +880,48 @@ func (m *standardOperationStore) IsRequestBodyAttributeRenamed(k string) bool {
 	return outputErr == nil
 }
 
-func (m *standardOperationStore) GetRequiredNonBodyParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) GetRequiredNonBodyParameters() map[string]Addressable {
 	return m.getRequiredNonBodyParameters()
 }
 
-func (m *standardOperationStore) getRequiredNonBodyParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) getRequiredNonBodyParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
+	for k, v := range m.Parameters {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			continue
+		}
+		paramObj := NewParameter(&param, m.OpenAPIService)
+		if paramObj.IsRequired() {
+			retVal[k] = paramObj
+		}
+	}
 	if m.PathItem != nil {
 		for _, p := range m.PathItem.Parameters {
 			param := p.Value
 			if param != nil && isOpenapi3ParamRequired(param) {
-				retVal[param.Name] = NewParameter(p.Value, m.Service)
+				retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 			}
 		}
 	}
-	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
-
+	if m.OperationRef == nil || m.OperationRef.Value == nil || m.OperationRef.Value.Parameters == nil {
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
 		param := p.Value
 		if param != nil && isOpenapi3ParamRequired(param) {
-			retVal[param.Name] = NewParameter(p.Value, m.Service)
+			retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 		}
 	}
 	return retVal
 }
 
-func (m *standardOperationStore) getRequiredParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) getRequiredParameters() map[string]Addressable {
 	retVal := m.getRequiredNonBodyParameters()
 	ss, err := m.getRequiredRequestBodyAttributes()
 	if err != nil {
@@ -910,7 +933,7 @@ func (m *standardOperationStore) getRequiredParameters() map[string]Addressable 
 	availableServers, availableServersDoExist := m.getServers()
 	if availableServersDoExist {
 		sv := availableServers[0]
-		serverVarMap := getServerVariablesMap(sv, m.Service)
+		serverVarMap := getServerVariablesMap(sv, m.OpenAPIService)
 		for k, v := range serverVarMap {
 			retVal[k] = v
 		}
@@ -919,20 +942,35 @@ func (m *standardOperationStore) getRequiredParameters() map[string]Addressable 
 }
 
 // This method needs to incorporate request body parameters
-func (m *standardOperationStore) GetOptionalParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) GetOptionalParameters() map[string]Addressable {
 	return m.getOptionalParameters()
 }
 
-func (m *standardOperationStore) getOptionalParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) getOptionalParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
-	if m.OperationRef == nil || m.OperationRef.Value.Parameters == nil {
+	for k, v := range m.Parameters {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			continue
+		}
+		paramObj := NewParameter(&param, m.OpenAPIService)
+		if !paramObj.IsRequired() {
+			retVal[k] = paramObj
+		}
+	}
+	if m.OperationRef == nil || m.OperationRef.Value == nil || m.OperationRef.Value.Parameters == nil {
 		return retVal
 	}
 	for _, p := range m.OperationRef.Value.Parameters {
 		param := p.Value
 		// TODO: handle the `?param` where value is not only not required but should NEVER be sent
 		if param != nil && !param.Required {
-			retVal[param.Name] = NewParameter(p.Value, m.Service)
+			retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 		}
 	}
 	ss, err := m.getOptionalRequestBodyAttributes()
@@ -945,20 +983,20 @@ func (m *standardOperationStore) getOptionalParameters() map[string]Addressable 
 	return retVal
 }
 
-func (ops *standardOperationStore) getMethod() (*openapi3.Operation, error) {
+func (ops *standardOpenAPIOperationStore) getMethod() (*openapi3.Operation, error) {
 	if ops.OperationRef != nil && ops.OperationRef.Value != nil {
 		return ops.OperationRef.Value, nil
 	}
 	return nil, fmt.Errorf("no method attached to operation store")
 }
 
-func (m *standardOperationStore) getNonBodyParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) getNonBodyParameters() map[string]Addressable {
 	retVal := make(map[string]Addressable)
 	if m.PathItem != nil {
 		for _, p := range m.PathItem.Parameters {
 			param := p.Value
 			if param != nil {
-				retVal[param.Name] = NewParameter(p.Value, m.Service)
+				retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 			}
 		}
 	}
@@ -968,13 +1006,13 @@ func (m *standardOperationStore) getNonBodyParameters() map[string]Addressable {
 	for _, p := range m.OperationRef.Value.Parameters {
 		param := p.Value
 		if param != nil {
-			retVal[param.Name] = NewParameter(p.Value, m.Service)
+			retVal[param.Name] = NewParameter(p.Value, m.OpenAPIService)
 		}
 	}
 	return retVal
 }
 
-func (m *standardOperationStore) GetParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) GetParameters() map[string]Addressable {
 	retVal := m.getNonBodyParameters()
 	ss, err := m.getRequestBodyAttributes()
 	if err != nil {
@@ -986,28 +1024,28 @@ func (m *standardOperationStore) GetParameters() map[string]Addressable {
 	return retVal
 }
 
-func (m *standardOperationStore) GetNonBodyParameters() map[string]Addressable {
+func (m *standardOpenAPIOperationStore) GetNonBodyParameters() map[string]Addressable {
 	return m.getNonBodyParameters()
 }
 
-func (m *standardOperationStore) GetParameter(paramKey string) (Addressable, bool) {
+func (m *standardOpenAPIOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	params := m.GetParameters()
 	rv, ok := params[paramKey]
 	return rv, ok
 }
 
-func (m *standardOperationStore) GetName() string {
+func (m *standardOpenAPIOperationStore) GetName() string {
 	return m.getName()
 }
 
-func (m *standardOperationStore) getName() string {
+func (m *standardOpenAPIOperationStore) getName() string {
 	if m.OperationRef != nil && m.OperationRef.Value != nil && m.OperationRef.Value.OperationID != "" {
 		return m.OperationRef.Value.OperationID
 	}
 	return m.MethodKey
 }
 
-func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
+func (m *standardOpenAPIOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
 	requiredParams := m.getRequiredNonBodyParameters()
 	var requiredParamNames []string
 	for s := range requiredParams {
@@ -1034,7 +1072,7 @@ func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]int
 	availableServers, availableServersDoExist := m.getServers()
 	if availableServersDoExist {
 		sv := availableServers[0]
-		serverVarMap := getServerVariablesMap(sv, m.Service)
+		serverVarMap := getServerVariablesMap(sv, m.OpenAPIService)
 		for k := range serverVarMap {
 			requiredServerParamNames = append(requiredServerParamNames, k)
 		}
@@ -1062,11 +1100,31 @@ func (m *standardOperationStore) ToPresentationMap(extended bool) map[string]int
 	return retVal
 }
 
-func (op *standardOperationStore) GetOperationParameters() Params {
-	return NewParameters(op.OperationRef.Value.Parameters, op.Service)
+func (op *standardOpenAPIOperationStore) GetOperationParameters() Params {
+	return NewParameters(op.OperationRef.Value.Parameters, op.OpenAPIService)
 }
 
-func (op *standardOperationStore) GetOperationParameter(key string) (Addressable, bool) {
+func (op *standardOpenAPIOperationStore) GetOperationParameter(key string) (Addressable, bool) {
+	paramLocal, isParamLocal := op.Parameters[key]
+	if isParamLocal {
+		b, err := json.Marshal(paramLocal)
+		if err != nil {
+			return nil, false
+		}
+		var param openapi3.Parameter
+		err = json.Unmarshal(b, &param)
+		if err != nil {
+			return nil, false
+		}
+		if param.Name == "" && param.In == "inline" {
+			param.Name = key
+		}
+		paramObj := NewParameter(&param, op.OpenAPIService)
+		return paramObj, true
+	}
+	if op.OperationRef == nil || op.OperationRef.Value == nil || op.OperationRef.Value.Parameters == nil {
+		return nil, false
+	}
 	params := NewParameters(op.OperationRef.Value.Parameters, op.GetService())
 	if op.OperationRef.Value.Parameters == nil {
 		return nil, false
@@ -1074,7 +1132,7 @@ func (op *standardOperationStore) GetOperationParameter(key string) (Addressable
 	return params.GetParameter(key)
 }
 
-func (op *standardOperationStore) getServerVariable(key string) (*openapi3.ServerVariable, bool) {
+func (op *standardOpenAPIOperationStore) getServerVariable(key string) (*openapi3.ServerVariable, bool) {
 	srvs, _ := op.getServers()
 	for _, srv := range srvs {
 		v, ok := srv.Variables[key]
@@ -1085,8 +1143,8 @@ func (op *standardOperationStore) getServerVariable(key string) (*openapi3.Serve
 	return nil, false
 }
 
-func getServersFromHeirarchy(op *standardOperationStore) openapi3.Servers {
-	if op.OperationRef.Value.Servers != nil && len(*op.OperationRef.Value.Servers) > 0 {
+func getServersFromHeirarchy(op *standardOpenAPIOperationStore) openapi3.Servers {
+	if op.OperationRef != nil && op.OperationRef.Value != nil && op.OperationRef.Value.Servers != nil && len(*op.OperationRef.Value.Servers) > 0 {
 		return *op.OperationRef.Value.Servers
 	}
 	if op.PathItem != nil && len(op.PathItem.Servers) > 0 {
@@ -1110,13 +1168,13 @@ func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) 
 	return urltranslate.SanitiseServerURL(srvs[0])
 }
 
-func (op *standardOperationStore) acceptPathParam(mutableParamMap map[string]interface{}) {}
+func (op *standardOpenAPIOperationStore) acceptPathParam(mutableParamMap map[string]interface{}) {}
 
-func (op *standardOperationStore) MarshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
+func (op *standardOpenAPIOperationStore) MarshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
 	return op.marshalBody(body, expectedRequest)
 }
 
-func (op *standardOperationStore) marshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
+func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
 	mediaType := expectedRequest.GetBodyMediaType()
 	if expectedRequest.GetSchema() != nil {
 		mediaType = expectedRequest.GetSchema().extractMediaTypeSynonym(mediaType)
@@ -1136,7 +1194,8 @@ func (op *standardOperationStore) marshalBody(body interface{}, expectedRequest 
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }
 
-func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
+func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
+
 	params := op.OperationRef.Value.Parameters
 	copyParams := make(map[string]interface{})
 	flatParameters, err := inputParams.ToFlatMap()
@@ -1163,7 +1222,7 @@ func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service,
 			} else if p.Value != nil && p.Value.Schema != nil && p.Value.Schema.Value != nil && p.Value.Schema.Value.Default != nil {
 				prefilledHeader.Set(name, fmt.Sprintf("%v", p.Value.Schema.Value.Default))
 			} else if isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOperationStore.Parameterize() failure; missing required header '%s'", name)
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required header '%s'", name)
 			}
 		}
 		if p.Value.In == openapi3.ParameterInPath {
@@ -1173,7 +1232,7 @@ func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service,
 				delete(copyParams, name)
 			}
 			if !present && isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOperationStore.Parameterize() failure; missing required path parameter '%s'", name)
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required path parameter '%s'", name)
 			}
 		} else if p.Value.In == openapi3.ParameterInQuery {
 			queryParamsRemaining, err := inputParams.GetRemainingQueryParamsFlatMap(copyParams)
@@ -1202,7 +1261,11 @@ func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service,
 		q.Set(k, fmt.Sprintf("%v", v))
 		delete(copyParams, k)
 	}
-	router, err := queryrouter.NewRouter(parentDoc.GetT())
+	openapiSvc, openapiSvcOk := op.OpenAPIService.(OpenAPIService)
+	if !openapiSvcOk {
+		return nil, fmt.Errorf("could not cast OpenAPIService to standardOpenAPIServiceStore")
+	}
+	router, err := queryrouter.NewRouter(openapiSvc.getT())
 	if err != nil {
 		return nil, err
 	}
@@ -1268,25 +1331,25 @@ func (op *standardOperationStore) Parameterize(prov Provider, parentDoc Service,
 	return requestValidationInput, nil
 }
 
-func (op *standardOperationStore) GetRequestBodySchema() (Schema, error) {
+func (op *standardOpenAPIOperationStore) GetRequestBodySchema() (Schema, error) {
 	return op.getRequestBodySchema()
 }
 
-func (op *standardOperationStore) getRequestBodySchema() (Schema, error) {
+func (op *standardOpenAPIOperationStore) getRequestBodySchema() (Schema, error) {
 	if op.Request != nil {
 		return op.Request.Schema, nil
 	}
 	return nil, fmt.Errorf("no request body for operation =  %s", op.GetName())
 }
 
-func (op *standardOperationStore) GetRequestBodyRequiredProperties() ([]string, error) {
+func (op *standardOpenAPIOperationStore) GetRequestBodyRequiredProperties() ([]string, error) {
 	if op.Request != nil {
 		return op.Request.Required, nil
 	}
 	return nil, fmt.Errorf("no request body required elements for operation =  %s", op.GetName())
 }
 
-func (op *standardOperationStore) IsRequiredRequestBodyProperty(key string) bool {
+func (op *standardOpenAPIOperationStore) IsRequiredRequestBodyProperty(key string) bool {
 	if op.Request == nil || op.Request.Required == nil {
 		return false
 	}
@@ -1298,11 +1361,14 @@ func (op *standardOperationStore) IsRequiredRequestBodyProperty(key string) bool
 	return false
 }
 
-func (op *standardOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
+func (op *standardOpenAPIOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
 	return op.getResponseBodySchemaAndMediaType()
 }
 
-func (op *standardOperationStore) getResponseBodySchemaAndMediaType() (Schema, string, error) {
+func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Schema, string, error) {
+	if op.Response != nil && op.Response.OverrideSchema != nil {
+		return newSchema(op.Response.OverrideSchema, op.GetService(), "", ""), "", nil
+	}
 	if op.Response != nil && op.Response.Schema != nil {
 		mediaType := op.Response.BodyMediaType
 		if op.Response.OverrideBodyMediaType != "" {
@@ -1313,8 +1379,11 @@ func (op *standardOperationStore) getResponseBodySchemaAndMediaType() (Schema, s
 	return nil, "", fmt.Errorf("no response body for operation =  %s", op.GetName())
 }
 
-func (op *standardOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
+func (op *standardOpenAPIOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	k := op.lookupSelectItemsKey()
+	if op.Response != nil && op.Response.OverrideSchema != nil {
+		return newSchema(op.Response.OverrideSchema, op.GetService(), "", ""), k, nil
+	}
 	if op.Response != nil && op.Response.Schema != nil {
 		return op.Response.Schema.getSelectItemsSchema(k, op.getOptimalResponseMediaType())
 	}
@@ -1357,7 +1426,7 @@ func (sor *standardOperationResponse) GetReversal() (HTTPPreparator, bool) {
 	return sor.reversal, sor.reversal != nil
 }
 
-func (op *standardOperationStore) ProcessResponse(response *http.Response) (ProcessedOperationResponse, error) {
+func (op *standardOpenAPIOperationStore) ProcessResponse(response *http.Response) (ProcessedOperationResponse, error) {
 	responseSchema, mediaType, err := op.GetResponseBodySchemaAndMediaType()
 	if err != nil {
 		return nil, err
@@ -1394,7 +1463,7 @@ func (op *standardOperationStore) ProcessResponse(response *http.Response) (Proc
 	return newStandardOperationResponse(rv, reversal), err
 }
 
-func (ops *standardOperationStore) lookupSelectItemsKey() string {
+func (ops *standardOpenAPIOperationStore) lookupSelectItemsKey() string {
 	s := ops.getSelectItemsKeySimple()
 	if s != "" {
 		return s
@@ -1417,7 +1486,7 @@ func (ops *standardOperationStore) lookupSelectItemsKey() string {
 	return ""
 }
 
-func (op *standardOperationStore) DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error) {
+func (op *standardOpenAPIOperationStore) DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error) {
 	responseSchema, _, err := op.GetResponseBodySchemaAndMediaType()
 	if err != nil {
 		return nil, err

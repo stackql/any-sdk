@@ -74,7 +74,7 @@ type Schema interface {
 	setItemsRef(*openapi3.SchemaRef)
 	setPropertyOpenapi3(k string, ps *openapi3.SchemaRef)
 	getPropertiesColumns() []ColumnDescriptor
-	getService() Service
+	getService() OpenAPIService
 	getFatSchema(srs openapi3.SchemaRefs) Schema
 	getXml() (interface{}, bool)
 	getXmlAlias() string
@@ -232,7 +232,7 @@ func (s *standardSchema) getOpenapiSchema() (*openapi3.Schema, bool) {
 
 type standardSchema struct {
 	*openapi3.Schema
-	svc             Service
+	svc             OpenAPIService
 	key             string
 	alwaysRequired  bool
 	path            string
@@ -240,7 +240,7 @@ type standardSchema struct {
 	defaultColName  string
 }
 
-func (s *standardSchema) getService() Service {
+func (s *standardSchema) getService() OpenAPIService {
 	return s.svc
 }
 
@@ -296,14 +296,25 @@ func copyOpenapiSchema(inSchema *openapi3.Schema) *openapi3.Schema {
 
 type Schemas map[string]Schema
 
-func NewStringSchema(svc Service, key string, path string) Schema {
+func NewStringSchema(svc OpenAPIService, key string, path string) Schema {
 	sc := openapi3.NewSchema()
 	sc.Type = "string"
 	return newSchema(sc, svc, key, path)
 }
 
+func newExmptyObjectStandardSchema(svc OpenAPIService, key string, path string) *standardSchema {
+	sc := openapi3.NewSchema()
+	sc.Type = "object"
+	sc.Properties = openapi3.Schemas{}
+	return newStandardSchema(sc, svc, key, path)
+}
+
 func NewTestSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema {
-	return newSchema(sc, svc, key, path)
+	openapiSvc, ok := svc.(OpenAPIService)
+	if !ok {
+		panic("NewTestSchema() requires an OpenAPIService")
+	}
+	return newSchema(sc, openapiSvc, key, path)
 }
 
 func (sc *standardSchema) GetPath() string {
@@ -317,7 +328,16 @@ func (sc *standardSchema) GetAdditionalProperties() (Schema, bool) {
 	return newSchema(sc.AdditionalProperties.Value, sc.svc, "additionalProperties", sc.AdditionalProperties.Ref), true
 }
 
-func newSchema(sc *openapi3.Schema, svc Service, key string, path string) Schema {
+func newSchema(sc *openapi3.Schema, svc OpenAPIService, key string, path string) Schema {
+	return newStandardSchema(
+		sc,
+		svc,
+		key,
+		path,
+	)
+}
+
+func newStandardSchema(sc *openapi3.Schema, svc OpenAPIService, key string, path string) *standardSchema {
 	var alwaysRequired bool
 	if sc.Extensions != nil {
 		if ar, ok := sc.Extensions[ExtensionKeyAlwaysRequired]; ok {
