@@ -48,6 +48,8 @@ const (
 	PgSrvLogLevelKey                string = "pgsrv.loglevel"
 	PgSrvPortKey                    string = "pgsrv.port"
 	PgSrvRawTLSCfgKey               string = "pgsrv.tls"
+	PgSrvRawSrvCfgKey               string = "pgsrv.sundry"
+	PgSrvIsDebugNoticesEnabledKey   string = "pgsrv.debug.enable"
 	ProviderStrKey                  string = "provider"
 	QueryCacheSizeKey               string = "querycachesize"
 	RegistryRawKey                  string = "registry"
