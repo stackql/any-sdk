@@ -37,6 +37,8 @@ type RuntimeCtx struct {
 	PGSrvLogLevel                string
 	PGSrvPort                    int
 	PGSrvRawTLSCfg               string
+	PGSrvRawSrvCfg               string
+	PGSrvIsDebugNoticesEnabled   bool
 	ExportAlias                  string
 	ProviderStr                  string
 	RegistryRaw                  string
@@ -173,6 +175,10 @@ func (rc *RuntimeCtx) Set(key string, val string) error {
 		retVal = setInt(&rc.PGSrvPort, val)
 	case PgSrvRawTLSCfgKey:
 		rc.PGSrvRawTLSCfg = val
+	case PgSrvRawSrvCfgKey:
+		rc.PGSrvRawSrvCfg = val
+	case PgSrvIsDebugNoticesEnabledKey:
+		retVal = setBool(&rc.PGSrvIsDebugNoticesEnabled, val)
 	case QueryCacheSizeKey:
 		retVal = setInt(&rc.QueryCacheSize, val)
 	case RegistryRawKey:
@@ -233,6 +239,8 @@ func (rc RuntimeCtx) Copy() RuntimeCtx {
 		PGSrvLogLevel:                rc.PGSrvLogLevel,
 		PGSrvPort:                    rc.PGSrvPort,
 		PGSrvRawTLSCfg:               rc.PGSrvRawTLSCfg,
+		PGSrvRawSrvCfg:               rc.PGSrvRawSrvCfg,
+		PGSrvIsDebugNoticesEnabled:   rc.PGSrvIsDebugNoticesEnabled,
 		ExportAlias:                  rc.ExportAlias,
 		ProviderStr:                  rc.ProviderStr,
 		RegistryRaw:                  rc.RegistryRaw,
