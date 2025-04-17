@@ -225,10 +225,10 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 			expectedResponse, isExpectedResponse := opStore.GetResponse()
 			if isExpectedResponse {
 				responseTransform, responseTransformExists := expectedResponse.GetTransform()
-				if responseTransformExists && responseTransform.GetType() == "golang_template_v0.1.0" {
+				if responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" {
 					input := string(bodyBytes)
 					tmpl := responseTransform.GetBody()
-					inStream := stream_transform.NewTextReader(bytes.NewBufferString(input))
+					inStream := stream_transform.NewXMLBestEffortReader(bytes.NewBufferString(input))
 					outStream := bytes.NewBuffer(nil)
 					tfm, err := stream_transform.NewTemplateStreamTransformer(tmpl, inStream, outStream)
 					if err != nil {
