@@ -222,6 +222,24 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 			if err != nil {
 				return err
 			}
+			expectedResponse, isExpectedResponse := opStore.GetResponse()
+			if isExpectedResponse {
+				responseTransform, responseTransformExists := expectedResponse.GetTransform()
+				if responseTransformExists && responseTransform.GetType() == "golang_template_v0.1.0" {
+					input := string(bodyBytes)
+					tmpl := responseTransform.GetBody()
+					inStream := stream_transform.NewTextReader(bytes.NewBufferString(input))
+					outStream := bytes.NewBuffer(nil)
+					tfm, err := stream_transform.NewTemplateStreamTransformer(tmpl, inStream, outStream)
+					if err != nil {
+						return fmt.Errorf("template stream transform error: %v", err)
+					}
+					if err := tfm.Transform(); err != nil {
+						return fmt.Errorf("failed to transform: %v", err)
+					}
+					bodyBytes = outStream.Bytes()
+				}
+			}
 			fmt.Fprintf(os.Stdout, "%s", string(bodyBytes))
 		}
 		return nil
