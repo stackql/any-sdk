@@ -12,6 +12,7 @@ require (
 	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/antchfx/xmlquery v1.3.10
 	github.com/aws/aws-sdk-go v1.55.6
+	github.com/clbanning/mxj/v2 v2.7.0
 	github.com/getkin/kin-openapi v0.88.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/jsonpointer v0.19.5
@@ -21,7 +22,6 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.10.1
 	github.com/stackql/go-suffix-map v0.0.1-alpha01
-	github.com/stackql/stackql v0.6.50
 	github.com/stackql/stackql-parser v0.0.14-alpha04
 	github.com/stackql/stackql-provider-registry v0.0.1-rc06
 	github.com/xo/dburl v0.23.2

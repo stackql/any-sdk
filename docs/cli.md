@@ -86,3 +86,34 @@ Local templated provider selection:
 		}'
 
 ```
+
+For xml response trasformation on HTTP services...
+
+In this `aws.ec2` example, you will first need to export your aws credential
+env vars `AWS_SECRET_ACCESS_KEY` and `AWS_ACCESS_KEY_ID` and then this gives a nice `json` response:
+
+```bash
+
+build/anysdk query \
+  --svc-file-path="test/registry/src/aws/v0.1.0/services/ec2.yaml" \
+  --tls.allowInsecure \
+  --prov-file-path="test/registry/src/aws/v0.1.0/provider.yaml" \
+  --resource volumes_presented \
+  --method describeVolumes \
+  --parameters '{ "region": "ap-southeast-2" }' 
+
+```
+
+This one incorporates the hack for request translation:
+
+```bash
+
+build/anysdk query \
+  --svc-file-path="test/registry-simple/src/aws/v0.1.0/services/ec2.yaml" \
+  --tls.allowInsecure \
+  --prov-file-path="test/registry-simple/src/aws/v0.1.0/provider.yaml" \
+  --resource volumes_presented \
+  --method describeVolumes \
+  --parameters '{ "region": "ap-southeast-2" }' 
+
+```

@@ -238,6 +238,11 @@ components:
       title: volumes_presented
       methods:
         describeVolumes:
+          config:
+            queryParamTranspose:
+              algorithm: AWSCanonical
+            requestTranslate:
+              algorithm: get_query_to_post_form_utf_8
           operation:
             $ref: '#/paths/~1?Action=DescribeVolumes&Version=2016-11-15/get'
           response:
@@ -692,3 +697,8 @@ components:
         - sc1
         - st1
         - gp3
+x-stackQL-config:
+  queryParamTranspose:
+    algorithm: AWSCanonical
+  requestTranslate:
+    algorithm: get_query_to_post_form_utf_8

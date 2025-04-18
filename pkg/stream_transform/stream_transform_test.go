@@ -57,6 +57,35 @@ var (
 		</meta>
 	</root>  	
 	  `
+	xmlEc2SinglePageExample = `
+<?xml version="1.0" encoding="UTF-8"?>
+<DescribeVolumesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+  <volumeSet>
+    <item>
+      <volumeId>vol-123</volumeId>
+      <size>8</size>
+      <snapshotId>snap-abc</snapshotId>
+      <availabilityZone>us-east-1a</availabilityZone>
+      <status>in-use</status>
+      <createTime>2023-01-01T00:00:00Z</createTime>
+      <volumeType>gp2</volumeType>
+      <encrypted>true</encrypted>
+      <multiAttachEnabled>false</multiAttachEnabled>
+    </item>
+    <item>
+      <volumeId>vol-456</volumeId>
+      <size>16</size>
+      <availabilityZone>us-east-1b</availabilityZone>
+      <status>available</status>
+      <createTime>2023-01-02T00:00:00Z</createTime>
+      <volumeType>io1</volumeType>
+      <encrypted>false</encrypted>
+      <multiAttachEnabled>false</multiAttachEnabled>
+    </item>
+  </volumeSet>
+  <nextToken>abc123</nextToken>
+</DescribeVolumesResponse>
+`
 	yamlExample = `---
 animals:
 	- name: Platypus
@@ -86,7 +115,35 @@ meta:
 	{{- call $s}}{"name": "{{ $animal.name }}", "democratic_votes": {{ $animal.votes }}} 
 	{{- end -}}
 	]`
-	xmlTmpl               = `[{ "name": "{{- getXPath . "/root/animals/animal/name" }}"}]`
+	xmlTmpl           = `[{ "name": "{{- getXPath . "/root/animals/animal/name" }}"}]`
+	xmlBestEffortTmpl = `{
+  "nextToken": {{with index . "DescribeVolumesResponse" "nextToken"}}{{printf "%q" .}}{{else}}null{{end}},
+  "volumes": [
+{{- $items := index . "DescribeVolumesResponse" "volumeSet" "item" -}}
+{{- if eq (printf "%T" $items) "map[string]interface {}" -}}
+{{template "volume" $items}}
+{{- else -}}
+{{- range $i, $v := $items -}}
+{{- if $i}},{{end -}}
+{{template "volume" $v}}
+{{- end -}}
+{{- end }}
+  ]
+}
+{{- define "volume"}}
+    {
+      "volumeId": {{printf "%q" (index . "volumeId")}},
+      "size": {{toInt (index . "size")}},
+      "snapshotId": {{with index . "snapshotId"}}{{printf "%q" .}}{{else}}null{{end}},
+      "availabilityZone": {{printf "%q" (index . "availabilityZone")}},
+      "status": {{printf "%q" (index . "status")}},
+      "createTime": {{printf "%q" (index . "createTime")}},
+      "volumeType": {{printf "%q" (index . "volumeType")}},
+      "encrypted": {{toBool (index . "encrypted")}},
+      "multiAttachEnabled": {{toBool (index . "multiAttachEnabled")}}
+    }
+{{- end -}}
+`
 	expectedJsonOutput    = `[{"name": "Platypus", "democratic_votes": 1}, {"name": "Quokka", "democratic_votes": 3}, {"name": "Quoll", "democratic_votes": 2}]`
 	openSSLCertTextOutput = `Certificate:
     Data:
@@ -174,6 +231,33 @@ meta:
         73:21:b4:62:a7:4a:3f:8a:66:8e:02:38:d5:50:5c:d4:96:86:
         a5:66:21:c3:39:6f:54:cc
 `
+	expectedBestEffortSinglePageOutput = `{
+  "nextToken": "abc123",
+  "volumes": [
+    {
+      "volumeId": "vol-123",
+      "size": 8,
+      "snapshotId": "snap-abc",
+      "availabilityZone": "us-east-1a",
+      "status": "in-use",
+      "createTime": "2023-01-01T00:00:00Z",
+      "volumeType": "gp2",
+      "encrypted": true,
+      "multiAttachEnabled": false
+    },
+    {
+      "volumeId": "vol-456",
+      "size": 16,
+      "snapshotId": null,
+      "availabilityZone": "us-east-1b",
+      "status": "available",
+      "createTime": "2023-01-02T00:00:00Z",
+      "volumeType": "io1",
+      "encrypted": false,
+      "multiAttachEnabled": false
+    }
+  ]
+}`
 )
 
 func TestSimpleStreamTransform(t *testing.T) {
@@ -214,7 +298,7 @@ func TestMeaningfulStreamTransform(t *testing.T) {
 	}
 }
 
-func TestSimpleXMLStreamTransform(t *testing.T) {
+func TestSimpleTextXMLStreamTransform(t *testing.T) {
 	input := xmlExample
 	t.Log("v")
 	tmpl := xmlTmpl
@@ -229,6 +313,26 @@ func TestSimpleXMLStreamTransform(t *testing.T) {
 	}
 	outputStr := outStream.String()
 	expected := `[{ "name": "Platypus"}]`
+	if outputStr != expected {
+		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
+	}
+}
+
+func TestBestEffortXMLStreamTransform(t *testing.T) {
+	input := xmlEc2SinglePageExample
+	t.Log("v")
+	tmpl := xmlBestEffortTmpl
+	inStream := NewXMLBestEffortReader(bytes.NewBufferString(input))
+	outStream := bytes.NewBuffer(nil)
+	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	if err != nil {
+		t.Fatalf("failed to create transformer: %v", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		t.Fatalf("failed to transform: %v", err)
+	}
+	outputStr := outStream.String()
+	expected := expectedBestEffortSinglePageOutput
 	if outputStr != expected {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
 	}

@@ -3,8 +3,11 @@ package stream_transform
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"text/template"
+
+	"github.com/clbanning/mxj/v2"
 )
 
 // full acknowledgment to https://stackoverflow.com/a/42663928
@@ -17,6 +20,37 @@ func separator(s string) func() string {
 		}
 		return s
 	}
+}
+
+func toBool(v interface{}) bool {
+	switch v := v.(type) {
+	case string:
+		return v == "true"
+	case bool:
+		return v
+	default:
+		return false
+	}
+}
+
+func toInt(v interface{}) int {
+	switch v := v.(type) {
+	case string:
+		var i int
+		fmt.Sscanf(v, "%d", &i)
+		return i
+	case float64:
+		return int(v)
+	default:
+		return 0
+	}
+}
+
+func safeIndex(m map[string]interface{}, key string) interface{} {
+	if m == nil {
+		return nil
+	}
+	return m[key]
 }
 
 func getXPathInner(xml string, path string) (string, error) {
@@ -61,6 +95,30 @@ func (jr *jsonReader) Read() (interface{}, error) {
 
 type textReader struct {
 	inStream io.Reader
+}
+
+type xmlBestEffortReader struct {
+	inStream io.Reader
+}
+
+func (xer *xmlBestEffortReader) Read() (interface{}, error) {
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(xer.inStream)
+	if err != nil {
+		return nil, err
+	}
+	inBytes := buf.Bytes()
+	mv, err := mxj.NewMapXml(inBytes, true) // true = strip namespaces
+	if err != nil {
+		return nil, err
+	}
+	return mv, nil
+}
+
+func NewXMLBestEffortReader(inStream io.Reader) ObjectReader {
+	return &xmlBestEffortReader{
+		inStream: inStream,
+	}
 }
 
 func NewTextReader(inStream io.Reader) ObjectReader {
@@ -115,6 +173,9 @@ func newTemplateStreamTransformer(
 		"getXPathAllOuter":    getXPathAllOuter,
 		"getRegexpFirstMatch": getRegexpFirstMatch,
 		"getRegexpAllMatches": getRegexpAllMatches,
+		"safeIndex":           safeIndex,
+		"toBool":              toBool,
+		"toInt":               toInt,
 	}).Parse(tplStr)
 	if tplErr != nil {
 		return nil, tplErr
