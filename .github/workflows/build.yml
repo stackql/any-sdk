@@ -166,12 +166,19 @@ jobs:
         openssl req -x509 -keyout test/server/mtls/credentials/pg_rubbish_key.pem -out test/server/mtls/credentials/pg_rubbish_cert.pem -config test/server/mtls/openssl.cnf -days 365 
         python3 test/python/registry-rewrite.py
     
+    - name: Create mock routed services for local tests
+      run: |
+        python3 stackql-core/test/python/registry-rewrite.py \
+          --srcdir $(pwd)/test/registry-simple/src \
+          --destdir $(pwd)/test/registry-mocked/src
+    
     - name: Start Core Test Mocks
       working-directory: stackql-core
       run: |
         pgrep -f flask | xargs kill -9 || true
         flask --app=./test/python/flask/gcp/app          run --cert=./test/server/mtls/credentials/pg_server_cert.pem --key=./test/server/mtls/credentials/pg_server_key.pem --host 0.0.0.0 --port 1080 & 
         flask --app=./test/python/flask/oauth2/token_srv run --cert=./test/server/mtls/credentials/pg_server_cert.pem --key=./test/server/mtls/credentials/pg_server_key.pem --host 0.0.0.0 --port 2091 & 
+        flask --app=./test/python/flask/aws/app run --cert=./test/server/mtls/credentials/pg_server_cert.pem --key=./test/server/mtls/credentials/pg_server_key.pem --host 0.0.0.0 --port 1091 & 
     
     - name: Run core mocked testing
       working-directory: stackql-core
@@ -192,7 +199,7 @@ jobs:
         else
           echo "Core Test passed with matching buckets: $matchingBuckets"
         fi
-            
+    
     - name: Run local templated openssl mutate test
       run: |
         rm -rf test/tmp/*.pem
@@ -213,7 +220,27 @@ jobs:
           exit 1
         else
           echo "Core Test passed with matching end date info: $endDateFound"
-        fi   
+        fi
+      
+    - name: Mocked CLI HTTP templated aws ec2 volumes response transform test
+      run: |
+        export AWS_SECRET_ACCESS_KEY="totally-fake"
+        export AWS_ACCESS_KEY_ID="totally-fake"
+        volumeIDs="$(${{ github.workspace }}/build/anysdk query \
+          --svc-file-path="test/registry-mocked/src/aws/v0.1.0/services/ec2.yaml" \
+          --tls.allowInsecure \
+          --prov-file-path="test/registry-mocked/src/aws/v0.1.0/provider.yaml" \
+          --resource volumes_presented \
+          --method describeVolumes \
+          --parameters '{ "region": "ap-southeast-2" }' \
+          | jq -r '.line_items[].volumeId')" 
+        matchingVolumes="$(echo "${volumeIDs}" | grep "vol-00100000000000000" )"
+        if [ "${matchingVolumes}" = "" ]; then
+          echo "Mocked CLI HTTP templated Test Failed with no matching buckets"
+          exit 1
+        else
+          echo "Mocked CLI HTTP templated Test passed with matching buckets: $matchingVolumes"
+        fi
 
     - name: Run local templated openssl select test
       run: |

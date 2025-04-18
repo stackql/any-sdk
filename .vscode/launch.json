@@ -34,6 +34,25 @@
         {
             "type": "go",
             "request": "launch",
+            "name": "CLI aws xml: ec2 volumes describe",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/interrogate",
+            "envFile": "${workspaceFolder}/.vscode/.env",
+            "args": [
+                "query",
+                "--svc-file-path=${workspaceFolder}/test/registry-simple/src/aws/v0.1.0/services/ec2.yaml",
+                "--prov-file-path=${workspaceFolder}/test/registry-simple/src/aws/v0.1.0/provider.yaml",
+                "--resource",
+                "volumes_presented",
+                "--method",
+                "describeVolumes",
+                "--parameters",
+                "{ \"region\": \"ap-southeast-2\"}"
+            ]
+        },
+        {
+            "type": "go",
+            "request": "launch",
             "name": "CLI local: x509 openssl describe",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/interrogate",
