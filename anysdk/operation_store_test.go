@@ -77,6 +77,55 @@ func TestXPathHandle(t *testing.T) {
 
 }
 
+func TestTransformedXMLHTTPHandle(t *testing.T) {
+	setupFileRoot(t)
+	res := &http.Response{
+		Header:     http.Header{"Content-Type": []string{"text/xml"}},
+		StatusCode: 200,
+		Body:       testutil.GetAwsEc2ListMultiResponseReader(),
+	}
+
+	b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", "v0.1.0"))
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+
+	l := newLoader()
+
+	svc, err := l.loadFromBytes(b)
+
+	assert.NilError(t, err)
+	assert.Assert(t, svc != nil)
+
+	assert.Equal(t, svc.GetName(), "ec2")
+
+	rsc, err := svc.GetResource("volumes_presented")
+	assert.NilError(t, err)
+	assert.Assert(t, rsc != nil)
+
+	ops, st, ok := rsc.GetFirstMethodFromSQLVerb("select")
+	assert.Assert(t, ok)
+	assert.Assert(t, st != "")
+	assert.Assert(t, ops != nil)
+
+	processed, err := ops.ProcessResponse(res)
+	assert.NilError(t, err)
+	processedResponse, ok := processed.GetResponse()
+	assert.Assert(t, ok)
+	assert.Assert(t, processedResponse != nil)
+
+	mc, ok := processedResponse.GetProcessedBody().(map[string]interface{})
+	assert.Assert(t, ok)
+	assert.Assert(t, len(mc) == 2)
+	lineItems, ok := mc["line_items"].([]interface{})
+	assert.Assert(t, ok)
+	assert.Assert(t, len(lineItems) == 2)
+	e0, ok := lineItems[0].(map[string]interface{})
+	assert.Assert(t, ok)
+	assert.Assert(t, e0["volume_id"] != "vol-001ebed16c2567746")
+
+}
+
 func TestJSONPathHandle(t *testing.T) {
 	setupFileRoot(t)
 

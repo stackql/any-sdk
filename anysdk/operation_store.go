@@ -20,6 +20,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/parametertranslate"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
 	"github.com/stackql/any-sdk/pkg/response"
+	"github.com/stackql/any-sdk/pkg/stream_transform"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
 	"github.com/stackql/any-sdk/pkg/util"
 	"github.com/stackql/any-sdk/pkg/xmlmap"
@@ -1426,7 +1427,56 @@ func (sor *standardOperationResponse) GetReversal() (HTTPPreparator, bool) {
 	return sor.reversal, sor.reversal != nil
 }
 
-func (op *standardOpenAPIOperationStore) ProcessResponse(response *http.Response) (ProcessedOperationResponse, error) {
+func (op *standardOpenAPIOperationStore) isOverridable(httpResponse *http.Response) bool {
+	expectedResponse, isExpectedResponse := op.GetResponse()
+	if isExpectedResponse {
+		responseTransform, responseTransformExists := expectedResponse.GetTransform()
+		overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
+		return responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" && overrideMediaType != ""
+	}
+	return false
+}
+
+func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http.Response) (response.Response, error) {
+	defer httpResponse.Body.Close()
+	bodyBytes, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, err
+	}
+	expectedResponse, isExpectedResponse := op.GetResponse()
+	if isExpectedResponse {
+		responseTransform, responseTransformExists := expectedResponse.GetTransform()
+		overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
+		if responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" {
+			input := string(bodyBytes)
+			tmpl := responseTransform.GetBody()
+			inStream := stream_transform.NewXMLBestEffortReader(bytes.NewBufferString(input))
+			outStream := bytes.NewBuffer(nil)
+			tfm, err := stream_transform.NewTemplateStreamTransformer(tmpl, inStream, outStream)
+			if err != nil {
+				return nil, fmt.Errorf("template stream transform error: %v", err)
+			}
+			if err := tfm.Transform(); err != nil {
+				return nil, fmt.Errorf("failed to transform: %v", err)
+			}
+			bodyBytes = outStream.Bytes()
+			if overrideMediaType == "" {
+				overrideMediaType = media.MediaTypeJson
+			}
+			rv := make(map[string]interface{})
+			if overrideMediaType == media.MediaTypeJson {
+				err = json.Unmarshal(bodyBytes, &rv)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal response body: %v", err)
+				}
+			}
+			return response.NewResponse(rv, bodyBytes, httpResponse), nil
+		}
+	}
+	return nil, fmt.Errorf("unprocessable response body for operation =  %s", op.GetName())
+}
+
+func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Response) (ProcessedOperationResponse, error) {
 	responseSchema, mediaType, err := op.GetResponseBodySchemaAndMediaType()
 	if err != nil {
 		return nil, err
@@ -1435,7 +1485,12 @@ func (op *standardOpenAPIOperationStore) ProcessResponse(response *http.Response
 	if op.Response != nil {
 		overrideMediaType = op.Response.OverrideBodyMediaType
 	}
-	rv, err := responseSchema.processHttpResponse(response, op.lookupSelectItemsKey(), mediaType, overrideMediaType)
+	var rv response.Response
+	if op.isOverridable(httpResponse) {
+		rv, err = op.getOverridenResponse(httpResponse)
+	} else {
+		rv, err = responseSchema.processHttpResponse(httpResponse, op.lookupSelectItemsKey(), mediaType, overrideMediaType)
+	}
 	var reversal HTTPPreparator
 	inverse, inverseExists := op.GetInverse()
 	if inverseExists {

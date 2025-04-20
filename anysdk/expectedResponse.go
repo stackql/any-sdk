@@ -6,6 +6,7 @@ var (
 
 type ExpectedResponse interface {
 	GetBodyMediaType() string
+	GetOverrrideBodyMediaType() string
 	GetOpenAPIDocKey() string
 	GetObjectKey() string
 	GetSchema() Schema
@@ -37,6 +38,10 @@ func (er *standardExpectedResponse) setSchema(s Schema) {
 
 func (er *standardExpectedResponse) GetBodyMediaType() string {
 	return er.BodyMediaType
+}
+
+func (er *standardExpectedResponse) GetOverrrideBodyMediaType() string {
+	return er.OverrideBodyMediaType
 }
 
 func (er *standardExpectedResponse) setOverrideSchemaValue(s Schema) {
