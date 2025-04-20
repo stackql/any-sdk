@@ -440,11 +440,7 @@ func (l *standardLoader) mergeLocalResource(
 		// 	response = &standardExpectedResponse{}
 		// 	v.setResponse(response.(*standardExpectedResponse))
 		// }
-		operationRef := v.GetOperationRef()
-		if operationRef == nil || operationRef.Value == nil {
-			continue
-		}
-		err := l.resolveExpectedLocalResponse(svc, v.GetOperationRef().Value, response)
+		err := l.resolveExpectedLocalResponse(svc, response)
 		if err != nil {
 			return err
 		}
@@ -937,7 +933,7 @@ func (l *standardLoader) latePassResolveInverse(svc Service, component *OpenAPIO
 	return nil
 }
 
-func (loader *standardLoader) resolveExpectedLocalResponse(doc Service, op *openapi3.Operation, component ExpectedResponse) (err error) {
+func (loader *standardLoader) resolveExpectedLocalResponse(doc Service, component ExpectedResponse) (err error) {
 	overrideSchema, isOverrideSchema := component.getOverrideSchema()
 	if isOverrideSchema && overrideSchema.Ref != "" {
 		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
