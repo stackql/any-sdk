@@ -164,7 +164,9 @@ jobs:
         openssl req -x509 -keyout test/server/mtls/credentials/pg_server_key.pem -out test/server/mtls/credentials/pg_server_cert.pem -config test/server/mtls/openssl.cnf -days 365
         openssl req -x509 -keyout test/server/mtls/credentials/pg_client_key.pem -out test/server/mtls/credentials/pg_client_cert.pem -config test/server/mtls/openssl.cnf -days 365
         openssl req -x509 -keyout test/server/mtls/credentials/pg_rubbish_key.pem -out test/server/mtls/credentials/pg_rubbish_cert.pem -config test/server/mtls/openssl.cnf -days 365 
-        python3 test/python/stackql_test_tooling/registry_rewrite.py
+        python3 test/python/stackql_test_tooling/registry_rewrite.py \
+          --srcdir $(pwd)/test/registry/src \
+          --destdir $(pwd)/test/registry-mocked/src
     
     - name: Create mock routed services for local tests
       run: |
