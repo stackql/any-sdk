@@ -533,7 +533,13 @@ func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) 
 	case client.HTTP:
 		return loadOpenapiServiceDocFromBytes(ps, bytes)
 	case client.LocalTemplated:
+		l := newLoader()
+		doc, err := l.loadOpenapiDocFromBytes(bytes)
+		if err != nil {
+			return nil, err
+		}
 		rv := new(localTemplatedService)
+		rv.OpenapiSvc = doc
 		err = yamlconv.Unmarshal(bytes, rv)
 		if err != nil {
 			return nil, err
