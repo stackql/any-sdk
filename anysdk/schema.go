@@ -1400,7 +1400,12 @@ func (s *standardSchema) unmarshalResponseAtPath(r *http.Response, path string, 
 	}
 	processedResponse, rawResponse, err := s.unmarshalReaderResponseAtPath(r.Body, path, mediaType, defaultMediaType)
 	if err != nil {
-		return nil, err
+		// This is a hack to preserve existing behavior
+		// TODO: clean this up
+		if processedResponse == nil {
+			return nil, err
+		}
+		return response.NewResponse(processedResponse, processedResponse, r), err
 	}
 	return response.NewResponse(processedResponse, rawResponse, r), nil
 }
