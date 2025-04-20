@@ -957,7 +957,7 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 		if sr == nil || sr.Value == nil {
 			return fmt.Errorf("schema '%s' not found in components", schemaKey)
 		}
-		component.setOverrideSchemaValue(sr.Value)
+		component.setOverrideSchemaValue(newSchema(sr.Value, doc, "", ""))
 		s := newSchema(sr.Value, doc, "", "")
 		component.setSchema(s)
 	} else if bmt != "" && ek != "" {

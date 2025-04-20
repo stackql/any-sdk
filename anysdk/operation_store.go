@@ -1367,7 +1367,7 @@ func (op *standardOpenAPIOperationStore) GetResponseBodySchemaAndMediaType() (Sc
 
 func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Schema, string, error) {
 	if op.Response != nil && op.Response.OverrideSchema != nil && op.Response.OverrideSchema.Value != nil {
-		return newSchema(op.Response.OverrideSchema.Value, op.GetService(), "", ""), "", nil
+		return op.Response.OverrideSchema.Value, "", nil
 	}
 	if op.Response != nil && op.Response.Schema != nil {
 		mediaType := op.Response.BodyMediaType
@@ -1382,7 +1382,7 @@ func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Sc
 func (op *standardOpenAPIOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	k := op.lookupSelectItemsKey()
 	if op.Response != nil && op.Response.OverrideSchema != nil && op.Response.OverrideSchema.Value != nil {
-		return newSchema(op.Response.OverrideSchema.Value, op.GetService(), "", ""), k, nil
+		return op.Response.OverrideSchema.Value, k, nil
 	}
 	if op.Response != nil && op.Response.Schema != nil {
 		return op.Response.Schema.getSelectItemsSchema(k, op.getOptimalResponseMediaType())
