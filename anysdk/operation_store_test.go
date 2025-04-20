@@ -114,15 +114,12 @@ func TestTransformedXMLHTTPHandle(t *testing.T) {
 	assert.Assert(t, ok)
 	assert.Assert(t, processedResponse != nil)
 
-	mc, ok := processedResponse.GetProcessedBody().(map[string]interface{})
+	mc, ok := processedResponse.GetProcessedBody().([]interface{})
 	assert.Assert(t, ok)
 	assert.Assert(t, len(mc) == 2)
-	lineItems, ok := mc["line_items"].([]interface{})
+	e0, ok := mc[0].(map[string]interface{})
 	assert.Assert(t, ok)
-	assert.Assert(t, len(lineItems) == 2)
-	e0, ok := lineItems[0].(map[string]interface{})
-	assert.Assert(t, ok)
-	assert.Assert(t, e0["volume_id"] != "vol-001ebed16c2567746")
+	assert.Assert(t, e0["volume_id"] == "vol-001ebed16c2567746")
 
 }
 

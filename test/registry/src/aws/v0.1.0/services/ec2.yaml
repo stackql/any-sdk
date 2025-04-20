@@ -244,7 +244,7 @@ components:
             mediaType: application/xml
             overrideMediaType: application/json
             openAPIDocKey: '200'
-            objectKey: '/DescribeVolumesResponse/volumeSet/item'
+            objectKey: '$.line_items'
             schema_override:
               $ref: '#/components/schemas/DisplayVolumesSchema'
             transform:
@@ -265,15 +265,15 @@ components:
                 }
                 {{define "volume"}}
                 {
-                  "volumeId": {{printf "%q" (index . "volumeId")}},
+                  "volume_id": {{printf "%q" (index . "volumeId")}},
                   "size": {{toInt (index . "size")}},
-                  "snapshotId": {{with index . "snapshotId"}}{{printf "%q" .}}{{else}}null{{end}},
-                  "availabilityZone": {{printf "%q" (index . "availabilityZone")}},
+                  "snapshot_id": {{with index . "snapshotId"}}{{printf "%q" .}}{{else}}null{{end}},
+                  "availability_zone": {{printf "%q" (index . "availabilityZone")}},
                   "status": {{printf "%q" (index . "status")}},
-                  "createTime": {{printf "%q" (index . "createTime")}},
-                  "volumeType": {{printf "%q" (index . "volumeType")}},
+                  "create_time": {{printf "%q" (index . "createTime")}},
+                  "volume_type": {{printf "%q" (index . "volumeType")}},
                   "encrypted": {{toBool (index . "encrypted")}},
-                  "multiAttachEnabled": {{toBool (index . "multiAttachEnabled")}}
+                  "multi_attach_enabled": {{toBool (index . "multiAttachEnabled")}}
                 }
                 {{end}}
               type: 'golang_template_mxj_v0.1.0'

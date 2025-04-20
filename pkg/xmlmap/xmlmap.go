@@ -210,7 +210,7 @@ func castXMLMap(inMap map[string]string, schema *openapi3.Schema) (map[string]in
 	return rv, nil
 }
 
-func GetSubObjTyped(xmlReader io.ReadCloser, path string, schema *openapi3.Schema) (interface{}, *xmlquery.Node, error) {
+func GetSubObjTyped(xmlReader io.Reader, path string, schema *openapi3.Schema) (interface{}, *xmlquery.Node, error) {
 	raw, doc, err := getSubObjFromReadCloser(xmlReader, path)
 	if err != nil {
 		return nil, nil, err
@@ -262,7 +262,7 @@ func GetSubObjTyped(xmlReader io.ReadCloser, path string, schema *openapi3.Schem
 	}
 }
 
-func getSubObjFromReadCloser(xmlReader io.ReadCloser, path string) (interface{}, *xmlquery.Node, error) {
+func getSubObjFromReadCloser(xmlReader io.Reader, path string) (interface{}, *xmlquery.Node, error) {
 	doc, err := xmlquery.Parse(xmlReader)
 	if err != nil {
 		return nil, nil, err

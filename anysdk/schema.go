@@ -87,8 +87,8 @@ type Schema interface {
 	setXml(interface{})
 	extractMediaTypeSynonym(mediaType string) string // TODO: implement upwards-searchable configurable type set matching
 	toFlatDescriptionMap(extended bool) map[string]interface{}
-	unmarshalJSONResponseBody(body io.ReadCloser, path string) (interface{}, interface{}, error)
-	unmarshalXMLResponseBody(body io.ReadCloser, path string) (interface{}, *xmlquery.Node, error)
+	unmarshalJSONResponseBody(body io.Reader, path string) (interface{}, interface{}, error)
+	unmarshalXMLResponseBody(body io.Reader, path string) (interface{}, *xmlquery.Node, error)
 	processHttpResponse(r *http.Response, path string, defaultMediaType string, overrideMediaType string) (response.Response, error)
 	getSelectItemsSchema(key string, mediaType string) (Schema, string, error)
 	getProperties() Schemas
@@ -99,6 +99,7 @@ type Schema interface {
 	getAdditionalProperties() (Schema, bool)
 	getExtension(k string) (interface{}, bool)
 	isStringOnly() bool
+	unmarshalReaderResponseAtPath(r io.Reader, path string, mediaType string, fallbackMediaType string) (interface{}, interface{}, error)
 }
 
 func ProviderTypeConditionIsValid(providerType string, lhs string, rhs interface{}) bool {
@@ -1331,11 +1332,11 @@ func (s *standardSchema) FindByPath(path string, visited map[string]bool) Schema
 	return nil
 }
 
-func (s *standardSchema) unmarshalXMLResponseBody(body io.ReadCloser, path string) (interface{}, *xmlquery.Node, error) {
+func (s *standardSchema) unmarshalXMLResponseBody(body io.Reader, path string) (interface{}, *xmlquery.Node, error) {
 	return xmlmap.GetSubObjTyped(body, path, s.Schema)
 }
 
-func (s *standardSchema) unmarshalJSONResponseBody(body io.ReadCloser, path string) (interface{}, interface{}, error) {
+func (s *standardSchema) unmarshalJSONResponseBody(body io.Reader, path string) (interface{}, interface{}, error) {
 	var target interface{}
 	err := json.NewDecoder(body).Decode(&target)
 	if err != nil {
@@ -1355,7 +1356,6 @@ func (s *standardSchema) unmarshalResponse(r *http.Response, overrideMediaType s
 	} else {
 		return nil, nil
 	}
-	var target interface{}
 	mediaType, err := media.GetResponseMediaType(r, "")
 	if err != nil {
 		return nil, err
@@ -1363,6 +1363,12 @@ func (s *standardSchema) unmarshalResponse(r *http.Response, overrideMediaType s
 	if overrideMediaType != "" {
 		mediaType = overrideMediaType
 	}
+	return s.unmarshalResponseFromReader(body, mediaType)
+}
+
+func (s *standardSchema) unmarshalResponseFromReader(body io.Reader, mediaType string) (interface{}, error) {
+	var target interface{}
+	var err error
 	switch mediaType {
 	case media.MediaTypeJson, media.MediaTypeScimJson:
 		err = json.NewDecoder(body).Decode(&target)
@@ -1392,19 +1398,28 @@ func (s *standardSchema) unmarshalResponseAtPath(r *http.Response, path string, 
 			return nil, err
 		}
 	}
+	processedResponse, rawResponse, err := s.unmarshalReaderResponseAtPath(r.Body, path, mediaType, defaultMediaType)
+	if err != nil {
+		return nil, err
+	}
+	return response.NewResponse(processedResponse, rawResponse, r), nil
+}
+
+func (s *standardSchema) unmarshalReaderResponseAtPath(r io.Reader, path string, mediaType string, fallbackMediaType string) (interface{}, interface{}, error) {
+
 	switch s.extractMediaTypeSynonym(mediaType) {
 	case media.MediaTypeXML:
 		pathResolver := openapitopath.NewXPathResolver()
 		pathSplit := pathResolver.ToPathSlice(path)
 		ss, ok := s.getXMLDescendentInit(pathSplit)
 		if !ok {
-			return nil, fmt.Errorf("cannot find xml descendent for path %+v", pathSplit)
+			return nil, nil, fmt.Errorf("cannot find xml descendent for path %+v", pathSplit)
 		}
-		processedResponse, rawResponse, err := ss.unmarshalXMLResponseBody(r.Body, path)
+		processedResponse, rawResponse, err := ss.unmarshalXMLResponseBody(r, path)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return response.NewResponse(processedResponse, rawResponse, r), nil
+		return processedResponse, rawResponse, nil
 	case media.MediaTypeJson:
 		// TODO: follow same pattern as XML, but with json path
 		if path != "" && strings.HasPrefix(path, "$") {
@@ -1412,21 +1427,21 @@ func (s *standardSchema) unmarshalResponseAtPath(r *http.Response, path string, 
 			pathSplit := pathResolver.ToPathSlice(path)
 			ss, ok := s.getDescendentInit(pathSplit)
 			if !ok {
-				return nil, fmt.Errorf("cannot find json descendent for path %+v", pathSplit)
+				return nil, nil, fmt.Errorf("cannot find json descendent for path %+v", pathSplit)
 			}
-			processedResponse, rawResponse, err := ss.unmarshalJSONResponseBody(r.Body, path)
+			processedResponse, rawResponse, err := ss.unmarshalJSONResponseBody(r, path)
 			if err != nil {
-				return response.NewResponse(map[string]interface{}{}, rawResponse, r), err
+				return map[string]interface{}{}, rawResponse, err
 			}
-			return response.NewResponse(processedResponse, rawResponse, r), nil
+			return processedResponse, rawResponse, nil
 		}
 		fallthrough
 	default:
-		processedResponse, err := s.unmarshalResponse(r, overrideMediaType)
+		processedResponse, err := s.unmarshalResponseFromReader(r, fallbackMediaType)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return response.NewResponse(processedResponse, processedResponse, r), nil
+		return processedResponse, processedResponse, nil
 	}
 }
 

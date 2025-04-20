@@ -1437,7 +1437,7 @@ func (op *standardOpenAPIOperationStore) isOverridable(httpResponse *http.Respon
 	return false
 }
 
-func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http.Response) (response.Response, error) {
+func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http.Response, responseSchema Schema) (response.Response, error) {
 	defer httpResponse.Body.Close()
 	bodyBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
@@ -1459,18 +1459,15 @@ func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http
 			if err := tfm.Transform(); err != nil {
 				return nil, fmt.Errorf("failed to transform: %v", err)
 			}
-			bodyBytes = outStream.Bytes()
+			// bodyBytes = outStream.Bytes()
 			if overrideMediaType == "" {
 				overrideMediaType = media.MediaTypeJson
 			}
-			rv := make(map[string]interface{})
-			if overrideMediaType == media.MediaTypeJson {
-				err = json.Unmarshal(bodyBytes, &rv)
-				if err != nil {
-					return nil, fmt.Errorf("failed to marshal response body: %v", err)
-				}
+			processedResponse, rawResponse, err := responseSchema.unmarshalReaderResponseAtPath(outStream, op.lookupSelectItemsKey(), overrideMediaType, overrideMediaType)
+			if err != nil {
+				return nil, err
 			}
-			return response.NewResponse(rv, bodyBytes, httpResponse), nil
+			return response.NewResponse(processedResponse, rawResponse, httpResponse), nil
 		}
 	}
 	return nil, fmt.Errorf("unprocessable response body for operation =  %s", op.GetName())
@@ -1487,7 +1484,7 @@ func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Resp
 	}
 	var rv response.Response
 	if op.isOverridable(httpResponse) {
-		rv, err = op.getOverridenResponse(httpResponse)
+		rv, err = op.getOverridenResponse(httpResponse, responseSchema)
 	} else {
 		rv, err = responseSchema.processHttpResponse(httpResponse, op.lookupSelectItemsKey(), mediaType, overrideMediaType)
 	}
