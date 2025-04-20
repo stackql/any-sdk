@@ -1,17 +1,17 @@
 package anysdk
 
-import "github.com/getkin/kin-openapi/openapi3"
-
 var (
 	_ ExpectedResponse = &standardExpectedResponse{}
 )
 
 type ExpectedResponse interface {
 	GetBodyMediaType() string
+	GetOverrrideBodyMediaType() string
 	GetOpenAPIDocKey() string
 	GetObjectKey() string
 	GetSchema() Schema
-	getOverrideSchema() (*openapi3.Schema, bool)
+	getOverrideSchema() (*LocalSchemaRef, bool)
+	setOverrideSchemaValue(Schema)
 	GetTransform() (Transform, bool)
 	//
 	setSchema(Schema)
@@ -24,7 +24,7 @@ type standardExpectedResponse struct {
 	OpenAPIDocKey         string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
 	ObjectKey             string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
 	Schema                Schema
-	OverrideSchema        *openapi3.Schema   `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
+	OverrideSchema        *LocalSchemaRef    `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
 	Transform             *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
 }
 
@@ -40,6 +40,17 @@ func (er *standardExpectedResponse) GetBodyMediaType() string {
 	return er.BodyMediaType
 }
 
+func (er *standardExpectedResponse) GetOverrrideBodyMediaType() string {
+	return er.OverrideBodyMediaType
+}
+
+func (er *standardExpectedResponse) setOverrideSchemaValue(s Schema) {
+	if er.OverrideSchema == nil {
+		er.OverrideSchema = &LocalSchemaRef{}
+	}
+	er.OverrideSchema.Value = s.(*standardSchema)
+}
+
 func (er *standardExpectedResponse) GetOpenAPIDocKey() string {
 	return er.OpenAPIDocKey
 }
@@ -49,13 +60,13 @@ func (er *standardExpectedResponse) GetObjectKey() string {
 }
 
 func (er *standardExpectedResponse) GetSchema() Schema {
-	if er.OverrideSchema != nil {
-		return newSchema(er.OverrideSchema, nil, "", "")
+	if er.OverrideSchema != nil && er.OverrideSchema.Value != nil {
+		return er.OverrideSchema.Value
 	}
 	return er.Schema
 }
 
-func (er *standardExpectedResponse) getOverrideSchema() (*openapi3.Schema, bool) {
+func (er *standardExpectedResponse) getOverrideSchema() (*LocalSchemaRef, bool) {
 	isNilSchema := er.OverrideSchema == nil
 	if isNilSchema {
 		return nil, false

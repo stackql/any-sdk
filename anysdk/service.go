@@ -23,6 +23,7 @@ type Service interface {
 	GetName() string
 	GetResource(resourceName string) (Resource, error)
 	GetSchema(key string) (Schema, error)
+	getT() *openapi3.T
 }
 
 type OpenAPIService interface {
@@ -47,11 +48,16 @@ type OpenAPIService interface {
 }
 
 type localTemplatedService struct {
+	OpenapiSvc      *openapi3.T                  `json:"-" yaml:"-"`
 	Name            string                       `json:"name" yaml:"name"`
 	Rsc             map[string]*standardResource `json:"resources" yaml:"resources"`
 	StackQLConfig   StackQLConfig                `json:"-" yaml:"-"`
 	ProviderService ProviderService              `json:"-" yaml:"-"` // upwards traversal
 	Provider        Provider                     `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (sv *localTemplatedService) getT() *openapi3.T {
+	return sv.OpenapiSvc
 }
 
 func (sv *localTemplatedService) GetServers() (openapi3.Servers, bool) {

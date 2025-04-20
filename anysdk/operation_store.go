@@ -20,6 +20,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/parametertranslate"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
 	"github.com/stackql/any-sdk/pkg/response"
+	"github.com/stackql/any-sdk/pkg/stream_transform"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
 	"github.com/stackql/any-sdk/pkg/util"
 	"github.com/stackql/any-sdk/pkg/xmlmap"
@@ -1366,8 +1367,8 @@ func (op *standardOpenAPIOperationStore) GetResponseBodySchemaAndMediaType() (Sc
 }
 
 func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Schema, string, error) {
-	if op.Response != nil && op.Response.OverrideSchema != nil {
-		return newSchema(op.Response.OverrideSchema, op.GetService(), "", ""), "", nil
+	if op.Response != nil && op.Response.OverrideSchema != nil && op.Response.OverrideSchema.Value != nil {
+		return op.Response.OverrideSchema.Value, op.Response.OverrideBodyMediaType, nil
 	}
 	if op.Response != nil && op.Response.Schema != nil {
 		mediaType := op.Response.BodyMediaType
@@ -1381,8 +1382,8 @@ func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Sc
 
 func (op *standardOpenAPIOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	k := op.lookupSelectItemsKey()
-	if op.Response != nil && op.Response.OverrideSchema != nil {
-		return newSchema(op.Response.OverrideSchema, op.GetService(), "", ""), k, nil
+	if op.Response != nil && op.Response.OverrideSchema != nil && op.Response.OverrideSchema.Value != nil {
+		return op.Response.OverrideSchema.Value.getSelectItemsSchema(k, op.Response.OverrideBodyMediaType)
 	}
 	if op.Response != nil && op.Response.Schema != nil {
 		return op.Response.Schema.getSelectItemsSchema(k, op.getOptimalResponseMediaType())
@@ -1426,7 +1427,53 @@ func (sor *standardOperationResponse) GetReversal() (HTTPPreparator, bool) {
 	return sor.reversal, sor.reversal != nil
 }
 
-func (op *standardOpenAPIOperationStore) ProcessResponse(response *http.Response) (ProcessedOperationResponse, error) {
+func (op *standardOpenAPIOperationStore) isOverridable(httpResponse *http.Response) bool {
+	expectedResponse, isExpectedResponse := op.GetResponse()
+	if isExpectedResponse {
+		responseTransform, responseTransformExists := expectedResponse.GetTransform()
+		overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
+		return responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" && overrideMediaType != ""
+	}
+	return false
+}
+
+func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http.Response, responseSchema Schema) (response.Response, error) {
+	defer httpResponse.Body.Close()
+	bodyBytes, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, err
+	}
+	expectedResponse, isExpectedResponse := op.GetResponse()
+	if isExpectedResponse {
+		responseTransform, responseTransformExists := expectedResponse.GetTransform()
+		overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
+		if responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" {
+			input := string(bodyBytes)
+			tmpl := responseTransform.GetBody()
+			inStream := stream_transform.NewXMLBestEffortReader(bytes.NewBufferString(input))
+			outStream := bytes.NewBuffer(nil)
+			tfm, err := stream_transform.NewTemplateStreamTransformer(tmpl, inStream, outStream)
+			if err != nil {
+				return nil, fmt.Errorf("template stream transform error: %v", err)
+			}
+			if err := tfm.Transform(); err != nil {
+				return nil, fmt.Errorf("failed to transform: %v", err)
+			}
+			// bodyBytes = outStream.Bytes()
+			if overrideMediaType == "" {
+				overrideMediaType = media.MediaTypeJson
+			}
+			processedResponse, rawResponse, err := responseSchema.unmarshalReaderResponseAtPath(outStream, op.lookupSelectItemsKey(), overrideMediaType, overrideMediaType)
+			if err != nil {
+				return nil, err
+			}
+			return response.NewResponse(processedResponse, rawResponse, httpResponse), nil
+		}
+	}
+	return nil, fmt.Errorf("unprocessable response body for operation =  %s", op.GetName())
+}
+
+func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Response) (ProcessedOperationResponse, error) {
 	responseSchema, mediaType, err := op.GetResponseBodySchemaAndMediaType()
 	if err != nil {
 		return nil, err
@@ -1435,7 +1482,12 @@ func (op *standardOpenAPIOperationStore) ProcessResponse(response *http.Response
 	if op.Response != nil {
 		overrideMediaType = op.Response.OverrideBodyMediaType
 	}
-	rv, err := responseSchema.processHttpResponse(response, op.lookupSelectItemsKey(), mediaType, overrideMediaType)
+	var rv response.Response
+	if op.isOverridable(httpResponse) {
+		rv, err = op.getOverridenResponse(httpResponse, responseSchema)
+	} else {
+		rv, err = responseSchema.processHttpResponse(httpResponse, op.lookupSelectItemsKey(), mediaType, overrideMediaType)
+	}
 	var reversal HTTPPreparator
 	inverse, inverseExists := op.GetInverse()
 	if inverseExists {
