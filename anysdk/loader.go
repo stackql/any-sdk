@@ -419,34 +419,37 @@ func (l *standardLoader) mergeLocalResource(
 		v := vOp
 		v.setResource(rsc)
 		rsc.setMethod(k, &v)
+
+		v.setMethodKey(k)
+		// TODO: replicate this for the damned inverse
+		// err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
+		// if err != nil {
+		// 	return err
+		// }
+		// req, reqExists := v.GetRequest()
+		// if !reqExists && v.GetOperationRef().Value.RequestBody != nil {
+		// 	req = &standardExpectedRequest{}
+		// 	v.setRequest(req.(*standardExpectedRequest))
+		// }
+		// err = l.resolveExpectedRequest(svc, v.GetOperationRef().Value, req)
+		// if err != nil {
+		// 	return err
+		// }
+		response, _ := v.GetResponse()
+		// if !responseExists && v.GetOperationRef().Value.Responses != nil {
+		// 	response = &standardExpectedResponse{}
+		// 	v.setResponse(response.(*standardExpectedResponse))
+		// }
+		operationRef := v.GetOperationRef()
+		if operationRef == nil || operationRef.Value == nil {
+			continue
+		}
+		err := l.resolveExpectedLocalResponse(svc, v.GetOperationRef().Value, response)
+		if err != nil {
+			return err
+		}
+		rsc.setMethod(k, &v)
 	}
-	// 	v := vOp
-	// 	v.setMethodKey(k)
-	// 	// TODO: replicate this for the damned inverse
-	// 	err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	req, reqExists := v.GetRequest()
-	// 	if !reqExists && v.GetOperationRef().Value.RequestBody != nil {
-	// 		req = &standardExpectedRequest{}
-	// 		v.setRequest(req.(*standardExpectedRequest))
-	// 	}
-	// 	err = l.resolveExpectedRequest(svc, v.GetOperationRef().Value, req)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	response, responseExists := v.GetResponse()
-	// 	if !responseExists && v.GetOperationRef().Value.Responses != nil {
-	// 		response = &standardExpectedResponse{}
-	// 		v.setResponse(response.(*standardExpectedResponse))
-	// 	}
-	// 	err = l.resolveExpectedResponse(svc, v.GetOperationRef().Value, response)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	rsc.setMethod(k, &v)
-	// }
 	for sqlVerb, dir := range rsc.getSQLVerbs() {
 		for i, v := range dir {
 			cur := v
@@ -929,6 +932,22 @@ func (l *standardLoader) latePassResolveInverse(svc Service, component *OpenAPIO
 			return err
 		}
 		// input.Inverse.OpRef.Value = sop
+		return nil
+	}
+	return nil
+}
+
+func (loader *standardLoader) resolveExpectedLocalResponse(doc Service, op *openapi3.Operation, component ExpectedResponse) (err error) {
+	overrideSchema, isOverrideSchema := component.getOverrideSchema()
+	if isOverrideSchema && overrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setOverrideSchemaValue(newSchema(sr.Value, nil, "", ""))
+		s := newSchema(sr.Value, nil, "", "")
+		component.setSchema(s)
 		return nil
 	}
 	return nil
