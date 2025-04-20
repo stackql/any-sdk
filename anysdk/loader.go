@@ -39,6 +39,7 @@ type DiscoveryDoc interface {
 }
 
 type anySdkLoader interface {
+	loadOpenapiDocFromBytes(bytes []byte) (*openapi3.T, error)
 	loadFromBytes(bytes []byte) (OpenAPIService, error)
 	loadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
 	loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
@@ -94,7 +95,13 @@ func LoadProviderAndServiceFromPaths(
 		}
 		return svc, nil
 	case client.LocalTemplated:
+		l := newLoader()
+		doc, err := l.loadOpenapiDocFromBytes(b)
+		if err != nil {
+			return nil, err
+		}
 		rv := new(localTemplatedService)
+		rv.OpenapiSvc = doc
 		err = yamlconv.Unmarshal(b, rv)
 		if err != nil {
 			return nil, err
@@ -128,6 +135,17 @@ func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, erro
 	rv.SetProviderService(ps)
 	resourceregisterLoadBackwardsCompatibility(rv)
 	return rv, nil
+}
+
+func (l *standardLoader) loadOpenapiDocFromBytes(bytes []byte) (*openapi3.T, error) {
+	doc, err := l.LoadFromData(bytes)
+	if err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		return nil, fmt.Errorf("OpenAPIService.loadOpenapiDocFromBytes() failure")
+	}
+	return doc, nil
 }
 
 func (l *standardLoader) loadFromBytes(bytes []byte) (OpenAPIService, error) {
@@ -933,8 +951,14 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 	bmt := component.GetBodyMediaType()
 	ek := component.GetOpenAPIDocKey()
 	overrideSchema, isOverrideSchema := component.getOverrideSchema()
-	if isOverrideSchema {
-		s := newSchema(overrideSchema, doc, "", "")
+	if isOverrideSchema && overrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setOverrideSchemaValue(sr.Value)
+		s := newSchema(sr.Value, doc, "", "")
 		component.setSchema(s)
 	} else if bmt != "" && ek != "" {
 		ekObj, ok := op.Responses[ek]
