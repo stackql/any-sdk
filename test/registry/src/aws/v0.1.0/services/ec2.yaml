@@ -244,35 +244,9 @@ components:
             mediaType: application/xml
             overrideMediaType: application/json
             openAPIDocKey: '200'
-            objectKey: '/DescribeVolumesResponse/volumeSet/item'
+            objectKey: '$.line_items'
             schema_override:
-              title: Key Display
-              type: object
-              properties:
-                nextPageToken:
-                  type: string
-                  description: The <code>NextToken</code> value to include in a future <code>DescribeVolumes</code> request. When the results of a <code>DescribeVolumes</code> request exceed <code>MaxResults</code>, this value can be used to retrieve the next page of results. This value is <code>null</code> when there are no more results to return.
-                line_items:
-                  type: list
-                  items:
-                    type: object
-                    properties:
-                      type:
-                          type: string
-                          description: The key type
-                          example: x509
-                      not_before:
-                          type: string
-                          description: Textual date representation of the key's not before date.
-                          example: Mar 22 02:50:46 2025 GMT
-                      not_after:
-                          type: string
-                          description: Textual date representation of the key's not after date.
-                          example: Mar 22 02:50:46 2025 GMT
-                      public_key_algorithm:
-                          type: string
-                          description: The public key algorithm used by the key.
-                          example: rsaEncryption
+              $ref: '#/components/schemas/DisplayVolumesSchema'
             transform:
               body: >
                 {
@@ -291,15 +265,15 @@ components:
                 }
                 {{define "volume"}}
                 {
-                  "volumeId": {{printf "%q" (index . "volumeId")}},
+                  "volume_id": {{printf "%q" (index . "volumeId")}},
                   "size": {{toInt (index . "size")}},
-                  "snapshotId": {{with index . "snapshotId"}}{{printf "%q" .}}{{else}}null{{end}},
-                  "availabilityZone": {{printf "%q" (index . "availabilityZone")}},
+                  "snapshot_id": {{with index . "snapshotId"}}{{printf "%q" .}}{{else}}null{{end}},
+                  "availability_zone": {{printf "%q" (index . "availabilityZone")}},
                   "status": {{printf "%q" (index . "status")}},
-                  "createTime": {{printf "%q" (index . "createTime")}},
-                  "volumeType": {{printf "%q" (index . "volumeType")}},
+                  "create_time": {{printf "%q" (index . "createTime")}},
+                  "volume_type": {{printf "%q" (index . "volumeType")}},
                   "encrypted": {{toBool (index . "encrypted")}},
-                  "multiAttachEnabled": {{toBool (index . "multiAttachEnabled")}}
+                  "multi_attach_enabled": {{toBool (index . "multiAttachEnabled")}}
                 }
                 {{end}}
               type: 'golang_template_mxj_v0.1.0'
@@ -399,6 +373,42 @@ components:
             - xml:
                 name: nextToken
               description: The <code>NextToken</code> value returned from a previous paginated <code>DescribeVolumes</code> request where <code>MaxResults</code> was used and the results exceeded the value of that parameter. Pagination continues from the end of the previous results that returned the <code>NextToken</code> value. This value is <code>null</code> when there are no more results to return.
+    DisplayVolumesSchema:
+      title: Key Display
+      type: object
+      properties:
+        next_page_token:
+          type: string
+          description: The <code>NextToken</code> value to include in a future <code>DescribeVolumes</code> request. When the results of a <code>DescribeVolumes</code> request exceed <code>MaxResults</code>, this value can be used to retrieve the next page of results. This value is <code>null</code> when there are no more results to return.
+        line_items:
+          type: array
+          items:
+            type: object
+            properties:
+              volume_type:
+                type: string
+                description: The volume type
+                example: gp3
+              volume_id:
+                type: string
+                example: vol-00aaaccc111000000
+              snapshot_id:
+                type: string
+              status:
+                type: string
+              availability_zone:
+                type: string
+              create_time:
+                type: string
+                description: Textual datetime representation of the volume's creation time.
+                example: '2024-08-20T05:47:06.409Z'
+              size:
+                type: integer
+                example: 8
+              encrypted:
+                type: bool
+              multi_attach_enabled:
+                type: bool
     DescribeVolumesResult:
       type: object
       example:

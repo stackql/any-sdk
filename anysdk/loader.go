@@ -39,6 +39,7 @@ type DiscoveryDoc interface {
 }
 
 type anySdkLoader interface {
+	loadOpenapiDocFromBytes(bytes []byte) (*openapi3.T, error)
 	loadFromBytes(bytes []byte) (OpenAPIService, error)
 	loadFromBytesWithProvider(bytes []byte, prov Provider) (OpenAPIService, error)
 	loadFromBytesAndResources(rr ResourceRegister, resourceKey string, bytes []byte) (OpenAPIService, error)
@@ -94,7 +95,13 @@ func LoadProviderAndServiceFromPaths(
 		}
 		return svc, nil
 	case client.LocalTemplated:
+		l := newLoader()
+		doc, err := l.loadOpenapiDocFromBytes(b)
+		if err != nil {
+			return nil, err
+		}
 		rv := new(localTemplatedService)
+		rv.OpenapiSvc = doc
 		err = yamlconv.Unmarshal(b, rv)
 		if err != nil {
 			return nil, err
@@ -128,6 +135,17 @@ func loadResourcesShallow(ps ProviderService, bt []byte) (ResourceRegister, erro
 	rv.SetProviderService(ps)
 	resourceregisterLoadBackwardsCompatibility(rv)
 	return rv, nil
+}
+
+func (l *standardLoader) loadOpenapiDocFromBytes(bytes []byte) (*openapi3.T, error) {
+	doc, err := l.LoadFromData(bytes)
+	if err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		return nil, fmt.Errorf("OpenAPIService.loadOpenapiDocFromBytes() failure")
+	}
+	return doc, nil
 }
 
 func (l *standardLoader) loadFromBytes(bytes []byte) (OpenAPIService, error) {
@@ -401,34 +419,33 @@ func (l *standardLoader) mergeLocalResource(
 		v := vOp
 		v.setResource(rsc)
 		rsc.setMethod(k, &v)
+
+		v.setMethodKey(k)
+		// TODO: replicate this for the damned inverse
+		// err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
+		// if err != nil {
+		// 	return err
+		// }
+		// req, reqExists := v.GetRequest()
+		// if !reqExists && v.GetOperationRef().Value.RequestBody != nil {
+		// 	req = &standardExpectedRequest{}
+		// 	v.setRequest(req.(*standardExpectedRequest))
+		// }
+		// err = l.resolveExpectedRequest(svc, v.GetOperationRef().Value, req)
+		// if err != nil {
+		// 	return err
+		// }
+		response, _ := v.GetResponse()
+		// if !responseExists && v.GetOperationRef().Value.Responses != nil {
+		// 	response = &standardExpectedResponse{}
+		// 	v.setResponse(response.(*standardExpectedResponse))
+		// }
+		err := l.resolveExpectedLocalResponse(svc, response)
+		if err != nil {
+			return err
+		}
+		rsc.setMethod(k, &v)
 	}
-	// 	v := vOp
-	// 	v.setMethodKey(k)
-	// 	// TODO: replicate this for the damned inverse
-	// 	err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	req, reqExists := v.GetRequest()
-	// 	if !reqExists && v.GetOperationRef().Value.RequestBody != nil {
-	// 		req = &standardExpectedRequest{}
-	// 		v.setRequest(req.(*standardExpectedRequest))
-	// 	}
-	// 	err = l.resolveExpectedRequest(svc, v.GetOperationRef().Value, req)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	response, responseExists := v.GetResponse()
-	// 	if !responseExists && v.GetOperationRef().Value.Responses != nil {
-	// 		response = &standardExpectedResponse{}
-	// 		v.setResponse(response.(*standardExpectedResponse))
-	// 	}
-	// 	err = l.resolveExpectedResponse(svc, v.GetOperationRef().Value, response)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	rsc.setMethod(k, &v)
-	// }
 	for sqlVerb, dir := range rsc.getSQLVerbs() {
 		for i, v := range dir {
 			cur := v
@@ -516,7 +533,13 @@ func LoadServiceDocFromBytes(ps ProviderService, bytes []byte) (Service, error) 
 	case client.HTTP:
 		return loadOpenapiServiceDocFromBytes(ps, bytes)
 	case client.LocalTemplated:
+		l := newLoader()
+		doc, err := l.loadOpenapiDocFromBytes(bytes)
+		if err != nil {
+			return nil, err
+		}
 		rv := new(localTemplatedService)
+		rv.OpenapiSvc = doc
 		err = yamlconv.Unmarshal(bytes, rv)
 		if err != nil {
 			return nil, err
@@ -916,6 +939,22 @@ func (l *standardLoader) latePassResolveInverse(svc Service, component *OpenAPIO
 	return nil
 }
 
+func (loader *standardLoader) resolveExpectedLocalResponse(doc Service, component ExpectedResponse) (err error) {
+	overrideSchema, isOverrideSchema := component.getOverrideSchema()
+	if isOverrideSchema && overrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setOverrideSchemaValue(newSchema(sr.Value, nil, "", ""))
+		s := newSchema(sr.Value, nil, "", "")
+		component.setSchema(s)
+		return nil
+	}
+	return nil
+}
+
 func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *openapi3.Operation, component ExpectedResponse) (err error) {
 	if component != nil && component.GetSchema() != nil {
 		if loader.visitedExpectedResponse == nil {
@@ -933,8 +972,14 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 	bmt := component.GetBodyMediaType()
 	ek := component.GetOpenAPIDocKey()
 	overrideSchema, isOverrideSchema := component.getOverrideSchema()
-	if isOverrideSchema {
-		s := newSchema(overrideSchema, doc, "", "")
+	if isOverrideSchema && overrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setOverrideSchemaValue(newSchema(sr.Value, doc, "", ""))
+		s := newSchema(sr.Value, doc, "", "")
 		component.setSchema(s)
 	} else if bmt != "" && ek != "" {
 		ekObj, ok := op.Responses[ek]
