@@ -1411,8 +1411,8 @@ func (s *standardSchema) unmarshalResponseAtPath(r *http.Response, path string, 
 }
 
 func (s *standardSchema) unmarshalReaderResponseAtPath(r io.Reader, path string, mediaType string, fallbackMediaType string) (interface{}, interface{}, error) {
-
-	switch s.extractMediaTypeSynonym(mediaType) {
+	conformedMediaType := s.extractMediaTypeSynonym(mediaType)
+	switch conformedMediaType {
 	case media.MediaTypeXML:
 		pathResolver := openapitopath.NewXPathResolver()
 		pathSplit := pathResolver.ToPathSlice(path)
@@ -1442,7 +1442,7 @@ func (s *standardSchema) unmarshalReaderResponseAtPath(r io.Reader, path string,
 		}
 		fallthrough
 	default:
-		processedResponse, err := s.unmarshalResponseFromReader(r, fallbackMediaType)
+		processedResponse, err := s.unmarshalResponseFromReader(r, conformedMediaType)
 		if err != nil {
 			return nil, nil, err
 		}
