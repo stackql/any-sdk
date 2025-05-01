@@ -128,6 +128,7 @@ jobs:
       run: go test -timeout 240s -v ./...
 
   linuxbuild:
+    needs: test_python_package_build
     name: Linux Build
     runs-on: ubuntu-latest
     steps:
