@@ -318,6 +318,19 @@ jobs:
           echo "Core Test passed with matching public key algorithm: '$publicKeyAlgorithm'"
         fi
 
+    - name: Prepare for robot test run
+      run: |
+        pgrep -f flask | xargs kill -9 || true
+
+    - name: Run mocked robot tests
+      run: |
+        robot -d test/robot/reports/mocked test/robot/cli/mocked
+
+    - name: Output from mocked robot tests
+      if: always()
+      run: |
+        cat test/robot/reports/mocked/output.xml
+
   macosbuild:
     name: MacOS Build
     runs-on: macos-latest
