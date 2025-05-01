@@ -1,7 +1,6 @@
 package argparse
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -164,17 +163,23 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 				responseTransform, responseTransformExists := expectedResponse.GetTransform()
 				if responseTransformExists && responseTransform.GetType() == "golang_template_v0.1.0" {
 					input := stdoutStr
-					tmpl := responseTransform.GetBody()
-					inStream := stream_transform.NewTextReader(bytes.NewBufferString(input))
-					outStream := bytes.NewBuffer(nil)
-					tfm, err := stream_transform.NewTemplateStreamTransformer(tmpl, inStream, outStream)
-					if err != nil {
-						return fmt.Errorf("template stream transform error: %v", err)
+					streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
+						responseTransform.GetType(),
+						responseTransform.GetBody(),
+					)
+					if !streamTransformerFactory.IsTransformable() {
+						return fmt.Errorf("unsupported template type: %s", responseTransform.GetType())
 					}
-					if err := tfm.Transform(); err != nil {
+					tfm, err := streamTransformerFactory.GetTransformer(input)
+					if err != nil {
 						return fmt.Errorf("failed to transform: %v", err)
 					}
-					outputStr := outStream.String()
+					outStream := tfm.GetOutStream()
+					outBytes, err := io.ReadAll(outStream)
+					if err != nil {
+						return fmt.Errorf("failed to read out stream: %v", err)
+					}
+					outputStr := string(outBytes)
 					stdoutStr = outputStr
 				}
 			}
@@ -225,19 +230,26 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 			expectedResponse, isExpectedResponse := opStore.GetResponse()
 			if isExpectedResponse {
 				responseTransform, responseTransformExists := expectedResponse.GetTransform()
-				if responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" {
-					input := string(bodyBytes)
-					tmpl := responseTransform.GetBody()
-					inStream := stream_transform.NewXMLBestEffortReader(bytes.NewBufferString(input))
-					outStream := bytes.NewBuffer(nil)
-					tfm, err := stream_transform.NewTemplateStreamTransformer(tmpl, inStream, outStream)
+				if responseTransformExists {
+					streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
+						responseTransform.GetType(),
+						responseTransform.GetBody(),
+					)
+					if !streamTransformerFactory.IsTransformable() {
+						return fmt.Errorf("unsupported template type: %s", responseTransform.GetType())
+					}
+					tfm, err := streamTransformerFactory.GetTransformer(string(bodyBytes))
 					if err != nil {
 						return fmt.Errorf("template stream transform error: %v", err)
 					}
 					if err := tfm.Transform(); err != nil {
 						return fmt.Errorf("failed to transform: %v", err)
 					}
-					bodyBytes = outStream.Bytes()
+					outStream := tfm.GetOutStream()
+					bodyBytes, err = io.ReadAll(outStream)
+					if err != nil {
+						return fmt.Errorf("failed to read out stream: %v", err)
+					}
 				}
 			}
 			fmt.Fprintf(os.Stdout, "%s", string(bodyBytes))

@@ -26,6 +26,49 @@ env:
 
 jobs:
 
+
+  test_python_package_build:
+    # id: test_python_package_build
+    name: Test Python Package Build
+    runs-on: ubuntu-22.04
+    timeout-minutes: ${{ vars.DEFAULT_JOB_TIMEOUT_MIN == '' && 120 || vars.DEFAULT_JOB_TIMEOUT_MIN }}
+    steps:
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v4.1.1
+      with:
+        repository: ${{ env.STACKQL_CORE_REPOSITORY }}
+        ref: ${{ env.STACKQL_CORE_REF }}
+        token: ${{ secrets.CI_STACKQL_PACKAGE_DOWNLOAD_TOKEN  }}
+        path: stackql-core-pkg
+
+    - name: Setup Python
+      uses: actions/setup-python@v5.0.0
+      with:
+        cache: pip
+        python-version: '3.12' 
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: 1.8.3
+        virtualenvs-create: true
+        virtualenvs-in-project: false
+        virtualenvs-path: stackql-core-pkg/my-custom-path
+        installer-parallel: true
+
+    
+    - name: Build package
+      working-directory: stackql-core-pkg
+      run: |
+        cicd/util/01-build-robot-lib.sh
+    
+    - name: Upload python package artifact
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: python-package-dist-folder
+        path: stackql-core-pkg/test/dist
+
   winbuild:
     name: Windows Build
     runs-on: windows-latest
@@ -106,7 +149,20 @@ jobs:
       uses: actions/setup-python@v5.0.0
       with:
         # cache: pip # this requires requirements in source control
-        python-version: '3.11' 
+        python-version: '3.12'
+    
+    - name: Download python package dist folder
+      uses: actions/download-artifact@v4.1.2
+      with:
+        name: python-package-dist-folder
+        path: test/dist
+
+    - name: Install python testing package
+      run: |
+        echo "Inspecting python package"
+        for file in test/dist/*.whl; do
+          pip3 install "$file" --force-reinstall
+        done 
       
     - name: Get dependencies
       run: |

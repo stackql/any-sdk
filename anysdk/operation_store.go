@@ -1432,7 +1432,14 @@ func (op *standardOpenAPIOperationStore) isOverridable(httpResponse *http.Respon
 	if isExpectedResponse {
 		responseTransform, responseTransformExists := expectedResponse.GetTransform()
 		overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
-		return responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" && overrideMediaType != ""
+		if !responseTransformExists {
+			return false
+		}
+		streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
+			responseTransform.GetType(),
+			responseTransform.GetBody(),
+		)
+		return overrideMediaType != "" && streamTransformerFactory.IsTransformable()
 	}
 	return false
 }
@@ -1447,19 +1454,25 @@ func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http
 	if isExpectedResponse {
 		responseTransform, responseTransformExists := expectedResponse.GetTransform()
 		overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
-		if responseTransformExists && responseTransform.GetType() == "golang_template_mxj_v0.1.0" {
+		if responseTransformExists {
 			input := string(bodyBytes)
-			tmpl := responseTransform.GetBody()
-			inStream := stream_transform.NewXMLBestEffortReader(bytes.NewBufferString(input))
-			outStream := bytes.NewBuffer(nil)
-			tfm, err := stream_transform.NewTemplateStreamTransformer(tmpl, inStream, outStream)
-			if err != nil {
-				return nil, fmt.Errorf("template stream transform error: %v", err)
+			streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
+				responseTransform.GetType(),
+				responseTransform.GetBody(),
+			)
+			if !streamTransformerFactory.IsTransformable() {
+				return nil, fmt.Errorf("unsupported template type: %s", responseTransform.GetType())
 			}
-			if err := tfm.Transform(); err != nil {
+			tfm, err := streamTransformerFactory.GetTransformer(input)
+			if err != nil {
 				return nil, fmt.Errorf("failed to transform: %v", err)
 			}
-			// bodyBytes = outStream.Bytes()
+			outStream := tfm.GetOutStream()
+			outBytes, err := io.ReadAll(outStream)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read out stream: %v", err)
+			}
+			bodyBytes = outBytes
 			if overrideMediaType == "" {
 				overrideMediaType = media.MediaTypeJson
 			}
