@@ -264,16 +264,21 @@ func TestSimpleStreamTransform(t *testing.T) {
 	input := fmt.Sprintf(`"Hello, %s!"`, "World")
 	t.Log("TestSimpleStream")
 	tmpl := `{{.}}`
-	inStream := NewJSONReader(bytes.NewBufferString(input))
 	outStream := bytes.NewBuffer(nil)
-	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateJSONV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(input)
 	if err != nil {
 		t.Fatalf("failed to create transformer: %v", err)
 	}
 	if err := tfm.Transform(); err != nil {
 		t.Fatalf("failed to transform: %v", err)
 	}
-	outputStr := outStream.String()
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
 	if outputStr != "Hello, World!" {
 		t.Fatalf("unexpected output: %s", outStream.String())
 	}
@@ -283,16 +288,20 @@ func TestMeaningfulStreamTransform(t *testing.T) {
 	input := jsonExample
 	t.Log("TestSimpleStream")
 	tmpl := jsonTmpl
-	inStream := NewJSONReader(bytes.NewBufferString(input))
-	outStream := bytes.NewBuffer(nil)
-	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateJSONV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(input)
 	if err != nil {
 		t.Fatalf("failed to create transformer: %v", err)
 	}
 	if err := tfm.Transform(); err != nil {
 		t.Fatalf("failed to transform: %v", err)
 	}
-	outputStr := outStream.String()
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
 	if outputStr != expectedJsonOutput {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expectedJsonOutput)
 	}
@@ -302,16 +311,20 @@ func TestSimpleTextXMLStreamTransform(t *testing.T) {
 	input := xmlExample
 	t.Log("v")
 	tmpl := xmlTmpl
-	inStream := NewTextReader(bytes.NewBufferString(input))
-	outStream := bytes.NewBuffer(nil)
-	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(input)
 	if err != nil {
 		t.Fatalf("failed to create transformer: %v", err)
 	}
 	if err := tfm.Transform(); err != nil {
 		t.Fatalf("failed to transform: %v", err)
 	}
-	outputStr := outStream.String()
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
 	expected := `[{ "name": "Platypus"}]`
 	if outputStr != expected {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
@@ -322,16 +335,20 @@ func TestBestEffortXMLStreamTransform(t *testing.T) {
 	input := xmlEc2SinglePageExample
 	t.Log("v")
 	tmpl := xmlBestEffortTmpl
-	inStream := NewXMLBestEffortReader(bytes.NewBufferString(input))
-	outStream := bytes.NewBuffer(nil)
-	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateXMLV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(input)
 	if err != nil {
 		t.Fatalf("failed to create transformer: %v", err)
 	}
 	if err := tfm.Transform(); err != nil {
 		t.Fatalf("failed to transform: %v", err)
 	}
-	outputStr := outStream.String()
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
 	expected := expectedBestEffortSinglePageOutput
 	if outputStr != expected {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
@@ -352,16 +369,20 @@ func TestMeaningfulXMLStreamTransform(t *testing.T) {
 	{"name": "{{ $animalName }}", "democratic_votes": {{ $animalVotes }}}
 	{{- end -}}
 	]`
-	inStream := NewTextReader(bytes.NewBufferString(input))
-	outStream := bytes.NewBuffer(nil)
-	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(input)
 	if err != nil {
 		t.Fatalf("failed to create transformer: %v", err)
 	}
 	if err := tfm.Transform(); err != nil {
 		t.Fatalf("failed to transform: %v", err)
 	}
-	outputStr := outStream.String()
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
 	expected := `[{"name": "Platypus", "democratic_votes": 1}, {"name": "Quokka", "democratic_votes": 3}, {"name": "Quoll", "democratic_votes": 2}]`
 	if outputStr != expected {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
@@ -378,16 +399,20 @@ func TestOpensslCertTextStreamTransform(t *testing.T) {
 	{{- $notBefore := getRegexpFirstMatch $root "Not Before: (.*)" -}}
 	{{- $notAfter := getRegexpFirstMatch $root "Not After(?:[ ]*): (.*)" -}}
 	{ "type": "x509", "public_key_algorithm": "{{ $pubKeyAlgo }}", "not_before": "{{ $notBefore }}", "not_after": "{{ $notAfter }}"}`
-	inStream := NewTextReader(bytes.NewBufferString(input))
-	outStream := bytes.NewBuffer(nil)
-	tfm, err := NewTemplateStreamTransformer(tmpl, inStream, outStream)
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(input)
 	if err != nil {
 		t.Fatalf("failed to create transformer: %v", err)
 	}
 	if err := tfm.Transform(); err != nil {
 		t.Fatalf("failed to transform: %v", err)
 	}
-	outputStr := outStream.String()
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
 	expected := `{ "type": "x509", "public_key_algorithm": "rsaEncryption", "not_before": "Mar 22 02:50:46 2025 GMT", "not_after": "Jun 20 02:50:46 2025 GMT"}`
 	if outputStr != expected {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)

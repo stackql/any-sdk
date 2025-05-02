@@ -13,6 +13,7 @@ import (
 const (
 	GolangTemplateXMLV1  = "golang_template_mxj_v0.1.0"
 	GolangTemplateJSONV1 = "golang_template_json_v0.1.0"
+	GolangTemplateTextV1 = "golang_template_text_v0.1.0"
 )
 
 type StreamTransformerFactory interface {
@@ -38,6 +39,8 @@ func (stf *streamTransformerFactory) IsTransformable() bool {
 		return true
 	case GolangTemplateJSONV1:
 		return true
+	case GolangTemplateTextV1:
+		return true
 	default:
 		return false
 	}
@@ -46,9 +49,17 @@ func (stf *streamTransformerFactory) IsTransformable() bool {
 func (stf *streamTransformerFactory) GetTransformer(input string) (StreamTransformer, error) {
 	switch stf.tplType {
 	case GolangTemplateXMLV1:
-		return nil, fmt.Errorf("unsupported template type: %s", stf.tplType)
-	case GolangTemplateJSONV1:
 		inStream := newXMLBestEffortReader(bytes.NewBufferString(input))
+		outStream := bytes.NewBuffer(nil)
+		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		return tfm, err
+	case GolangTemplateJSONV1:
+		inStream := newJSONReader(bytes.NewBufferString(input))
+		outStream := bytes.NewBuffer(nil)
+		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		return tfm, err
+	case GolangTemplateTextV1:
+		inStream := newTextReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
 		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
 		return tfm, err
@@ -128,7 +139,7 @@ type jsonReader struct {
 	inStream io.Reader
 }
 
-func NewJSONReader(inStream io.Reader) ObjectReader {
+func newJSONReader(inStream io.Reader) ObjectReader {
 	return &jsonReader{
 		inStream: inStream,
 	}
@@ -168,7 +179,7 @@ func newXMLBestEffortReader(inStream io.Reader) ObjectReader {
 	}
 }
 
-func NewTextReader(inStream io.Reader) ObjectReader {
+func newTextReader(inStream io.Reader) ObjectReader {
 	return &textReader{
 		inStream: inStream,
 	}

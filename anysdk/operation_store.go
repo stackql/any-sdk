@@ -1467,12 +1467,11 @@ func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http
 			if err != nil {
 				return nil, fmt.Errorf("failed to transform: %v", err)
 			}
-			outStream := tfm.GetOutStream()
-			outBytes, err := io.ReadAll(outStream)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read out stream: %v", err)
+			tfmErr := tfm.Transform()
+			if tfmErr != nil {
+				return nil, fmt.Errorf("failed to transform: %v", tfmErr)
 			}
-			bodyBytes = outBytes
+			outStream := tfm.GetOutStream()
 			if overrideMediaType == "" {
 				overrideMediaType = media.MediaTypeJson
 			}
