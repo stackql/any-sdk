@@ -152,6 +152,11 @@ jobs:
         # cache: pip # this requires requirements in source control
         python-version: '3.12'
     
+    - name: Install python dependencies
+      run: |
+        echo "Installing python dependencies"
+        pip3 install -r cicd/testing-requirements.txt
+    
     - name: Download python package dist folder
       uses: actions/download-artifact@v4.1.2
       with:
@@ -325,6 +330,7 @@ jobs:
 
     - name: Run mocked robot tests
       run: |
+        export PYTHONPATH="${PYTHONPATH}:${{ github.workspace }}/test/python"
         robot -d test/robot/reports/mocked test/robot/cli/mocked
 
     - name: Output from mocked robot tests
