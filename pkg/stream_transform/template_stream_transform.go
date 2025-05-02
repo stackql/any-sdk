@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	GolangTemplateXMLV1  = "golang_template_mxj_v0.1.0"
-	GolangTemplateJSONV1 = "golang_template_json_v0.1.0"
-	GolangTemplateTextV1 = "golang_template_text_v0.1.0"
+	GolangTemplateXMLV1         = "golang_template_mxj_v0.1.0"
+	GolangTemplateJSONV1        = "golang_template_json_v0.1.0"
+	GolangTemplateTextV1        = "golang_template_text_v0.1.0"
+	GolangTemplateUnspecifiedV1 = "golang_template_v0.1.0"
 )
 
 type StreamTransformerFactory interface {
@@ -41,6 +42,8 @@ func (stf *streamTransformerFactory) IsTransformable() bool {
 		return true
 	case GolangTemplateTextV1:
 		return true
+	case GolangTemplateUnspecifiedV1:
+		return true
 	default:
 		return false
 	}
@@ -58,7 +61,7 @@ func (stf *streamTransformerFactory) GetTransformer(input string) (StreamTransfo
 		outStream := bytes.NewBuffer(nil)
 		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
 		return tfm, err
-	case GolangTemplateTextV1:
+	case GolangTemplateTextV1, GolangTemplateUnspecifiedV1:
 		inStream := newTextReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
 		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
