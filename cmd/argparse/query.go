@@ -174,6 +174,10 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 					if err != nil {
 						return fmt.Errorf("failed to transform: %v", err)
 					}
+					transformError := tfm.Transform()
+					if transformError != nil {
+						return fmt.Errorf("failed to transform: %v", transformError)
+					}
 					outStream := tfm.GetOutStream()
 					outBytes, err := io.ReadAll(outStream)
 					if err != nil {
