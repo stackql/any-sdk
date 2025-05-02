@@ -21,6 +21,9 @@ Select Google Cloud Storage Buckets with CLI
     ...    cwd=${CWD_FOR_EXEC}
     ...    stdout=${CURDIR}${/}/tmp${/}Select-Google-Cloud-Storage-Buckets-with-CLI.txt
     ...    stderr=${CURDIR}${/}/tmp${/}Select-Google-Cloud-Storage-Buckets-with-CLI_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Log    RC = ${result.rc}
     Should Contain                     ${result.stdout}    
     ...                                stackql\-demo
     Should Be Equal As Strings    ${result.rc}    0
