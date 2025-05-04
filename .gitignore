@@ -2,3 +2,8 @@
 *.prof
 opint
 .DS_Store
+dist/
+.venv/
+__pycache__/
+*.py[co]
+stackql-core/
