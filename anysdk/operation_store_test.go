@@ -109,6 +109,7 @@ func TestTransformedXMLHTTPHandle(t *testing.T) {
 	assert.Assert(t, ops != nil)
 
 	processed, err := ops.ProcessResponse(res)
+	t.Logf("err: %v", err)
 	assert.NilError(t, err)
 	processedResponse, ok := processed.GetResponse()
 	assert.Assert(t, ok)

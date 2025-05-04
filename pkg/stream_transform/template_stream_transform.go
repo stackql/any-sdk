@@ -10,6 +10,67 @@ import (
 	"github.com/clbanning/mxj/v2"
 )
 
+const (
+	GolangTemplateXMLV1         = "golang_template_mxj_v0.1.0"
+	GolangTemplateJSONV1        = "golang_template_json_v0.1.0"
+	GolangTemplateTextV1        = "golang_template_text_v0.1.0"
+	GolangTemplateUnspecifiedV1 = "golang_template_v0.1.0"
+)
+
+type StreamTransformerFactory interface {
+	IsTransformable() bool
+	GetTransformer(input string) (StreamTransformer, error)
+}
+
+type streamTransformerFactory struct {
+	tplType string
+	tplStr  string
+}
+
+func NewStreamTransformerFactory(tplType string, tplStr string) StreamTransformerFactory {
+	return &streamTransformerFactory{
+		tplType: tplType,
+		tplStr:  tplStr,
+	}
+}
+
+func (stf *streamTransformerFactory) IsTransformable() bool {
+	switch stf.tplType {
+	case GolangTemplateXMLV1:
+		return true
+	case GolangTemplateJSONV1:
+		return true
+	case GolangTemplateTextV1:
+		return true
+	case GolangTemplateUnspecifiedV1:
+		return true
+	default:
+		return false
+	}
+}
+
+func (stf *streamTransformerFactory) GetTransformer(input string) (StreamTransformer, error) {
+	switch stf.tplType {
+	case GolangTemplateXMLV1:
+		inStream := newXMLBestEffortReader(bytes.NewBufferString(input))
+		outStream := bytes.NewBuffer(nil)
+		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		return tfm, err
+	case GolangTemplateJSONV1:
+		inStream := newJSONReader(bytes.NewBufferString(input))
+		outStream := bytes.NewBuffer(nil)
+		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		return tfm, err
+	case GolangTemplateTextV1, GolangTemplateUnspecifiedV1:
+		inStream := newTextReader(bytes.NewBufferString(input))
+		outStream := bytes.NewBuffer(nil)
+		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		return tfm, err
+	default:
+		return nil, fmt.Errorf("unsupported template type: %s", stf.tplType)
+	}
+}
+
 // full acknowledgment to https://stackoverflow.com/a/42663928
 func separator(s string) func() string {
 	i := -1
@@ -81,7 +142,7 @@ type jsonReader struct {
 	inStream io.Reader
 }
 
-func NewJSONReader(inStream io.Reader) ObjectReader {
+func newJSONReader(inStream io.Reader) ObjectReader {
 	return &jsonReader{
 		inStream: inStream,
 	}
@@ -115,13 +176,13 @@ func (xer *xmlBestEffortReader) Read() (interface{}, error) {
 	return mv, nil
 }
 
-func NewXMLBestEffortReader(inStream io.Reader) ObjectReader {
+func newXMLBestEffortReader(inStream io.Reader) ObjectReader {
 	return &xmlBestEffortReader{
 		inStream: inStream,
 	}
 }
 
-func NewTextReader(inStream io.Reader) ObjectReader {
+func newTextReader(inStream io.Reader) ObjectReader {
 	return &textReader{
 		inStream: inStream,
 	}
@@ -145,26 +206,27 @@ func jsonMapFromString(s string) (map[string]interface{}, error) {
 
 type StreamTransformer interface {
 	Transform() error
+	GetOutStream() io.Reader
 }
 
 type templateStreamTransfomer struct {
 	tpl       *template.Template
 	inStream  ObjectReader
-	outStream io.Writer
+	outStream io.ReadWriter
 }
 
-func NewTemplateStreamTransformer(
-	tplStr string,
-	inStream ObjectReader,
-	outStream io.Writer,
-) (StreamTransformer, error) {
-	return newTemplateStreamTransformer(tplStr, inStream, outStream)
-}
+// func NewTemplateStreamTransformer(
+// 	tplStr string,
+// 	inStream ObjectReader,
+// 	outStream io.Writer,
+// ) (StreamTransformer, error) {
+// 	return newTemplateStreamTransformer(tplStr, inStream, outStream)
+// }
 
 func newTemplateStreamTransformer(
 	tplStr string,
 	inStream ObjectReader,
-	outStream io.Writer,
+	outStream io.ReadWriter,
 ) (StreamTransformer, error) {
 	tpl, tplErr := template.New("__stream_tfm__").Funcs(template.FuncMap{
 		"separator":           separator,
@@ -188,6 +250,13 @@ func newTemplateStreamTransformer(
 		inStream:  inStream,
 		outStream: outStream,
 	}, nil
+}
+
+func (tst *templateStreamTransfomer) GetOutStream() io.Reader {
+	if tst.outStream == nil {
+		return bytes.NewBuffer(nil)
+	}
+	return tst.outStream
 }
 
 func (tst *templateStreamTransfomer) Transform() error {
