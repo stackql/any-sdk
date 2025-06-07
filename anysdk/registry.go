@@ -50,6 +50,8 @@ type RegistryAPI interface {
 	GetServiceDocBytes(string) ([]byte, error)
 	GetResourcesRegisterDocBytes(string) ([]byte, error)
 	LoadProviderByName(string, string) (Provider, error)
+	RemoveProviderVersion(string, string) error
+	ClearProviderCache(string) error
 }
 
 type RegistryConfig struct {
@@ -691,4 +693,18 @@ func (r *Registry) getLatestPublishedVersion(providerName string) (string, error
 		return "", err
 	}
 	return latestVersion, nil
+}
+
+// RemoveProviderVersion removes a specific version of a provider
+// e.g) RemoveProviderVersion("googleapis.com", "v23.09.00169")
+func (r *Registry) RemoveProviderVersion(providerId string, version string) error {
+	providerPath := path.Join(r.getLocalDocRoot(), providerId, version)
+	return os.RemoveAll(providerPath)
+}
+
+// ClearProviderCache clears the cache for a specific provider
+// e.g) ClearProviderCache("aws")
+func (r *Registry) ClearProviderCache(providerId string) error {
+	cachePath := path.Join(r.getLocalDocRoot(), providerId)
+	return os.RemoveAll(cachePath)
 }
