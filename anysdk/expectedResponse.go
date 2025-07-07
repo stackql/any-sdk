@@ -19,13 +19,15 @@ type ExpectedResponse interface {
 }
 
 type standardExpectedResponse struct {
-	OverrideBodyMediaType string `json:"overrideMediaType,omitempty" yaml:"overrideMediaType,omitempty"`
-	BodyMediaType         string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
-	OpenAPIDocKey         string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
-	ObjectKey             string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
-	Schema                Schema
-	OverrideSchema        *LocalSchemaRef    `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
-	Transform             *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
+	OverrideBodyMediaType      string `json:"overrideMediaType,omitempty" yaml:"overrideMediaType,omitempty"`
+	AsyncOverrideBodyMediaType string `json:"asyncOverrideMediaType,omitempty" yaml:"asyncOverrideMediaType,omitempty"`
+	BodyMediaType              string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
+	OpenAPIDocKey              string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
+	ObjectKey                  string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
+	Schema                     Schema
+	OverrideSchema             *LocalSchemaRef    `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
+	AsyncOverrideSchema        *LocalSchemaRef    `json:"async_schema_override,omitempty" yaml:"async_schema_override,omitempty"`
+	Transform                  *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
 }
 
 func (er *standardExpectedResponse) setBodyMediaType(s string) {
