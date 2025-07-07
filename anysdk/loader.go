@@ -952,6 +952,16 @@ func (loader *standardLoader) resolveExpectedLocalResponse(doc Service, componen
 		component.setSchema(s)
 		return nil
 	}
+	asyncOverrideSchema, isAsyncOverrideSchema := component.getAsyncOverrideSchema()
+	if isAsyncOverrideSchema && asyncOverrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(asyncOverrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setAsyncOverrideSchemaValue(newSchema(sr.Value, nil, "", ""))
+		return nil
+	}
 	return nil
 }
 
@@ -972,6 +982,7 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 	bmt := component.GetBodyMediaType()
 	ek := component.GetOpenAPIDocKey()
 	overrideSchema, isOverrideSchema := component.getOverrideSchema()
+	asyncOverrideSchema, isAsyncOverrideSchema := component.getAsyncOverrideSchema()
 	if isOverrideSchema && overrideSchema.Ref != "" {
 		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
 		sr := doc.getT().Components.Schemas[schemaKey]
@@ -981,6 +992,13 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 		component.setOverrideSchemaValue(newSchema(sr.Value, doc, "", ""))
 		s := newSchema(sr.Value, doc, "", "")
 		component.setSchema(s)
+	} else if isAsyncOverrideSchema && asyncOverrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(asyncOverrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setAsyncOverrideSchemaValue(newSchema(sr.Value, doc, "", ""))
 	} else if bmt != "" && ek != "" {
 		ekObj, ok := op.Responses[ek]
 		if !ok || ekObj.Value == nil || ekObj.Value.Content == nil || ekObj.Value.Content[bmt] == nil || ekObj.Value.Content[bmt].Schema == nil || ekObj.Value.Content[bmt].Schema.Value == nil {

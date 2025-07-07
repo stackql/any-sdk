@@ -11,7 +11,9 @@ type ExpectedResponse interface {
 	GetObjectKey() string
 	GetSchema() Schema
 	getOverrideSchema() (*LocalSchemaRef, bool)
+	getAsyncOverrideSchema() (*LocalSchemaRef, bool)
 	setOverrideSchemaValue(Schema)
+	setAsyncOverrideSchemaValue(Schema)
 	GetTransform() (Transform, bool)
 	//
 	setSchema(Schema)
@@ -53,6 +55,13 @@ func (er *standardExpectedResponse) setOverrideSchemaValue(s Schema) {
 	er.OverrideSchema.Value = s.(*standardSchema)
 }
 
+func (er *standardExpectedResponse) setAsyncOverrideSchemaValue(s Schema) {
+	if er.AsyncOverrideSchema == nil {
+		er.AsyncOverrideSchema = &LocalSchemaRef{}
+	}
+	er.AsyncOverrideSchema.Value = s.(*standardSchema)
+}
+
 func (er *standardExpectedResponse) GetOpenAPIDocKey() string {
 	return er.OpenAPIDocKey
 }
@@ -74,6 +83,15 @@ func (er *standardExpectedResponse) getOverrideSchema() (*LocalSchemaRef, bool) 
 		return nil, false
 	}
 	overrideSchema := er.OverrideSchema
+	return overrideSchema, true
+}
+
+func (er *standardExpectedResponse) getAsyncOverrideSchema() (*LocalSchemaRef, bool) {
+	isNilSchema := er.AsyncOverrideSchema == nil
+	if isNilSchema {
+		return nil, false
+	}
+	overrideSchema := er.AsyncOverrideSchema
 	return overrideSchema, true
 }
 
