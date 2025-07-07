@@ -952,6 +952,16 @@ func (loader *standardLoader) resolveExpectedLocalResponse(doc Service, componen
 		component.setSchema(s)
 		return nil
 	}
+	asyncOverrideSchema, isAsyncOverrideSchema := component.getAsyncOverrideSchema()
+	if isAsyncOverrideSchema && asyncOverrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(asyncOverrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setAsyncOverrideSchemaValue(newSchema(sr.Value, nil, "", ""))
+		return nil
+	}
 	return nil
 }
 
@@ -972,6 +982,15 @@ func (loader *standardLoader) resolveExpectedResponse(doc OpenAPIService, op *op
 	bmt := component.GetBodyMediaType()
 	ek := component.GetOpenAPIDocKey()
 	overrideSchema, isOverrideSchema := component.getOverrideSchema()
+	asyncOverrideSchema, isAsyncOverrideSchema := component.getAsyncOverrideSchema()
+	if isAsyncOverrideSchema && asyncOverrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(asyncOverrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setAsyncOverrideSchemaValue(newSchema(sr.Value, doc, "", ""))
+	}
 	if isOverrideSchema && overrideSchema.Ref != "" {
 		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
 		sr := doc.getT().Components.Schemas[schemaKey]

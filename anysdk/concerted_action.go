@@ -148,7 +148,7 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 
 	selectItemsKey := method.GetSelectItemsKey()
 
-	schema, mediaType, err := method.GetResponseBodySchemaAndMediaType()
+	schema, mediaType, err := method.GetFinalResponseBodySchemaAndMediaType()
 	insertTabulation := newNilTabulation(service, "", "")
 	selectTabulation := newNilTabulation(service, "", "")
 	if err != nil && !isNilResponseAllowed {
