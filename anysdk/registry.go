@@ -1,6 +1,7 @@
 package anysdk
 
 import (
+	"bytes"
 	"crypto/x509"
 	"fmt"
 	"io"
@@ -512,16 +513,19 @@ func (r *Registry) getLocalArchivePath(docPath string) string {
 func (r *Registry) getLocalDoc(docPath string) (io.ReadCloser, error) {
 	// localPath := r.getLocalDocPath(docPath)
 	fi, err := os.Open(docPath)
-	if err != nil {
-		if fi != nil {
-			fi.Close()
-		}
-		return nil, err
-	}
-	if fi == nil {
+	if fi != nil {
+		defer fi.Close()
+	} else {
 		return nil, fmt.Errorf("nil file")
 	}
-	return fi, nil
+	if err != nil {
+		return nil, err
+	}
+	fb, readErr := io.ReadAll(fi)
+	if readErr != nil {
+		return nil, fmt.Errorf("cannot read local file: '%s'", readErr.Error())
+	}
+	return io.NopCloser(bytes.NewReader(fb)), nil
 }
 
 func (r *Registry) getUnVerifiedArchive(docPath string) (io.ReadCloser, error) {
@@ -565,15 +569,30 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local registry file: '%s'", err.Error())
 		}
+		defer rb.Close()
+		rBytes, rErr := io.ReadAll(rb)
+		if rErr != nil {
+			return nil, fmt.Errorf("cannot read local registry file: '%s'", rErr.Error())
+		}
+		fileLockSafeReadCloser := io.NopCloser(bytes.NewReader(rBytes))
 		if r.nopVerifier {
-			rv := edcrypto.NewVerifierResponse(true, nil, rb, nil)
+			rv := edcrypto.NewVerifierResponse(true, nil, fileLockSafeReadCloser, nil)
 			return &rv, nil
 		}
 		sb, err := os.Open(path.Join(r.srcUrl.Path, fmt.Sprintf("%s.sig", docPath)))
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local signature file: '%s'", err.Error())
 		}
-		return r.checkSignature(docPath, rb, sb)
+		defer sb.Close()
+		sBytes, sErr := io.ReadAll(sb)
+		if sErr != nil {
+			return nil, fmt.Errorf("cannot read signature file: '%s'", sErr.Error())
+		}
+		return r.checkSignature(
+			docPath,
+			fileLockSafeReadCloser,
+			io.NopCloser(bytes.NewReader(sBytes)), // file lock safe signature file
+		)
 	}
 	if r.localDocRoot != "" {
 		localPath := r.getLocalDocPath(docPath)
