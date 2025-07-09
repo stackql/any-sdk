@@ -1,6 +1,7 @@
 package anysdk
 
 import (
+	"bytes"
 	"crypto/x509"
 	"fmt"
 	"io"
@@ -566,6 +567,10 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 			return nil, fmt.Errorf("cannot read local registry file: '%s'", err.Error())
 		}
 		defer rb.Close()
+		rBytes, rErr := io.ReadAll(rb)
+		if rErr != nil {
+			return nil, fmt.Errorf("cannot read local registry file: '%s'", rErr.Error())
+		}
 		if r.nopVerifier {
 			rv := edcrypto.NewVerifierResponse(true, nil, rb, nil)
 			return &rv, nil
@@ -575,7 +580,15 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 			return nil, fmt.Errorf("cannot read local signature file: '%s'", err.Error())
 		}
 		defer sb.Close()
-		return r.checkSignature(docPath, rb, sb)
+		sBytes, sErr := io.ReadAll(sb)
+		if sErr != nil {
+			return nil, fmt.Errorf("cannot read signature file: '%s'", sErr.Error())
+		}
+		return r.checkSignature(
+			docPath,
+			io.NopCloser(bytes.NewReader(rBytes)),
+			io.NopCloser(bytes.NewReader(sBytes)),
+		)
 	}
 	if r.localDocRoot != "" {
 		localPath := r.getLocalDocPath(docPath)
