@@ -11,7 +11,9 @@ type ExpectedResponse interface {
 	GetObjectKey() string
 	GetSchema() Schema
 	getOverrideSchema() (*LocalSchemaRef, bool)
+	getAsyncOverrideSchema() (*LocalSchemaRef, bool)
 	setOverrideSchemaValue(Schema)
+	setAsyncOverrideSchemaValue(Schema)
 	GetTransform() (Transform, bool)
 	//
 	setSchema(Schema)
@@ -19,13 +21,15 @@ type ExpectedResponse interface {
 }
 
 type standardExpectedResponse struct {
-	OverrideBodyMediaType string `json:"overrideMediaType,omitempty" yaml:"overrideMediaType,omitempty"`
-	BodyMediaType         string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
-	OpenAPIDocKey         string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
-	ObjectKey             string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
-	Schema                Schema
-	OverrideSchema        *LocalSchemaRef    `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
-	Transform             *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
+	OverrideBodyMediaType      string `json:"overrideMediaType,omitempty" yaml:"overrideMediaType,omitempty"`
+	AsyncOverrideBodyMediaType string `json:"asyncOverrideMediaType,omitempty" yaml:"asyncOverrideMediaType,omitempty"`
+	BodyMediaType              string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
+	OpenAPIDocKey              string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
+	ObjectKey                  string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
+	Schema                     Schema
+	OverrideSchema             *LocalSchemaRef    `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
+	AsyncOverrideSchema        *LocalSchemaRef    `json:"async_schema_override,omitempty" yaml:"async_schema_override,omitempty"`
+	Transform                  *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
 }
 
 func (er *standardExpectedResponse) setBodyMediaType(s string) {
@@ -51,6 +55,13 @@ func (er *standardExpectedResponse) setOverrideSchemaValue(s Schema) {
 	er.OverrideSchema.Value = s.(*standardSchema)
 }
 
+func (er *standardExpectedResponse) setAsyncOverrideSchemaValue(s Schema) {
+	if er.AsyncOverrideSchema == nil {
+		er.AsyncOverrideSchema = &LocalSchemaRef{}
+	}
+	er.AsyncOverrideSchema.Value = s.(*standardSchema)
+}
+
 func (er *standardExpectedResponse) GetOpenAPIDocKey() string {
 	return er.OpenAPIDocKey
 }
@@ -72,6 +83,15 @@ func (er *standardExpectedResponse) getOverrideSchema() (*LocalSchemaRef, bool) 
 		return nil, false
 	}
 	overrideSchema := er.OverrideSchema
+	return overrideSchema, true
+}
+
+func (er *standardExpectedResponse) getAsyncOverrideSchema() (*LocalSchemaRef, bool) {
+	isNilSchema := er.AsyncOverrideSchema == nil
+	if isNilSchema {
+		return nil, false
+	}
+	overrideSchema := er.AsyncOverrideSchema
 	return overrideSchema, true
 }
 

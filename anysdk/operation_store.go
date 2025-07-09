@@ -83,6 +83,7 @@ type OperationStore interface {
 	parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
 	GetSelectItemsKey() string
 	GetResponseBodySchemaAndMediaType() (Schema, string, error)
+	GetFinalResponseBodySchemaAndMediaType() (Schema, string, error)
 	GetRequiredParameters() map[string]Addressable
 	GetOptionalParameters() map[string]Addressable
 	GetParameter(paramKey string) (Addressable, bool)
@@ -1363,6 +1364,17 @@ func (op *standardOpenAPIOperationStore) IsRequiredRequestBodyProperty(key strin
 }
 
 func (op *standardOpenAPIOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
+	return op.getResponseBodySchemaAndMediaType()
+}
+
+func (op *standardOpenAPIOperationStore) GetFinalResponseBodySchemaAndMediaType() (Schema, string, error) {
+	return op.getFinalResponseBodySchemaAndMediaType()
+}
+
+func (op *standardOpenAPIOperationStore) getFinalResponseBodySchemaAndMediaType() (Schema, string, error) {
+	if op.Response != nil && op.Response.AsyncOverrideSchema != nil && op.Response.AsyncOverrideSchema.Value != nil {
+		return op.Response.AsyncOverrideSchema.Value, op.Response.AsyncOverrideBodyMediaType, nil
+	}
 	return op.getResponseBodySchemaAndMediaType()
 }
 
