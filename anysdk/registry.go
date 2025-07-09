@@ -571,8 +571,9 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 		if rErr != nil {
 			return nil, fmt.Errorf("cannot read local registry file: '%s'", rErr.Error())
 		}
+		fileLockSafeReadCloser := io.NopCloser(bytes.NewReader(rBytes))
 		if r.nopVerifier {
-			rv := edcrypto.NewVerifierResponse(true, nil, rb, nil)
+			rv := edcrypto.NewVerifierResponse(true, nil, fileLockSafeReadCloser, nil)
 			return &rv, nil
 		}
 		sb, err := os.Open(path.Join(r.srcUrl.Path, fmt.Sprintf("%s.sig", docPath)))
@@ -586,8 +587,8 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 		}
 		return r.checkSignature(
 			docPath,
-			io.NopCloser(bytes.NewReader(rBytes)),
-			io.NopCloser(bytes.NewReader(sBytes)),
+			fileLockSafeReadCloser,
+			io.NopCloser(bytes.NewReader(sBytes)), // file lock safe signature file
 		)
 	}
 	if r.localDocRoot != "" {
