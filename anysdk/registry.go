@@ -565,6 +565,7 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local registry file: '%s'", err.Error())
 		}
+		defer rb.Close()
 		if r.nopVerifier {
 			rv := edcrypto.NewVerifierResponse(true, nil, rb, nil)
 			return &rv, nil
@@ -573,6 +574,7 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local signature file: '%s'", err.Error())
 		}
+		defer sb.Close()
 		return r.checkSignature(docPath, rb, sb)
 	}
 	if r.localDocRoot != "" {
