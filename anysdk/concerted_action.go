@@ -62,6 +62,7 @@ type MethodAnalysisOutput interface {
 	GetInsertTabulation() Tabulation
 	GetSelectTabulation() Tabulation
 	GetColumns() []ColumnDescriptor
+	GetStarColumns() (Schemas, error)
 	GetItemSchema() (Schema, bool)
 	GetResponseSchema() (Schema, bool)
 	IsNilResponseAllowed() bool
@@ -108,6 +109,13 @@ func (ao *analysisOutput) GetSelectTabulation() Tabulation {
 
 func (ao *analysisOutput) GetColumns() []ColumnDescriptor {
 	return ao.columns
+}
+
+func (ao *analysisOutput) GetStarColumns() (Schemas, error) {
+	if ao.itemSchema == nil {
+		return nil, fmt.Errorf("GetStarColumns(): itemSchema is nil")
+	}
+	return ao.itemSchema.GetProperties()
 }
 
 func newMethodAnalysisOutput(
