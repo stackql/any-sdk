@@ -2,6 +2,7 @@ package anysdk
 
 import (
 	"fmt"
+	"sort"
 )
 
 type MethodAnalysisInput interface {
@@ -63,6 +64,7 @@ type MethodAnalysisOutput interface {
 	GetSelectTabulation() Tabulation
 	GetColumns() []ColumnDescriptor
 	GetStarColumns() (Schemas, error)
+	GetOrderedStarColumnsNames() ([]string, error)
 	GetItemSchema() (Schema, bool)
 	GetResponseSchema() (Schema, bool)
 	IsNilResponseAllowed() bool
@@ -109,6 +111,26 @@ func (ao *analysisOutput) GetSelectTabulation() Tabulation {
 
 func (ao *analysisOutput) GetColumns() []ColumnDescriptor {
 	return ao.columns
+}
+
+func (ao *analysisOutput) GetOrderedStarColumnsNames() ([]string, error) {
+	colSchemas, err := ao.GetStarColumns()
+	if err != nil {
+		return nil, fmt.Errorf("GetOrderedStarColumnsNames(): %w", err)
+	}
+	var cols []string
+	for colName, _ := range colSchemas {
+		if err != nil {
+			return nil, fmt.Errorf("GetOrderedStarColumnsNames(): %w", err)
+		}
+		cols = append(cols, colName)
+	}
+	if len(cols) == 0 {
+		return nil, fmt.Errorf("GetOrderedStarColumnsNames(): no columns found")
+	}
+	// Sort columns lexicographically
+	sort.Strings(cols)
+	return cols, nil
 }
 
 func (ao *analysisOutput) GetStarColumns() (Schemas, error) {
