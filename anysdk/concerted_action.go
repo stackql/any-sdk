@@ -7,6 +7,7 @@ import (
 type MethodAnalysisInput interface {
 	GetService() Service
 	GetMethod() OperationStore
+	IsAwait() bool
 	IsNilResponseAllowed() bool
 	GetColumns() []ColumnDescriptor
 }
@@ -16,6 +17,7 @@ type standardMethodAnalysisInput struct {
 	service              Service
 	isNilResponseAllowed bool
 	columns              []ColumnDescriptor
+	isAwait              bool
 }
 
 func NewMethodAnalysisInput(
@@ -23,13 +25,19 @@ func NewMethodAnalysisInput(
 	service Service,
 	isNilResponseAllowed bool,
 	columns []ColumnDescriptor,
+	isAwait bool,
 ) MethodAnalysisInput {
 	return &standardMethodAnalysisInput{
 		method:               method,
 		service:              service,
 		isNilResponseAllowed: isNilResponseAllowed,
 		columns:              columns,
+		isAwait:              isAwait,
 	}
+}
+
+func (mi *standardMethodAnalysisInput) IsAwait() bool {
+	return mi.isAwait
 }
 
 func (mi *standardMethodAnalysisInput) GetMethod() OperationStore {
@@ -148,7 +156,17 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 
 	selectItemsKey := method.GetSelectItemsKey()
 
-	schema, mediaType, err := method.GetFinalResponseBodySchemaAndMediaType()
+	isAwait := methodAnalysisInput.IsAwait()
+
+	var schema Schema
+	var mediaType string
+	var err error
+
+	if isAwait {
+		schema, mediaType, err = method.GetFinalResponseBodySchemaAndMediaType()
+	} else {
+		schema, mediaType, err = method.GetResponseBodySchemaAndMediaType()
+	}
 	insertTabulation := newNilTabulation(service, "", "")
 	selectTabulation := newNilTabulation(service, "", "")
 	if err != nil && !isNilResponseAllowed {
