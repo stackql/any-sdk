@@ -41,7 +41,6 @@ type IDiscoveryAdapter interface {
 	GetServiceHandle(prov anysdk.Provider, serviceKey string) (anysdk.ProviderService, error)
 	GetProvider(providerKey string) (anysdk.Provider, error)
 	PersistStaticExternalSQLDataSource(prov anysdk.Provider) error
-	getDicoveryStore() IDiscoveryStore
 }
 
 type BasicDiscoveryAdapter struct {
@@ -69,10 +68,6 @@ func NewBasicDiscoveryAdapter(
 		registry:           registry,
 		persistenceSystem:  persistenceSystem,
 	}
-}
-
-func (adp *BasicDiscoveryAdapter) getDicoveryStore() IDiscoveryStore {
-	return adp.discoveryStore
 }
 
 //nolint:revive // future proofing
