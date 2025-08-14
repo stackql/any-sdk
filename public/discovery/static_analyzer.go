@@ -1,22 +1,32 @@
 package discovery
 
 import (
-	"fmt"
-
 	"github.com/stackql/any-sdk/anysdk"
 )
 
 var (
-	_ StaticAnalyzer    = &openapiStaticAnalyzer{}
+	_ StaticAnalyzer    = &genericStaticAnalyzer{}
 	_ PersistenceSystem = &aotPersistenceSystem{}
 )
 
-func NewStaticAnalyzer(analysisType string) (StaticAnalyzer, error) {
-	switch analysisType {
+type AnalyzerCfg interface {
+	GetAnalysisType() string
+}
+
+type standardAnalyzerCfg struct {
+	analysisType string
+}
+
+func (sac *standardAnalyzerCfg) GetAnalysisType() string {
+	return sac.analysisType
+}
+
+func NewStaticAnalyzer(analysiscfg AnalyzerCfg) (StaticAnalyzer, error) {
+	switch analysiscfg.GetAnalysisType() {
 	case "openapi":
-		return &openapiStaticAnalyzer{}, nil
+		return &genericStaticAnalyzer{}, nil
 	default:
-		return nil, fmt.Errorf("unknown analysis type: %s", analysisType)
+		return &genericStaticAnalyzer{}, nil
 	}
 }
 
@@ -26,21 +36,21 @@ type StaticAnalyzer interface {
 	GetWarnings() []string
 }
 
-type openapiStaticAnalyzer struct {
+type genericStaticAnalyzer struct {
 	errors   []error
 	warnings []string
 }
 
-func (osa *openapiStaticAnalyzer) Analyze() error {
+func (osa *genericStaticAnalyzer) Analyze() error {
 	// Implement OpenAPI specific analysis logic here
 	return nil
 }
 
-func (osa *openapiStaticAnalyzer) GetErrors() []error {
+func (osa *genericStaticAnalyzer) GetErrors() []error {
 	return osa.errors
 }
 
-func (osa *openapiStaticAnalyzer) GetWarnings() []string {
+func (osa *genericStaticAnalyzer) GetWarnings() []string {
 	return osa.warnings
 }
 
