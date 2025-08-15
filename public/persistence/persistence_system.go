@@ -65,9 +65,9 @@ func (s *NaiveSQLPersistenceSystem) HandleViewCollection(viewCollection []anysdk
 }
 
 func (s *NaiveSQLPersistenceSystem) CacheStoreGet(key string) ([]byte, error) {
-	return s.CacheStoreGet(key)
+	return s.sqlEngine.CacheStoreGet(key)
 }
 
 func (s *NaiveSQLPersistenceSystem) CacheStorePut(key string, value []byte, expiration string, ttl int) error {
-	return s.CacheStorePut(key, value, expiration, ttl)
+	return s.sqlEngine.CacheStorePut(key, value, expiration, ttl)
 }
