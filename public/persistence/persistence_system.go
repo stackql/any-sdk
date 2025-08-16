@@ -4,20 +4,27 @@ import (
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/name_mangle"
-	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/sqlengine"
 )
 
 var (
-	_ discovery.PersistenceSystem = &NaiveSQLPersistenceSystem{}
+	_ PersistenceSystem = &NaiveSQLPersistenceSystem{}
 )
+
+type PersistenceSystem interface {
+	GetSystemName() string
+	HandleExternalTables(providerName string, externalTables map[string]anysdk.SQLExternalTable) error
+	HandleViewCollection([]anysdk.View) error
+	CacheStoreGet(key string) ([]byte, error)
+	CacheStorePut(key string, value []byte, expiration string, ttl int) error
+}
 
 type NaiveSQLPersistenceSystem struct {
 	sqlEngine       sqlengine.SQLEngine
 	viewNameMangler name_mangle.NameMangler
 }
 
-func NewSQLPersistenceSystem(systemType string, sqlEngine sqlengine.SQLEngine) (discovery.PersistenceSystem, error) {
+func NewSQLPersistenceSystem(systemType string, sqlEngine sqlengine.SQLEngine) (PersistenceSystem, error) {
 	switch systemType {
 	case "naive":
 		return newNaiveSQLPersistenceSystem(sqlEngine), nil

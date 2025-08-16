@@ -641,40 +641,6 @@ func findLatestDoc(serviceDir string) (string, error) {
 	return path.Join(serviceDir, fileNames[fileCount-1]), nil
 }
 
-func getLatestFile(entries []fs.DirEntry) (string, error) {
-	var fileNames []string
-	for _, entry := range entries {
-		if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".yaml") || strings.HasSuffix(entry.Name(), ".json")) {
-			fileNames = append(fileNames, entry.Name())
-		}
-	}
-	fileCount := len(fileNames)
-	if fileCount == 0 {
-		return "", fmt.Errorf("getLatestFile() no openapi files present in directory")
-	}
-	sort.Strings(fileNames)
-	return fileNames[fileCount-1], nil
-}
-
-// func findLatestEmbeddedDoc(fs embed.FS) (string, error) {
-// 	entries, err := fs.ReadDir(".")
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	var fileNames []string
-// 	for _, entry := range entries {
-// 		if !entry.IsDir() {
-// 			fileNames = append(fileNames, entry.Name())
-// 		}
-// 	}
-// 	fileCount := len(fileNames)
-// 	if fileCount == 0 {
-// 		return "", fmt.Errorf("no openapi files present in directory = '%s'", serviceDir)
-// 	}
-// 	sort.Strings(fileNames)
-// 	return path.Join(serviceDir, fileNames[fileCount-1]), nil
-// }
-
 func getProviderDoc(provider string) (string, error) {
 	switch provider {
 	case "google":
@@ -738,6 +704,7 @@ func resourceregisterLoadBackwardsCompatibility(rr ResourceRegister) {
 	}
 }
 
+// TODO: AOT analysis capability
 func operationBackwardsCompatibility(component StandardOperationStore, sr *ServiceRef) {
 	// backwards compatibility
 	if component.GetPathRef() != nil {
