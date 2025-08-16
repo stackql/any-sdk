@@ -1,6 +1,8 @@
 package discovery
 
 import (
+	"fmt"
+
 	"github.com/stackql/any-sdk/anysdk"
 )
 
@@ -10,23 +12,41 @@ var (
 )
 
 type AnalyzerCfg interface {
-	GetAnalysisType() string
+	GetProtocolType() string
+	GetDocRoot() string
 }
 
 type standardAnalyzerCfg struct {
-	analysisType string
+	protocolType string
+	docRoot      string
 }
 
-func (sac *standardAnalyzerCfg) GetAnalysisType() string {
-	return sac.analysisType
+func NewAnalyzerCfg(
+	protocolType string,
+	docRoot string,
+) AnalyzerCfg {
+	return &standardAnalyzerCfg{
+		protocolType: protocolType,
+		docRoot:      docRoot,
+	}
+}
+
+func (sac *standardAnalyzerCfg) GetProtocolType() string {
+	return sac.protocolType
+}
+
+func (sac *standardAnalyzerCfg) GetDocRoot() string {
+	return sac.docRoot
 }
 
 func NewStaticAnalyzer(analysiscfg AnalyzerCfg) (StaticAnalyzer, error) {
-	switch analysiscfg.GetAnalysisType() {
+	switch analysiscfg.GetProtocolType() {
 	case "openapi":
-		return &genericStaticAnalyzer{}, nil
+		return &genericStaticAnalyzer{cfg: analysiscfg}, nil
+	case "local_templated":
+		return &genericStaticAnalyzer{cfg: analysiscfg}, nil
 	default:
-		return &genericStaticAnalyzer{}, nil
+		return nil, fmt.Errorf("unsupported protocol type: %s", analysiscfg.GetProtocolType())
 	}
 }
 
@@ -37,12 +57,33 @@ type StaticAnalyzer interface {
 }
 
 type genericStaticAnalyzer struct {
+	cfg      AnalyzerCfg
 	errors   []error
 	warnings []string
 }
 
+// For each operation store in each resource:
+// For each provider:
+//   - Each service reference should dereference to a non nil object and wothout error.
+//   - If resources.ref is present then all resources routable through this should behave
+//   - ELSE if services.ref then all services routable through this should behave
+//   - GetSelectSchemaAndObjectPath() should return a non nil schema and nil error
 func (osa *genericStaticAnalyzer) Analyze() error {
 	// Implement OpenAPI specific analysis logic here
+	provider, fileErr := anysdk.LoadProviderDocFromFile(osa.cfg.GetDocRoot())
+	if fileErr != nil {
+		return fileErr
+	}
+	for k, v := range provider.GetProviderServices() {
+		if v == nil {
+			osa.errors = append(osa.errors, fmt.Errorf("service %s is nil", k))
+			continue
+		}
+	}
+	if len(osa.errors) > 0 {
+		return fmt.Errorf("static analysis found errors, error count %d", len(osa.errors))
+	}
+	// Perform analysis on providerDoc
 	return nil
 }
 
