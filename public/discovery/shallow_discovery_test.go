@@ -131,7 +131,8 @@ func TestDiscoveryAWS(t *testing.T) {
 		t.Fatal("Expected 'aws' provider to be available")
 	}
 	awsProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", awsProviderPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", awsProviderPath)
+	analysisCfg.SetIsProviderServicesMustExpand(true) // not always the case
 	rtCtx := dto.RuntimeCtx{}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
 		analysisCfg,
@@ -200,7 +201,8 @@ func TestDiscoveryGoogleCurrent(t *testing.T) {
 		t.Fatal("Expected 'google' provider to be available")
 	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", googleProviderPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath)
+	analysisCfg.SetIsProviderServicesMustExpand(false) // heaps of empties present
 	rtCtx := dto.RuntimeCtx{}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
 		analysisCfg,
@@ -269,7 +271,8 @@ func TestDiscoveryGoogleLegacy(t *testing.T) {
 		t.Fatal("Expected 'google' provider to be available")
 	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.0/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", googleProviderPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath)
+	analysisCfg.SetIsProviderServicesMustExpand(false) // heaps of empties present
 	rtCtx := dto.RuntimeCtx{}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
 		analysisCfg,

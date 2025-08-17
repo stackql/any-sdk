@@ -16,29 +16,41 @@ var (
 type AnalyzerCfg interface {
 	GetProtocolType() string
 	GetDocRoot() string
+	GetRegistryRootDir() string
 	GetProviderStr() string
 	GetRootURL() string
+	IsProviderServicesMustExpand() bool
+	SetIsProviderServicesMustExpand(bool)
 }
 
 type standardAnalyzerCfg struct {
-	protocolType string
-	docRoot      string
-	providerStr  string
-	rootURL      string
+	protocolType               string
+	docRoot                    string
+	registryRootDir            string
+	providerStr                string
+	rootURL                    string
+	providerServicesMustExpand bool
 }
 
 func NewAnalyzerCfg(
 	protocolType string,
+	registryRootDir string,
 	docRoot string,
 ) AnalyzerCfg {
 	return &standardAnalyzerCfg{
-		protocolType: protocolType,
-		docRoot:      docRoot,
+		protocolType:               protocolType,
+		registryRootDir:            registryRootDir,
+		docRoot:                    docRoot,
+		providerServicesMustExpand: true, // default thorough analysis
 	}
 }
 
 func (sac *standardAnalyzerCfg) GetProtocolType() string {
 	return sac.protocolType
+}
+
+func (sac *standardAnalyzerCfg) GetRegistryRootDir() string {
+	return sac.registryRootDir
 }
 
 func (sac *standardAnalyzerCfg) GetDocRoot() string {
@@ -51,6 +63,14 @@ func (sac *standardAnalyzerCfg) GetProviderStr() string {
 
 func (sac *standardAnalyzerCfg) GetRootURL() string {
 	return sac.rootURL
+}
+
+func (sac *standardAnalyzerCfg) IsProviderServicesMustExpand() bool {
+	return sac.providerServicesMustExpand
+}
+
+func (sac *standardAnalyzerCfg) SetIsProviderServicesMustExpand(value bool) {
+	sac.providerServicesMustExpand = value
 }
 
 func newGenericStaticAnalyzer(
@@ -129,11 +149,13 @@ type genericStaticAnalyzer struct {
 func (osa *genericStaticAnalyzer) Analyze() error {
 	// Implement OpenAPI specific analysis logic here
 	provider, fileErr := anysdk.LoadProviderDocFromFile(osa.cfg.GetDocRoot())
+	anysdk.OpenapiFileRoot = osa.cfg.GetRegistryRootDir()
 	if fileErr != nil {
 		return fileErr
 	}
 	providerServices := provider.GetProviderServices()
 	for k, providerService := range providerServices {
+		var resources map[string]anysdk.Resource
 		if providerService == nil {
 			osa.errors = append(osa.errors, fmt.Errorf("service %s is nil", k))
 			continue
@@ -152,7 +174,25 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 				osa.errors = append(osa.errors, fmt.Errorf("discovery document is nil for service %s", k))
 				continue
 			}
-			// return disDoc.GetResources(), nil
+			resources = disDoc.GetResources()
+		} else {
+			svc, err := providerService.GetService()
+			if err != nil {
+				if !osa.cfg.IsProviderServicesMustExpand() {
+					continue
+				}
+				osa.errors = append(osa.errors, fmt.Errorf("failed to get service handle for %s: %v", k, err))
+				continue
+			}
+			resources, err = svc.GetResources()
+			if err != nil {
+				osa.errors = append(osa.errors, fmt.Errorf("failed to get resources for service %s: %v", k, err))
+				continue
+			}
+		}
+		if len(resources) == 0 {
+			osa.errors = append(osa.errors, fmt.Errorf("no resources found for provider %s", k))
+			continue
 		}
 	}
 	if len(osa.errors) > 0 {

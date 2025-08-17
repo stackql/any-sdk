@@ -256,6 +256,9 @@ func (ps *standardProviderService) GetService() (Service, error) {
 	if ps.OpenAPIService != nil {
 		return ps.OpenAPIService, nil
 	}
+	if ps.ServiceRef == nil {
+		return nil, fmt.Errorf("service reference is nil")
+	}
 	if ps.ServiceRef.Value != nil {
 		return ps.ServiceRef.Value, nil
 	}
