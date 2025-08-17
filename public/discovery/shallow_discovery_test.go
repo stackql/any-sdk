@@ -132,7 +132,13 @@ func TestDiscovery02(t *testing.T) {
 	}
 	awsProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
 	analysisCfg := discovery.NewAnalyzerCfg("openapi", awsProviderPath)
-	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(analysisCfg)
+	rtCtx := dto.RuntimeCtx{}
+	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
+		analysisCfg,
+		persistenceSystem,
+		registry,
+		rtCtx,
+	)
 	if analyzerErr != nil {
 		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
 	}

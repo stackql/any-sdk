@@ -6,18 +6,11 @@ import (
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/docparser"
 	"github.com/stackql/any-sdk/pkg/dto"
+	"github.com/stackql/any-sdk/public/persistence"
 	"gopkg.in/yaml.v2"
 
 	"github.com/stackql/any-sdk/pkg/nomenclature"
 )
-
-type PersistenceSystem interface {
-	GetSystemName() string
-	HandleExternalTables(providerName string, externalTables map[string]anysdk.SQLExternalTable) error
-	HandleViewCollection([]anysdk.View) error
-	CacheStoreGet(key string) ([]byte, error)
-	CacheStorePut(key string, value []byte, expiration string, ttl int) error
-}
 
 type IDiscoveryStore interface {
 	ProcessProviderDiscoveryDoc(string, string) (anysdk.Provider, error)
@@ -29,7 +22,7 @@ type IDiscoveryStore interface {
 }
 
 type TTLDiscoveryStore struct {
-	persistenceSystem PersistenceSystem
+	persistenceSystem persistence.PersistenceSystem
 	runtimeCtx        dto.RuntimeCtx
 	registry          anysdk.RegistryAPI
 }
@@ -41,6 +34,7 @@ type IDiscoveryAdapter interface {
 	GetServiceHandle(prov anysdk.Provider, serviceKey string) (anysdk.ProviderService, error)
 	GetProvider(providerKey string) (anysdk.Provider, error)
 	PersistStaticExternalSQLDataSource(prov anysdk.Provider) error
+	getAlias() string
 }
 
 type BasicDiscoveryAdapter struct {
@@ -49,7 +43,7 @@ type BasicDiscoveryAdapter struct {
 	discoveryStore     IDiscoveryStore
 	runtimeCtx         *dto.RuntimeCtx
 	registry           anysdk.RegistryAPI
-	persistenceSystem  PersistenceSystem
+	persistenceSystem  persistence.PersistenceSystem
 }
 
 func NewBasicDiscoveryAdapter(
@@ -58,7 +52,7 @@ func NewBasicDiscoveryAdapter(
 	discoveryStore IDiscoveryStore,
 	runtimeCtx *dto.RuntimeCtx,
 	registry anysdk.RegistryAPI,
-	persistenceSystem PersistenceSystem,
+	persistenceSystem persistence.PersistenceSystem,
 ) IDiscoveryAdapter {
 	return &BasicDiscoveryAdapter{
 		alias:              alias,
@@ -73,6 +67,10 @@ func NewBasicDiscoveryAdapter(
 //nolint:revive // future proofing
 func (adp *BasicDiscoveryAdapter) GetProvider(providerKey string) (anysdk.Provider, error) {
 	return adp.discoveryStore.ProcessProviderDiscoveryDoc(adp.apiDiscoveryDocURL, adp.alias)
+}
+
+func (adp *BasicDiscoveryAdapter) getAlias() string {
+	return adp.alias
 }
 
 func (adp *BasicDiscoveryAdapter) GetServiceHandlesMap(
@@ -161,7 +159,7 @@ func (adp *BasicDiscoveryAdapter) GetResourcesMap(
 }
 
 func NewTTLDiscoveryStore(
-	persistenceSystem PersistenceSystem,
+	persistenceSystem persistence.PersistenceSystem,
 	registry anysdk.RegistryAPI,
 	runtimeCtx dto.RuntimeCtx,
 ) IDiscoveryStore {
