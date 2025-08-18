@@ -2,10 +2,14 @@ package discovery
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/sqlengine"
+	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
 
 var (
@@ -85,6 +89,103 @@ func newGenericStaticAnalyzer(
 		discoveryStore:    discoveryStore,
 		discoveryAdapter:  discoveryAdapter,
 	}
+}
+
+func getNewMockRegistry(relativePath string) (anysdk.RegistryAPI, error) {
+	return anysdk.NewRegistry(
+		anysdk.RegistryConfig{
+			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
+			LocalDocRoot:     relativePath,
+			AllowSrcDownload: false,
+			VerifyConfig: &edcrypto.VerifierConfig{
+				NopVerify: true,
+			},
+		},
+		nil)
+}
+
+type StaticAnalyzerFactory interface {
+	CreateStaticAnalyzer(
+		providerURL string,
+	) (StaticAnalyzer, error)
+}
+
+type simpleSQLiteAnalyzerFactory struct {
+	registryURL string
+}
+
+func NewSimpleSQLiteAnalyzerFactory(
+	registryURL string,
+) StaticAnalyzerFactory {
+	return &simpleSQLiteAnalyzerFactory{
+		registryURL: registryURL,
+	}
+}
+
+func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
+	providerURL string,
+) (StaticAnalyzer, error) {
+	registryLocalPath := f.registryURL
+	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
+	controlAttributes := sqlcontrol.GetControlAttributes("standard")
+	sqlCfg, err := dto.GetSQLBackendCfg("{}")
+	if err != nil {
+		return nil, err
+	}
+	sqlEngine, engineErr := sqlengine.NewSQLEngine(
+		sqlCfg,
+		controlAttributes,
+	)
+	if engineErr != nil {
+		return nil, engineErr
+	}
+	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
+	if err != nil {
+		return nil, err
+	}
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to create persistence system: got nil")
+	}
+	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
+	if scriptErr != nil {
+		return nil, scriptErr
+	}
+	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
+	if scriptRunErr != nil {
+		return nil, scriptRunErr
+	}
+	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
+	if putErr != nil {
+		return nil, putErr
+	}
+	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
+	if getErr != nil {
+		return nil, getErr
+	}
+	if string(cachedVal) != "value" {
+		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
+	}
+	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		return nil, registryErr
+	}
+	googleProvider, providersErr := registry.LoadProviderByName("google", "v0.1.2")
+	if providersErr != nil {
+		return nil, providersErr
+	}
+	if googleProvider == nil {
+		return nil, fmt.Errorf("expected 'google' provider to be available")
+	}
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg.SetIsProviderServicesMustExpand(true)
+	rtCtx := dto.RuntimeCtx{}
+	staticAnalyzer, analyzerErr := NewStaticAnalyzer(
+		analysisCfg,
+		persistenceSystem,
+		registry,
+		rtCtx,
+	)
+	return staticAnalyzer, analyzerErr
 }
 
 func NewStaticAnalyzer(

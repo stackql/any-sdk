@@ -149,7 +149,7 @@ func TestDiscoveryAWS(t *testing.T) {
 	}
 }
 
-func TestDiscoveryGoogleCurrent(t *testing.T) {
+func TestShallowDiscoveryGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
 	controlAttributes := sqlcontrol.GetControlAttributes("standard")
 	sqlCfg, err := dto.GetSQLBackendCfg("{}")
@@ -219,7 +219,7 @@ func TestDiscoveryGoogleCurrent(t *testing.T) {
 	}
 }
 
-func TestDiscoveryGoogleLegacy(t *testing.T) {
+func TestShallowDiscoveryGoogleLegacy(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
 	controlAttributes := sqlcontrol.GetControlAttributes("standard")
 	sqlCfg, err := dto.GetSQLBackendCfg("{}")
@@ -286,5 +286,27 @@ func TestDiscoveryGoogleLegacy(t *testing.T) {
 	err = staticAnalyzer.Analyze()
 	if err != nil {
 		t.Fatalf("Static analysis failed: %v", err)
+	}
+}
+
+func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
+	registryLocalPath := "./testdata/registry/basic"
+	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
+	expectedErrorCount := 282
+	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath)
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateStaticAnalyzer(googleProviderPath)
+	if analyzerErr != nil {
+		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
+	}
+	err := staticAnalyzer.Analyze()
+	if err == nil {
+		t.Fatalf("Static analysis failed: expected error but got none")
+	}
+	errorSlice := staticAnalyzer.GetErrors()
+	for _, err := range errorSlice {
+		t.Logf("Static analysis error: %v", err)
+	}
+	if len(errorSlice) != expectedErrorCount {
+		t.Fatalf("Static analysis failed: expected %d errors but got %d", expectedErrorCount, len(errorSlice))
 	}
 }
