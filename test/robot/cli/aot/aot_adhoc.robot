@@ -35,6 +35,6 @@ Simple AOT Analysis AWS Provider with CLI
     Log    Stderr = ${result.stderr}
     Log    Stdout = ${result.stdout}
     Log    RC = ${result.rc}
-    Should Contain                     ${result.stderr}    
+    Should Contain                     ${result.stdout}    
     ...                                successfully performed AOT analysis
     Should Be Equal As Strings    ${result.rc}    0
