@@ -82,12 +82,14 @@ func newGenericStaticAnalyzer(
 	persistenceSystem persistence.PersistenceSystem,
 	discoveryStore IDiscoveryStore,
 	discoveryAdapter IDiscoveryAdapter,
+	registryAPI anysdk.RegistryAPI,
 ) StaticAnalyzer {
 	return &genericStaticAnalyzer{
 		cfg:               analysisCfg,
 		persistenceSystem: persistenceSystem,
 		discoveryStore:    discoveryStore,
 		discoveryAdapter:  discoveryAdapter,
+		registryAPI:       registryAPI,
 	}
 }
 
@@ -198,9 +200,9 @@ func NewStaticAnalyzer(
 	discoveryAdapter := getDiscoveryAdapter(analysisCfg, persistenceSystem, discoveryStore, registryAPI, rtCtx)
 	switch analysisCfg.GetProtocolType() {
 	case "openapi":
-		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter), nil
+		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI), nil
 	case "local_templated":
-		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter), nil
+		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol type: %s", analysisCfg.GetProtocolType())
 	}
@@ -239,6 +241,7 @@ type genericStaticAnalyzer struct {
 	persistenceSystem persistence.PersistenceSystem
 	discoveryAdapter  IDiscoveryAdapter
 	discoveryStore    IDiscoveryStore
+	registryAPI       anysdk.RegistryAPI
 }
 
 // For each operation store in each resource:
@@ -264,6 +267,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 		// Perform additional checks on the service
 		rrr := providerService.GetResourcesRefRef()
 		if rrr != "" {
+			// Should be sole place for ResourcesRef dereference
 			disDoc, docErr := osa.discoveryStore.processResourcesDiscoveryDoc(
 				provider,
 				providerService,
@@ -277,6 +281,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			}
 			resources = disDoc.GetResources()
 		} else {
+			// Dereferences ServiceRef, not sole location
 			svc, err := providerService.GetService()
 			if err != nil {
 				if !osa.cfg.IsProviderServicesMustExpand() {
@@ -294,6 +299,20 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 		if len(resources) == 0 {
 			osa.errors = append(osa.errors, fmt.Errorf("no resources found for provider %s", k))
 			continue
+		}
+		for resourceKey := range resources {
+			// Loader.mergeResource() dereferences interesting stuff including:
+			//   - operation store attributes dereference:
+			//        -  OperationRef
+			//        -  PathItemRef
+			//   - expected response attributes:
+			//        -  LocalSchemaRef x 2 for sync and async schema overrides
+			//   - OpenAPIOperationStoreRef via resolveSQLVerb()
+			svc, svcErr := osa.registryAPI.GetServiceFragment(providerService, resourceKey)
+			if svcErr != nil {
+				osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", svc.GetName(), svcErr))
+				continue
+			}
 		}
 	}
 	if len(osa.errors) > 0 {
