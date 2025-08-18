@@ -171,13 +171,6 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	if registryErr != nil {
 		return nil, registryErr
 	}
-	googleProvider, providersErr := registry.LoadProviderByName("google", "v0.1.2")
-	if providersErr != nil {
-		return nil, providersErr
-	}
-	if googleProvider == nil {
-		return nil, fmt.Errorf("expected 'google' provider to be available")
-	}
 	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
 	rtCtx := dto.RuntimeCtx{}
