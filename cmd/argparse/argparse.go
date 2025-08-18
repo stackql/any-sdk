@@ -72,6 +72,7 @@ func init() {
 	rootCmd.AddCommand(execCmd)
 	rootCmd.AddCommand(constCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(aotCmd)
 
 }
 

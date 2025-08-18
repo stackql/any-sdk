@@ -57,5 +57,4 @@ func runReadCommand(rtCtx dto.RuntimeCtx, arg string) {
 	printErrorAndExitOneIfError(err)
 	printErrorAndExitOneIfNil(svc, "doc parse gave me doughnuts!!!\n\n")
 	fmt.Fprintf(os.Stdout, "\nsuccessfully parsed svc = '%s'\n", svc.GetName())
-
 }
