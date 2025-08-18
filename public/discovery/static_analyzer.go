@@ -24,6 +24,8 @@ type AnalyzerCfg interface {
 	GetProviderStr() string
 	GetRootURL() string
 	IsProviderServicesMustExpand() bool
+	IsVerbose() bool
+	SetIsVerbose(bool)
 	SetIsProviderServicesMustExpand(bool)
 }
 
@@ -34,6 +36,7 @@ type standardAnalyzerCfg struct {
 	providerStr                string
 	rootURL                    string
 	providerServicesMustExpand bool
+	isVerbose                  bool
 }
 
 func NewAnalyzerCfg(
@@ -51,6 +54,14 @@ func NewAnalyzerCfg(
 
 func (sac *standardAnalyzerCfg) GetProtocolType() string {
 	return sac.protocolType
+}
+
+func (sac *standardAnalyzerCfg) IsVerbose() bool {
+	return sac.isVerbose
+}
+
+func (sac *standardAnalyzerCfg) SetIsVerbose(value bool) {
+	sac.isVerbose = value
 }
 
 func (sac *standardAnalyzerCfg) GetRegistryRootDir() string {
@@ -114,19 +125,23 @@ type StaticAnalyzerFactory interface {
 
 type simpleSQLiteAnalyzerFactory struct {
 	registryURL string
+	rtCtx       dto.RuntimeCtx
 }
 
 func NewSimpleSQLiteAnalyzerFactory(
 	registryURL string,
+	rtCtx dto.RuntimeCtx,
 ) StaticAnalyzerFactory {
 	return &simpleSQLiteAnalyzerFactory{
 		registryURL: registryURL,
+		rtCtx:       rtCtx,
 	}
 }
 
 func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	providerURL string,
 ) (StaticAnalyzer, error) {
+	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
 	controlAttributes := sqlcontrol.GetControlAttributes("standard")
@@ -173,7 +188,7 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	}
 	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
-	rtCtx := dto.RuntimeCtx{}
+	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
 	staticAnalyzer, analyzerErr := NewStaticAnalyzer(
 		analysisCfg,
 		persistenceSystem,
@@ -225,12 +240,14 @@ type StaticAnalyzer interface {
 	Analyze() error
 	GetErrors() []error
 	GetWarnings() []string
+	GetAffirmatives() []string
 }
 
 type genericStaticAnalyzer struct {
 	cfg               AnalyzerCfg
 	errors            []error
 	warnings          []string
+	affirmatives      []string
 	persistenceSystem persistence.PersistenceSystem
 	discoveryAdapter  IDiscoveryAdapter
 	discoveryStore    IDiscoveryStore
@@ -306,6 +323,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 				osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", svc.GetName(), svcErr))
 				continue
 			}
+			osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced resource = '%s' with attendant service fragment for svc name = '%s'", resourceKey, k))
 		}
 	}
 	if len(osa.errors) > 0 {
@@ -321,6 +339,10 @@ func (osa *genericStaticAnalyzer) GetErrors() []error {
 
 func (osa *genericStaticAnalyzer) GetWarnings() []string {
 	return osa.warnings
+}
+
+func (osa *genericStaticAnalyzer) GetAffirmatives() []string {
+	return osa.affirmatives
 }
 
 type aotPersistenceSystem struct {

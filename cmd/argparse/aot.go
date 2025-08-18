@@ -36,14 +36,19 @@ var aotCmd = &cobra.Command{
 }
 
 func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string) {
-	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryURL)
+	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryURL, rtCtx)
 	analyzer, factoryErr := analyzerFactory.CreateStaticAnalyzer(providerDoc)
 	printErrorAndExitOneIfError(factoryErr)
 	analyisErr := analyzer.Analyze()
 	if analyisErr != nil {
 		allErrs := analyzer.GetErrors()
 		for _, err := range allErrs {
-			fmt.Fprintln(os.Stderr, fmt.Sprintln(err.Error()))
+			fmt.Fprintln(os.Stderr, fmt.Sprint(err.Error()))
+		}
+	}
+	if rtCtx.VerboseFlag {
+		for _, affirmative := range analyzer.GetAffirmatives() {
+			fmt.Fprintln(os.Stderr, fmt.Sprint(affirmative))
 		}
 	}
 	printErrorAndExitOneIfError(analyisErr)
