@@ -68,6 +68,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLISvcFilePath, "svc-file-path", ``, "path to service definition file")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIResourceStr, "resource", ``, "resource name")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMethodName, "method", ``, "method name")
+	rootCmd.PersistentFlags().BoolVarP(&runtimeCtx.VerboseFlag, dto.VerboseFlagKey, "v", false, "Verbose flag")
 
 	rootCmd.AddCommand(execCmd)
 	rootCmd.AddCommand(constCmd)
