@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/stackql/any-sdk/pkg/fileutil"
+	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
 
 var ()
@@ -65,7 +66,7 @@ func getMockHttpRegistry(vc RegistryConfig) (RegistryAPI, error) {
 			LocalDocRoot:     localRegPath,
 			SrcPrefix:        vc.SrcPrefix,
 			AllowSrcDownload: vc.AllowSrcDownload,
-			VerfifyConfig:    vc.VerfifyConfig,
+			VerifyConfig:     vc.VerifyConfig,
 		},
 		rt,
 	)
@@ -76,7 +77,20 @@ func getMockFileRegistry(vc RegistryConfig, registryRoot string, useEmbedded boo
 	if err != nil {
 		return nil, err
 	}
-	return NewRegistry(RegistryConfig{RegistryURL: registryRoot, LocalDocRoot: localRegPath, SrcPrefix: vc.SrcPrefix, AllowSrcDownload: vc.AllowSrcDownload, VerfifyConfig: vc.VerfifyConfig}, nil)
+	return NewRegistry(RegistryConfig{RegistryURL: registryRoot, LocalDocRoot: localRegPath, SrcPrefix: vc.SrcPrefix, AllowSrcDownload: vc.AllowSrcDownload, VerifyConfig: vc.VerifyConfig}, nil)
+}
+
+func getNewTestDataMockRegistry(relativePath string) (RegistryAPI, error) {
+	return NewRegistry(
+		RegistryConfig{
+			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
+			LocalDocRoot:     relativePath,
+			AllowSrcDownload: false,
+			VerifyConfig: &edcrypto.VerifierConfig{
+				NopVerify: true,
+			},
+		},
+		nil)
 }
 
 func getMockRemoteRegistry(vc RegistryConfig) (RegistryAPI, error) {

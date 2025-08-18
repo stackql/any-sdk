@@ -61,7 +61,7 @@ type RegistryConfig struct {
 	DistPrefix       *string                  `json:"distPrefix" yaml:"distPrefix"`
 	AllowSrcDownload bool                     `json:"allowSrcDownload" yaml:"allowSrcDownload"`
 	LocalDocRoot     string                   `json:"localDocRoot" yaml:"localDocRoot"`
-	VerfifyConfig    *edcrypto.VerifierConfig `json:"verifyConfig" yaml:"verifyConfig"`
+	VerifyConfig     *edcrypto.VerifierConfig `json:"verifyConfig" yaml:"verifyConfig"`
 }
 
 type Registry struct {
@@ -120,11 +120,11 @@ func newRegistry(registryCfg RegistryConfig, transport http.RoundTripper) (Regis
 	}
 	var ver *edcrypto.Verifier
 	nopVerify := false
-	if registryCfg.VerfifyConfig == nil {
+	if registryCfg.VerifyConfig == nil {
 		ver, err = edcrypto.NewVerifier(edcrypto.NewVerifierConfig("", "", ""))
 	} else {
-		ver, err = edcrypto.NewVerifier(*registryCfg.VerfifyConfig)
-		nopVerify = registryCfg.VerfifyConfig.NopVerify
+		ver, err = edcrypto.NewVerifier(*registryCfg.VerifyConfig)
+		nopVerify = registryCfg.VerifyConfig.NopVerify
 	}
 	if err != nil {
 		return nil, err
@@ -565,7 +565,11 @@ func (r *Registry) getEmbeddedVerifiedDocResponse(docPath string) (*edcrypto.Ver
 func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierResponse, error) {
 	var embeddedErr error
 	if r.isLocalFile() {
-		rb, err := os.Open(path.Join(r.srcUrl.Path, docPath))
+		localPath := r.srcUrl.Path
+		if r.srcUrl.Host == "." {
+			localPath = "." + localPath
+		}
+		rb, err := os.Open(path.Join(localPath, docPath))
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local registry file: '%s'", err.Error())
 		}
@@ -579,7 +583,7 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 			rv := edcrypto.NewVerifierResponse(true, nil, fileLockSafeReadCloser, nil)
 			return &rv, nil
 		}
-		sb, err := os.Open(path.Join(r.srcUrl.Path, fmt.Sprintf("%s.sig", docPath)))
+		sb, err := os.Open(path.Join(localPath, fmt.Sprintf("%s.sig", docPath)))
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local signature file: '%s'", err.Error())
 		}

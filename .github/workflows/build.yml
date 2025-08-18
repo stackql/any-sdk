@@ -342,6 +342,16 @@ jobs:
       run: |
         cat test/robot/reports/mocked/output.xml
 
+    - name: Run AOT CLI robot tests
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:${{ github.workspace }}/test/python"
+        robot -d test/robot/reports/aot test/robot/cli/aot
+
+    - name: Output from AOT CLI robot tests
+      if: always()
+      run: |
+        cat test/robot/reports/aot/output.xml
+
   macosbuild:
     name: MacOS Build
     runs-on: macos-latest

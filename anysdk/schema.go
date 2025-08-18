@@ -788,7 +788,6 @@ func (schema *standardSchema) extractMediaTypeSynonym(mediaType string) string {
 }
 
 func (schema *standardSchema) getSelectItemsSchema(key string, mediaType string) (Schema, string, error) {
-	// log.Infoln(fmt.Sprintf("schema.getSelectItemsSchema() key = '%s'", key))
 	if key == "" {
 		if schema.Items != nil && schema.Items.Value != nil {
 			return newSchema(schema.Items.Value, schema.svc, "", schema.Items.Ref), "", nil
