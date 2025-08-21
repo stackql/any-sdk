@@ -3,6 +3,26 @@
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
+    "inputs": [
+        {
+            "type": "pickString",
+            "id": "registryRootDir",
+            "description": "Registry Configuration",
+            "options": [
+                "${workspaceFolder}/test/registry",
+            ],
+            "default": "${workspaceFolder}/test/registry"
+        },
+        {
+            "type": "pickString",
+            "id": "providerFilePath",
+            "description": "Auth Input arg String",
+            "default": "${workspaceFolder}/test/registry/src/aws/v0.1.0/provider.yaml",
+            "options": [
+                "${workspaceFolder}/test/registry/src/aws/v0.1.0/provider.yaml"
+            ]
+        }
+    ],
     "configurations": [
         {
             "type": "go",
@@ -67,6 +87,19 @@
                 "describe_certificate",
                 "--parameters",
                 "{ \"cert_file\": \"${workspaceFolder}/test/tmp/cert.pem\"}"
+            ]
+        },
+        {
+            "type": "go",
+            "request": "launch",
+            "name": "AOT provider analysis",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/interrogate",
+            "envFile": "${workspaceFolder}/.vscode/.env",
+            "args": [
+                "aot",
+                "${input:registryRootDir}",
+                "${input:providerFilePath}",
             ]
         }
     ]

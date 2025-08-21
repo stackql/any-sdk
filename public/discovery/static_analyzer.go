@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/persistence"
@@ -267,6 +268,18 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 	if fileErr != nil {
 		return fileErr
 	}
+	protocolType, protocolTypeErr := provider.GetProtocolType()
+	if protocolTypeErr != nil {
+		return protocolTypeErr
+	}
+	switch protocolType {
+	case client.HTTP, client.LocalTemplated:
+		// acceptable
+		osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully loaded provider %s with protocol type %s", provider.GetName(), provider.GetProtocolTypeString()))
+	default:
+		// unacceptable
+		osa.errors = append(osa.errors, fmt.Errorf("unsupported protocol type for provider %s: %s", provider.GetName(), provider.GetProtocolTypeString()))
+	}
 	providerServices := provider.GetProviderServices()
 	for k, providerService := range providerServices {
 		var resources map[string]anysdk.Resource
@@ -310,7 +323,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			osa.errors = append(osa.errors, fmt.Errorf("no resources found for provider %s", k))
 			continue
 		}
-		for resourceKey := range resources {
+		for resourceKey, resource := range resources {
 			// Loader.mergeResource() dereferences interesting stuff including:
 			//   - operation store attributes dereference:
 			//        -  OperationRef
@@ -322,6 +335,50 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			if svcErr != nil {
 				osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", svc.GetName(), svcErr))
 				continue
+			}
+			methods := resource.GetMethods()
+			for methodName, method := range methods {
+				// Perform analysis on each method
+
+				switch protocolType {
+				case client.HTTP:
+					graphQL := method.GetGraphQL()
+					isGraphQL := graphQL != nil
+					if isGraphQL {
+						continue // TODO: GraphQL methods analysis
+					}
+					shouldBeSelectable := method.ShouldBeSelectable()
+					if shouldBeSelectable {
+						responseSchema, mediaType, responseInferenceErr := method.GetFinalResponseBodySchemaAndMediaType()
+						if responseInferenceErr != nil {
+							osa.errors = append(osa.errors, fmt.Errorf("failed to infer response schema for method = '%s': %v", methodName, responseInferenceErr))
+						}
+						if responseSchema == nil {
+							osa.errors = append(osa.errors, fmt.Errorf("response schema not found for method = '%s' with media type %s", methodName, mediaType))
+							continue
+						}
+						selectableSchema, objPath, selectionErr := method.GetSelectSchemaAndObjectPath()
+						if selectionErr != nil {
+							osa.errors = append(osa.errors, fmt.Errorf("failed to infer selectable schema for method = '%s': %v", methodName, selectionErr))
+							continue
+						}
+						if selectableSchema == nil {
+							osa.errors = append(osa.errors, fmt.Errorf("selectable schema not found for method = '%s'", methodName))
+						}
+						osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully inferred response schema for method = '%s' with media type %s  at object path = %s", methodName, mediaType, objPath))
+					}
+					osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced method = '%s' for resource = '%s' with service name = '%s'", methodName, resourceKey, k))
+				case client.LocalTemplated:
+					// Local templated protocol specific analysis
+					inline := method.GetInline()
+					if len(inline) != 0 {
+						osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully found inline for local templated method = '%s'", methodName))
+					} else {
+						osa.errors = append(osa.errors, fmt.Errorf("inline not found for local templated method = '%s'", methodName))
+					}
+				default:
+					// placeholder for fine grained protocol type analysis
+				}
 			}
 			osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced resource = '%s' with attendant service fragment for svc name = '%s'", resourceKey, k))
 		}
