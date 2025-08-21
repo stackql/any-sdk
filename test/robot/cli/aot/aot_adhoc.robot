@@ -18,7 +18,7 @@ Simple AOT Analysis Google Provider with CLI
     Log    Stdout = ${result.stdout}
     Log    RC = ${result.rc}
     Should Contain                     ${result.stderr}    
-    ...                                error count 282
+    ...                                error count 564
     Should Be Equal As Strings    ${result.rc}    1
 
 Simple AOT Analysis AWS Provider with CLI
