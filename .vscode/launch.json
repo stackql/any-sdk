@@ -10,6 +10,7 @@
             "description": "Registry Configuration",
             "options": [
                 "${workspaceFolder}/test/registry",
+                "${workspaceFolder}/../stackql-provider-registry/providers",
             ],
             "default": "${workspaceFolder}/test/registry"
         },
@@ -19,7 +20,10 @@
             "description": "Auth Input arg String",
             "default": "${workspaceFolder}/test/registry/src/aws/v0.1.0/provider.yaml",
             "options": [
-                "${workspaceFolder}/test/registry/src/aws/v0.1.0/provider.yaml"
+                "${workspaceFolder}/test/registry/src/aws/v0.1.0/provider.yaml",
+                "${workspaceFolder}/../stackql-provider-registry/providers/src/aws/v00.00.00000/provider.yaml",
+                "${workspaceFolder}/../stackql-provider-registry/providers/src/k8s/v00.00.00000/provider.yaml",
+                "${workspaceFolder}/../stackql-provider-registry/providers/src/digitalocean/v00.00.00000/provider.yaml"
             ]
         }
     ],

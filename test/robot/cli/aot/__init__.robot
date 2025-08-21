@@ -1,5 +1,5 @@
 *** Settings ***
-Resource          ${CURDIR}/stackql_aot.resource
-Suite Setup       Prepare AOT StackQL Environment
+Resource          ${CURDIR}/anysdk_aot.resource
+Suite Setup       Prepare AnySDK Environment
 Suite Teardown    Terminate All Processes    kill=True
 

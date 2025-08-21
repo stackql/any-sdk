@@ -1,6 +1,6 @@
 *** Settings ***
-Resource          ${CURDIR}/stackql.resource
-Test Teardown     Stackql Per Test Teardown
+Resource          ${CURDIR}/anysdk_mocked.resource
+Test Teardown     AnySDK Per Test Teardown
 
 *** Test Cases *** 
 Select Google Cloud Storage Buckets with CLI

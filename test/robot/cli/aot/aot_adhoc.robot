@@ -1,6 +1,6 @@
 *** Settings ***
-Resource          ${CURDIR}/stackql_aot.resource
-Test Teardown     Stackql AOT Per Test Teardown
+Resource          ${CURDIR}/anysdk_aot.resource
+Test Teardown     AnySDK Per Test Teardown
 
 *** Test Cases *** 
 Simple AOT Analysis Google Provider with CLI
