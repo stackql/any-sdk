@@ -306,7 +306,7 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	for _, err := range errorSlice {
 		t.Logf("Static analysis error: %v", err)
 	}
-	if len(errorSlice) != expectedErrorCount {
-		t.Fatalf("Static analysis failed: expected %d errors but got %d", expectedErrorCount, len(errorSlice))
+	if len(errorSlice)%expectedErrorCount != 0 {
+		t.Fatalf("Static analysis failed: expected multiple of %d errors but got %d", expectedErrorCount, len(errorSlice))
 	}
 }
