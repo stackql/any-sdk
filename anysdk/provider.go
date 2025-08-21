@@ -20,6 +20,7 @@ type ResponseKeys struct {
 
 type Provider interface {
 	GetProtocolType() (client.ClientProtocolType, error)
+	GetProtocolTypeString() string
 	Debug() string
 	GetAuth() (AuthDTO, bool)
 	GetDeleteItemsKey() string
@@ -74,10 +75,14 @@ func (pr *standardProvider) GetName() string {
 }
 
 func (sv *standardProvider) GetProtocolType() (client.ClientProtocolType, error) {
+	return client.ClientProtocolTypeFromString(sv.GetProtocolTypeString())
+}
+
+func (sv *standardProvider) GetProtocolTypeString() string {
 	if sv.ProtocolType == "" {
-		return client.ClientProtocolTypeFromString(client.ClientProtocolTypeHTTP)
+		return client.ClientProtocolTypeHTTP
 	}
-	return client.ClientProtocolTypeFromString(sv.ProtocolType)
+	return sv.ProtocolType
 }
 
 func (pr *standardProvider) GetStackQLConfig() (StackQLConfig, bool) {
