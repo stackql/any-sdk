@@ -123,6 +123,10 @@ type StaticAnalyzerFactory interface {
 	CreateStaticAnalyzer(
 		providerURL string,
 	) (StaticAnalyzer, error)
+	CreateServiceLevelStaticAnalyzer(
+		providerURL string,
+		serviceName string,
+	) (StaticAnalyzer, error)
 }
 
 type simpleSQLiteAnalyzerFactory struct {
