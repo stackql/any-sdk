@@ -104,6 +104,7 @@ type OperationStore interface {
 	RevertRequestBodyAttributeRename(string) (string, error)
 	IsRequestBodyAttributeRenamed(string) bool
 	GetRequiredNonBodyParameters() map[string]Addressable
+	ShouldBeSelectable() bool
 	getServiceNameForProvider() string
 }
 
@@ -1390,6 +1391,17 @@ func (op *standardOpenAPIOperationStore) getResponseBodySchemaAndMediaType() (Sc
 		return op.Response.Schema, mediaType, nil
 	}
 	return nil, "", fmt.Errorf("no response body for operation =  %s", op.GetName())
+}
+
+func (op *standardOpenAPIOperationStore) ShouldBeSelectable() bool {
+	itemsKey := op.lookupSelectItemsKey()
+	if op.Response != nil && op.Response.OverrideSchema != nil {
+		return true
+	}
+	if op.Response != nil && op.Response.Schema != nil {
+		return true
+	}
+	return itemsKey != ""
 }
 
 func (op *standardOpenAPIOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {

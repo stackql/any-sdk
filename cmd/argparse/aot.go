@@ -31,14 +31,26 @@ var aotCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		runAotCommand(runtimeCtx, args[0], args[1])
+		runAotCommand(runtimeCtx, args[0], args[1], args[2:]...)
 	},
 }
 
-func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string) {
+func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string, extraArgs ...string) {
+
 	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryURL, rtCtx)
-	analyzer, factoryErr := analyzerFactory.CreateStaticAnalyzer(providerDoc)
-	printErrorAndExitOneIfError(factoryErr)
+	var analyzer discovery.StaticAnalyzer
+	var factoryErr error
+	switch len(extraArgs) {
+	case 1:
+		analyzer, factoryErr = analyzerFactory.CreateServiceLevelStaticAnalyzer(providerDoc, extraArgs[0])
+		printErrorAndExitOneIfError(factoryErr)
+	case 0:
+		analyzer, factoryErr = analyzerFactory.CreateStaticAnalyzer(providerDoc)
+		printErrorAndExitOneIfError(factoryErr)
+	default:
+		fmt.Fprintf(os.Stderr, "inoperable input '%v'\n", extraArgs)
+		os.Exit(1)
+	}
 	analyisErr := analyzer.Analyze()
 	if analyisErr != nil {
 		allErrs := analyzer.GetErrors()

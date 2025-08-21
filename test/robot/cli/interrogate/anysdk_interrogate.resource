@@ -38,11 +38,11 @@ Library           ${STACKQL_INTERFACE_LIBRARY}    ${EXECUTION_PLATFORM}    ${SQL
 Library           ${CLOUD_INTEGRATION_LIBRARY}
 
 *** Keywords ***
-Prepare AOT StackQL Environment
+Prepare AnySDK Environment
     [Documentation]    Prepare AOT StackQL Environment
     Log                Stackql AOT Per Test Teardown Placeholder run
     Sleep    2s
 
-Stackql AOT Per Test Teardown
-    [Documentation]    Stackql AOT Per Test Teardown
-    Log                Stackql AOT Per Test Teardown Placeholder run
+AnySDK Per Test Teardown
+    [Documentation]    AnySDK Per Test Teardown
+    Log                AnySDK Per Test Teardown Placeholder run
