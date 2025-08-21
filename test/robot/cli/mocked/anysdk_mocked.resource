@@ -58,11 +58,11 @@ Start All Mock Servers
     ...    digitalocean=${MOCKSERVER_PORT_DIGITALOCEAN}
     Start All Webservers    port_dict=${port_dict}
 
-Prepare StackQL Environment
-    [Documentation]    Prepare StackQL Environment
+Prepare AnySDK Environment
+    [Documentation]    Prepare AnySDK Environment
     Start All Mock Servers
     Sleep    50s
 
-Stackql Per Test Teardown
-    [Documentation]    Stackql Per Test Teardown
-    Log                Stackql Per Test Teardown Placeholder run
+AnySDK Per Test Teardown
+    [Documentation]    AnySDK Per Test Teardown
+    Log                AnySDK Per Test Teardown Placeholder run

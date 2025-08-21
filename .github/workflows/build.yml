@@ -352,6 +352,16 @@ jobs:
       run: |
         cat test/robot/reports/aot/output.xml
 
+    - name: Run Interrogate CLI robot tests
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:${{ github.workspace }}/test/python"
+        robot -d test/robot/reports/interrogate test/robot/cli/interrogate
+
+    - name: Output from Interrogate CLI robot tests
+      if: always()
+      run: |
+        cat test/robot/reports/interrogate/output.xml
+
   macosbuild:
     name: MacOS Build
     runs-on: macos-latest

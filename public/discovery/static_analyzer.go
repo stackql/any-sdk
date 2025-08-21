@@ -3,8 +3,10 @@ package discovery
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/persistence"
@@ -121,6 +123,10 @@ type StaticAnalyzerFactory interface {
 	CreateStaticAnalyzer(
 		providerURL string,
 	) (StaticAnalyzer, error)
+	CreateServiceLevelStaticAnalyzer(
+		providerURL string,
+		serviceName string,
+	) (StaticAnalyzer, error)
 }
 
 type simpleSQLiteAnalyzerFactory struct {
@@ -198,6 +204,81 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	return staticAnalyzer, analyzerErr
 }
 
+func (f *simpleSQLiteAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
+	providerURL string,
+	serviceName string,
+) (StaticAnalyzer, error) {
+	rtCtx := f.rtCtx
+	registryLocalPath := f.registryURL
+	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
+	controlAttributes := sqlcontrol.GetControlAttributes("standard")
+	sqlCfg, err := dto.GetSQLBackendCfg("{}")
+	if err != nil {
+		return nil, err
+	}
+	sqlEngine, engineErr := sqlengine.NewSQLEngine(
+		sqlCfg,
+		controlAttributes,
+	)
+	if engineErr != nil {
+		return nil, engineErr
+	}
+	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
+	if err != nil {
+		return nil, err
+	}
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to create persistence system: got nil")
+	}
+	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
+	if scriptErr != nil {
+		return nil, scriptErr
+	}
+	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
+	if scriptRunErr != nil {
+		return nil, scriptRunErr
+	}
+	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
+	if putErr != nil {
+		return nil, putErr
+	}
+	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
+	if getErr != nil {
+		return nil, getErr
+	}
+	if string(cachedVal) != "value" {
+		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
+	}
+	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		return nil, registryErr
+	}
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg.SetIsProviderServicesMustExpand(true)
+	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
+	discoveryStore := getDiscoveryStore(persistenceSystem, registry, rtCtx)
+	discoveryAdapter := getDiscoveryAdapter(analysisCfg, persistenceSystem, discoveryStore, registry, rtCtx)
+	provider, fileErr := anysdk.LoadProviderDocFromFile(analysisCfg.GetDocRoot())
+	anysdk.OpenapiFileRoot = analysisCfg.GetRegistryRootDir()
+	if fileErr != nil {
+		return nil, fileErr
+	}
+	providerService, serviceErr := provider.GetProviderService(serviceName)
+	if serviceErr != nil {
+		return nil, serviceErr
+	}
+	staticAnalyzer := NewServiceLevelStaticAnalyzer(
+		analysisCfg,
+		discoveryAdapter,
+		discoveryStore,
+		provider,
+		providerService,
+		serviceName,
+		registry,
+	)
+	return staticAnalyzer, nil
+}
+
 func NewStaticAnalyzer(
 	analysisCfg AnalyzerCfg,
 	persistenceSystem persistence.PersistenceSystem,
@@ -267,65 +348,49 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 	if fileErr != nil {
 		return fileErr
 	}
-	providerServices := provider.GetProviderServices()
-	for k, providerService := range providerServices {
-		var resources map[string]anysdk.Resource
-		if providerService == nil {
-			osa.errors = append(osa.errors, fmt.Errorf("service %s is nil", k))
-			continue
-		}
-		// Perform additional checks on the service
-		rrr := providerService.GetResourcesRefRef()
-		if rrr != "" {
-			// Should be sole place for ResourcesRef dereference
-			disDoc, docErr := osa.discoveryStore.processResourcesDiscoveryDoc(
-				provider,
-				providerService,
-				fmt.Sprintf("%s.%s", osa.discoveryAdapter.getAlias(), k))
-			if docErr != nil {
-				osa.errors = append(osa.errors, docErr)
-			}
-			if disDoc == nil {
-				osa.errors = append(osa.errors, fmt.Errorf("discovery document is nil for service %s", k))
-				continue
-			}
-			resources = disDoc.GetResources()
-		} else {
-			// Dereferences ServiceRef, not sole location
-			svc, err := providerService.GetService()
-			if err != nil {
-				if !osa.cfg.IsProviderServicesMustExpand() {
-					continue
-				}
-				osa.errors = append(osa.errors, fmt.Errorf("failed to get service handle for %s: %v", k, err))
-				continue
-			}
-			resources, err = svc.GetResources()
-			if err != nil {
-				osa.errors = append(osa.errors, fmt.Errorf("failed to get resources for service %s: %v", k, err))
-				continue
-			}
-		}
-		if len(resources) == 0 {
-			osa.errors = append(osa.errors, fmt.Errorf("no resources found for provider %s", k))
-			continue
-		}
-		for resourceKey := range resources {
-			// Loader.mergeResource() dereferences interesting stuff including:
-			//   - operation store attributes dereference:
-			//        -  OperationRef
-			//        -  PathItemRef
-			//   - expected response attributes:
-			//        -  LocalSchemaRef x 2 for sync and async schema overrides
-			//   - OpenAPIOperationStoreRef via resolveSQLVerb()
-			svc, svcErr := osa.registryAPI.GetServiceFragment(providerService, resourceKey)
-			if svcErr != nil {
-				osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", svc.GetName(), svcErr))
-				continue
-			}
-			osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced resource = '%s' with attendant service fragment for svc name = '%s'", resourceKey, k))
-		}
+	protocolType, protocolTypeErr := provider.GetProtocolType()
+	if protocolTypeErr != nil {
+		return protocolTypeErr
 	}
+	switch protocolType {
+	case client.HTTP, client.LocalTemplated:
+		// acceptable
+		osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully loaded provider %s with protocol type %s", provider.GetName(), provider.GetProtocolTypeString()))
+	default:
+		// unacceptable
+		osa.errors = append(osa.errors, fmt.Errorf("unsupported protocol type for provider %s: %s", provider.GetName(), provider.GetProtocolTypeString()))
+	}
+	providerServices := provider.GetProviderServices()
+	var wg sync.WaitGroup
+	serviceAnalyzers := make(map[string]StaticAnalyzer, len(providerServices))
+	for k, providerService := range providerServices {
+		serviceLevelStaticAnalyzer := NewServiceLevelStaticAnalyzer(
+			osa.cfg,
+			osa.discoveryAdapter,
+			osa.discoveryStore,
+			provider,
+			providerService,
+			k,
+			osa.registryAPI,
+		)
+		serviceAnalyzers[k] = serviceLevelStaticAnalyzer
+		wg.Add(1)
+		go func(k string) {
+			defer wg.Done()
+			serviceLevelStaticAnalyzer.Analyze()
+		}(k)
+	}
+	wg.Wait()
+	for k, serviceLevelStaticAnalyzer := range serviceAnalyzers {
+		serviceErrors := serviceLevelStaticAnalyzer.GetErrors()
+		if len(serviceErrors) > 0 {
+			osa.errors = append(osa.errors, fmt.Errorf("static analysis found errors for service %s, error count %d", k, len(serviceErrors)))
+			osa.errors = append(osa.errors, serviceErrors...)
+		}
+		osa.warnings = append(osa.warnings, serviceLevelStaticAnalyzer.GetWarnings()...)
+		osa.affirmatives = append(osa.affirmatives, serviceLevelStaticAnalyzer.GetAffirmatives()...)
+	}
+	wg.Wait()
 	if len(osa.errors) > 0 {
 		return fmt.Errorf("static analysis found errors, error count %d", len(osa.errors))
 	}
@@ -342,6 +407,182 @@ func (osa *genericStaticAnalyzer) GetWarnings() []string {
 }
 
 func (osa *genericStaticAnalyzer) GetAffirmatives() []string {
+	return osa.affirmatives
+}
+
+func NewServiceLevelStaticAnalyzer(
+	cfg AnalyzerCfg,
+	discoveryAdapter IDiscoveryAdapter,
+	discoveryStore IDiscoveryStore,
+	provider anysdk.Provider,
+	providerService anysdk.ProviderService,
+	providerServiceKey string,
+	registryAPI anysdk.RegistryAPI,
+) StaticAnalyzer {
+	return &serviceLevelStaticAnalyzer{
+		cfg:                cfg,
+		errors:             []error{},
+		warnings:           []string{},
+		affirmatives:       []string{},
+		discoveryAdapter:   discoveryAdapter,
+		discoveryStore:     discoveryStore,
+		provider:           provider,
+		providerService:    providerService,
+		providerServiceKey: providerServiceKey,
+		registryAPI:        registryAPI,
+	}
+}
+
+type serviceLevelStaticAnalyzer struct {
+	cfg                AnalyzerCfg
+	errors             []error
+	warnings           []string
+	affirmatives       []string
+	discoveryAdapter   IDiscoveryAdapter
+	discoveryStore     IDiscoveryStore
+	provider           anysdk.Provider
+	providerService    anysdk.ProviderService
+	providerServiceKey string
+	registryAPI        anysdk.RegistryAPI
+}
+
+func (osa *serviceLevelStaticAnalyzer) Analyze() error {
+	anysdk.OpenapiFileRoot = osa.cfg.GetRegistryRootDir()
+	protocolType, protocolTypeErr := osa.provider.GetProtocolType()
+	if protocolTypeErr != nil {
+		return protocolTypeErr
+	}
+	switch protocolType {
+	case client.HTTP, client.LocalTemplated:
+		// acceptable
+		osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully loaded provider %s with protocol type %s", osa.provider.GetName(), osa.provider.GetProtocolTypeString()))
+	default:
+		// unacceptable
+		osa.errors = append(osa.errors, fmt.Errorf("unsupported protocol type for provider %s: %s", osa.provider.GetName(), osa.provider.GetProtocolTypeString()))
+	}
+	providerService := osa.providerService
+	k := osa.providerServiceKey
+	var resources map[string]anysdk.Resource
+	if providerService == nil {
+		err := fmt.Errorf("service %s is nil", k)
+		osa.errors = append(osa.errors, err)
+		return err
+	}
+	// Perform additional checks on the service
+	rrr := providerService.GetResourcesRefRef()
+	if rrr != "" {
+		// Should be sole place for ResourcesRef dereference
+		disDoc, docErr := osa.discoveryStore.processResourcesDiscoveryDoc(
+			osa.provider,
+			providerService,
+			fmt.Sprintf("%s.%s", osa.discoveryAdapter.getAlias(), k))
+		if docErr != nil {
+			osa.errors = append(osa.errors, docErr)
+		}
+		if disDoc == nil {
+			err := fmt.Errorf("discovery document is nil for service %s", k)
+			osa.errors = append(osa.errors, err)
+			return err
+		}
+		resources = disDoc.GetResources()
+	} else {
+		// Dereferences ServiceRef, not sole location
+		svc, err := providerService.GetService()
+		if err != nil {
+			if !osa.cfg.IsProviderServicesMustExpand() {
+				return nil
+			}
+			err := fmt.Errorf("failed to get service handle for %s: %v", k, err)
+			osa.errors = append(osa.errors, err)
+			return err
+		}
+		resources, err = svc.GetResources()
+		if err != nil {
+			err := fmt.Errorf("failed to get resources for service %s: %v", k, err)
+			osa.errors = append(osa.errors, err)
+			return err
+		}
+	}
+	if len(resources) == 0 {
+		err := fmt.Errorf("no resources found for provider %s", k)
+		osa.errors = append(osa.errors, err)
+		return err
+	}
+	for resourceKey, resource := range resources {
+		// Loader.mergeResource() dereferences interesting stuff including:
+		//   - operation store attributes dereference:
+		//        -  OperationRef
+		//        -  PathItemRef
+		//   - expected response attributes:
+		//        -  LocalSchemaRef x 2 for sync and async schema overrides
+		//   - OpenAPIOperationStoreRef via resolveSQLVerb()
+		_, svcErr := osa.registryAPI.GetServiceFragment(providerService, resourceKey)
+		if svcErr != nil {
+			osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", providerService.GetName(), svcErr))
+			continue
+		}
+		methods := resource.GetMethods()
+		for methodName, method := range methods {
+			// Perform analysis on each method
+
+			switch protocolType {
+			case client.HTTP:
+				graphQL := method.GetGraphQL()
+				isGraphQL := graphQL != nil
+				if isGraphQL {
+					continue // TODO: GraphQL methods analysis
+				}
+				shouldBeSelectable := method.ShouldBeSelectable()
+				if shouldBeSelectable {
+					responseSchema, mediaType, responseInferenceErr := method.GetFinalResponseBodySchemaAndMediaType()
+					if responseInferenceErr != nil {
+						osa.errors = append(osa.errors, fmt.Errorf("failed to infer response schema for method = '%s': %v", methodName, responseInferenceErr))
+					}
+					if responseSchema == nil {
+						osa.errors = append(osa.errors, fmt.Errorf("response schema not found for method = '%s' with media type %s", methodName, mediaType))
+						continue
+					}
+					selectableSchema, objPath, selectionErr := method.GetSelectSchemaAndObjectPath()
+					if selectionErr != nil {
+						osa.errors = append(osa.errors, fmt.Errorf("failed to infer selectable schema for method = '%s': %v", methodName, selectionErr))
+						continue
+					}
+					if selectableSchema == nil {
+						osa.errors = append(osa.errors, fmt.Errorf("selectable schema not found for method = '%s'", methodName))
+					}
+					osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully inferred response schema for method = '%s' with media type %s  at object path = %s", methodName, mediaType, objPath))
+				}
+				osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced method = '%s' for resource = '%s' with service name = '%s'", methodName, resourceKey, k))
+			case client.LocalTemplated:
+				// Local templated protocol specific analysis
+				inline := method.GetInline()
+				if len(inline) != 0 {
+					osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully found inline for local templated method = '%s'", methodName))
+				} else {
+					osa.errors = append(osa.errors, fmt.Errorf("inline not found for local templated method = '%s'", methodName))
+				}
+			default:
+				// placeholder for fine grained protocol type analysis
+			}
+		}
+		osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced resource = '%s' with attendant service fragment for svc name = '%s'", resourceKey, k))
+	}
+
+	if len(osa.errors) > 0 {
+		return fmt.Errorf("static analysis found errors, error count %d", len(osa.errors))
+	}
+	return nil
+}
+
+func (osa *serviceLevelStaticAnalyzer) GetErrors() []error {
+	return osa.errors
+}
+
+func (osa *serviceLevelStaticAnalyzer) GetWarnings() []string {
+	return osa.warnings
+}
+
+func (osa *serviceLevelStaticAnalyzer) GetAffirmatives() []string {
 	return osa.affirmatives
 }
 
