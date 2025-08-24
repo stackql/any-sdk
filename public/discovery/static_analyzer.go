@@ -516,12 +516,21 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 		//   - expected response attributes:
 		//        -  LocalSchemaRef x 2 for sync and async schema overrides
 		//   - OpenAPIOperationStoreRef via resolveSQLVerb()
-		_, svcErr := osa.registryAPI.GetServiceFragment(providerService, resourceKey)
-		if svcErr != nil {
-			osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", providerService.GetName(), svcErr))
+
+		// This is a crude trick to prevent pointless service doc re-processing
+		methods := resource.GetMethods()
+		if len(methods) == 0 {
+			_, svcErr := osa.registryAPI.GetServiceFragment(providerService, resourceKey)
+			if svcErr != nil {
+				osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", providerService.GetName(), svcErr))
+				continue
+			}
+			methods = resource.GetMethods()
+		}
+		if len(methods) == 0 {
+			osa.errors = append(osa.errors, fmt.Errorf("no methods found for resource %s", resourceKey))
 			continue
 		}
-		methods := resource.GetMethods()
 		for methodName, method := range methods {
 			// Perform analysis on each method
 
@@ -531,6 +540,17 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 				isGraphQL := graphQL != nil
 				if isGraphQL {
 					continue // TODO: GraphQL methods analysis
+				}
+				// Does this method have selection semantics?
+				sqlVerb := strings.ToLower(method.GetSQLVerb())
+				isSelectMethod := sqlVerb == "select"
+				selectItemsKey := method.GetSelectItemsKey()
+				hasSelectionSemantics := selectItemsKey != ""
+				if !hasSelectionSemantics && isSelectMethod {
+					osa.warnings = append(osa.warnings, fmt.Sprintf("apparent select method %s for resource %s does not have selection semantics", methodName, resourceKey))
+				}
+				if sqlVerb == "" {
+					osa.warnings = append(osa.warnings, fmt.Sprintf("method %s for resource %s has no SQL verb", methodName, resourceKey))
 				}
 				shouldBeSelectable := method.ShouldBeSelectable()
 				if shouldBeSelectable {
