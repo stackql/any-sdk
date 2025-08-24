@@ -12,6 +12,7 @@ import (
 var (
 	_ Resource                  = &standardResource{}
 	_ jsonpointer.JSONPointable = standardResource{}
+	_ jsonpointer.JSONSetable   = standardResource{}
 )
 
 type Resource interface {
@@ -92,6 +93,9 @@ func (r *standardResource) setService(s OpenAPIService) {
 
 func (r *standardResource) mutateSQLVerb(k string, idx int, v OpenAPIOperationStoreRef) {
 	r.SQLVerbs[k][idx] = v
+	if v.Value != nil {
+		v.Value.setSQLVerb(k)
+	}
 }
 
 func (r *standardResource) setMethod(k string, v *standardOpenAPIOperationStore) {
@@ -193,6 +197,28 @@ func (rsc standardResource) JSONLookup(token string) (interface{}, error) {
 	default:
 		val, _, err := jsonpointer.GetForToken(rsc.OpenAPIService.getT(), token)
 		return val, err
+	}
+}
+
+func (rsc standardResource) JSONSet(token string, value interface{}) error {
+	ss := strings.Split(token, "/")
+	tokenRoot := ""
+	if len(ss) > 1 {
+		tokenRoot = ss[len(ss)-2]
+	}
+	switch tokenRoot {
+	case "methods":
+		if rsc.Methods == nil {
+			return fmt.Errorf("Provider.JSONLookup() failure due to prov.ProviderServices == nil")
+		}
+		newMethod, isMethod := value.(standardOpenAPIOperationStore)
+		if !isMethod {
+			return fmt.Errorf("cannot resolve json pointer path '%s'", token)
+		}
+		rsc.Methods[ss[len(ss)-1]] = newMethod
+		return nil
+	default:
+		return fmt.Errorf("cannot set json pointer path '%s'", token)
 	}
 }
 
