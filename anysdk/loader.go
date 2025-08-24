@@ -885,8 +885,8 @@ func resolveSQLVerbFromResource(rsc Resource, component *OpenAPIOperationStoreRe
 	}
 	rv := resolved
 	rv.setSQLVerb(sqlVerb)
-	_, err = jsonpointer.SetForToken(rsc, component.Ref, *rv)
-	return rv, err
+	jsonpointer.SetForToken(rsc, component.Ref, *rv)
+	return rv, nil
 }
 
 func (l *standardLoader) latePassResolveInverse(svc Service, component *OpenAPIOperationStoreRef) error {
