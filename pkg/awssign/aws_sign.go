@@ -2,19 +2,22 @@ package awssign
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
-	"github.com/stackql/any-sdk/pkg/logging"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 )
 
 var (
-	_ Transport = &standardAwsSignTransport{}
+	_                Transport = &standardAwsSignTransport{}
+	emptyPayloadHash string    = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
 type Transport interface {
@@ -22,32 +25,34 @@ type Transport interface {
 }
 
 type standardAwsSignTransport struct {
-	underlyingTransport http.RoundTripper
-	signer              *v4.Signer
+	underlyingTransport       http.RoundTripper
+	signer                    *v4.Signer
+	staticCredentialsProvider credentials.StaticCredentialsProvider
 }
 
 func NewAwsSignTransport(
 	underlyingTransport http.RoundTripper,
 	id, secret, token string,
-	options ...func(*v4.Signer),
+	options ...func(*v4.SignerOptions),
 ) (Transport, error) {
-	var creds *credentials.Credentials
+	var creds credentials.StaticCredentialsProvider
 
 	if token == "" {
-		creds = credentials.NewStaticCredentials(id, secret, token)
+		creds = credentials.NewStaticCredentialsProvider(id, secret, token)
 	} else {
 		defaultAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
 		defaultSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 		if defaultAccessKeyID == "" || defaultSecretAccessKey == "" {
 			return nil, fmt.Errorf("AWS_SESSION_TOKEN is set, but AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must also be set")
 		}
-		creds = credentials.NewEnvCredentials()
+		creds = credentials.NewStaticCredentialsProvider(defaultAccessKeyID, defaultSecretAccessKey, token)
 	}
 
-	signer := v4.NewSigner(creds, options...)
+	signer := v4.NewSigner(options...)
 	return &standardAwsSignTransport{
-		underlyingTransport: underlyingTransport,
-		signer:              signer,
+		underlyingTransport:       underlyingTransport,
+		signer:                    signer,
+		staticCredentialsProvider: creds,
 	}, nil
 }
 
@@ -68,23 +73,34 @@ func (t *standardAwsSignTransport) RoundTrip(req *http.Request) (*http.Response,
 	if !ok {
 		return nil, fmt.Errorf("unsupported type for AWS region: '%T'", rgn)
 	}
-	var rs io.ReadSeeker
+	creds, credsErr := t.staticCredentialsProvider.Retrieve(context.TODO())
+	if credsErr != nil {
+		return nil, credsErr
+	}
+
+	var payloadHash string
 	if req.Body != nil {
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			return nil, err
 		}
-		rs = bytes.NewReader(body)
-		req.Body = nil
+		hashBytes := sha256.Sum256(body)
+		// Base64 encode the hash
+		payloadHash = base64.StdEncoding.EncodeToString(hashBytes[:])
+		rs := io.NopCloser(bytes.NewReader(body))
+		req.Body = rs
+	} else {
+		payloadHash = emptyPayloadHash
 	}
-	header, err := t.signer.Sign(
+	err := t.signer.SignHTTP(
+		context.TODO(),
+		creds,
 		req,
-		rs,
+		payloadHash,
 		svcStr,
 		rgnStr,
 		time.Now(),
 	)
-	logging.GetLogger().Infof("header = %v\n", header)
 	if err != nil {
 		return nil, err
 	}
