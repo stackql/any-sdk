@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,8 +85,8 @@ func (t *standardAwsSignTransport) RoundTrip(req *http.Request) (*http.Response,
 			return nil, err
 		}
 		hashBytes := sha256.Sum256(body)
-		// Base64 encode the hash
-		payloadHash = base64.StdEncoding.EncodeToString(hashBytes[:])
+		// Hex encode the hash
+		payloadHash = hex.EncodeToString(hashBytes[:])
 		rs := io.NopCloser(bytes.NewReader(body))
 		req.Body = rs
 	} else {
