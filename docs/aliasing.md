@@ -19,7 +19,17 @@ Pages can in theory be collections of pages and populated with a mixture of stat
 
 ### Desired Namespace
 
-For SQL semantics, a flat namespace without arbitrary prefixes and some semantic relevance is preferred.
+For SQL semantics, a flat namespace without arbitrary prefixes and some semantic relevance is preferred.  This suggests a configurable aliasing capability, coupled with a collision resolution algorithm.  The aliasing capability:
+
+- For input data, must support transparent rewrite w.r.t. the provider system.  Ie: the provider receives precisely the unaliased data.  This implies that any existing rewrite logic must either be ignored or be consistent with the aliasing.
+- For output data, simply a lazy rewrite before staging in RDBMS / relational algebra engine is ok.
+
+Something like:
+
+- Flatten the address space based upon config and default behaviour.  There is already a simply version of this in `objectKey`.
+- Search the flattened address space based on cofiguration and default behaviour, identifying conflicts.
+- For each conflict, apply a configurable resolution algorithm.
+- At runtime, perform the aliasing transform relations and display data accordingly.
 
 
 
@@ -32,9 +42,24 @@ A useful consideration to begin with is the native capabilities of `openapi`, wh
 - Named [server `variable` objects](https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.0.md#server-variable-object) in server URLs.
 
 
-Request and response **sub-component** (body, header) attributes can be exposed unqualified, provided they do not collide with other exposed attributes.  Such collisions are frequent and so naive measures are available:
+Request and response **sub-component** (body, header) attributes can be exposed unqualified, provided they do not collide with other exposed attributes.  Such collisions are frequent and so naive and sub-optimal measures are available:
 
 - Not exposing response header attributes at all.
 - Heuristics that effectively clobber any input attribute that collides with a server variable.
-- Routing request body attributes based on a prefix eg: `data__`.
+- Routing request body attributes based on a prefix eg: `data__`.  This is undesirable on the grounds of poor encapsulation and weakened semantics.
+
+### Proposed HTTP implementation
+
+Requirements:
+
+- Aliased `openapi` parameters to include an alias extension attribute.
+- Some config exists denoting aliased request and response page attributes.  Call this `PageAliasDirectory`.
+- The existing `objectKey` is enhanced / replaced with a fucnction that supports unions etc.
+- A flattening algorithm exists.  Eg: strings -> string, int -> int, object -> string....
+
+Then:
+
+- For all `openapi` parameters, cache alias extension attribute.
+- AOT validate flattened namespace.
+- Runtime perform transform relations.
 

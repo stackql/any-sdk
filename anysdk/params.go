@@ -42,6 +42,10 @@ func (p *standardParameter) GetName() string {
 	return p.Name
 }
 
+func (p *standardParameter) GetAlias() string {
+	return getAliasFromExtensions(p.ExtensionProps)
+}
+
 func (p *standardParameter) GetLocation() string {
 	return p.In
 }
@@ -72,6 +76,11 @@ func (p *standardParameter) GetType() string {
 func (p parameters) getParameterFromInSubset(key, inSubset string) (Addressable, bool) {
 	for _, paramRef := range p.Parameters {
 		param := paramRef.Value
+		paramAlias := getAliasFromExtensions(param.ExtensionProps)
+		hasAlias := paramAlias != ""
+		if hasAlias && param.In == inSubset && paramAlias == key {
+			return NewParameter(param, p.svc), true
+		}
 		if param.In == inSubset && param.Name == key {
 			return NewParameter(param, p.svc), true
 		}
