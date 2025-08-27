@@ -317,7 +317,7 @@ func (l *standardLoader) mergeResources(svc OpenAPIService, rscMap map[string]Re
 		if rsc.GetServiceDocPath() != nil {
 			sr = rsc.GetServiceDocPath()
 		}
-		err := l.mergeResource(svc, rsc, sr)
+		err := l.mergeResource(k, svc, rsc, sr)
 		if err != nil {
 			return err
 		}
@@ -330,7 +330,7 @@ func (l *standardLoader) mergeResourcesScoped(svc OpenAPIService, svcUrl string,
 	scopedMap := make(map[string]Resource)
 	for k, rsc := range rr.GetResources() {
 		if rr.ObtainServiceDocUrl(k) == svcUrl {
-			err := l.mergeResource(svc, rsc, &ServiceRef{Ref: svcUrl})
+			err := l.mergeResource(k, svc, rsc, &ServiceRef{Ref: svcUrl})
 			if err != nil {
 				return err
 			}
@@ -349,14 +349,28 @@ func (l *standardLoader) mergeResourcesScoped(svc OpenAPIService, svcUrl string,
 	return nil
 }
 
-func (l *standardLoader) mergeResource(svc OpenAPIService,
+func (l *standardLoader) mergeResource(
+	rscKey string,
+	svc OpenAPIService,
 	rsc Resource,
 	sr *ServiceRef,
 ) error {
 	rsc.setService(svc) // must happen before resolving inverses
+	existingMethods := make(Methods)
+	existingResource, existingResourceErr := svc.GetResource(rscKey)
+	if existingResourceErr == nil && existingResource != nil {
+		existingMethods = existingResource.GetMethods()
+	}
 	for k, vOp := range rsc.GetMethods() {
 		v := vOp
 		v.setMethodKey(k)
+		existingMethod, existingMethodExists := existingMethods[k]
+		if existingMethodExists {
+			v = existingMethod
+			v.setMethodKey(k)
+			v.setResource(rsc)
+			continue
+		}
 		// TODO: replicate this for the damned inverse
 		err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
 		if err != nil {
@@ -763,6 +777,13 @@ func (loader *standardLoader) resolveOperationRef(doc OpenAPIService, rsc Resour
 	}
 
 	component.setOperationRef(&OperationRef{Value: op, Ref: component.GetOperationRef().Ref})
+	response, responseExists := component.GetResponse()
+	if responseExists {
+		err = loader.resolveExpectedResponse(doc, component.GetOperationRef().Value, response)
+		if err != nil {
+			return err
+		}
+	}
 	component.setPathItem(pi)
 	err = loader.extractAndMergeQueryTransposeOpLevel(component)
 	if err != nil {

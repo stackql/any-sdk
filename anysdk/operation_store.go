@@ -110,6 +110,11 @@ type OperationStore interface {
 
 type StandardOperationStore interface {
 	OperationStore
+	// Assist analysis
+	GetRequestBodyAttributesNoRename() (map[string]Addressable, error)
+	GetSchemaAtPath(key string) (Schema, error)
+	GetSelectItemsKeySimple() string
+	LookupSelectItemsKey() string
 	//
 	getQueryTransposeAlgorithm() string
 	getRequiredNonBodyParameters() map[string]Addressable
@@ -624,6 +629,10 @@ func (m *standardOpenAPIOperationStore) getUnionRequiredParameters() (map[string
 	return m.Resource.getUnionRequiredParameters(m)
 }
 
+func (m *standardOpenAPIOperationStore) GetSelectItemsKeySimple() string {
+	return m.getSelectItemsKeySimple()
+}
+
 func (m *standardOpenAPIOperationStore) getSelectItemsKeySimple() string {
 	if m.Response != nil {
 		return m.Response.ObjectKey
@@ -1048,6 +1057,10 @@ func (m *standardOpenAPIOperationStore) getName() string {
 	return m.MethodKey
 }
 
+func (m *standardOpenAPIOperationStore) GetRequestBodyAttributesNoRename() (map[string]Addressable, error) {
+	return m.getRequestBodyAttributesNoRename()
+}
+
 func (m *standardOpenAPIOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
 	requiredParams := m.getRequiredNonBodyParameters()
 	var requiredParamNames []string
@@ -1415,6 +1428,19 @@ func (op *standardOpenAPIOperationStore) GetSelectSchemaAndObjectPath() (Schema,
 	return nil, "", fmt.Errorf("no response body for operation =  %s", op.GetName())
 }
 
+func (op *standardOpenAPIOperationStore) GetSchemaAtPath(path string) (Schema, error) {
+	k := path
+	if op.Response != nil && op.Response.OverrideSchema != nil && op.Response.OverrideSchema.Value != nil {
+		rv, _, err := op.Response.OverrideSchema.Value.getSelectItemsSchema(k, op.Response.OverrideBodyMediaType)
+		return rv, err
+	}
+	if op.Response != nil && op.Response.Schema != nil {
+		rv, _, err := op.Response.Schema.getSelectItemsSchema(k, op.getOptimalResponseMediaType())
+		return rv, err
+	}
+	return nil, fmt.Errorf("no response body for operation =  %s", op.GetName())
+}
+
 type ProcessedOperationResponse interface {
 	GetResponse() (response.Response, bool)
 	GetReversal() (HTTPPreparator, bool)
@@ -1549,6 +1575,10 @@ func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Resp
 		}
 	}
 	return newStandardOperationResponse(rv, reversal), err
+}
+
+func (ops *standardOpenAPIOperationStore) LookupSelectItemsKey() string {
+	return ops.lookupSelectItemsKey()
 }
 
 func (ops *standardOpenAPIOperationStore) lookupSelectItemsKey() string {

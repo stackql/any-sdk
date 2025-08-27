@@ -21,6 +21,7 @@ const (
 	ExtensionKeyProvider       string = "x-stackql-provider"
 	ExtensionKeyResources      string = "x-stackQL-resources"
 	ExtensionKeyStringOnly     string = "x-stackQL-stringOnly"
+	ExtensionKeyAlias          string = "x-stackQL-alias"
 )
 
 const (
