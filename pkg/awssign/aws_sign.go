@@ -13,6 +13,16 @@ import (
 	"github.com/stackql/any-sdk/pkg/logging"
 )
 
+// This interface is not fully compliant.
+// Ultimately, for full coverage,
+// we need to emulate [the SDK auth specifications](https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/configure-auth.html).
+//
+// This is the sort of stuff we need to emulate:
+//   - [Resolver doc based resolution](https://github.com/aws/aws-sdk-go-v2/blob/2e08461090ccba679456c05264e2c04bf228138e/service/accessanalyzer/options.go#L150).
+//   - SDK doc based code gen settings for auth:
+//       - [For the `account` service](https://github.com/aws/aws-sdk-go-v2/blob/3ac24f20bb3b05955fcb1b3fae7883d3a03fe60d/codegen/sdk-codegen/aws-models/account.json#L133).
+//
+
 var (
 	_ Transport = &standardAwsSignTransport{}
 )
