@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stackql/any-sdk/pkg/brickmap"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
@@ -288,4 +289,15 @@ func getStringFromStringFunc(fe *sqlparser.FuncExpr) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("cannot extract string from func '%s'", fe.Name)
+}
+
+func getAliasFromExtensions(extensionObj openapi3.ExtensionProps) string {
+	alias, hasAlias := extensionObj.Extensions[ExtensionKeyAlias]
+	if hasAlias {
+		aliasStr, isStr := alias.(string)
+		if isStr {
+			return aliasStr
+		}
+	}
+	return ""
 }

@@ -47,6 +47,7 @@ type Schema interface {
 	GetType() string
 	GetPropertySchema(key string) (Schema, error)
 	GetRequired() []string
+	GetAlias() string
 	GetSelectSchema(itemsKey, mediaType string) (Schema, string, error)
 	IsArrayRef() bool
 	IsBoolean() bool
@@ -133,6 +134,17 @@ func (s *standardSchema) getAdditionalProperties() (Schema, bool) {
 			true
 	}
 	return nil, false
+}
+
+func (s *standardSchema) GetAlias() string {
+	alias, hasAlias := s.Extensions[ExtensionKeyAlias]
+	if hasAlias {
+		aliasStr, isStr := alias.(string)
+		if isStr {
+			return aliasStr
+		}
+	}
+	return ""
 }
 
 func (s *standardSchema) setPropertyOpenapi3(k string, ps *openapi3.SchemaRef) {
@@ -785,6 +797,11 @@ func (schema *standardSchema) extractMediaTypeSynonym(mediaType string) string {
 		return m
 	}
 	return mediaType
+}
+
+func (schema *standardSchema) GetSchemaAtPath(key string, mediaType string) (Schema, error) {
+	rv, _, err := schema.getSelectItemsSchema(key, mediaType)
+	return rv, err
 }
 
 func (schema *standardSchema) getSelectItemsSchema(key string, mediaType string) (Schema, string, error) {

@@ -19,6 +19,13 @@ func (ns *namedSchema) GetName() string {
 	return ns.name
 }
 
+func (ns *namedSchema) GetAlias() string {
+	if ns.s != nil {
+		return ns.s.GetAlias()
+	}
+	return ""
+}
+
 func (ns *namedSchema) GetSchema() (Schema, bool) {
 	return ns.s, true
 }
@@ -65,6 +72,7 @@ type Addressable interface {
 	ConditionIsValid(lhs string, rhs interface{}) bool
 	GetLocation() string
 	GetName() string
+	GetAlias() string
 	GetSchema() (Schema, bool)
 	GetType() string
 	IsRequired() bool
