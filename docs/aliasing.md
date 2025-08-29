@@ -54,12 +54,21 @@ Requirements:
 
 - Aliased `openapi` parameters to include an alias extension attribute.
 - Some config exists denoting aliased request and response page attributes.  Call this `PageAliasDirectory`.
-- The existing `objectKey` is enhanced / replaced with a fucnction that supports unions etc.
+- **v2** The existing `objectKey` is enhanced / replaced with a fucnction that supports unions etc.
 - A flattening algorithm exists.  Eg: strings -> string, int -> int, object -> string....
 
 Then:
 
 - For all `openapi` parameters, cache alias extension attribute.
 - AOT validate flattened namespace.
+    - Build namespace search structure.  This will both detect violations and be used downstream, for search and rewrite.
 - Runtime perform transform relations.
+
+Search structure:
+
+- Want to be extensible to arbitrary depth.
+   - This suggests tree / graph rather than flat map.
+   - Some kind of Trie (prefix tree).
+- Sits at method level.
+   - Makes sense to place aliasing at sql method level, eg sql 
 

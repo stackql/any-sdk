@@ -15,8 +15,10 @@ import (
 )
 
 var (
-	_ StaticAnalyzer                = &genericStaticAnalyzer{}
-	_ persistence.PersistenceSystem = &aotPersistenceSystem{}
+	_ StaticAnalyzer                  = &genericStaticAnalyzer{}
+	_ StaticAnalyzer                  = &serviceLevelStaticAnalyzer{}
+	_ ProviderServiceResourceAnalyzer = &standardProviderServiceResourceAnalyzer{}
+	_ persistence.PersistenceSystem   = &aotPersistenceSystem{}
 )
 
 type AnalyzerCfg interface {
@@ -123,6 +125,10 @@ type StaticAnalyzerFactory interface {
 	CreateStaticAnalyzer(
 		providerURL string,
 	) (StaticAnalyzer, error)
+	CreateProviderServiceLevelStaticAnalyzer(
+		providerURL string,
+		serviceName string,
+	) (ProviderServiceResourceAnalyzer, error)
 	CreateServiceLevelStaticAnalyzer(
 		providerURL string,
 		serviceName string,
@@ -202,6 +208,81 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 		rtCtx,
 	)
 	return staticAnalyzer, analyzerErr
+}
+
+func (f *simpleSQLiteAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
+	providerURL string,
+	serviceName string,
+) (ProviderServiceResourceAnalyzer, error) {
+	rtCtx := f.rtCtx
+	registryLocalPath := f.registryURL
+	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
+	controlAttributes := sqlcontrol.GetControlAttributes("standard")
+	sqlCfg, err := dto.GetSQLBackendCfg("{}")
+	if err != nil {
+		return nil, err
+	}
+	sqlEngine, engineErr := sqlengine.NewSQLEngine(
+		sqlCfg,
+		controlAttributes,
+	)
+	if engineErr != nil {
+		return nil, engineErr
+	}
+	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
+	if err != nil {
+		return nil, err
+	}
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to create persistence system: got nil")
+	}
+	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
+	if scriptErr != nil {
+		return nil, scriptErr
+	}
+	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
+	if scriptRunErr != nil {
+		return nil, scriptRunErr
+	}
+	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
+	if putErr != nil {
+		return nil, putErr
+	}
+	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
+	if getErr != nil {
+		return nil, getErr
+	}
+	if string(cachedVal) != "value" {
+		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
+	}
+	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		return nil, registryErr
+	}
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg.SetIsProviderServicesMustExpand(true)
+	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
+	discoveryStore := getDiscoveryStore(persistenceSystem, registry, rtCtx)
+	discoveryAdapter := getDiscoveryAdapter(analysisCfg, persistenceSystem, discoveryStore, registry, rtCtx)
+	provider, fileErr := anysdk.LoadProviderDocFromFile(analysisCfg.GetDocRoot())
+	anysdk.OpenapiFileRoot = analysisCfg.GetRegistryRootDir()
+	if fileErr != nil {
+		return nil, fileErr
+	}
+	providerService, serviceErr := provider.GetProviderService(serviceName)
+	if serviceErr != nil {
+		return nil, serviceErr
+	}
+	psra := NewProviderServiceResourceAnalyzer(
+		analysisCfg,
+		discoveryAdapter,
+		discoveryStore,
+		provider,
+		providerService,
+		serviceName,
+		registry,
+	)
+	return psra, nil
 }
 
 func (f *simpleSQLiteAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
@@ -410,6 +491,105 @@ func (osa *genericStaticAnalyzer) GetAffirmatives() []string {
 	return osa.affirmatives
 }
 
+func NewProviderServiceResourceAnalyzer(
+	cfg AnalyzerCfg,
+	discoveryAdapter IDiscoveryAdapter,
+	discoveryStore IDiscoveryStore,
+	provider anysdk.Provider,
+	providerService anysdk.ProviderService,
+	resourceKey string,
+	registryAPI anysdk.RegistryAPI,
+) ProviderServiceResourceAnalyzer {
+	return &standardProviderServiceResourceAnalyzer{
+		cfg:              cfg,
+		discoveryStore:   discoveryStore,
+		discoveryAdapter: discoveryAdapter,
+		provider:         provider,
+		providerService:  providerService,
+		serviceKey:       resourceKey,
+		errors:           []error{},
+		warnings:         []string{},
+		affirmatives:     []string{},
+		resources:        map[string]anysdk.Resource{},
+	}
+}
+
+type ProviderServiceResourceAnalyzer interface {
+	StaticAnalyzer
+	GetResources() map[string]anysdk.Resource
+}
+
+type standardProviderServiceResourceAnalyzer struct {
+	cfg              AnalyzerCfg
+	discoveryStore   IDiscoveryStore
+	discoveryAdapter IDiscoveryAdapter
+	provider         anysdk.Provider
+	providerService  anysdk.ProviderService
+	serviceKey       string
+	errors           []error
+	warnings         []string
+	affirmatives     []string
+	resources        map[string]anysdk.Resource
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetErrors() []error {
+	return srf.errors
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetWarnings() []string {
+	return srf.warnings
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetAffirmatives() []string {
+	return srf.affirmatives
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetResources() map[string]anysdk.Resource {
+	return srf.resources
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) Analyze() error {
+	key := srf.serviceKey
+	providerService := srf.providerService
+	rrr := providerService.GetResourcesRefRef()
+	var resources map[string]anysdk.Resource
+	if rrr != "" {
+		// Should be sole place for ResourcesRef dereference
+		disDoc, docErr := srf.discoveryStore.processResourcesDiscoveryDoc(
+			srf.provider,
+			providerService,
+			fmt.Sprintf("%s.%s", srf.discoveryAdapter.getAlias(), key))
+		if docErr != nil {
+			srf.errors = append(srf.errors, docErr)
+		}
+		if disDoc == nil {
+			err := fmt.Errorf("discovery document is nil for service %s", key)
+			srf.errors = append(srf.errors, err)
+			return err
+		}
+		resources = disDoc.GetResources()
+	} else {
+		// Dereferences ServiceRef, not sole location
+		svc, err := providerService.GetService()
+		if err != nil {
+			if !srf.cfg.IsProviderServicesMustExpand() {
+				return nil
+			}
+			err := fmt.Errorf("failed to get service handle for %s: %v", key, err)
+			srf.errors = append(srf.errors, err)
+			return err
+		}
+		resources, err = svc.GetResources()
+		if err != nil {
+			err := fmt.Errorf("failed to get resources for service %s: %v", key, err)
+			srf.errors = append(srf.errors, err)
+			return err
+		}
+	}
+	srf.resources = resources
+	return nil
+}
+
 func NewServiceLevelStaticAnalyzer(
 	cfg AnalyzerCfg,
 	discoveryAdapter IDiscoveryAdapter,
@@ -468,42 +648,28 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 		osa.errors = append(osa.errors, err)
 		return err
 	}
-	// Perform additional checks on the service
-	rrr := providerService.GetResourcesRefRef()
-	if rrr != "" {
-		// Should be sole place for ResourcesRef dereference
-		disDoc, docErr := osa.discoveryStore.processResourcesDiscoveryDoc(
-			osa.provider,
-			providerService,
-			fmt.Sprintf("%s.%s", osa.discoveryAdapter.getAlias(), k))
-		if docErr != nil {
-			osa.errors = append(osa.errors, docErr)
-		}
-		if disDoc == nil {
-			err := fmt.Errorf("discovery document is nil for service %s", k)
-			osa.errors = append(osa.errors, err)
-			return err
-		}
-		resources = disDoc.GetResources()
-	} else {
-		// Dereferences ServiceRef, not sole location
-		svc, err := providerService.GetService()
-		if err != nil {
-			if !osa.cfg.IsProviderServicesMustExpand() {
-				return nil
-			}
-			err := fmt.Errorf("failed to get service handle for %s: %v", k, err)
-			osa.errors = append(osa.errors, err)
-			return err
-		}
-		resources, err = svc.GetResources()
-		if err != nil {
-			err := fmt.Errorf("failed to get resources for service %s: %v", k, err)
-			osa.errors = append(osa.errors, err)
-			return err
-		}
+	providerServiceResourceAnalyzer := NewProviderServiceResourceAnalyzer(
+		osa.cfg,
+		osa.discoveryAdapter,
+		osa.discoveryStore,
+		osa.provider,
+		providerService,
+		k,
+		osa.registryAPI,
+	)
+	psraErr := providerServiceResourceAnalyzer.Analyze()
+	osa.affirmatives = append(osa.affirmatives, providerServiceResourceAnalyzer.GetAffirmatives()...)
+	osa.warnings = append(osa.warnings, providerServiceResourceAnalyzer.GetWarnings()...)
+	osa.errors = append(osa.errors, providerServiceResourceAnalyzer.GetErrors()...)
+	if psraErr != nil {
+		return psraErr
 	}
+	resources = providerServiceResourceAnalyzer.GetResources()
+	// Perform additional checks on the service
 	if len(resources) == 0 {
+		if !osa.cfg.IsProviderServicesMustExpand() {
+			return nil
+		}
 		err := fmt.Errorf("no resources found for provider %s", k)
 		osa.errors = append(osa.errors, err)
 		return err
