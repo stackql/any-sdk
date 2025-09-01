@@ -13,9 +13,11 @@ Any query's address space is composed of:
 
 Pages can in theory be collections of pages and populated with a mixture of static and dynamic data.  The namespace is a search structure to locate any address.  
 
-> For arbitrary address location, some system that traverses the entire address space at arbitrary depth.
+> For an arbitrary symbol in a query flow, a namespace is some system that traverses the entire address space at arbitrary depth and finds the appropriate location.
 
-`openapi` provides some, but ceertainly not all, of this functionality.    Putting aside the implementation, this is possible so long as page collections are named or strictly ordered.  
+Updates through this approach will be staged through some shadow data structure(s).
+
+`openapi` provides some, but certainly not all, of this functionality.    Putting aside the implementation, this is possible so long as page collections are named or strictly ordered.  
 
 ### Desired Namespace
 
