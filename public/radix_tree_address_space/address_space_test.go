@@ -150,6 +150,20 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	if projectParam == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil '.project'")
 	}
+	mutateProjectErr := addressSpace.WriteToAddress(".project", "my-test-project")
+	if mutateProjectErr != nil {
+		t.Fatalf("Address space analysis failed: expected to write to address '.project'")
+	}
+	projectVal, projectValOk := addressSpace.ReadFromAddress(".project")
+	if !projectValOk {
+		t.Fatalf("Address space analysis failed: expected to read from address '.project'")
+	}
+	if projectVal == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil value from address '.project'")
+	}
+	if projectVal != "my-test-project" {
+		t.Fatalf("Address space analysis failed: expected 'my-test-project' from address '.project' but got '%v'", projectVal)
+	}
 }
 
 func TestDeepDiscoveryAWSCurrent(t *testing.T) {
