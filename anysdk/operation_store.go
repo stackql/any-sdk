@@ -1215,6 +1215,139 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
 }
 
+type AnalyzedInput interface {
+	GetQueryParams() map[string]any
+	GetHeaderParam(string) (string, bool)
+	GetPathParam(string) (string, bool)
+	GetServerVars() map[string]any
+	GetREquestBody() any
+}
+
+func (op *standardOpenAPIOperationStore) parameterizeFromAnalyzedInput(prov Provider, parentDoc Service, inputParams AnalyzedInput) (*openapi3filter.RequestValidationInput, error) {
+
+	params := op.OperationRef.Value.Parameters
+	pathParams := make(map[string]string)
+	q := make(url.Values)
+	prefilledHeader := make(http.Header)
+
+	queryParamsRemaining := inputParams.GetQueryParams()
+	for _, p := range params {
+		if p.Value == nil {
+			continue
+		}
+		name := p.Value.Name
+
+		if p.Value.In == openapi3.ParameterInHeader {
+			val, present := inputParams.GetHeaderParam(p.Value.Name)
+			if present {
+				prefilledHeader.Set(name, fmt.Sprintf("%v", val))
+			} else if p.Value != nil && p.Value.Schema != nil && p.Value.Schema.Value != nil && p.Value.Schema.Value.Default != nil {
+				prefilledHeader.Set(name, fmt.Sprintf("%v", p.Value.Schema.Value.Default))
+			} else if isOpenapi3ParamRequired(p.Value) {
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required header '%s'", name)
+			}
+		}
+		if p.Value.In == openapi3.ParameterInPath {
+			val, present := inputParams.GetPathParam(p.Value.Name)
+			if present {
+				pathParams[name] = fmt.Sprintf("%v", val)
+			}
+			if !present && isOpenapi3ParamRequired(p.Value) {
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required path parameter '%s'", name)
+			}
+		} else if p.Value.In == openapi3.ParameterInQuery {
+
+			pVal, present := queryParamsRemaining[p.Value.Name]
+			if present {
+				switch val := pVal.(type) {
+				case []interface{}:
+					for _, v := range val {
+						q.Add(name, fmt.Sprintf("%v", v))
+					}
+				default:
+					q.Set(name, fmt.Sprintf("%v", val))
+				}
+				delete(queryParamsRemaining, name)
+			}
+		}
+	}
+	for k, v := range queryParamsRemaining {
+		q.Set(k, fmt.Sprintf("%v", v))
+		delete(queryParamsRemaining, k)
+	}
+	openapiSvc, openapiSvcOk := op.OpenAPIService.(OpenAPIService)
+	if !openapiSvcOk {
+		return nil, fmt.Errorf("could not cast OpenAPIService to standardOpenAPIServiceStore")
+	}
+	router, err := queryrouter.NewRouter(openapiSvc.getT())
+	if err != nil {
+		return nil, err
+	}
+	servers, _ := op.getServers()
+	serverParams := inputParams.GetServerVars()
+	if err != nil {
+		return nil, err
+	}
+	sv, err := selectServer(servers, serverParams)
+	if err != nil {
+		return nil, err
+	}
+	contentTypeHeaderRequired := false
+	var bodyReader io.Reader
+
+	requestBody := inputParams.GetREquestBody()
+
+	predOne := !util.IsNil(requestBody)
+	predTwo := !util.IsNil(op.Request)
+	if predOne && predTwo {
+		b, err := op.marshalBody(requestBody, op.Request)
+		if err != nil {
+			return nil, err
+		}
+		bodyReader = bytes.NewReader(b)
+		contentTypeHeaderRequired = true
+	}
+	// TODO: clean up
+	sv = strings.TrimSuffix(sv, "/")
+	path := replaceSimpleStringVars(fmt.Sprintf("%s%s", sv, op.OperationRef.extractPathItem()), pathParams)
+	u, err := url.Parse(fmt.Sprintf("%s?%s", path, q.Encode()))
+	if strings.Contains(path, "?") {
+		if len(q) > 0 {
+			u, err = url.Parse(fmt.Sprintf("%s&%s", path, q.Encode()))
+		} else {
+			u, err = url.Parse(path)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequest(strings.ToUpper(op.OperationRef.extractMethodItem()), u.String(), bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	if contentTypeHeaderRequired {
+		if prefilledHeader.Get("Content-Type") != "" {
+			prefilledHeader.Set("Content-Type", op.Request.BodyMediaType)
+		}
+	}
+	httpReq.Header = prefilledHeader
+	route, checkedPathParams, err := router.FindRoute(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	options := &openapi3filter.Options{
+		AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+	}
+	// Validate request
+	requestValidationInput := &openapi3filter.RequestValidationInput{
+		Options:    options,
+		PathParams: checkedPathParams,
+		Request:    httpReq,
+		Route:      route,
+	}
+	return requestValidationInput, nil
+}
+
 func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
 
 	params := op.OperationRef.Value.Parameters
