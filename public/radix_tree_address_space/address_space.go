@@ -3,10 +3,12 @@ package radix_tree_address_space
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/urltranslate"
 )
 
 const (
@@ -84,6 +86,8 @@ type AddressSpace interface {
 	DereferenceAddress(address string) (any, bool)
 	WriteToAddress(address string, val any) error
 	ReadFromAddress(address string) (any, bool)
+	Analyze() error
+	GetRequest() (*http.Request, bool)
 }
 
 type standardNamespace struct {
@@ -103,6 +107,48 @@ type standardNamespace struct {
 	response              *http.Response
 	unionSelectSchemas    map[string]anysdk.Schema
 	shadowQuery           RadixTree
+}
+
+func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) (string, error) {
+	paramsConformed := make(map[string]string)
+	for k, v := range inputParams {
+		switch v := v.(type) {
+		case string:
+			paramsConformed[k] = v
+		}
+	}
+	srvs, err := anysdk.ObtainServerURLsFromServers(servers, paramsConformed)
+	if err != nil {
+		return "", err
+	}
+	return urltranslate.SanitiseServerURL(srvs[0])
+}
+
+func (ns *standardNamespace) Analyze() error {
+	var err error
+	// idea here is to poulate the request object from the shadow query
+	// e.g. if shadow query has "query.project" = "my-project"
+	req := &http.Request{}
+	serverVarsSuplied := ns.shadowQuery.ToFlatMap("server")
+	ns.serverUrlString, err = selectServer([]*openapi3.Server{ns.server}, serverVarsSuplied)
+	if err != nil {
+		return err
+	}
+	matureURL, err := url.Parse(ns.serverUrlString)
+	if err != nil {
+		return err
+	}
+
+	req.URL = matureURL
+	ns.request = req
+	return nil
+}
+
+func (ns *standardNamespace) GetRequest() (*http.Request, bool) {
+	if ns.request != nil {
+		return ns.request, true
+	}
+	return nil, false
 }
 
 func (ns *standardNamespace) WriteToAddress(address string, val any) error {
@@ -289,6 +335,7 @@ type RadixTree interface {
 	Insert(path string, address any) error
 	Find(path string) (any, bool)
 	Delete(path string) error
+	ToFlatMap(prefix string) map[string]any
 }
 
 type standardRadixTree struct {
@@ -299,6 +346,25 @@ func NewRadixTree() RadixTree {
 	return &standardRadixTree{
 		root: newStandardRadixTrieNode(nil),
 	}
+}
+
+func (rt *standardRadixTree) ToFlatMap(prefix string) map[string]any {
+	result := make(map[string]any)
+	var traverse func(node *standardRadixTrieNode, currentPath string)
+	traverse = func(node *standardRadixTrieNode, currentPath string) {
+		if node.address != nil {
+			result[currentPath] = node.address
+		}
+		for k, child := range node.children {
+			newPath := k
+			if currentPath != "" {
+				newPath = currentPath + "." + k
+			}
+			traverse(child, newPath)
+		}
+	}
+	traverse(rt.root, prefix)
+	return result
 }
 
 func (rt *standardRadixTree) Insert(path string, address any) error {
