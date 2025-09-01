@@ -18,7 +18,6 @@ var (
 	_ StaticAnalyzer                  = &genericStaticAnalyzer{}
 	_ StaticAnalyzer                  = &serviceLevelStaticAnalyzer{}
 	_ ProviderServiceResourceAnalyzer = &standardProviderServiceResourceAnalyzer{}
-	_ persistence.PersistenceSystem   = &aotPersistenceSystem{}
 )
 
 type AnalyzerCfg interface {
@@ -815,32 +814,4 @@ func (osa *serviceLevelStaticAnalyzer) GetWarnings() []string {
 
 func (osa *serviceLevelStaticAnalyzer) GetAffirmatives() []string {
 	return osa.affirmatives
-}
-
-type aotPersistenceSystem struct {
-	systemName string
-}
-
-func (aps *aotPersistenceSystem) GetSystemName() string {
-	return aps.systemName
-}
-
-func (aps *aotPersistenceSystem) HandleExternalTables(providerName string, externalTables map[string]anysdk.SQLExternalTable) error {
-	// Implement logic to handle external tables
-	return nil
-}
-
-func (aps *aotPersistenceSystem) HandleViewCollection(viewCollection []anysdk.View) error {
-	// Implement logic to handle view collection
-	return nil
-}
-
-func (aps *aotPersistenceSystem) CacheStoreGet(key string) ([]byte, error) {
-	// Implement logic to get data from cache store
-	return nil, nil
-}
-
-func (aps *aotPersistenceSystem) CacheStorePut(key string, value []byte, expiration string, ttl int) error {
-	// Implement logic to put data into cache store
-	return nil
 }

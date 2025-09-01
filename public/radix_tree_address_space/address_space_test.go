@@ -129,6 +129,20 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	for k, v := range unionSelectSchemas {
 		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
 	}
+	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
+	if !requestBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'request.body'")
+	}
+	if requestBody != nil {
+		t.Fatalf("Address space analysis failed: expected nil 'request.body'")
+	}
+	responseBody, responseBodyOk := addressSpace.DereferenceAddress("response.body")
+	if !responseBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'response.body'")
+	}
+	if responseBody == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil 'response.body'")
+	}
 }
 
 func TestDeepDiscoveryAWSCurrent(t *testing.T) {

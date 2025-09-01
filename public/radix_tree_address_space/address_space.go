@@ -2,6 +2,7 @@ package radix_tree_address_space
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -80,15 +81,58 @@ type AddressSpace interface {
 	GetSimpleSelectKey() string
 	GetSimpleSelectSchema() anysdk.Schema
 	GetUnionSelectSchemas() map[string]anysdk.Schema
+	DereferenceAddress(address string) (any, bool)
 }
 
 type standardNamespace struct {
-	serverVars         map[string]string
-	requestBodyParams  map[string]anysdk.Addressable
-	server             *openapi3.Server
-	simpleSelectKey    string
-	simpleSelectSchema anysdk.Schema
-	unionSelectSchemas map[string]anysdk.Schema
+	serverVars            map[string]string
+	requestBodyParams     map[string]anysdk.Addressable
+	server                *openapi3.Server
+	simpleSelectKey       string
+	simpleSelectSchema    anysdk.Schema
+	responseBodySchema    anysdk.Schema
+	requestBodySchema     anysdk.Schema
+	responseBodyMediaType string
+	requestBodyMediaType  string
+	pathString            string
+	serverUrlString       string
+	request               *http.Request
+	response              *http.Response
+	unionSelectSchemas    map[string]anysdk.Schema
+}
+
+func (ns *standardNamespace) DereferenceAddress(address string) (any, bool) {
+	parts := strings.Split(address, ".")
+	if len(parts) == 0 {
+		return nil, false
+	}
+	if parts[0] == standardRequestName {
+		if len(parts) < 2 {
+			return nil, false
+		}
+		switch parts[1] {
+		case standardBodyName:
+			return ns.requestBodySchema, true
+		case standardHeadersName:
+			return ns.request.Header, true
+		default:
+			return nil, false
+		}
+	}
+	if parts[0] == standardResponseName {
+		if len(parts) < 2 {
+			return nil, false
+		}
+		switch parts[1] {
+		case standardHeadersName:
+			return ns.server.Variables, true
+		case standardBodyName:
+			return ns.responseBodySchema, true
+		default:
+			return nil, false
+		}
+	}
+	return nil, false
 }
 
 func (ns *standardNamespace) GetServer() *openapi3.Server {
@@ -144,10 +188,11 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	for k, v := range firstServer.Variables {
 		serverVars[k] = v.Default
 	}
-	reequestBodySchema, requestBodySchemaErr := asa.method.GetRequestBodySchema()
+	requestBodySchema, requestBodySchemaErr := asa.method.GetRequestBodySchema()
+	requestBodyMediaType := asa.method.GetRequestBodyMediaType()
 	requestBodyParams := map[string]anysdk.Addressable{}
 	var err error
-	if reequestBodySchema != nil && requestBodySchemaErr == nil {
+	if requestBodySchema != nil && requestBodySchemaErr == nil {
 		requestBodyParams, err = asa.method.GetRequestBodyAttributesNoRename()
 		if err != nil {
 			return err
@@ -176,13 +221,18 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		}
 		unionSelectSchemas[k] = schema
 	}
+	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
-		server:             firstServer,
-		serverVars:         serverVars,
-		requestBodyParams:  requestBodyParams,
-		simpleSelectKey:    simpleSelectKey,
-		simpleSelectSchema: simpleSelectSchema,
-		unionSelectSchemas: unionSelectSchemas,
+		server:                firstServer,
+		serverVars:            serverVars,
+		requestBodyParams:     requestBodyParams,
+		simpleSelectKey:       simpleSelectKey,
+		simpleSelectSchema:    simpleSelectSchema,
+		unionSelectSchemas:    unionSelectSchemas,
+		responseBodySchema:    responseSchema,
+		requestBodySchema:     requestBodySchema,
+		responseBodyMediaType: responseMediaType,
+		requestBodyMediaType:  requestBodyMediaType,
 	}
 	if addressSpace == nil {
 		return fmt.Errorf("failed to create address space for operation %s", asa.method.GetName())
