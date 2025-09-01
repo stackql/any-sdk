@@ -88,6 +88,7 @@ type standardNamespace struct {
 	serverVars            map[string]string
 	requestBodyParams     map[string]anysdk.Addressable
 	server                *openapi3.Server
+	method                anysdk.StandardOperationStore
 	simpleSelectKey       string
 	simpleSelectSchema    anysdk.Schema
 	responseBodySchema    anysdk.Schema
@@ -105,6 +106,15 @@ func (ns *standardNamespace) DereferenceAddress(address string) (any, bool) {
 	parts := strings.Split(address, ".")
 	if len(parts) == 0 {
 		return nil, false
+	}
+	if parts[0] == "" {
+		if len(parts) < 2 {
+			return nil, false
+		}
+		if ns.method == nil {
+			return nil, false
+		}
+		return ns.method.GetParameter(parts[1])
 	}
 	if parts[0] == standardRequestName {
 		if len(parts) < 2 {
@@ -206,8 +216,9 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		if schemaErr != nil {
 			return fmt.Errorf("error getting schema at path %s: %v", inferredSelectKey, schemaErr)
 		}
+		simpleSelectKey = inferredSelectKey
 	}
-	if simpleSelectSchema == nil {
+	if simpleSelectSchema == nil && !asa.method.IsNullary() {
 		return fmt.Errorf("no schema found at path %s", simpleSelectKey)
 	}
 	unionSelectSchemas := make(map[string]anysdk.Schema)
@@ -233,6 +244,7 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		requestBodySchema:     requestBodySchema,
 		responseBodyMediaType: responseMediaType,
 		requestBodyMediaType:  requestBodyMediaType,
+		method:                asa.method,
 	}
 	if addressSpace == nil {
 		return fmt.Errorf("failed to create address space for operation %s", asa.method.GetName())

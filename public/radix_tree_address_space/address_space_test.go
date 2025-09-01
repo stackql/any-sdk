@@ -143,6 +143,13 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	if responseBody == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil 'response.body'")
 	}
+	projectParam, projectParamOk := addressSpace.DereferenceAddress(".project")
+	if !projectParamOk {
+		t.Fatalf("Address space analysis failed: expected to dereference '.project'")
+	}
+	if projectParam == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil '.project'")
+	}
 }
 
 func TestDeepDiscoveryAWSCurrent(t *testing.T) {
