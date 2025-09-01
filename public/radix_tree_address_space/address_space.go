@@ -82,6 +82,8 @@ type AddressSpace interface {
 	GetSimpleSelectSchema() anysdk.Schema
 	GetUnionSelectSchemas() map[string]anysdk.Schema
 	DereferenceAddress(address string) (any, bool)
+	WriteToAddress(address string, val any) error
+	ReadFromAddress(address string) (any, bool)
 }
 
 type standardNamespace struct {
@@ -100,6 +102,17 @@ type standardNamespace struct {
 	request               *http.Request
 	response              *http.Response
 	unionSelectSchemas    map[string]anysdk.Schema
+	shadowQuery           RadixTree
+}
+
+func (ns *standardNamespace) WriteToAddress(address string, val any) error {
+	err := ns.shadowQuery.Insert(address, val)
+	return err
+}
+
+func (ns *standardNamespace) ReadFromAddress(address string) (any, bool) {
+	val, ok := ns.shadowQuery.Find(address)
+	return val, ok
 }
 
 func (ns *standardNamespace) DereferenceAddress(address string) (any, bool) {
@@ -245,6 +258,7 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		responseBodyMediaType: responseMediaType,
 		requestBodyMediaType:  requestBodyMediaType,
 		method:                asa.method,
+		shadowQuery:           NewRadixTree(),
 	}
 	if addressSpace == nil {
 		return fmt.Errorf("failed to create address space for operation %s", asa.method.GetName())
@@ -269,10 +283,6 @@ func NewAddressSpaceAnalyzer(
 		method:          method,
 		unionSelectKeys: unionSelectKeys,
 	}
-}
-
-type PrefixTree interface {
-	InsertBodyAttribute(path string, value interface{}) error
 }
 
 type RadixTree interface {
