@@ -141,6 +141,7 @@ type StandardOperationStore interface {
 	getRequestBodyAttributeParentKey(string) (string, bool)
 	getRequestBodyTranslateAlgorithmString() string
 	getRequestBodyStringifiedPaths() (map[string]struct{}, error)
+	GetRequestBodyMediaType() string
 	getRequestBodyMediaType() string
 	getRequestBodyMediaTypeNormalised() string
 	getXMLDeclaration() string
@@ -240,6 +241,10 @@ func NewEmptyOperationStore() StandardOperationStore {
 	return &standardOpenAPIOperationStore{
 		Parameters: make(map[string]map[string]interface{}),
 	}
+}
+
+func (op *standardOpenAPIOperationStore) GetRequestBodyMediaType() string {
+	return op.getRequestBodyMediaType()
 }
 
 func (op *standardOpenAPIOperationStore) getRequestBodyMediaType() string {
