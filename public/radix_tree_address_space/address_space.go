@@ -127,6 +127,7 @@ type AddressSpace interface {
 	GetSimpleSelectKey() string
 	GetSimpleSelectSchema() anysdk.Schema
 	GetUnionSelectSchemas() map[string]anysdk.Schema
+	GetGlobalSelectSchemas() map[string]anysdk.Schema
 	DereferenceAddress(address string) (any, bool)
 	WriteToAddress(address string, val any) error
 	ReadFromAddress(address string) (any, bool)
@@ -150,6 +151,7 @@ type standardNamespace struct {
 	request               *http.Request
 	response              *http.Response
 	unionSelectSchemas    map[string]anysdk.Schema
+	globalSelectSchemas   map[string]anysdk.Schema
 	shadowQuery           RadixTree
 }
 
@@ -272,6 +274,10 @@ func (ns *standardNamespace) GetUnionSelectSchemas() map[string]anysdk.Schema {
 	return ns.unionSelectSchemas
 }
 
+func (ns *standardNamespace) GetGlobalSelectSchemas() map[string]anysdk.Schema {
+	return ns.globalSelectSchemas
+}
+
 type standardAddressSpaceAnalyzer struct {
 	grammar                AddressSpaceGrammar
 	provider               anysdk.Provider
@@ -325,6 +331,7 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		return fmt.Errorf("no schema found at path %s", simpleSelectKey)
 	}
 	unionSelectSchemas := make(map[string]anysdk.Schema)
+	globalSelectSchemas := make(map[string]anysdk.Schema)
 	for alias, path := range asa.aliasedUnionSelectKeys {
 		k, isResponseBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeResponseBody)
 		if isResponseBodyAttribute {
@@ -354,6 +361,9 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 
 		return fmt.Errorf("only response body attributes are supported in union select keys, got '%s' for alias '%s'", path, alias)
 	}
+	for k, v := range unionSelectSchemas {
+		globalSelectSchemas[k] = v
+	}
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
 		server:                firstServer,
@@ -362,6 +372,7 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		simpleSelectKey:       simpleSelectKey,
 		simpleSelectSchema:    simpleSelectSchema,
 		unionSelectSchemas:    unionSelectSchemas,
+		globalSelectSchemas:   globalSelectSchemas,
 		responseBodySchema:    responseSchema,
 		requestBodySchema:     requestBodySchema,
 		responseBodyMediaType: responseMediaType,

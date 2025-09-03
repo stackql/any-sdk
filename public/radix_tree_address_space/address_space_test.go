@@ -497,6 +497,10 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	if len(unionSelectSchemas) != expectedUnionProjectionCount {
 		t.Fatalf("Address space analysis failed: expected %d union select schemas but got %d", expectedUnionProjectionCount, len(unionSelectSchemas))
 	}
+	globalSelectSchemas := addressSpace.GetGlobalSelectSchemas()
+	if len(globalSelectSchemas) < expectedUnionProjectionCount {
+		t.Fatalf("Address space analysis failed: expected >= %d union select schemas but got %d", expectedUnionProjectionCount, len(unionSelectSchemas))
+	}
 	for k, v := range unionSelectSchemas {
 		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
 	}
