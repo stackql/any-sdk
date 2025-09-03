@@ -20,14 +20,15 @@ import (
 )
 
 const (
-	standardRequestName  = "request"
-	standardResponseName = "response"
-	standardURLName      = "url"
-	standardHeadersName  = "headers"
-	standardBodyName     = "body"
-	standardQueryName    = "query"
-	standardPathName     = "path"
-	cookiesName          = "cookies"
+	standardRequestName         = "request"
+	standardResponseName        = "response"
+	standardURLName             = "url"
+	standardHeadersName         = "headers"
+	standardBodyName            = "body"
+	standardQueryName           = "query"
+	standardPathName            = "path"
+	cookiesName                 = "cookies"
+	standardPostTransformPrefix = "post_transform_"
 )
 
 // AddressSpaceGrammar defines the search DSL
@@ -35,26 +36,28 @@ type AddressSpaceGrammar interface {
 }
 
 type standardAddressSpaceGrammar struct {
-	requestName  string
-	responseName string
-	urlName      string
-	headersName  string
-	bodyName     string
-	queryName    string
-	pathName     string
-	cookiesName  string
+	requestName         string
+	responseName        string
+	urlName             string
+	headersName         string
+	bodyName            string
+	queryName           string
+	pathName            string
+	cookiesName         string
+	postTransformPrefix string
 }
 
 func newStandardAddressSpaceGrammar() AddressSpaceGrammar {
 	return &standardAddressSpaceGrammar{
-		requestName:  standardRequestName,
-		responseName: standardResponseName,
-		urlName:      standardURLName,
-		headersName:  standardHeadersName,
-		bodyName:     standardBodyName,
-		queryName:    standardQueryName,
-		pathName:     standardPathName,
-		cookiesName:  cookiesName,
+		requestName:         standardRequestName,
+		responseName:        standardResponseName,
+		urlName:             standardURLName,
+		headersName:         standardHeadersName,
+		bodyName:            standardBodyName,
+		queryName:           standardQueryName,
+		pathName:            standardPathName,
+		cookiesName:         cookiesName,
+		postTransformPrefix: standardPostTransformPrefix,
 	}
 }
 
@@ -289,15 +292,21 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		return fmt.Errorf("no schema found at path %s", simpleSelectKey)
 	}
 	unionSelectSchemas := make(map[string]anysdk.Schema)
-	for _, k := range asa.aliasedUnionSelectKeys {
-		schema, schemaErr := asa.method.GetSchemaAtPath(k)
-		if schemaErr != nil {
-			return fmt.Errorf("error getting schema at path %s: %v", k, schemaErr)
+	for alias, path := range asa.aliasedUnionSelectKeys {
+		isResponseBodyAttribute := strings.HasPrefix(path, fmt.Sprintf("%s.%s", standardResponseName, standardBodyName))
+		if isResponseBodyAttribute {
+			k := strings.TrimPrefix(path, fmt.Sprintf("%s.%s.", standardResponseName, standardBodyName))
+			schema, schemaErr := asa.method.GetSchemaAtPath(k)
+			if schemaErr != nil {
+				return fmt.Errorf("error getting schema at path %s: %v", k, schemaErr)
+			}
+			if schema == nil {
+				return fmt.Errorf("no schema found at path %s", k)
+			}
+			unionSelectSchemas[path] = schema
+			continue
 		}
-		if schema == nil {
-			return fmt.Errorf("no schema found at path %s", k)
-		}
-		unionSelectSchemas[k] = schema
+		return fmt.Errorf("only response body attributes are supported in union select keys, got '%s' for alias '%s'", path, alias)
 	}
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
