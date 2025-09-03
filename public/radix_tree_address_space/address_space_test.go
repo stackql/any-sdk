@@ -416,6 +416,127 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	}
 }
 
+func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
+	registryLocalPath := "./testdata/registry/basic"
+	providerPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
+	serviceName := "compute"
+	resourceName := "firewallPolicies"
+	methodName := "insert"
+	expectedUnionProjectionCount := 4
+	// expectedErrorCount := 282
+	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateProviderServiceLevelStaticAnalyzer(
+		providerPath,
+		"compute",
+	)
+	if analyzerErr != nil {
+		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
+	}
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		t.Fatalf("Static analysis failed: %v", err)
+	}
+	staticAnalyzer.GetResources()
+	errorSlice := staticAnalyzer.GetErrors()
+	for _, err := range errorSlice {
+		t.Logf("Static analysis error: %v", err)
+	}
+	// these are shallow
+	resources := staticAnalyzer.GetResources()
+	t.Logf("Discovered %d resources", len(resources))
+	if len(resources) == 0 {
+		t.Fatalf("Static analysis failed: expected non-zero resources but got %d", len(resources))
+	}
+	svcFrags := staticAnalyzer.GetServiceFragments()
+	svc, hasSvc := svcFrags[resourceName]
+	if !hasSvc {
+		t.Fatalf("Static analysis failed: expected '%s' service to exist and discoverable from resource '%s'", serviceName, resourceName)
+	}
+	rsc, hasRsc := resources[resourceName]
+	if !hasRsc {
+		t.Fatalf("Static analysis failed: expected '%s' resource to exist on service", resourceName)
+	}
+	if rsc == nil {
+		t.Fatalf("Static analysis failed: expected non-nil 'instanceGroups' resource to exist")
+	}
+	method, methodErr := rsc.FindMethod(methodName)
+	if methodErr != nil {
+		t.Fatalf("Static analysis failed: expected '%s' method to exist on 'instanceGroups' resource", methodName)
+	}
+	prov, hasProv := rsc.GetProvider()
+	if !hasProv {
+		t.Fatalf("Static analysis failed: expected provider to exist on '%s' resource", resourceName)
+	}
+
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceAnalyzer(
+		radix_tree_address_space.NewAddressSpaceGrammar(),
+		prov,
+		svc,
+		rsc,
+		method,
+		map[string]string{
+			"short_name":           "request.body.$.shortName",
+			"input_description":    "request.body.$.description",
+			"operation_status":     "response.body.$.status",
+			"operation_start_time": "response.body.$.startTime",
+		},
+	)
+	err = addressSpaceAnalyzer.Analyze()
+	if err != nil {
+		t.Fatalf("Address space analysis failed: %v", err)
+	}
+	addressSpace := addressSpaceAnalyzer.GetAddressSpace()
+	if addressSpace == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil address space")
+	}
+	simpleSelectSchema := addressSpace.GetSimpleSelectSchema()
+	if simpleSelectSchema == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
+	}
+	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
+	if len(unionSelectSchemas) != expectedUnionProjectionCount {
+		t.Fatalf("Address space analysis failed: expected %d union select schemas but got %d", expectedUnionProjectionCount, len(unionSelectSchemas))
+	}
+	for k, v := range unionSelectSchemas {
+		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
+	}
+	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
+	if !requestBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'request.body'")
+	}
+	if requestBody == nil {
+		t.Fatalf("Address space analysis failed: expected non nil 'request.body'")
+	}
+	responseBody, responseBodyOk := addressSpace.DereferenceAddress("response.body")
+	if !responseBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'response.body'")
+	}
+	if responseBody == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil 'response.body'")
+	}
+	projectParam, projectParamOk := addressSpace.DereferenceAddress(".requestId")
+	if !projectParamOk {
+		t.Fatalf("Address space analysis failed: expected to dereference '.requestId'")
+	}
+	if projectParam == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil '.requestId'")
+	}
+	mutateProjectErr := addressSpace.WriteToAddress(".requestId", "my-test-id")
+	if mutateProjectErr != nil {
+		t.Fatalf("Address space analysis failed: expected to write to address '.requestId'")
+	}
+	projectVal, projectValOk := addressSpace.ReadFromAddress(".requestId")
+	if !projectValOk {
+		t.Fatalf("Address space analysis failed: expected to read from address '.requestId'")
+	}
+	if projectVal == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil value from address '.requestId'")
+	}
+	if projectVal != "my-test-id" {
+		t.Fatalf("Address space analysis failed: expected 'my-test-id' from address '.requestId' but got '%v'", projectVal)
+	}
+}
+
 func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
 	googleProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"

@@ -338,6 +338,20 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 			unionSelectSchemas[path] = schema
 			continue
 		}
+		reqKey, isRequestBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeRequestBody)
+		if isRequestBodyAttribute {
+			schema, schemaErr := asa.method.GetRequestBodySchema()
+			if schemaErr != nil || schema == nil {
+				return fmt.Errorf("error getting request body schema for path %s: %v", k, schemaErr)
+			}
+			subSchema, schemaErr := schema.GetSchemaAtPath(reqKey, asa.method.GetRequestBodyMediaType())
+			if schemaErr != nil {
+				return fmt.Errorf("error getting schema at path %s: %v", reqKey, schemaErr)
+			}
+			unionSelectSchemas[path] = subSchema
+			continue
+		}
+
 		return fmt.Errorf("only response body attributes are supported in union select keys, got '%s' for alias '%s'", path, alias)
 	}
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
