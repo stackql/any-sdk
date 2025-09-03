@@ -67,6 +67,7 @@ type Schema interface {
 	getDescendent(path []string) (Schema, bool)
 	getFatItemsSchema(srs openapi3.SchemaRefs) Schema
 	getItemsRef() (*openapi3.SchemaRef, bool)
+	GetXMLALiasOrName() string
 	getXMLALiasOrName() string
 	getKey() string
 	getOpenapiSchema() (*openapi3.Schema, bool)
@@ -86,6 +87,7 @@ type Schema interface {
 	setKey(string)
 	setRawProperty(string, *openapi3.SchemaRef)
 	setXml(interface{})
+	ExtractMediaTypeSynonym(mediaType string) string
 	extractMediaTypeSynonym(mediaType string) string // TODO: implement upwards-searchable configurable type set matching
 	toFlatDescriptionMap(extended bool) map[string]interface{}
 	unmarshalJSONResponseBody(body io.Reader, path string) (interface{}, interface{}, error)
@@ -466,6 +468,10 @@ func (s *standardSchema) getName() string {
 	return getPathSuffix(s.key)
 }
 
+func (s *standardSchema) GetXMLALiasOrName() string {
+	return s.getXMLALiasOrName()
+}
+
 func (s *standardSchema) getXMLALiasOrName() string {
 	xa := s.getXmlAlias()
 	if xa != "" {
@@ -789,6 +795,10 @@ func (schema *standardSchema) GetSelectSchema(itemsKey, mediaType string) (Schem
 		return schema, "", nil
 	}
 	return nil, "", fmt.Errorf("unable to complete schema.GetSelectSchema() for schema = '%v' and itemsKey = '%s'", schema, itemsKey)
+}
+
+func (schema *standardSchema) ExtractMediaTypeSynonym(mediaType string) string {
+	return schema.extractMediaTypeSynonym(mediaType)
 }
 
 func (schema *standardSchema) extractMediaTypeSynonym(mediaType string) string {
