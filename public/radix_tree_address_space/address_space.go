@@ -237,13 +237,13 @@ func (ns *standardNamespace) GetUnionSelectSchemas() map[string]anysdk.Schema {
 }
 
 type standardAddressSpaceAnalyzer struct {
-	grammar         AddressSpaceGrammar
-	provider        anysdk.Provider
-	service         anysdk.Service
-	resource        anysdk.Resource
-	method          anysdk.StandardOperationStore
-	unionSelectKeys []string
-	addressSpace    AddressSpace
+	grammar                AddressSpaceGrammar
+	provider               anysdk.Provider
+	service                anysdk.Service
+	resource               anysdk.Resource
+	method                 anysdk.StandardOperationStore
+	aliasedUnionSelectKeys map[string]string
+	addressSpace           AddressSpace
 }
 
 func (asa *standardAddressSpaceAnalyzer) GetAddressSpace() AddressSpace {
@@ -289,7 +289,7 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		return fmt.Errorf("no schema found at path %s", simpleSelectKey)
 	}
 	unionSelectSchemas := make(map[string]anysdk.Schema)
-	for _, k := range asa.unionSelectKeys {
+	for _, k := range asa.aliasedUnionSelectKeys {
 		schema, schemaErr := asa.method.GetSchemaAtPath(k)
 		if schemaErr != nil {
 			return fmt.Errorf("error getting schema at path %s: %v", k, schemaErr)
@@ -327,15 +327,15 @@ func NewAddressSpaceAnalyzer(
 	service anysdk.Service,
 	resource anysdk.Resource,
 	method anysdk.StandardOperationStore,
-	unionSelectKeys ...string,
+	aliasedUnionSelectKeys map[string]string,
 ) AddressSpaceAnalyzer {
 	return &standardAddressSpaceAnalyzer{
-		grammar:         grammar,
-		provider:        provider,
-		service:         service,
-		resource:        resource,
-		method:          method,
-		unionSelectKeys: unionSelectKeys,
+		grammar:                grammar,
+		provider:               provider,
+		service:                service,
+		resource:               resource,
+		method:                 method,
+		aliasedUnionSelectKeys: aliasedUnionSelectKeys,
 	}
 }
 
