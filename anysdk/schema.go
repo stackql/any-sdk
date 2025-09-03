@@ -103,6 +103,7 @@ type Schema interface {
 	getExtension(k string) (interface{}, bool)
 	isStringOnly() bool
 	unmarshalReaderResponseAtPath(r io.Reader, path string, mediaType string, fallbackMediaType string) (interface{}, interface{}, error)
+	GetSchemaAtPath(key string, mediaType string) (Schema, error)
 }
 
 func ProviderTypeConditionIsValid(providerType string, lhs string, rhs interface{}) bool {
