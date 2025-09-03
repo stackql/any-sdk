@@ -19,6 +19,8 @@ import (
 	"github.com/stackql/any-sdk/pkg/xmlmap"
 )
 
+type pathType string
+
 const (
 	standardRequestName         = "request"
 	standardResponseName        = "response"
@@ -29,10 +31,14 @@ const (
 	standardPathName            = "path"
 	cookiesName                 = "cookies"
 	standardPostTransformPrefix = "post_transform_"
+	// path types
+	pathTypeRequestBody  pathType = "request_body"
+	pathTypeResponseBody pathType = "response_body"
 )
 
 // AddressSpaceGrammar defines the search DSL
 type AddressSpaceGrammar interface {
+	ExtractSubPath(string, pathType) (string, bool)
 }
 
 type standardAddressSpaceGrammar struct {
@@ -45,6 +51,8 @@ type standardAddressSpaceGrammar struct {
 	pathName            string
 	cookiesName         string
 	postTransformPrefix string
+	requestBodyPrefix   string
+	responseBodyPrefix  string
 }
 
 func newStandardAddressSpaceGrammar() AddressSpaceGrammar {
@@ -58,6 +66,31 @@ func newStandardAddressSpaceGrammar() AddressSpaceGrammar {
 		pathName:            standardPathName,
 		cookiesName:         cookiesName,
 		postTransformPrefix: standardPostTransformPrefix,
+		requestBodyPrefix:   fmt.Sprintf("%s.%s.", standardRequestName, standardBodyName),
+		responseBodyPrefix:  fmt.Sprintf("%s.%s.", standardResponseName, standardBodyName),
+	}
+}
+
+func (sg *standardAddressSpaceGrammar) extractRequestBodySubPath(fullPath string) (string, bool) {
+	if strings.HasPrefix(fullPath, sg.requestBodyPrefix) {
+		return strings.TrimPrefix(fullPath, sg.requestBodyPrefix), true
+	}
+	return "", false
+}
+
+func (sg *standardAddressSpaceGrammar) extractResponseBodySubPath(fullPath string) (string, bool) {
+	rv := strings.TrimPrefix(fullPath, sg.responseBodyPrefix)
+	return rv, rv != fullPath
+}
+
+func (sg *standardAddressSpaceGrammar) ExtractSubPath(fullPath string, pathType pathType) (string, bool) {
+	switch pathType {
+	case pathTypeRequestBody:
+		return sg.extractRequestBodySubPath(fullPath)
+	case pathTypeResponseBody:
+		return sg.extractResponseBodySubPath(fullPath)
+	default:
+		return "", false
 	}
 }
 
@@ -293,9 +326,8 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	}
 	unionSelectSchemas := make(map[string]anysdk.Schema)
 	for alias, path := range asa.aliasedUnionSelectKeys {
-		isResponseBodyAttribute := strings.HasPrefix(path, fmt.Sprintf("%s.%s", standardResponseName, standardBodyName))
+		k, isResponseBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeResponseBody)
 		if isResponseBodyAttribute {
-			k := strings.TrimPrefix(path, fmt.Sprintf("%s.%s.", standardResponseName, standardBodyName))
 			schema, schemaErr := asa.method.GetSchemaAtPath(k)
 			if schemaErr != nil {
 				return fmt.Errorf("error getting schema at path %s: %v", k, schemaErr)
