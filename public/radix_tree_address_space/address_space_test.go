@@ -110,7 +110,7 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 		rsc,
 		selectImagesMethod,
 		map[string]string{
-			"amalgam": "$.items",
+			"amalgam": "response.body.$.items",
 		},
 	)
 	err = addressSpaceAnalyzer.Analyze()
@@ -241,8 +241,8 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 		rsc,
 		selectInstanceGroupMethod,
 		map[string]string{
-			"amalgam": "$.items",
-			"name":    "$.items[*].instanceGroups[*].name",
+			"amalgam": "response.body.$.items",
+			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
 	)
 	err = addressSpaceAnalyzer.Analyze()
@@ -356,8 +356,8 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 		rsc,
 		selectInstanceGroupMethod,
 		map[string]string{
-			"amalgam": "$.items",
-			"name":    "$.items[*].instanceGroups[*].name",
+			"amalgam": "response.body.$.items",
+			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
 	)
 	err = addressSpaceAnalyzer.Analyze()
@@ -484,8 +484,8 @@ func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 		volumesResource,
 		volumesResourceMethod,
 		map[string]string{
-			"amalgam": "/Volumes",
-			"vol":     "/*/volumeSet/item",
+			"amalgam": "response.body./Volumes",
+			"vol":     "response.body./*/volumeSet/item",
 		},
 	)
 	err = addressSpaceAnalyzer.Analyze()
