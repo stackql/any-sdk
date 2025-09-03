@@ -49,6 +49,7 @@ Request and response **sub-component** (body, header) attributes can be exposed 
 - Not exposing response header attributes at all.
 - Heuristics that effectively clobber any input attribute that collides with a server variable.
 - Routing request body attributes based on a prefix eg: `data__`.  This is undesirable on the grounds of poor encapsulation and weakened semantics.
+  - Interesting schema search implementation in `getSelectItemsSchema()`.
 
 ### Proposed HTTP implementation
 

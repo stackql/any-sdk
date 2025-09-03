@@ -37,7 +37,7 @@ func TestNewAddressSpace(t *testing.T) {
 	}
 }
 
-func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
+func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
@@ -166,7 +166,137 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	}
 }
 
-func TestDeepDiscoveryAWSCurrent(t *testing.T) {
+func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
+	registryLocalPath := "./testdata/registry/basic"
+	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
+	// expectedErrorCount := 282
+	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateProviderServiceLevelStaticAnalyzer(
+		googleProviderPath,
+		"compute",
+	)
+	if analyzerErr != nil {
+		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
+	}
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		t.Fatalf("Static analysis failed: %v", err)
+	}
+	errorSlice := staticAnalyzer.GetErrors()
+	for _, err := range errorSlice {
+		t.Logf("Static analysis error: %v", err)
+	}
+	// these are shallow
+	resources := staticAnalyzer.GetResources()
+	t.Logf("Discovered %d resources", len(resources))
+	if len(resources) == 0 {
+		t.Fatalf("Static analysis failed: expected non-zero resources but got %d", len(resources))
+	}
+	instanceGroupsResource, instanceGroupsResourceExists := resources["instanceGroups"]
+	if !instanceGroupsResourceExists {
+		t.Fatalf("Static analysis failed: expected 'images' resource to exist")
+	}
+	selectInstanceGroupMethod, selectInstanceGroupMethodErr := instanceGroupsResource.FindMethod("aggregatedList")
+	if selectInstanceGroupMethodErr != nil {
+		t.Fatalf("Static analysis failed: expected 'select' method to exist on 'instanceGroups' resource")
+	}
+	prov, hasProv := instanceGroupsResource.GetProvider()
+	if !hasProv {
+		t.Fatalf("Static analysis failed: expected provider to exist on 'instanceGroups' resource")
+	}
+	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
+	if !hasRegistryAPI {
+		t.Fatalf("Static analysis failed: expected registry API to exist on static analyzer")
+	}
+	if registryAPI == nil {
+		t.Fatalf("Static analysis failed: expected non-nil registry API to exist on static analyzer")
+	}
+	providerService, providerServiceErr := prov.GetProviderService("compute")
+	if providerServiceErr != nil {
+		t.Fatalf("Static analysis failed: expected 'compute' service to exist on provider")
+	}
+	svc, svcErr := registryAPI.GetServiceFragment(providerService, "instanceGroups")
+	if svcErr != nil {
+		t.Fatalf("Static analysis failed: expected 'instanceGroups' service to exist on provider")
+	}
+	rsc, rscErr := svc.GetResource("instanceGroups")
+	if rscErr != nil {
+		t.Fatalf("Static analysis failed: expected 'instanceGroups' resource to exist on service")
+	}
+	if rsc == nil {
+		t.Fatalf("Static analysis failed: expected non-nil 'instanceGroups' resource to exist")
+	}
+	selectInstanceGroupMethod, selectInstanceGroupMethodErr = rsc.FindMethod("aggregatedList")
+	if selectInstanceGroupMethodErr != nil {
+		t.Fatalf("Static analysis failed: expected 'select' method to exist on 'instanceGroups' resource")
+	}
+
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceAnalyzer(
+		radix_tree_address_space.NewAddressSpaceGrammar(),
+		prov,
+		svc,
+		rsc,
+		selectInstanceGroupMethod,
+		"$.items",
+		"$.items[*].instanceGroups[*].name",
+	)
+	err = addressSpaceAnalyzer.Analyze()
+	if err != nil {
+		t.Fatalf("Address space analysis failed: %v", err)
+	}
+	addressSpace := addressSpaceAnalyzer.GetAddressSpace()
+	if addressSpace == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil address space")
+	}
+	simpleSelectSchema := addressSpace.GetSimpleSelectSchema()
+	if simpleSelectSchema == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
+	}
+	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
+	if len(unionSelectSchemas) != 2 {
+		t.Fatalf("Address space analysis failed: expected 2 union select schemas but got %d", len(unionSelectSchemas))
+	}
+	for k, v := range unionSelectSchemas {
+		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
+	}
+	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
+	if !requestBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'request.body'")
+	}
+	if requestBody != nil {
+		t.Fatalf("Address space analysis failed: expected nil 'request.body'")
+	}
+	responseBody, responseBodyOk := addressSpace.DereferenceAddress("response.body")
+	if !responseBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'response.body'")
+	}
+	if responseBody == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil 'response.body'")
+	}
+	projectParam, projectParamOk := addressSpace.DereferenceAddress(".project")
+	if !projectParamOk {
+		t.Fatalf("Address space analysis failed: expected to dereference '.project'")
+	}
+	if projectParam == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil '.project'")
+	}
+	mutateProjectErr := addressSpace.WriteToAddress(".project", "my-test-project")
+	if mutateProjectErr != nil {
+		t.Fatalf("Address space analysis failed: expected to write to address '.project'")
+	}
+	projectVal, projectValOk := addressSpace.ReadFromAddress(".project")
+	if !projectValOk {
+		t.Fatalf("Address space analysis failed: expected to read from address '.project'")
+	}
+	if projectVal == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil value from address '.project'")
+	}
+	if projectVal != "my-test-project" {
+		t.Fatalf("Address space analysis failed: expected 'my-test-project' from address '.project' but got '%v'", projectVal)
+	}
+}
+
+func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
 	googleProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
 	// expectedErrorCount := 282
@@ -233,7 +363,8 @@ func TestDeepDiscoveryAWSCurrent(t *testing.T) {
 		svc,
 		volumesResource,
 		volumesResourceMethod,
-		"Volumes",
+		"/Volumes",
+		"/*/volumeSet/item",
 	)
 	err = addressSpaceAnalyzer.Analyze()
 	if err != nil {
@@ -248,7 +379,7 @@ func TestDeepDiscoveryAWSCurrent(t *testing.T) {
 		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
 	}
 	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
-	if len(unionSelectSchemas) != 1 {
+	if len(unionSelectSchemas) != 2 {
 		t.Fatalf("Address space analysis failed: expected 2 union select schemas but got %d", len(unionSelectSchemas))
 	}
 	for k, v := range unionSelectSchemas {

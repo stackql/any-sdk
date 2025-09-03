@@ -10,6 +10,8 @@ type ExpectedResponse interface {
 	GetOpenAPIDocKey() string
 	GetObjectKey() string
 	GetSchema() Schema
+	GetProjectionMap() map[string]string
+	GetProjection(string) (string, bool)
 	getOverrideSchema() (*LocalSchemaRef, bool)
 	getAsyncOverrideSchema() (*LocalSchemaRef, bool)
 	setOverrideSchemaValue(Schema)
@@ -21,15 +23,31 @@ type ExpectedResponse interface {
 }
 
 type standardExpectedResponse struct {
-	OverrideBodyMediaType      string `json:"overrideMediaType,omitempty" yaml:"overrideMediaType,omitempty"`
-	AsyncOverrideBodyMediaType string `json:"asyncOverrideMediaType,omitempty" yaml:"asyncOverrideMediaType,omitempty"`
-	BodyMediaType              string `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
-	OpenAPIDocKey              string `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
-	ObjectKey                  string `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
+	OverrideBodyMediaType      string            `json:"overrideMediaType,omitempty" yaml:"overrideMediaType,omitempty"`
+	AsyncOverrideBodyMediaType string            `json:"asyncOverrideMediaType,omitempty" yaml:"asyncOverrideMediaType,omitempty"`
+	BodyMediaType              string            `json:"mediaType,omitempty" yaml:"mediaType,omitempty"`
+	OpenAPIDocKey              string            `json:"openAPIDocKey,omitempty" yaml:"openAPIDocKey,omitempty"`
+	ObjectKey                  string            `json:"objectKey,omitempty" yaml:"objectKey,omitempty"`
+	ProjectionMap              map[string]string `json:"projection_map,omitempty" yaml:"projection_map,omitempty"`
 	Schema                     Schema
 	OverrideSchema             *LocalSchemaRef    `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
 	AsyncOverrideSchema        *LocalSchemaRef    `json:"async_schema_override,omitempty" yaml:"async_schema_override,omitempty"`
 	Transform                  *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
+}
+
+func (er *standardExpectedResponse) GetProjectionMap() map[string]string {
+	if er.ProjectionMap == nil {
+		return make(map[string]string)
+	}
+	return er.ProjectionMap
+}
+
+func (er *standardExpectedResponse) GetProjection(key string) (string, bool) {
+	if er.ProjectionMap == nil {
+		return "", false
+	}
+	v, ok := er.ProjectionMap[key]
+	return v, ok
 }
 
 func (er *standardExpectedResponse) setBodyMediaType(s string) {

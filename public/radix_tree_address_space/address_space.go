@@ -1,14 +1,22 @@
 package radix_tree_address_space
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/media"
+	"github.com/stackql/any-sdk/pkg/queryrouter"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
+	"github.com/stackql/any-sdk/pkg/util"
+	"github.com/stackql/any-sdk/pkg/xmlmap"
 )
 
 const (
@@ -336,6 +344,7 @@ type RadixTree interface {
 	Find(path string) (any, bool)
 	Delete(path string) error
 	ToFlatMap(prefix string) map[string]any
+	Copy() RadixTree
 }
 
 type standardRadixTree struct {
@@ -346,6 +355,25 @@ func NewRadixTree() RadixTree {
 	return &standardRadixTree{
 		root: newStandardRadixTrieNode(nil),
 	}
+}
+
+func (rt *standardRadixTree) Copy() RadixTree {
+	newTree := NewRadixTree()
+	var traverse func(node *standardRadixTrieNode, currentPath string)
+	traverse = func(node *standardRadixTrieNode, currentPath string) {
+		if node.address != nil {
+			newTree.Insert(currentPath, node.address)
+		}
+		for k, child := range node.children {
+			newPath := k
+			if currentPath != "" {
+				newPath = currentPath + "." + k
+			}
+			traverse(child, newPath)
+		}
+	}
+	traverse(rt.root, "")
+	return newTree
 }
 
 func (rt *standardRadixTree) ToFlatMap(prefix string) map[string]any {
@@ -468,4 +496,377 @@ func newStandardRadixTrieNode(rhs any) *standardRadixTrieNode {
 		children: make(map[string]*standardRadixTrieNode),
 		address:  rhs,
 	}
+}
+
+type AliasMap interface {
+	Put(string, string)
+	Peek(string) (string, bool)
+	Pop(string) (string, bool)
+	Copy() AliasMap
+}
+
+type standardAliasMap struct {
+	aliasToPrefixMap map[string]string
+	prefixToAliasMap map[string]string
+}
+
+func NewAliasMap(aliasToPrefixMap map[string]string) AliasMap {
+	return newAliasMap(aliasToPrefixMap)
+}
+
+func newAliasMap(aliasToPrefixMap map[string]string) AliasMap {
+	prefixToAliasMap := make(map[string]string, len(aliasToPrefixMap))
+	for k, v := range aliasToPrefixMap {
+		prefixToAliasMap[v] = k
+	}
+	return &standardAliasMap{
+		aliasToPrefixMap: aliasToPrefixMap,
+		prefixToAliasMap: prefixToAliasMap,
+	}
+}
+
+func (am *standardAliasMap) Copy() AliasMap {
+	copyMap := make(map[string]string, len(am.aliasToPrefixMap))
+	for k, v := range am.aliasToPrefixMap {
+		copyMap[k] = v
+	}
+	newMap := newAliasMap(copyMap)
+	return newMap
+}
+
+func (am *standardAliasMap) Put(key string, val string) {
+	am.aliasToPrefixMap[key] = val
+	am.prefixToAliasMap[val] = key
+}
+
+func (am *standardAliasMap) Peek(key string) (string, bool) {
+	val, ok := am.aliasToPrefixMap[key]
+	return val, ok
+}
+
+func (am *standardAliasMap) Pop(key string) (string, bool) {
+	val, ok := am.aliasToPrefixMap[key]
+	if ok {
+		delete(am.aliasToPrefixMap, key)
+		delete(am.prefixToAliasMap, val)
+	}
+	return val, ok
+}
+
+func (am *standardAliasMap) PeekByPrefix(prefix string) (string, bool) {
+	val, ok := am.prefixToAliasMap[prefix]
+	return val, ok
+}
+
+type AnalyzedInput interface {
+	GetQueryParams() map[string]any
+	GetHeaderParam(string) (string, bool)
+	GetPathParam(string) (string, bool)
+	GetServerVars() map[string]any
+	GetRequestBody() any
+}
+
+type PartiallyAssignedInput interface {
+	GetQueryParams() map[string]any
+	GetHeaderParam(string) (string, bool)
+	GetPathParam(string) (string, bool)
+	GetServerVars() map[string]any
+	GetRequestBody() any
+	GetUnassignedParams() map[string]any
+	GetUnassignedParam(string) (any, bool)
+}
+
+func isOpenapi3ParamRequired(param *openapi3.Parameter) bool {
+	return param.Required && !param.AllowEmptyValue
+}
+
+func marshalBody(op anysdk.StandardOperationStore, body interface{}, expectedRequest anysdk.ExpectedRequest) ([]byte, error) {
+	mediaType := expectedRequest.GetBodyMediaType()
+	if expectedRequest.GetSchema() != nil {
+		mediaType = expectedRequest.GetSchema().ExtractMediaTypeSynonym(mediaType)
+	}
+	switch mediaType {
+	case media.MediaTypeJson:
+		return json.Marshal(body)
+	case media.MediaTypeXML, media.MediaTypeTextXML:
+		return xmlmap.MarshalXMLUserInput(
+			body,
+			expectedRequest.GetSchema().GetXMLALiasOrName(),
+			op.GetXMLTransform(),
+			op.GetXMLDeclaration(),
+			op.GetXMLRootAnnotation(),
+		)
+	}
+	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
+}
+
+func replaceSimpleStringVars(template string, vars map[string]string) string {
+	args := make([]string, len(vars)*2)
+	i := 0
+	for k, v := range vars {
+		if strings.Contains(template, "{"+k+"}") {
+			args[i] = "{" + k + "}"
+			args[i+1] = v
+			i += 2
+		}
+	}
+	return strings.NewReplacer(args...).Replace(template)
+}
+
+func (asa *standardAddressSpaceAnalyzer) parameterizeFromPartiallyAssignedInput(prov anysdk.Provider, parentDoc anysdk.Service, op anysdk.OperationStore, inputParams PartiallyAssignedInput) (*openapi3filter.RequestValidationInput, error) {
+
+	// aliasMap := newAliasMap()
+
+	params := op.GetOperationRef().Value.Parameters
+	pathParams := make(map[string]string)
+	q := make(url.Values)
+	prefilledHeader := make(http.Header)
+
+	explicitQueryParams := inputParams.GetQueryParams()
+	for _, p := range params {
+		if p.Value == nil {
+			continue
+		}
+		name := p.Value.Name
+
+		if p.Value.In == openapi3.ParameterInHeader {
+			val, present := inputParams.GetHeaderParam(p.Value.Name)
+			if present {
+				prefilledHeader.Set(name, fmt.Sprintf("%v", val))
+			} else if p.Value != nil && p.Value.Schema != nil && p.Value.Schema.Value != nil && p.Value.Schema.Value.Default != nil {
+				prefilledHeader.Set(name, fmt.Sprintf("%v", p.Value.Schema.Value.Default))
+			} else if isOpenapi3ParamRequired(p.Value) {
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required header '%s'", name)
+			}
+		}
+		if p.Value.In == openapi3.ParameterInPath {
+			val, present := inputParams.GetPathParam(p.Value.Name)
+			if present {
+				pathParams[name] = fmt.Sprintf("%v", val)
+			}
+			if !present && isOpenapi3ParamRequired(p.Value) {
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required path parameter '%s'", name)
+			}
+		} else if p.Value.In == openapi3.ParameterInQuery {
+
+			pVal, present := explicitQueryParams[p.Value.Name]
+			if present {
+				switch val := pVal.(type) {
+				case []interface{}:
+					for _, v := range val {
+						q.Add(name, fmt.Sprintf("%v", v))
+					}
+				default:
+					q.Set(name, fmt.Sprintf("%v", val))
+				}
+				delete(explicitQueryParams, name)
+			}
+		}
+	}
+	for k, v := range explicitQueryParams {
+		q.Set(k, fmt.Sprintf("%v", v))
+		delete(explicitQueryParams, k)
+	}
+	openapiSvc := op.GetService()
+	router, err := queryrouter.NewRouter(openapiSvc.GetT())
+	if err != nil {
+		return nil, err
+	}
+	servers, _ := op.GetServers()
+	serverParams := inputParams.GetServerVars()
+	if err != nil {
+		return nil, err
+	}
+	sv, err := selectServer(servers, serverParams)
+	if err != nil {
+		return nil, err
+	}
+	contentTypeHeaderRequired := false
+	var bodyReader io.Reader
+
+	requestBody := inputParams.GetRequestBody()
+
+	expectedRequest, hasExpectedRequest := op.GetRequest()
+
+	predOne := !util.IsNil(requestBody)
+	predTwo := hasExpectedRequest && !util.IsNil(expectedRequest)
+	if predOne && predTwo {
+		stdOp, isStdOp := op.(anysdk.StandardOperationStore)
+		if !isStdOp {
+			return nil, fmt.Errorf("expected standard operation store")
+		}
+		b, err := marshalBody(stdOp, requestBody, expectedRequest)
+		if err != nil {
+			return nil, err
+		}
+		bodyReader = bytes.NewReader(b)
+		contentTypeHeaderRequired = true
+	}
+	// TODO: clean up
+	sv = strings.TrimSuffix(sv, "/")
+	path := replaceSimpleStringVars(fmt.Sprintf("%s%s", sv, op.GetOperationRef().ExtractPathItem()), pathParams)
+	u, err := url.Parse(fmt.Sprintf("%s?%s", path, q.Encode()))
+	if strings.Contains(path, "?") {
+		if len(q) > 0 {
+			u, err = url.Parse(fmt.Sprintf("%s&%s", path, q.Encode()))
+		} else {
+			u, err = url.Parse(path)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequest(strings.ToUpper(op.GetOperationRef().ExtractMethodItem()), u.String(), bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	if contentTypeHeaderRequired {
+		if prefilledHeader.Get("Content-Type") != "" {
+			prefilledHeader.Set("Content-Type", expectedRequest.GetBodyMediaType())
+		}
+	}
+	httpReq.Header = prefilledHeader
+	route, checkedPathParams, err := router.FindRoute(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	options := &openapi3filter.Options{
+		AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+	}
+	// Validate request
+	requestValidationInput := &openapi3filter.RequestValidationInput{
+		Options:    options,
+		PathParams: checkedPathParams,
+		Request:    httpReq,
+		Route:      route,
+	}
+	return requestValidationInput, nil
+}
+
+func parameterizeFromAnalyzedInput(prov anysdk.Provider, parentDoc anysdk.Service, op anysdk.OperationStore, inputParams AnalyzedInput) (*openapi3filter.RequestValidationInput, error) {
+
+	params := op.GetOperationRef().Value.Parameters
+	pathParams := make(map[string]string)
+	q := make(url.Values)
+	prefilledHeader := make(http.Header)
+
+	queryParamsRemaining := inputParams.GetQueryParams()
+	for _, p := range params {
+		if p.Value == nil {
+			continue
+		}
+		name := p.Value.Name
+
+		if p.Value.In == openapi3.ParameterInHeader {
+			val, present := inputParams.GetHeaderParam(p.Value.Name)
+			if present {
+				prefilledHeader.Set(name, fmt.Sprintf("%v", val))
+			} else if p.Value != nil && p.Value.Schema != nil && p.Value.Schema.Value != nil && p.Value.Schema.Value.Default != nil {
+				prefilledHeader.Set(name, fmt.Sprintf("%v", p.Value.Schema.Value.Default))
+			} else if isOpenapi3ParamRequired(p.Value) {
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required header '%s'", name)
+			}
+		}
+		if p.Value.In == openapi3.ParameterInPath {
+			val, present := inputParams.GetPathParam(p.Value.Name)
+			if present {
+				pathParams[name] = fmt.Sprintf("%v", val)
+			}
+			if !present && isOpenapi3ParamRequired(p.Value) {
+				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required path parameter '%s'", name)
+			}
+		} else if p.Value.In == openapi3.ParameterInQuery {
+
+			pVal, present := queryParamsRemaining[p.Value.Name]
+			if present {
+				switch val := pVal.(type) {
+				case []interface{}:
+					for _, v := range val {
+						q.Add(name, fmt.Sprintf("%v", v))
+					}
+				default:
+					q.Set(name, fmt.Sprintf("%v", val))
+				}
+				delete(queryParamsRemaining, name)
+			}
+		}
+	}
+	for k, v := range queryParamsRemaining {
+		q.Set(k, fmt.Sprintf("%v", v))
+		delete(queryParamsRemaining, k)
+	}
+	openapiSvc := op.GetService()
+	router, err := queryrouter.NewRouter(openapiSvc.GetT())
+	if err != nil {
+		return nil, err
+	}
+	servers, _ := op.GetServers()
+	serverParams := inputParams.GetServerVars()
+	if err != nil {
+		return nil, err
+	}
+	sv, err := selectServer(servers, serverParams)
+	if err != nil {
+		return nil, err
+	}
+	contentTypeHeaderRequired := false
+	var bodyReader io.Reader
+
+	requestBody := inputParams.GetRequestBody()
+
+	expectedRequest, hasExpectedRequest := op.GetRequest()
+
+	predOne := !util.IsNil(requestBody)
+	predTwo := hasExpectedRequest && !util.IsNil(expectedRequest)
+	if predOne && predTwo {
+		stdOp, isStdOp := op.(anysdk.StandardOperationStore)
+		if !isStdOp {
+			return nil, fmt.Errorf("expected standard operation store")
+		}
+		b, err := marshalBody(stdOp, requestBody, expectedRequest)
+		if err != nil {
+			return nil, err
+		}
+		bodyReader = bytes.NewReader(b)
+		contentTypeHeaderRequired = true
+	}
+	// TODO: clean up
+	sv = strings.TrimSuffix(sv, "/")
+	path := replaceSimpleStringVars(fmt.Sprintf("%s%s", sv, op.GetOperationRef().ExtractPathItem()), pathParams)
+	u, err := url.Parse(fmt.Sprintf("%s?%s", path, q.Encode()))
+	if strings.Contains(path, "?") {
+		if len(q) > 0 {
+			u, err = url.Parse(fmt.Sprintf("%s&%s", path, q.Encode()))
+		} else {
+			u, err = url.Parse(path)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequest(strings.ToUpper(op.GetOperationRef().ExtractMethodItem()), u.String(), bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	if contentTypeHeaderRequired {
+		if prefilledHeader.Get("Content-Type") != "" {
+			prefilledHeader.Set("Content-Type", expectedRequest.GetBodyMediaType())
+		}
+	}
+	httpReq.Header = prefilledHeader
+	route, checkedPathParams, err := router.FindRoute(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	options := &openapi3filter.Options{
+		AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+	}
+	// Validate request
+	requestValidationInput := &openapi3filter.RequestValidationInput{
+		Options:    options,
+		PathParams: checkedPathParams,
+		Request:    httpReq,
+		Route:      route,
+	}
+	return requestValidationInput, nil
 }
