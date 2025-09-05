@@ -490,6 +490,16 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	if globalSelectSchemasErr != nil {
 		return globalSelectSchemasErr
 	}
+	var parametersDoublySelcted []string
+	for k := range parameterPaths {
+		_, isInExplicitSelect := asa.aliasedUnionSelectKeys[k]
+		if isInExplicitSelect {
+			parametersDoublySelcted = append(parametersDoublySelcted, k)
+		}
+	}
+	if len(parametersDoublySelcted) > 0 {
+		return fmt.Errorf("the following parameters were selected both explicitly and implicitly: %v", parametersDoublySelcted)
+	}
 	// // placeholder
 	if !isResponseBodyConsidered && !isRequestBodyConsidered && !isParametersConsidered && !isServerVarsConsidered {
 	}
