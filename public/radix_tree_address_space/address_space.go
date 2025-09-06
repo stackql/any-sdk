@@ -14,6 +14,7 @@ import (
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
+	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
 	"github.com/stackql/any-sdk/pkg/util"
 	"github.com/stackql/any-sdk/pkg/xmlmap"
@@ -168,6 +169,7 @@ type AddressSpace interface {
 	WriteToAddress(address string, val any) error
 	ReadFromAddress(address string) (any, bool)
 	Analyze() error
+	Query(streaming.MapReader) (streaming.MapReader, error)
 	GetRequest() (*http.Request, bool)
 }
 
@@ -191,6 +193,15 @@ type standardNamespace struct {
 	explicitAliasMap      AliasMap
 	globalAliasMap        AliasMap
 	shadowQuery           RadixTree
+}
+
+func (ns *standardNamespace) Query(inputParams streaming.MapReader) (streaming.MapReader, error) {
+	rv := streaming.NewStandardMapStream()
+	err := ns.shadowQuery.Insert("server", ns.serverVars)
+	if err != nil {
+		return nil, err
+	}
+	return rv, nil
 }
 
 func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) (string, error) {
