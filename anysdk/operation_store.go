@@ -92,6 +92,7 @@ type OperationStore interface {
 	MarshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error)
 	GetRequestBodySchema() (Schema, error)
 	GetNonBodyParameters() map[string]Addressable
+	GetRequestBodyAttributesNoRename() (map[string]Addressable, error)
 	IsAwaitable() bool
 	DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error)
 	GetRequestTranslateAlgorithm() string
@@ -111,7 +112,6 @@ type OperationStore interface {
 type StandardOperationStore interface {
 	OperationStore
 	// Assist analysis
-	GetRequestBodyAttributesNoRename() (map[string]Addressable, error)
 	GetSchemaAtPath(key string) (Schema, error)
 	GetSelectItemsKeySimple() string
 	LookupSelectItemsKey() string

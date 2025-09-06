@@ -14,6 +14,7 @@ import (
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
+	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
 	"github.com/stackql/any-sdk/pkg/util"
 	"github.com/stackql/any-sdk/pkg/xmlmap"
@@ -29,11 +30,16 @@ const (
 	standardBodyName            = "body"
 	standardQueryName           = "query"
 	standardPathName            = "path"
-	cookiesName                 = "cookies"
+	standardCookiesName         = "cookies"
+	standardServerName          = "server"
 	standardPostTransformPrefix = "post_transform_"
 	// path types
-	pathTypeRequestBody  pathType = "request_body"
-	pathTypeResponseBody pathType = "response_body"
+	pathTypeRequestBody    pathType = "request_body"
+	pathTypeResponseBody   pathType = "response_body"
+	pathTypeURLQuery       pathType = "url_query"
+	pathTypeURLPath        pathType = "url_path"
+	pathTypeRequestHeader  pathType = "request_header"
+	pathTypeResponseHeader pathType = "response_header"
 )
 
 // AddressSpaceGrammar defines the search DSL
@@ -42,32 +48,42 @@ type AddressSpaceGrammar interface {
 }
 
 type standardAddressSpaceGrammar struct {
-	requestName         string
-	responseName        string
-	urlName             string
-	headersName         string
-	bodyName            string
-	queryName           string
-	pathName            string
-	cookiesName         string
-	postTransformPrefix string
-	requestBodyPrefix   string
-	responseBodyPrefix  string
+	requestName          string
+	responseName         string
+	urlName              string
+	headersName          string
+	bodyName             string
+	queryName            string
+	pathName             string
+	cookiesName          string
+	serverName           string
+	postTransformPrefix  string
+	requestBodyPrefix    string
+	responseBodyPrefix   string
+	urlQueryPrefix       string
+	requestHeaderPrefix  string
+	responseHeaderPrefix string
+	urlPathPrefix        string
 }
 
 func newStandardAddressSpaceGrammar() AddressSpaceGrammar {
 	return &standardAddressSpaceGrammar{
-		requestName:         standardRequestName,
-		responseName:        standardResponseName,
-		urlName:             standardURLName,
-		headersName:         standardHeadersName,
-		bodyName:            standardBodyName,
-		queryName:           standardQueryName,
-		pathName:            standardPathName,
-		cookiesName:         cookiesName,
-		postTransformPrefix: standardPostTransformPrefix,
-		requestBodyPrefix:   fmt.Sprintf("%s.%s.", standardRequestName, standardBodyName),
-		responseBodyPrefix:  fmt.Sprintf("%s.%s.", standardResponseName, standardBodyName),
+		requestName:          standardRequestName,
+		responseName:         standardResponseName,
+		urlName:              standardURLName,
+		headersName:          standardHeadersName,
+		bodyName:             standardBodyName,
+		queryName:            standardQueryName,
+		pathName:             standardPathName,
+		cookiesName:          standardCookiesName,
+		postTransformPrefix:  standardPostTransformPrefix,
+		serverName:           standardServerName,
+		requestBodyPrefix:    fmt.Sprintf("%s.%s.", standardRequestName, standardBodyName),
+		responseBodyPrefix:   fmt.Sprintf("%s.%s.", standardResponseName, standardBodyName),
+		urlQueryPrefix:       fmt.Sprintf("%s.%s.", standardRequestName, standardQueryName),
+		requestHeaderPrefix:  fmt.Sprintf("%s.%s.", standardRequestName, standardHeadersName),
+		responseHeaderPrefix: fmt.Sprintf("%s.%s.", standardResponseName, standardHeadersName),
+		urlPathPrefix:        fmt.Sprintf("%s.%s.", standardRequestName, standardPathName),
 	}
 }
 
@@ -83,12 +99,33 @@ func (sg *standardAddressSpaceGrammar) extractResponseBodySubPath(fullPath strin
 	return rv, rv != fullPath
 }
 
+func (sg *standardAddressSpaceGrammar) extractQueryParamSubPath(fullPath string) (string, bool) {
+	rv := strings.TrimPrefix(fullPath, sg.urlQueryPrefix)
+	return rv, rv != fullPath
+}
+
+func (sg *standardAddressSpaceGrammar) extractRequestHeaderSubPath(fullPath string) (string, bool) {
+	rv := strings.TrimPrefix(fullPath, sg.requestHeaderPrefix)
+	return rv, rv != fullPath
+}
+
+func (sg *standardAddressSpaceGrammar) extractPathParamSubPath(fullPath string) (string, bool) {
+	rv := strings.TrimPrefix(fullPath, sg.urlPathPrefix)
+	return rv, rv != fullPath
+}
+
 func (sg *standardAddressSpaceGrammar) ExtractSubPath(fullPath string, pathType pathType) (string, bool) {
 	switch pathType {
 	case pathTypeRequestBody:
 		return sg.extractRequestBodySubPath(fullPath)
 	case pathTypeResponseBody:
 		return sg.extractResponseBodySubPath(fullPath)
+	case pathTypeURLQuery:
+		return sg.extractQueryParamSubPath(fullPath)
+	case pathTypeRequestHeader:
+		return sg.extractRequestHeaderSubPath(fullPath)
+	case pathTypeURLPath:
+		return sg.extractPathParamSubPath(fullPath)
 	default:
 		return "", false
 	}
@@ -132,6 +169,7 @@ type AddressSpace interface {
 	WriteToAddress(address string, val any) error
 	ReadFromAddress(address string) (any, bool)
 	Analyze() error
+	Query(streaming.MapReader) (streaming.MapReader, error)
 	GetRequest() (*http.Request, bool)
 }
 
@@ -152,7 +190,18 @@ type standardNamespace struct {
 	response              *http.Response
 	unionSelectSchemas    map[string]anysdk.Schema
 	globalSelectSchemas   map[string]anysdk.Schema
+	explicitAliasMap      AliasMap
+	globalAliasMap        AliasMap
 	shadowQuery           RadixTree
+}
+
+func (ns *standardNamespace) Query(inputParams streaming.MapReader) (streaming.MapReader, error) {
+	rv := streaming.NewStandardMapStream()
+	err := ns.shadowQuery.Insert("server", ns.serverVars)
+	if err != nil {
+		return nil, err
+	}
+	return rv, nil
 }
 
 func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) (string, error) {
@@ -292,6 +341,112 @@ func (asa *standardAddressSpaceAnalyzer) GetAddressSpace() AddressSpace {
 	return asa.addressSpace
 }
 
+func (asa *standardAddressSpaceAnalyzer) expandParameterPaths() (map[string]string, error) {
+	parameters := asa.method.GetNonBodyParameters()
+	rv := make(map[string]string)
+	for k, v := range parameters {
+		location := v.GetLocation()
+		switch location {
+		case anysdk.LocationPath:
+			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardPathName, k)
+		case anysdk.LocationQuery:
+			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardQueryName, k)
+		case anysdk.LocationHeader:
+			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardHeadersName, k)
+		case anysdk.LocationCookie:
+			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardCookiesName, k)
+		case anysdk.LocationServer:
+			rv[k] = fmt.Sprintf("%s.%s", "server", k)
+		// case anysdk.LocationRequestBody:
+		// 	rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardBodyName, k)
+		default:
+			return nil, fmt.Errorf("unsupported parameter location: %s", location)
+		}
+	}
+	return rv, nil
+}
+
+func (asa *standardAddressSpaceAnalyzer) expandRequestBodyParameterPaths() (map[string]string, error) {
+	parameters, err := asa.method.GetRequestBodyAttributesNoRename()
+	if err != nil {
+		return nil, err
+	}
+	rv := make(map[string]string)
+	for k, v := range parameters {
+		location := v.GetLocation()
+		switch location {
+		case anysdk.LocationRequestBody:
+			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardBodyName, k)
+		default:
+			return nil, fmt.Errorf("unsupported parameter location: %s", location)
+		}
+	}
+	return rv, nil
+}
+
+func (asa *standardAddressSpaceAnalyzer) resolvePathsToSchemas(aliasToPathMap map[string]string) (map[string]anysdk.Schema, error) {
+	rv := make(map[string]anysdk.Schema)
+	for alias, path := range aliasToPathMap {
+		k, isResponseBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeResponseBody)
+		if isResponseBodyAttribute {
+			schema, schemaErr := asa.method.GetSchemaAtPath(k)
+			if schemaErr != nil {
+				return nil, fmt.Errorf("error getting schema at path %s: %v", k, schemaErr)
+			}
+			if schema == nil {
+				return nil, fmt.Errorf("no schema found at path %s", k)
+			}
+			rv[path] = schema
+			continue
+		}
+		reqKey, isRequestBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeRequestBody)
+		if isRequestBodyAttribute {
+			schema, schemaErr := asa.method.GetRequestBodySchema()
+			if schemaErr != nil || schema == nil {
+				return nil, fmt.Errorf("error getting request body schema for path %s: %v", k, schemaErr)
+			}
+			subSchema, schemaErr := schema.GetSchemaAtPath(reqKey, asa.method.GetRequestBodyMediaType())
+			if schemaErr != nil {
+				return nil, fmt.Errorf("error getting schema at path %s: %v", reqKey, schemaErr)
+			}
+			rv[path] = subSchema
+			continue
+		}
+		queryKey, isQueryAttribute := asa.grammar.ExtractSubPath(path, pathTypeURLQuery)
+		if isQueryAttribute {
+			schema := anysdk.NewStringSchema(
+				nil,
+				queryKey,
+				queryKey,
+			)
+			rv[path] = schema
+			continue
+		}
+		requestHeaderKey, isRequestHeaderAttribute := asa.grammar.ExtractSubPath(path, pathTypeRequestHeader)
+		if isRequestHeaderAttribute {
+			schema := anysdk.NewStringSchema(
+				nil,
+				requestHeaderKey,
+				requestHeaderKey,
+			)
+			rv[path] = schema
+			continue
+		}
+		urlPathKey, isURLPathAttribute := asa.grammar.ExtractSubPath(path, pathTypeURLPath)
+		if isURLPathAttribute {
+			schema := anysdk.NewStringSchema(
+				nil,
+				urlPathKey,
+				urlPathKey,
+			)
+			rv[path] = schema
+			continue
+		}
+		return nil, fmt.Errorf("only response body attributes are supported in union select keys, got '%s' for alias '%s'", path, alias)
+	}
+	return rv, nil
+}
+
 func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	serverVars := make(map[string]string)
 	servers, _ := asa.method.GetServers()
@@ -330,40 +485,40 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	if simpleSelectSchema == nil && !asa.method.IsNullary() {
 		return fmt.Errorf("no schema found at path %s", simpleSelectKey)
 	}
-	unionSelectSchemas := make(map[string]anysdk.Schema)
-	globalSelectSchemas := make(map[string]anysdk.Schema)
-	for alias, path := range asa.aliasedUnionSelectKeys {
-		k, isResponseBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeResponseBody)
-		if isResponseBodyAttribute {
-			schema, schemaErr := asa.method.GetSchemaAtPath(k)
-			if schemaErr != nil {
-				return fmt.Errorf("error getting schema at path %s: %v", k, schemaErr)
-			}
-			if schema == nil {
-				return fmt.Errorf("no schema found at path %s", k)
-			}
-			unionSelectSchemas[path] = schema
-			continue
-		}
-		reqKey, isRequestBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeRequestBody)
-		if isRequestBodyAttribute {
-			schema, schemaErr := asa.method.GetRequestBodySchema()
-			if schemaErr != nil || schema == nil {
-				return fmt.Errorf("error getting request body schema for path %s: %v", k, schemaErr)
-			}
-			subSchema, schemaErr := schema.GetSchemaAtPath(reqKey, asa.method.GetRequestBodyMediaType())
-			if schemaErr != nil {
-				return fmt.Errorf("error getting schema at path %s: %v", reqKey, schemaErr)
-			}
-			unionSelectSchemas[path] = subSchema
-			continue
-		}
-
-		return fmt.Errorf("only response body attributes are supported in union select keys, got '%s' for alias '%s'", path, alias)
+	isResponseBodyConsidered := false
+	isParametersConsidered := false
+	isServerVarsConsidered := false
+	isRequestBodyConsidered := false
+	unionSelectSchemas, unionSelectErr := asa.resolvePathsToSchemas(asa.aliasedUnionSelectKeys)
+	if unionSelectErr != nil {
+		return unionSelectErr
 	}
-	for k, v := range unionSelectSchemas {
-		globalSelectSchemas[k] = v
+	parameterPaths, paramterDerivationErr := asa.expandParameterPaths()
+	if paramterDerivationErr != nil {
+		return paramterDerivationErr
 	}
+	globalSelectSchemas, globalSelectSchemasErr := asa.resolvePathsToSchemas(parameterPaths)
+	if globalSelectSchemasErr != nil {
+		return globalSelectSchemasErr
+	}
+	var parametersDoublySelcted []string
+	for k := range parameterPaths {
+		_, isInExplicitSelect := asa.aliasedUnionSelectKeys[k]
+		if isInExplicitSelect {
+			parametersDoublySelcted = append(parametersDoublySelcted, k)
+		}
+	}
+	if len(parametersDoublySelcted) > 0 {
+		return fmt.Errorf("the following parameters were selected both explicitly and implicitly: %v", parametersDoublySelcted)
+	}
+	// // placeholder
+	if !isResponseBodyConsidered && !isRequestBodyConsidered && !isParametersConsidered && !isServerVarsConsidered {
+	}
+	// for k, v := range unionSelectSchemas {
+	// 	globalSelectSchemas[k] = v
+	// }
+	explicitAliasMap := newAliasMap(asa.aliasedUnionSelectKeys)
+	globalAliasMap := explicitAliasMap.Copy()
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
 		server:                firstServer,
@@ -377,6 +532,8 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		requestBodySchema:     requestBodySchema,
 		responseBodyMediaType: responseMediaType,
 		requestBodyMediaType:  requestBodyMediaType,
+		explicitAliasMap:      explicitAliasMap,
+		globalAliasMap:        globalAliasMap,
 		method:                asa.method,
 		shadowQuery:           NewRadixTree(),
 	}
@@ -581,8 +738,12 @@ func NewAliasMap(aliasToPrefixMap map[string]string) AliasMap {
 }
 
 func newAliasMap(aliasToPrefixMap map[string]string) AliasMap {
-	prefixToAliasMap := make(map[string]string, len(aliasToPrefixMap))
+	copyMap := make(map[string]string, len(aliasToPrefixMap))
 	for k, v := range aliasToPrefixMap {
+		copyMap[k] = v
+	}
+	prefixToAliasMap := make(map[string]string, len(copyMap))
+	for k, v := range copyMap {
 		prefixToAliasMap[v] = k
 	}
 	return &standardAliasMap{

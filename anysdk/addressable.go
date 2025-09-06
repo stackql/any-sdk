@@ -54,7 +54,7 @@ func newAddressableRequestBodyProperty(name string, s Schema, isRequired bool) A
 	return &namedSchema{
 		s:          s,
 		name:       name,
-		location:   "requestBody",
+		location:   LocationRequestBody,
 		isRequired: isRequired,
 	}
 }
@@ -63,7 +63,7 @@ func newAddressableServerVariable(name string, s Schema, isRequired bool) Addres
 	return &namedSchema{
 		s:          s,
 		name:       name,
-		location:   "server",
+		location:   LocationServer,
 		isRequired: isRequired,
 	}
 }
