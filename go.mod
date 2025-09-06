@@ -25,7 +25,7 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/stackql/go-suffix-map v0.0.1-alpha01
 	github.com/stackql/stackql-parser v0.0.15-alpha06
-	github.com/stackql/stackql-provider-registry v0.0.1-rc06
+	github.com/stackql/stackql-provider-registry v0.0.2-alpha01
 	github.com/stretchr/testify v1.10.0
 	github.com/xo/dburl v0.23.2
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
