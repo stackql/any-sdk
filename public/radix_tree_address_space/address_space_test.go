@@ -167,6 +167,12 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	if projectVal != "my-test-project" {
 		t.Fatalf("Address space analysis failed: expected 'my-test-project' from address '.project' but got '%v'", projectVal)
 	}
+	isResolved := addressSpace.ResolveSignature(map[string]any{
+		"project": "my-test-project",
+	})
+	if !isResolved {
+		t.Fatalf("Address space analysis failed: expected signature to be resolved")
+	}
 }
 
 func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {

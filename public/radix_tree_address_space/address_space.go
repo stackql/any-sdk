@@ -2,6 +2,7 @@ package radix_tree_address_space
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -171,6 +172,7 @@ type AddressSpace interface {
 	Analyze() error
 	Query(streaming.MapReader) (streaming.MapReader, error)
 	GetRequest() (*http.Request, bool)
+	ResolveSignature(params map[string]any) bool
 }
 
 type standardNamespace struct {
@@ -195,8 +197,35 @@ type standardNamespace struct {
 	shadowQuery           RadixTree
 }
 
+func awsContextHousekeeping(
+	ctx context.Context,
+	method anysdk.OperationStore,
+	parameters map[string]interface{},
+) context.Context {
+	svcName := method.GetServiceNameForProvider()
+	ctx = context.WithValue(ctx, "service", svcName) //nolint:revive,staticcheck // TODO: add custom context type
+	if region, ok := parameters["region"]; ok {
+		if regionStr, rOk := region.(string); rOk {
+			ctx = context.WithValue(ctx, "region", regionStr) //nolint:revive,staticcheck // TODO: add custom context type
+		}
+	}
+	return ctx
+}
+
 func (ns *standardNamespace) Query(inputParams streaming.MapReader) (streaming.MapReader, error) {
-	rv := streaming.NewStandardMapStream()
+	rv := streaming.NewStandardMapStreamCollection()
+	for {
+		row, err := inputParams.Read()
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+		//
+		if err == io.EOF {
+			break
+		}
+
+		rv.Write(row)
+	}
 	err := ns.shadowQuery.Insert("server", ns.serverVars)
 	if err != nil {
 		return nil, err
@@ -237,6 +266,33 @@ func (ns *standardNamespace) Analyze() error {
 	req.URL = matureURL
 	ns.request = req
 	return nil
+}
+
+func (ns *standardNamespace) ResolveSignature(params map[string]any) bool {
+	requiredNonBodyParams := ns.method.GetRequiredNonBodyParameters()
+	requiredBodyPrarms := make(map[string]anysdk.Addressable)
+	for k, v := range ns.requestBodyParams {
+		if v.IsRequired() {
+			requiredBodyPrarms[k] = v
+		}
+	}
+	for k, _ := range params {
+		_, hasKey := ns.globalAliasMap.Peek(k)
+		if !hasKey {
+			return false
+		}
+		_, isRequiredNonBodyParam := requiredNonBodyParams[k]
+		if isRequiredNonBodyParam {
+			delete(requiredNonBodyParams, k)
+			continue
+		}
+		_, isRequiredBodyParam := requiredBodyPrarms[k]
+		if isRequiredBodyParam {
+			delete(requiredBodyPrarms, k)
+			continue
+		}
+	}
+	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0
 }
 
 func (ns *standardNamespace) GetRequest() (*http.Request, bool) {
@@ -333,6 +389,8 @@ type standardAddressSpaceAnalyzer struct {
 	service                anysdk.Service
 	resource               anysdk.Resource
 	method                 anysdk.StandardOperationStore
+	requiredNonBodyParams  map[string]anysdk.Addressable
+	requiredBodyAttributes map[string]anysdk.Addressable
 	aliasedUnionSelectKeys map[string]string
 	addressSpace           AddressSpace
 }
@@ -501,12 +559,15 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	if globalSelectSchemasErr != nil {
 		return globalSelectSchemasErr
 	}
+	explicitAliasMap := newAliasMap(asa.aliasedUnionSelectKeys)
+	globalAliasMap := explicitAliasMap.Copy()
 	var parametersDoublySelcted []string
-	for k := range parameterPaths {
+	for k, v := range parameterPaths {
 		_, isInExplicitSelect := asa.aliasedUnionSelectKeys[k]
 		if isInExplicitSelect {
 			parametersDoublySelcted = append(parametersDoublySelcted, k)
 		}
+		globalAliasMap.Put(k, v)
 	}
 	if len(parametersDoublySelcted) > 0 {
 		return fmt.Errorf("the following parameters were selected both explicitly and implicitly: %v", parametersDoublySelcted)
@@ -517,8 +578,6 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	// for k, v := range unionSelectSchemas {
 	// 	globalSelectSchemas[k] = v
 	// }
-	explicitAliasMap := newAliasMap(asa.aliasedUnionSelectKeys)
-	globalAliasMap := explicitAliasMap.Copy()
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
 		server:                firstServer,
@@ -559,6 +618,8 @@ func NewAddressSpaceAnalyzer(
 		resource:               resource,
 		method:                 method,
 		aliasedUnionSelectKeys: aliasedUnionSelectKeys,
+		requiredNonBodyParams:  make(map[string]anysdk.Addressable),
+		requiredBodyAttributes: make(map[string]anysdk.Addressable),
 	}
 }
 
@@ -838,136 +899,6 @@ func replaceSimpleStringVars(template string, vars map[string]string) string {
 		}
 	}
 	return strings.NewReplacer(args...).Replace(template)
-}
-
-func (asa *standardAddressSpaceAnalyzer) parameterizeFromPartiallyAssignedInput(prov anysdk.Provider, parentDoc anysdk.Service, op anysdk.OperationStore, inputParams PartiallyAssignedInput) (*openapi3filter.RequestValidationInput, error) {
-
-	// aliasMap := newAliasMap()
-
-	params := op.GetOperationRef().Value.Parameters
-	pathParams := make(map[string]string)
-	q := make(url.Values)
-	prefilledHeader := make(http.Header)
-
-	explicitQueryParams := inputParams.GetQueryParams()
-	for _, p := range params {
-		if p.Value == nil {
-			continue
-		}
-		name := p.Value.Name
-
-		if p.Value.In == openapi3.ParameterInHeader {
-			val, present := inputParams.GetHeaderParam(p.Value.Name)
-			if present {
-				prefilledHeader.Set(name, fmt.Sprintf("%v", val))
-			} else if p.Value != nil && p.Value.Schema != nil && p.Value.Schema.Value != nil && p.Value.Schema.Value.Default != nil {
-				prefilledHeader.Set(name, fmt.Sprintf("%v", p.Value.Schema.Value.Default))
-			} else if isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required header '%s'", name)
-			}
-		}
-		if p.Value.In == openapi3.ParameterInPath {
-			val, present := inputParams.GetPathParam(p.Value.Name)
-			if present {
-				pathParams[name] = fmt.Sprintf("%v", val)
-			}
-			if !present && isOpenapi3ParamRequired(p.Value) {
-				return nil, fmt.Errorf("standardOpenAPIOperationStore.parameterize() failure; missing required path parameter '%s'", name)
-			}
-		} else if p.Value.In == openapi3.ParameterInQuery {
-
-			pVal, present := explicitQueryParams[p.Value.Name]
-			if present {
-				switch val := pVal.(type) {
-				case []interface{}:
-					for _, v := range val {
-						q.Add(name, fmt.Sprintf("%v", v))
-					}
-				default:
-					q.Set(name, fmt.Sprintf("%v", val))
-				}
-				delete(explicitQueryParams, name)
-			}
-		}
-	}
-	for k, v := range explicitQueryParams {
-		q.Set(k, fmt.Sprintf("%v", v))
-		delete(explicitQueryParams, k)
-	}
-	openapiSvc := op.GetService()
-	router, err := queryrouter.NewRouter(openapiSvc.GetT())
-	if err != nil {
-		return nil, err
-	}
-	servers, _ := op.GetServers()
-	serverParams := inputParams.GetServerVars()
-	if err != nil {
-		return nil, err
-	}
-	sv, err := selectServer(servers, serverParams)
-	if err != nil {
-		return nil, err
-	}
-	contentTypeHeaderRequired := false
-	var bodyReader io.Reader
-
-	requestBody := inputParams.GetRequestBody()
-
-	expectedRequest, hasExpectedRequest := op.GetRequest()
-
-	predOne := !util.IsNil(requestBody)
-	predTwo := hasExpectedRequest && !util.IsNil(expectedRequest)
-	if predOne && predTwo {
-		stdOp, isStdOp := op.(anysdk.StandardOperationStore)
-		if !isStdOp {
-			return nil, fmt.Errorf("expected standard operation store")
-		}
-		b, err := marshalBody(stdOp, requestBody, expectedRequest)
-		if err != nil {
-			return nil, err
-		}
-		bodyReader = bytes.NewReader(b)
-		contentTypeHeaderRequired = true
-	}
-	// TODO: clean up
-	sv = strings.TrimSuffix(sv, "/")
-	path := replaceSimpleStringVars(fmt.Sprintf("%s%s", sv, op.GetOperationRef().ExtractPathItem()), pathParams)
-	u, err := url.Parse(fmt.Sprintf("%s?%s", path, q.Encode()))
-	if strings.Contains(path, "?") {
-		if len(q) > 0 {
-			u, err = url.Parse(fmt.Sprintf("%s&%s", path, q.Encode()))
-		} else {
-			u, err = url.Parse(path)
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	httpReq, err := http.NewRequest(strings.ToUpper(op.GetOperationRef().ExtractMethodItem()), u.String(), bodyReader)
-	if err != nil {
-		return nil, err
-	}
-	if contentTypeHeaderRequired {
-		if prefilledHeader.Get("Content-Type") != "" {
-			prefilledHeader.Set("Content-Type", expectedRequest.GetBodyMediaType())
-		}
-	}
-	httpReq.Header = prefilledHeader
-	route, checkedPathParams, err := router.FindRoute(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	options := &openapi3filter.Options{
-		AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
-	}
-	// Validate request
-	requestValidationInput := &openapi3filter.RequestValidationInput{
-		Options:    options,
-		PathParams: checkedPathParams,
-		Request:    httpReq,
-		Route:      route,
-	}
-	return requestValidationInput, nil
 }
 
 func parameterizeFromAnalyzedInput(prov anysdk.Provider, parentDoc anysdk.Service, op anysdk.OperationStore, inputParams AnalyzedInput) (*openapi3filter.RequestValidationInput, error) {

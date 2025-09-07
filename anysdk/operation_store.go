@@ -106,6 +106,7 @@ type OperationStore interface {
 	IsRequestBodyAttributeRenamed(string) bool
 	GetRequiredNonBodyParameters() map[string]Addressable
 	ShouldBeSelectable() bool
+	GetServiceNameForProvider() string
 	getServiceNameForProvider() string
 }
 
@@ -196,6 +197,10 @@ func (op *standardOpenAPIOperationStore) getXMLDeclaration() string {
 		rv = defaultXMLDeclaration
 	}
 	return rv
+}
+
+func (op *standardOpenAPIOperationStore) GetServiceNameForProvider() string {
+	return op.getServiceNameForProvider()
 }
 
 func (op *standardOpenAPIOperationStore) getServiceNameForProvider() string {
