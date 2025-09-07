@@ -2,7 +2,6 @@ package radix_tree_address_space
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
-	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
 	"github.com/stackql/any-sdk/pkg/util"
 	"github.com/stackql/any-sdk/pkg/xmlmap"
@@ -170,7 +168,6 @@ type AddressSpace interface {
 	WriteToAddress(address string, val any) error
 	ReadFromAddress(address string) (any, bool)
 	Analyze() error
-	Query(streaming.MapReader) (streaming.MapReader, error)
 	GetRequest() (*http.Request, bool)
 	ResolveSignature(params map[string]any) bool
 }
@@ -179,6 +176,8 @@ type standardNamespace struct {
 	serverVars            map[string]string
 	requestBodyParams     map[string]anysdk.Addressable
 	server                *openapi3.Server
+	prov                  anysdk.Provider
+	svc                   anysdk.Service
 	method                anysdk.StandardOperationStore
 	simpleSelectKey       string
 	simpleSelectSchema    anysdk.Schema
@@ -195,42 +194,6 @@ type standardNamespace struct {
 	explicitAliasMap      AliasMap
 	globalAliasMap        AliasMap
 	shadowQuery           RadixTree
-}
-
-func awsContextHousekeeping(
-	ctx context.Context,
-	method anysdk.OperationStore,
-	parameters map[string]interface{},
-) context.Context {
-	svcName := method.GetServiceNameForProvider()
-	ctx = context.WithValue(ctx, "service", svcName) //nolint:revive,staticcheck // TODO: add custom context type
-	if region, ok := parameters["region"]; ok {
-		if regionStr, rOk := region.(string); rOk {
-			ctx = context.WithValue(ctx, "region", regionStr) //nolint:revive,staticcheck // TODO: add custom context type
-		}
-	}
-	return ctx
-}
-
-func (ns *standardNamespace) Query(inputParams streaming.MapReader) (streaming.MapReader, error) {
-	rv := streaming.NewStandardMapStreamCollection()
-	for {
-		row, err := inputParams.Read()
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-		//
-		if err == io.EOF {
-			break
-		}
-
-		rv.Write(row)
-	}
-	err := ns.shadowQuery.Insert("server", ns.serverVars)
-	if err != nil {
-		return nil, err
-	}
-	return rv, nil
 }
 
 func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) (string, error) {
@@ -593,6 +556,8 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 		requestBodyMediaType:  requestBodyMediaType,
 		explicitAliasMap:      explicitAliasMap,
 		globalAliasMap:        globalAliasMap,
+		prov:                  asa.provider,
+		svc:                   asa.service,
 		method:                asa.method,
 		shadowQuery:           NewRadixTree(),
 	}
