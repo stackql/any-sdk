@@ -529,13 +529,6 @@ func TestStaticHostRouting(t *testing.T) {
 }
 
 func TestXMLRequestBody(t *testing.T) {
-	// setupFileRoot(t)
-
-	// rdr, err := testutil.GetGoogleFoldersListResponseReader()
-
-	// assert.NilError(t, err)
-
-	// OpenapiFileRoot = "."
 
 	b, err := GetServiceDocBytes("./testdata/registry/src/aws/v0.1.0/services/route53.yaml", ".")
 	assert.NilError(t, err)
@@ -577,6 +570,53 @@ func TestXMLRequestBody(t *testing.T) {
 	}
 
 	expectedMatureBody := "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ChangeResourceRecordSetsRequest xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><ChangeBatch><Changes><Change><Action>CREATE</Action><ResourceRecordSet><Name>my.domain.com</Name><Type>A</Type><TTL>900</TTL><ResourceRecords><ResourceRecord><Value>10.10.10.10</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change></Changes></ChangeBatch></ChangeResourceRecordSetsRequest>"
+
+	if string(processed) != expectedMatureBody {
+		t.Fatalf("Test failed: request body mismatch: got '%s' but expected '%s'", string(processed), expectedMatureBody)
+	}
+
+}
+
+func TestJSONRequestBody(t *testing.T) {
+
+	b, err := GetServiceDocBytes("./testdata/registry/src/googleapis.com/v0.1.2/services/storage-v1.yaml", ".")
+	assert.NilError(t, err)
+
+	l := newLoader()
+
+	svc, err := l.loadFromBytes(b)
+
+	assert.NilError(t, err)
+	assert.Assert(t, svc != nil)
+
+	// assert.Equal(t, svc.GetName(), "ec2")
+
+	rsc, err := svc.GetResource("buckets")
+	assert.NilError(t, err)
+	assert.Assert(t, rsc != nil)
+
+	ops, _, ok := rsc.GetFirstMethodFromSQLVerb("insert")
+	assert.Assert(t, ok)
+	// assert.Assert(t, st != "")
+	assert.Assert(t, ops != nil)
+
+	expectedRequest, hasExpectedRequest := ops.GetRequest()
+
+	if !hasExpectedRequest {
+		t.Fatalf("Test failed: expected request not found")
+	}
+
+	requestBodyMap := map[string]interface{}{
+		"name": "my-test-bucket",
+	}
+
+	processed, err := ops.MarshalBody(requestBodyMap, expectedRequest)
+
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+
+	expectedMatureBody := `{"name":"my-test-bucket"}`
 
 	if string(processed) != expectedMatureBody {
 		t.Fatalf("Test failed: request body mismatch: got '%s' but expected '%s'", string(processed), expectedMatureBody)
