@@ -263,7 +263,7 @@ func (ns *standardNamespace) ResolveSignature(params map[string]any) bool {
 
 func (ns *standardNamespace) Expand(argList ...any) error {
 	if len(argList) < 2 {
-		return fmt.Errorf("insufficient arguments to invoke")
+		return fmt.Errorf("insufficient arguments to expand")
 	}
 	container := argList[0]
 	switch v := container.(type) {
@@ -353,6 +353,22 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 		copiedRequest, err := ns.copyRequest(httpReq)
 		if err != nil {
 			return err
+		}
+		for k, v := range copiedRequest.Header {
+			ns.WriteToAddress(fmt.Sprintf("request.headers.%s", k), v)
+		}
+		// handle body
+		reuestBodyMap := ns.shadowQuery.ToFlatMap("request.body")
+		if len(reuestBodyMap) > 0 {
+			expectedRequest, hasExpectedRequest := ns.method.GetRequest()
+			if !hasExpectedRequest {
+				return fmt.Errorf("no expected request found for method %s", ns.method.GetName())
+			}
+			bodyBytes, marshalErr := ns.method.MarshalBody(reuestBodyMap, expectedRequest)
+			if marshalErr != nil {
+				return marshalErr
+			}
+			httpReq.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 		ns.request = copiedRequest
 
@@ -756,6 +772,7 @@ func (rt *standardRadixTree) Copy() RadixTree {
 
 func (rt *standardRadixTree) ToFlatMap(prefix string) map[string]any {
 	result := make(map[string]any)
+	// find all nodes with keysd containing the prefix and return as a flat map, omitting the prefix
 	var traverse func(node *standardRadixTrieNode, currentPath string)
 	traverse = func(node *standardRadixTrieNode, currentPath string) {
 		if node.address != nil {
@@ -769,7 +786,19 @@ func (rt *standardRadixTree) ToFlatMap(prefix string) map[string]any {
 			traverse(child, newPath)
 		}
 	}
-	traverse(rt.root, prefix)
+	traverse(rt.root, "")
+	if prefix != "" {
+		prefixedResult := make(map[string]any)
+		for k, v := range result {
+			if strings.HasPrefix(k, prefix+".") {
+				newKey := strings.TrimPrefix(k, prefix+".")
+				prefixedResult[newKey] = v
+			} else if k == prefix {
+				prefixedResult[""] = v
+			}
+		}
+		return prefixedResult
+	}
 	return result
 }
 
