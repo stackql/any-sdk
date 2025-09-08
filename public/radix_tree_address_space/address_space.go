@@ -358,7 +358,12 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 			ns.WriteToAddress(fmt.Sprintf("request.headers.%s", k), v)
 		}
 		// handle body
-		reuestBodyMap := ns.shadowQuery.ToFlatMap("request.body")
+		reuestBodyMapVerbose := ns.shadowQuery.ToFlatMap("request.body")
+		reuestBodyMap := make(map[string]any)
+		for k, v := range reuestBodyMapVerbose {
+			trimmedKey := strings.TrimPrefix(k, "$.")
+			reuestBodyMap[trimmedKey] = v
+		}
 		if len(reuestBodyMap) > 0 {
 			expectedRequest, hasExpectedRequest := ns.method.GetRequest()
 			if !hasExpectedRequest {
@@ -394,7 +399,7 @@ func (ns *standardNamespace) ToMap() (map[string]any, error) {
 	rv := make(map[string]any)
 	aliasToPrefixMap := ns.globalAliasMap.GetAliasToPrefixMap()
 	for alias, path := range aliasToPrefixMap {
-		val, ok := ns.ReadFromAddress(path)
+		val, ok := ns.shadowQuery.Find(path)
 		if !ok {
 			// return nil, fmt.Errorf("failed to dereference path '%s' for alias '%s'", path, alias)
 		}
@@ -834,6 +839,33 @@ func (rt *standardRadixTree) Insert(path string, address any) error {
 	newChild := newStandardRadixTrieNode(address)
 	currentNode.children[path] = newChild
 	return nil
+}
+
+func longestCommonPrefix(strs []string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	if len(strs) == 1 {
+		return strs[0]
+	}
+
+	prefix := strs[0] // Start with the first string as the potential prefix
+
+	for i := 1; i < len(strs); i++ {
+		// While the current prefix is not a prefix of the current string, shorten it
+		for len(prefix) > 0 && !hasPrefix(strs[i], prefix) {
+			prefix = prefix[:len(prefix)-1] // Remove the last character
+		}
+		if len(prefix) == 0 { // If prefix becomes empty, no common prefix exists
+			return ""
+		}
+	}
+	return prefix
+}
+
+// Helper function to check if a string starts with a given prefix
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 func (rt *standardRadixTree) Find(path string) (any, bool) {

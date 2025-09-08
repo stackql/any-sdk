@@ -2,8 +2,10 @@ package radix_tree_address_space_test
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stackql/any-sdk/anysdk"
@@ -598,6 +600,60 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	}
 	if projectVal != "my-test-id" {
 		t.Fatalf("Address space analysis failed: expected 'my-test-id' from address '.requestId' but got '%v'", projectVal)
+	}
+	addressSpace.WriteToAddress("request.body.$.shortName", "my-short-name")
+	dummyReq := &http.Request{
+		Method: "POST",
+		URL: &url.URL{
+			Scheme: "https",
+			Host:   "www.googleapis.com",
+			Path:   "/compute/v1/firewallPolicies",
+		},
+		Header: http.Header{
+			"Content-Type":  []string{"application/json"},
+			"Accept":        []string{"application/json"},
+			"User-Agent":    []string{"stackql"},
+			"Host":          []string{"www.googleapis.com"},
+			"Authorization": []string{"Bearer ya.yb.c"},
+		},
+	}
+	dummyClient := &http.Client{
+		Transport: getDummyRoundTripper(
+			&http.Response{
+				StatusCode: 200,
+				Body: io.NopCloser(
+					strings.NewReader(`{
+						"kind": "compute#operation",
+						"id": "1234567890123456789",
+						"name": "operation-1234",
+						"operationType": "insert",
+						"status": "PENDING",
+						"targetLink": "https://www.googleapis.com/compute/v1/projects/my-test-project/global/firewallPolicies/1234567890123456789",
+						"selfLink": "https://www.googleapis.com/compute/v1/projects/my-test-project/global/operations/operation-1234",
+						"startTime": "2023-10-01T12:34:56.789-07:00",
+						"progress": 0,
+						"insertTime": "2023-10-01T12:34:56.789-07:00",
+						"region": "https://www.googleapis.com/compute/v1/projects/my-test-project/regions/us-central1",
+						"zone": "https://www.googleapis.com/compute/v1/projects/my-test-project/zones/us-central1-a"
+					  }`),
+				),
+			},
+			nil,
+		),
+	}
+	invocationErr := addressSpace.Invoke(dummyClient, dummyReq)
+	if invocationErr != nil {
+		t.Fatalf("Address space analysis failed: expected invocation to succeed: %v", invocationErr)
+	}
+	mappedNamsespace, mapErr := addressSpace.ToMap()
+	if mappedNamsespace["short_name"] != "my-short-name" {
+		t.Fatalf("Address space analysis failed: expected 'my-short-name' for 'short_name' but got '%v'", mappedNamsespace["short_name"])
+	}
+	if mapErr != nil {
+		t.Fatalf("Address space analysis failed: expected to map namespace: %v", mapErr)
+	}
+	if mappedNamsespace == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil mapped namespace")
 	}
 }
 
