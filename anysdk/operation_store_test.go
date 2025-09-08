@@ -40,7 +40,7 @@ func TestXPathHandle(t *testing.T) {
 		Body:       testutil.GetAwsEc2ListMultiResponseReader(),
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", "v0.1.0"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", "v0.1.0"), "")
 	if err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestTransformedXMLHTTPHandle(t *testing.T) {
 		Body:       testutil.GetAwsEc2ListMultiResponseReader(),
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", "v0.1.0"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", "v0.1.0"), "")
 	if err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestJSONPathHandle(t *testing.T) {
 		Body:       rdr,
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"), "")
 	assert.NilError(t, err)
 
 	l := newLoader()
@@ -186,7 +186,7 @@ func TestJSONPathHandleEnforcedResponseMediaType(t *testing.T) {
 		Body:       rdr,
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "expt"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "expt"), "")
 	assert.NilError(t, err)
 
 	l := newLoader()
@@ -225,7 +225,7 @@ func TestJSONPathHandleEnforcedResponseMediaType(t *testing.T) {
 func TestXMLSchemaInterrogation(t *testing.T) {
 	setupFileRoot(t)
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", "v0.1.0"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", "v0.1.0"), "")
 	if err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
@@ -271,7 +271,7 @@ func TestVariableHostRouting(t *testing.T) {
 		Body:       rdr,
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"), "")
 	assert.NilError(t, err)
 
 	l := newLoader()
@@ -336,7 +336,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 		Body:       rdr,
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.1"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.1"), "")
 	assert.NilError(t, err)
 
 	l := newLoader()
@@ -401,7 +401,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 		Body:       rdr,
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("contrivedprovider/%s/services/contrived_service.yaml", "v0.1.0"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("contrivedprovider/%s/services/contrived_service.yaml", "v0.1.0"), "")
 	assert.NilError(t, err)
 
 	l := newLoader()
@@ -475,7 +475,7 @@ func TestStaticHostRouting(t *testing.T) {
 		Body:       rdr,
 	}
 
-	b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/services/cloudresourcemanager-v3.yaml", "v0.1.2"))
+	b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/services/cloudresourcemanager-v3.yaml", "v0.1.2"), "")
 	assert.NilError(t, err)
 
 	l := newLoader()
@@ -525,5 +525,61 @@ func TestStaticHostRouting(t *testing.T) {
 	rvi, err := ops.parameterize(dummmyGoogleProv, svc, params, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, rvi != nil)
+
+}
+
+func TestXMLRequestBody(t *testing.T) {
+	// setupFileRoot(t)
+
+	// rdr, err := testutil.GetGoogleFoldersListResponseReader()
+
+	// assert.NilError(t, err)
+
+	// OpenapiFileRoot = "."
+
+	b, err := GetServiceDocBytes("./testdata/registry/src/aws/v0.1.0/services/route53.yaml", ".")
+	assert.NilError(t, err)
+
+	l := newLoader()
+
+	svc, err := l.loadFromBytes(b)
+
+	assert.NilError(t, err)
+	assert.Assert(t, svc != nil)
+
+	// assert.Equal(t, svc.GetName(), "ec2")
+
+	rsc, err := svc.GetResource("resource_record_sets")
+	assert.NilError(t, err)
+	assert.Assert(t, rsc != nil)
+
+	ops, _, ok := rsc.GetFirstMethodFromSQLVerb("insert")
+	assert.Assert(t, ok)
+	// assert.Assert(t, st != "")
+	assert.Assert(t, ops != nil)
+
+	expectedRequest, hasExpectedRequest := ops.GetRequest()
+
+	if !hasExpectedRequest {
+		t.Fatalf("Test failed: expected request not found")
+	}
+
+	sqlRequestString := `<Changes><Change><Action>CREATE</Action><ResourceRecordSet><Name>my.domain.com</Name><Type>A</Type><TTL>900</TTL><ResourceRecords><ResourceRecord><Value>10.10.10.10</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change></Changes>`
+
+	requestBodyMap := map[string]interface{}{
+		"ChangeBatch": sqlRequestString,
+	}
+
+	processed, err := ops.MarshalBody(requestBodyMap, expectedRequest)
+
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+
+	expectedMatureBody := "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ChangeResourceRecordSetsRequest xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><ChangeBatch><Changes><Change><Action>CREATE</Action><ResourceRecordSet><Name>my.domain.com</Name><Type>A</Type><TTL>900</TTL><ResourceRecords><ResourceRecord><Value>10.10.10.10</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change></Changes></ChangeBatch></ChangeResourceRecordSetsRequest>"
+
+	if string(processed) != expectedMatureBody {
+		t.Fatalf("Test failed: request body mismatch: got '%s' but expected '%s'", string(processed), expectedMatureBody)
+	}
 
 }

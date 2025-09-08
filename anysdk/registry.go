@@ -550,7 +550,7 @@ func (r *Registry) getUnVerifiedArchive(docPath string) (io.ReadCloser, error) {
 }
 
 func (r *Registry) getEmbeddedVerifiedDocResponse(docPath string) (*edcrypto.VerifierResponse, error) {
-	lf, err := getServiceDoc(docPath)
+	lf, err := getServiceDoc(docPath, "")
 	if err != nil {
 		return nil, err
 	}

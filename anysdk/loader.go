@@ -593,20 +593,23 @@ func LoadProviderDocFromFile(fileName string) (Provider, error) {
 	return loadProviderDocFromBytes(bytes)
 }
 
-func GetProviderDocBytes(prov string) ([]byte, error) {
-	fn, err := getProviderDoc(prov)
+func GetProviderDocBytes(prov string, fileRoot string) ([]byte, error) {
+	fn, err := getProviderDoc(prov, fileRoot)
 	if err != nil {
 		return nil, err
 	}
 	return os.ReadFile(fn)
 }
 
-func getServiceDoc(url string) (io.ReadCloser, error) {
-	return os.Open(path.Join(OpenapiFileRoot, url))
+func getServiceDoc(url string, fileRoot string) (io.ReadCloser, error) {
+	if fileRoot == "" {
+		fileRoot = OpenapiFileRoot
+	}
+	return os.Open(path.Join(fileRoot, url))
 }
 
-func getServiceDocBytes(url string) ([]byte, error) {
-	f, err := getServiceDoc(url)
+func getServiceDocBytes(url string, fileRoot string) ([]byte, error) {
+	f, err := getServiceDoc(url, fileRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -620,16 +623,16 @@ func ReadService(b []byte) (Service, error) {
 	return svc, err
 }
 
-func GetResourcesRegisterDocBytes(url string) ([]byte, error) {
-	return getServiceDocBytes(url)
+func GetResourcesRegisterDocBytes(url string, fileRoot string) ([]byte, error) {
+	return getServiceDocBytes(url, fileRoot)
 }
 
-func GetServiceDocBytes(url string) ([]byte, error) {
-	return getServiceDocBytes(url)
+func GetServiceDocBytes(url string, fileRoot string) ([]byte, error) {
+	return getServiceDocBytes(url, fileRoot)
 }
 
-func LoadProviderByName(prov, version string) (Provider, error) {
-	b, err := GetProviderDocBytes(path.Join(prov, version))
+func LoadProviderByName(prov, version string, fileRoot string) (Provider, error) {
+	b, err := GetProviderDocBytes(path.Join(prov, version), fileRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -655,12 +658,15 @@ func findLatestDoc(serviceDir string) (string, error) {
 	return path.Join(serviceDir, fileNames[fileCount-1]), nil
 }
 
-func getProviderDoc(provider string) (string, error) {
+func getProviderDoc(provider string, fileRoot string) (string, error) {
+	if fileRoot == "" {
+		fileRoot = OpenapiFileRoot
+	}
 	switch provider {
 	case "google":
-		return findLatestDoc(path.Join(OpenapiFileRoot, "googleapis.com"))
+		return findLatestDoc(path.Join(fileRoot, "googleapis.com"))
 	}
-	return findLatestDoc(path.Join(OpenapiFileRoot, provider))
+	return findLatestDoc(path.Join(fileRoot, provider))
 }
 
 func loadOpenapiServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {

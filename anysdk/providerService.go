@@ -179,7 +179,7 @@ func (sv *standardProviderService) ConditionIsValid(lhs string, rhs interface{})
 }
 
 func extractService(ps ProviderService) (Service, error) {
-	b, err := getServiceDocBytes(ps.getServiceRefRef())
+	b, err := getServiceDocBytes(ps.getServiceRefRef(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func extractService(ps ProviderService) (Service, error) {
 }
 
 func getResourcesShallow(ps ProviderService) (ResourceRegister, error) {
-	b, err := getServiceDocBytes(ps.getResourcesRefRef())
+	b, err := getServiceDocBytes(ps.getResourcesRefRef(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +324,7 @@ func (ps *standardProviderService) GetServiceFragment(resourceKey string) (Servi
 	if sdRef.Value != nil {
 		return sdRef.Value, nil
 	}
-	sb, err := getServiceDocBytes(sdRef.Ref)
+	sb, err := getServiceDocBytes(sdRef.Ref, "")
 	if err != nil {
 		return nil, err
 	}
