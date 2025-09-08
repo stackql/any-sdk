@@ -2,6 +2,8 @@ package radix_tree_address_space_test
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stackql/any-sdk/anysdk"
@@ -22,6 +24,22 @@ func getNewTestDataMockRegistry(relativePath string) (anysdk.RegistryAPI, error)
 			},
 		},
 		nil)
+}
+
+type dummyRoundTripper struct {
+	resp *http.Response
+	err  error
+}
+
+func (drt *dummyRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return drt.resp, drt.err
+}
+
+func getDummyRoundTripper(resp *http.Response, err error) http.RoundTripper {
+	return &dummyRoundTripper{
+		resp: resp,
+		err:  err,
+	}
 }
 
 func TestNewAddressSpace(t *testing.T) {
@@ -172,6 +190,42 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	})
 	if !isResolved {
 		t.Fatalf("Address space analysis failed: expected signature to be resolved")
+	}
+	dummyReq := &http.Request{
+		Method: "GET",
+		URL: &url.URL{
+			Scheme:   "https",
+			Host:     "www.googleapis.com",
+			Path:     "/compute/v1/projects/my-test-project/global/images",
+			RawQuery: "filter=name+eq+my-test-image",
+		},
+		Header: http.Header{
+			"Content-Type":  []string{"application/json"},
+			"Accept":        []string{"application/json"},
+			"User-Agent":    []string{"stackql"},
+			"Host":          []string{"www.googleapis.com"},
+			"Authorization": []string{"Bearer ya.yb.c"},
+		},
+	}
+	dummyClient := &http.Client{
+		Transport: getDummyRoundTripper(
+			&http.Response{
+				StatusCode: 200,
+				Body:       http.NoBody,
+			},
+			nil,
+		),
+	}
+	invocationErr := addressSpace.Invoke(dummyClient, dummyReq)
+	if invocationErr != nil {
+		t.Fatalf("Address space analysis failed: expected invocation to succeed: %v", invocationErr)
+	}
+	mappedNamsespace, mapErr := addressSpace.ToMap()
+	if mapErr != nil {
+		t.Fatalf("Address space analysis failed: expected to map namespace: %v", mapErr)
+	}
+	if mappedNamsespace == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil mapped namespace")
 	}
 }
 

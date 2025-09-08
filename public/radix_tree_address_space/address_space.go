@@ -170,6 +170,9 @@ type AddressSpace interface {
 	Analyze() error
 	GetRequest() (*http.Request, bool)
 	ResolveSignature(params map[string]any) bool
+	Expand(...any) error
+	Invoke(...any) error
+	ToMap() (map[string]any, error)
 }
 
 type standardNamespace struct {
@@ -256,6 +259,132 @@ func (ns *standardNamespace) ResolveSignature(params map[string]any) bool {
 		}
 	}
 	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0
+}
+
+func (ns *standardNamespace) Expand(argList ...any) error {
+	if len(argList) < 2 {
+		return fmt.Errorf("insufficient arguments to invoke")
+	}
+	container := argList[0]
+	switch v := container.(type) {
+	case *http.Client:
+		req := argList[1]
+		httpReq, ok := req.(*http.Request)
+		if !ok {
+			return fmt.Errorf("expected *http.Request, got %T", req)
+		}
+		ns.request = httpReq
+
+		resp, respErr := v.Do(httpReq)
+		if respErr != nil {
+			return respErr
+		}
+		if resp == nil {
+			return fmt.Errorf("nil response from http client")
+		}
+	default:
+		return fmt.Errorf("expected *http.Client, got %T", v)
+	}
+	return nil
+}
+
+func (ns *standardNamespace) copyResponse(resp *http.Response) (*http.Response, error) {
+	if resp == nil {
+		return nil, fmt.Errorf("nil response")
+	}
+	var bodyBytes []byte
+	var responseBodyCopy io.ReadCloser
+	clonedResponse := new(http.Response)
+	*clonedResponse = *resp
+	if resp.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		responseBodyBytesCopy := make([]byte, len(bodyBytes))
+		copy(responseBodyBytesCopy, bodyBytes)
+		responseBodyCopy = io.NopCloser(bytes.NewBuffer(responseBodyBytesCopy))
+	}
+	clonedResponse.Body = responseBodyCopy
+	copiedHeaders := make(http.Header)
+	for k, v := range resp.Header {
+		copiedHeaders[k] = v
+	}
+	clonedResponse.Header = copiedHeaders
+	return clonedResponse, nil
+}
+
+func (ns *standardNamespace) copyRequest(req *http.Request) (*http.Request, error) {
+	if req == nil {
+		return nil, fmt.Errorf("nil request")
+	}
+	var bodyBytes []byte
+	var requestBodyCopy io.ReadCloser
+	if req.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		requestBodyBytesCopy := make([]byte, len(bodyBytes))
+		copy(requestBodyBytesCopy, bodyBytes)
+		requestBodyCopy = io.NopCloser(bytes.NewBuffer(requestBodyBytesCopy))
+	}
+	newReq := req.Clone(req.Context())
+	if bodyBytes != nil {
+		newReq.Body = requestBodyCopy
+	}
+	return newReq, nil
+}
+
+func (ns *standardNamespace) Invoke(argList ...any) error {
+	if len(argList) < 2 {
+		return fmt.Errorf("insufficient arguments to invoke")
+	}
+	container := argList[0]
+	switch v := container.(type) {
+	case *http.Client:
+		req := argList[1]
+		httpReq, ok := req.(*http.Request)
+		if !ok {
+			return fmt.Errorf("expected *http.Request, got %T", req)
+		}
+		copiedRequest, err := ns.copyRequest(httpReq)
+		if err != nil {
+			return err
+		}
+		ns.request = copiedRequest
+
+		resp, respErr := v.Do(httpReq)
+		if respErr != nil {
+			return respErr
+		}
+		copiedResponse, copyResponseErr := ns.copyResponse(resp)
+		if copyResponseErr != nil {
+			return copyResponseErr
+		}
+		ns.response = copiedResponse
+		if resp == nil {
+			return fmt.Errorf("nil response from http client")
+		}
+	default:
+		return fmt.Errorf("expected *http.Client, got %T", v)
+	}
+	return nil
+}
+
+func (ns *standardNamespace) ToMap() (map[string]any, error) {
+	rv := make(map[string]any)
+	aliasToPrefixMap := ns.globalAliasMap.GetAliasToPrefixMap()
+	for alias, path := range aliasToPrefixMap {
+		val, ok := ns.ReadFromAddress(path)
+		if !ok {
+			// return nil, fmt.Errorf("failed to dereference path '%s' for alias '%s'", path, alias)
+		}
+		rv[alias] = val
+	}
+	return rv, nil
 }
 
 func (ns *standardNamespace) GetRequest() (*http.Request, bool) {
@@ -747,11 +876,17 @@ func newStandardRadixTrieNode(rhs any) *standardRadixTrieNode {
 	}
 }
 
+// type AliasMapIterator interface {
+// 	HasNext() bool
+// 	Next() (string, string)
+// }
+
 type AliasMap interface {
 	Put(string, string)
 	Peek(string) (string, bool)
 	Pop(string) (string, bool)
 	Copy() AliasMap
+	GetAliasToPrefixMap() map[string]string
 }
 
 type standardAliasMap struct {
@@ -776,6 +911,10 @@ func newAliasMap(aliasToPrefixMap map[string]string) AliasMap {
 		aliasToPrefixMap: aliasToPrefixMap,
 		prefixToAliasMap: prefixToAliasMap,
 	}
+}
+
+func (am *standardAliasMap) GetAliasToPrefixMap() map[string]string {
+	return am.aliasToPrefixMap
 }
 
 func (am *standardAliasMap) Copy() AliasMap {
