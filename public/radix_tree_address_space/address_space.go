@@ -130,29 +130,38 @@ func (sg *standardAddressSpaceGrammar) ExtractSubPath(fullPath string, pathType 
 	}
 }
 
-// type standardAddressSpaceAnalyzerFactory struct {
-// 	provider anysdk.Provider
-// 	service  anysdk.Service
-// 	resource anysdk.Resource
-// 	method   anysdk.StandardOperationStore
-// }
-
-// func (asf *standardAddressSpaceAnalyzerFactory) CreateAddressSpaceAnalyzer() AddressSpaceAnalyzer {
-// 	return NewAddressSpaceAnalyzer(
-// 		NewAddressSpaceGrammar(),
-// 		asf.method,
-// 	)
-// }
-
-//	func (asg *standardAddressSpaceGrammar) Dereference(address string) (any, bool) {
-//		return nil, false
-//	}
 func NewAddressSpaceGrammar() AddressSpaceGrammar {
 	return newStandardAddressSpaceGrammar()
 }
 
-type AddressSpaceAnalyzer interface {
-	Analyze() error
+type AddressSpaceAnalysisPassManager interface {
+	ApplyPasses(AddressSpace) error
+	GetAddressSpace() (AddressSpace, bool)
+}
+
+func NewAddressSpaceAnalysisPassManager() AddressSpaceAnalysisPassManager {
+	return &standardAddressSpaceAnalysisPassManager{}
+}
+
+type standardAddressSpaceAnalysisPassManager struct {
+	addressSpace AddressSpace
+}
+
+func (pm *standardAddressSpaceAnalysisPassManager) ApplyPasses(as AddressSpace) error {
+	rv := as.Analyze()
+	if rv != nil {
+		return rv
+	}
+	pm.addressSpace = as
+	return nil
+}
+
+func (pm *standardAddressSpaceAnalysisPassManager) GetAddressSpace() (AddressSpace, bool) {
+	return pm.addressSpace, pm.addressSpace != nil
+}
+
+type AddressSpaceFormulator interface {
+	Formulate() error
 	GetAddressSpace() AddressSpace
 }
 
@@ -165,8 +174,8 @@ type AddressSpace interface {
 	ReadFromAddress(address string) (any, bool)
 	Analyze() error
 	GetRequest() (*http.Request, bool)
-	ResolveSignature(params map[string]any) bool
-	Expand(...any) error
+	ResolveSignature(map[string]any) bool
+	Expand(map[string]any) bool
 	Invoke(...any) error
 	ToMap() (map[string]any, error)
 }
@@ -256,31 +265,36 @@ func (ns *standardNamespace) ResolveSignature(params map[string]any) bool {
 	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0
 }
 
-func (ns *standardNamespace) Expand(argList ...any) error {
-	if len(argList) < 2 {
-		return fmt.Errorf("insufficient arguments to expand")
+func (ns *standardNamespace) Expand(params map[string]any) bool {
+	requiredNonBodyParams := ns.method.GetRequiredNonBodyParameters()
+	requiredBodyPrarms := make(map[string]anysdk.Addressable)
+	for k, v := range ns.requestBodyParams {
+		if v.IsRequired() {
+			requiredBodyPrarms[k] = v
+		}
 	}
-	container := argList[0]
-	switch v := container.(type) {
-	case *http.Client:
-		req := argList[1]
-		httpReq, ok := req.(*http.Request)
-		if !ok {
-			return fmt.Errorf("expected *http.Request, got %T", req)
+	// populate the shadow query
+	for k, v := range params {
+		path, hasPath := ns.globalAliasMap.Peek(k)
+		if !hasPath {
+			return false
 		}
-		ns.request = httpReq
-
-		resp, respErr := v.Do(httpReq)
-		if respErr != nil {
-			return respErr
+		err := ns.shadowQuery.Insert(path, v)
+		if err != nil {
+			return false
 		}
-		if resp == nil {
-			return fmt.Errorf("nil response from http client")
+		_, isRequiredNonBodyParam := requiredNonBodyParams[k]
+		if isRequiredNonBodyParam {
+			delete(requiredNonBodyParams, k)
+			continue
 		}
-	default:
-		return fmt.Errorf("expected *http.Client, got %T", v)
+		_, isRequiredBodyParam := requiredBodyPrarms[k]
+		if isRequiredBodyParam {
+			delete(requiredBodyPrarms, k)
+			continue
+		}
 	}
-	return nil
+	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0
 }
 
 func (ns *standardNamespace) copyResponse(resp *http.Response) (*http.Response, error) {
@@ -483,7 +497,7 @@ func (ns *standardNamespace) GetGlobalSelectSchemas() map[string]anysdk.Schema {
 	return ns.globalSelectSchemas
 }
 
-type standardAddressSpaceAnalyzer struct {
+type standardAddressSpaceFormulator struct {
 	grammar                AddressSpaceGrammar
 	provider               anysdk.Provider
 	service                anysdk.Service
@@ -495,11 +509,11 @@ type standardAddressSpaceAnalyzer struct {
 	addressSpace           AddressSpace
 }
 
-func (asa *standardAddressSpaceAnalyzer) GetAddressSpace() AddressSpace {
+func (asa *standardAddressSpaceFormulator) GetAddressSpace() AddressSpace {
 	return asa.addressSpace
 }
 
-func (asa *standardAddressSpaceAnalyzer) expandParameterPaths() (map[string]string, error) {
+func (asa *standardAddressSpaceFormulator) expandParameterPaths() (map[string]string, error) {
 	parameters := asa.method.GetNonBodyParameters()
 	rv := make(map[string]string)
 	for k, v := range parameters {
@@ -524,25 +538,7 @@ func (asa *standardAddressSpaceAnalyzer) expandParameterPaths() (map[string]stri
 	return rv, nil
 }
 
-func (asa *standardAddressSpaceAnalyzer) expandRequestBodyParameterPaths() (map[string]string, error) {
-	parameters, err := asa.method.GetRequestBodyAttributesNoRename()
-	if err != nil {
-		return nil, err
-	}
-	rv := make(map[string]string)
-	for k, v := range parameters {
-		location := v.GetLocation()
-		switch location {
-		case anysdk.LocationRequestBody:
-			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardBodyName, k)
-		default:
-			return nil, fmt.Errorf("unsupported parameter location: %s", location)
-		}
-	}
-	return rv, nil
-}
-
-func (asa *standardAddressSpaceAnalyzer) resolvePathsToSchemas(aliasToPathMap map[string]string) (map[string]anysdk.Schema, error) {
+func (asa *standardAddressSpaceFormulator) resolvePathsToSchemas(aliasToPathMap map[string]string) (map[string]anysdk.Schema, error) {
 	rv := make(map[string]anysdk.Schema)
 	for alias, path := range aliasToPathMap {
 		k, isResponseBodyAttribute := asa.grammar.ExtractSubPath(path, pathTypeResponseBody)
@@ -605,7 +601,7 @@ func (asa *standardAddressSpaceAnalyzer) resolvePathsToSchemas(aliasToPathMap ma
 	return rv, nil
 }
 
-func (asa *standardAddressSpaceAnalyzer) Analyze() error {
+func (asa *standardAddressSpaceFormulator) Formulate() error {
 	serverVars := make(map[string]string)
 	servers, _ := asa.method.GetServers()
 	svcServers, _ := asa.service.GetServers()
@@ -705,15 +701,15 @@ func (asa *standardAddressSpaceAnalyzer) Analyze() error {
 	return nil
 }
 
-func NewAddressSpaceAnalyzer(
+func NewAddressSpaceFormulator(
 	grammar AddressSpaceGrammar,
 	provider anysdk.Provider,
 	service anysdk.Service,
 	resource anysdk.Resource,
 	method anysdk.StandardOperationStore,
 	aliasedUnionSelectKeys map[string]string,
-) AddressSpaceAnalyzer {
-	return &standardAddressSpaceAnalyzer{
+) AddressSpaceFormulator {
+	return &standardAddressSpaceFormulator{
 		grammar:                grammar,
 		provider:               provider,
 		service:                service,
@@ -924,11 +920,6 @@ func newStandardRadixTrieNode(rhs any) *standardRadixTrieNode {
 	}
 }
 
-// type AliasMapIterator interface {
-// 	HasNext() bool
-// 	Next() (string, string)
-// }
-
 type AliasMap interface {
 	Put(string, string)
 	Peek(string) (string, bool)
@@ -1006,14 +997,77 @@ type AnalyzedInput interface {
 	GetRequestBody() any
 }
 
-type PartiallyAssignedInput interface {
-	GetQueryParams() map[string]any
-	GetHeaderParam(string) (string, bool)
-	GetPathParam(string) (string, bool)
-	GetServerVars() map[string]any
-	GetRequestBody() any
-	GetUnassignedParams() map[string]any
-	GetUnassignedParam(string) (any, bool)
+type namespaceAnalyzedInput struct {
+	namespace AddressSpace
+}
+
+func (nai *namespaceAnalyzedInput) GetQueryParams() map[string]any {
+	val, ok := nai.namespace.ReadFromAddress("request.query")
+	if !ok {
+		return make(map[string]any)
+	}
+	q, ok := val.(map[string]any)
+	if !ok {
+		return make(map[string]any)
+	}
+	return q
+}
+
+func (nai *namespaceAnalyzedInput) GetHeaderParam(name string) (string, bool) {
+	val, ok := nai.namespace.ReadFromAddress(fmt.Sprintf("request.headers.%s", name))
+	if !ok {
+		return "", false
+	}
+	switch v := val.(type) {
+	case string:
+		return v, true
+	case []string:
+		if len(v) > 0 {
+			return v[0], true
+		}
+		return "", false
+	default:
+		return fmt.Sprintf("%v", v), true
+	}
+}
+
+func (nai *namespaceAnalyzedInput) GetPathParam(name string) (string, bool) {
+	val, ok := nai.namespace.ReadFromAddress(fmt.Sprintf("request.path.%s", name))
+	if !ok {
+		return "", false
+	}
+	switch v := val.(type) {
+	case string:
+		return v, true
+	default:
+		return fmt.Sprintf("%v", v), true
+	}
+}
+
+func (nai *namespaceAnalyzedInput) GetServerVars() map[string]any {
+	val, ok := nai.namespace.ReadFromAddress("server")
+	if !ok {
+		return make(map[string]any)
+	}
+	sv, ok := val.(map[string]any)
+	if !ok {
+		return make(map[string]any)
+	}
+	return sv
+}
+
+func (nai *namespaceAnalyzedInput) GetRequestBody() any {
+	val, ok := nai.namespace.ReadFromAddress("request.body")
+	if !ok {
+		return nil
+	}
+	return val
+}
+
+func newNamespaceAnalyzedInput(ns AddressSpace) AnalyzedInput {
+	return &namespaceAnalyzedInput{
+		namespace: ns,
+	}
 }
 
 func isOpenapi3ParamRequired(param *openapi3.Parameter) bool {

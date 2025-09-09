@@ -45,7 +45,7 @@ func getDummyRoundTripper(resp *http.Response, err error) http.RoundTripper {
 }
 
 func TestNewAddressSpace(t *testing.T) {
-	addressSpace := radix_tree_address_space.NewAddressSpaceAnalyzer(
+	addressSpace := radix_tree_address_space.NewAddressSpaceFormulator(
 		radix_tree_address_space.NewAddressSpaceGrammar(),
 		nil,
 		nil,
@@ -123,7 +123,7 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 		t.Fatalf("Static analysis failed: expected 'select' method to exist on 'images' resource")
 	}
 
-	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceAnalyzer(
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
 		radix_tree_address_space.NewAddressSpaceGrammar(),
 		prov,
 		svc,
@@ -133,7 +133,7 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 			"amalgam": "response.body.$.items",
 		},
 	)
-	err = addressSpaceAnalyzer.Analyze()
+	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
 		t.Fatalf("Address space analysis failed: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 		t.Fatalf("Static analysis failed: expected 'select' method to exist on 'instanceGroups' resource")
 	}
 
-	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceAnalyzer(
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
 		radix_tree_address_space.NewAddressSpaceGrammar(),
 		prov,
 		svc,
@@ -296,7 +296,7 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
 	)
-	err = addressSpaceAnalyzer.Analyze()
+	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
 		t.Fatalf("Address space analysis failed: %v", err)
 	}
@@ -389,7 +389,7 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 		t.Fatalf("Static analysis failed: expected provider to exist on 'images' resource")
 	}
 
-	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceAnalyzer(
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
 		radix_tree_address_space.NewAddressSpaceGrammar(),
 		prov,
 		svc,
@@ -400,7 +400,7 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
 	)
-	err = addressSpaceAnalyzer.Analyze()
+	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
 		t.Fatalf("Address space analysis failed: %v", err)
 	}
@@ -497,7 +497,7 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 		t.Fatalf("Static analysis failed: expected provider to exist on '%s' resource", resourceName)
 	}
 
-	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceAnalyzer(
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
 		radix_tree_address_space.NewAddressSpaceGrammar(),
 		prov,
 		svc,
@@ -510,7 +510,7 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"operation_start_time": "response.body.$.startTime",
 		},
 	)
-	err = addressSpaceAnalyzer.Analyze()
+	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
 		t.Fatalf("Address space analysis failed: %v", err)
 	}
@@ -674,7 +674,7 @@ func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 	// 	t.Fatalf("Static analysis failed: expected non-nil 'images' resource to exist")
 	// }
 
-	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceAnalyzer(
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
 		radix_tree_address_space.NewAddressSpaceGrammar(),
 		prov,
 		svc,
@@ -685,7 +685,7 @@ func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 			"vol":     "response.body./*/volumeSet/item",
 		},
 	)
-	err = addressSpaceAnalyzer.Analyze()
+	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
 		t.Fatalf("Address space analysis failed: %v", err)
 	}
