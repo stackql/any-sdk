@@ -360,9 +360,17 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 		// handle body
 		reuestBodyMapVerbose := ns.shadowQuery.ToFlatMap("request.body")
 		reuestBodyMap := make(map[string]any)
+		requestContentType := ns.method.GetRequestBodyMediaTypeNormalised()
 		for k, v := range reuestBodyMapVerbose {
-			trimmedKey := strings.TrimPrefix(k, "$.")
-			reuestBodyMap[trimmedKey] = v
+			if requestContentType == media.MediaTypeJson || requestContentType == "" {
+				trimmedKey := strings.TrimPrefix(k, "$.")
+				reuestBodyMap[trimmedKey] = v
+			} else if requestContentType == media.MediaTypeXML {
+				trimmedKey := strings.TrimPrefix(k, "/")
+				reuestBodyMap[trimmedKey] = v
+			} else {
+				return fmt.Errorf("unsupported request content type: %s", requestContentType)
+			}
 		}
 		if len(reuestBodyMap) > 0 {
 			expectedRequest, hasExpectedRequest := ns.method.GetRequest()

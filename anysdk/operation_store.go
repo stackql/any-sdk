@@ -144,6 +144,7 @@ type StandardOperationStore interface {
 	getRequestBodyStringifiedPaths() (map[string]struct{}, error)
 	GetRequestBodyMediaType() string
 	getRequestBodyMediaType() string
+	GetRequestBodyMediaTypeNormalised() string
 	getRequestBodyMediaTypeNormalised() string
 	GetXMLDeclaration() string
 	getXMLDeclaration() string
@@ -272,6 +273,10 @@ func (op *standardOpenAPIOperationStore) getRequestBodyMediaType() string {
 		return op.Request.BodyMediaType
 	}
 	return ""
+}
+
+func (op *standardOpenAPIOperationStore) GetRequestBodyMediaTypeNormalised() string {
+	return op.getRequestBodyMediaTypeNormalised()
 }
 
 func (op *standardOpenAPIOperationStore) getRequestBodyMediaTypeNormalised() string {
