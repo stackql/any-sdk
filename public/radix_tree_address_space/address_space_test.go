@@ -141,17 +141,6 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	if addressSpace == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil address space")
 	}
-	simpleSelectSchema := addressSpace.GetSimpleSelectSchema()
-	if simpleSelectSchema == nil {
-		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
-	}
-	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
-	if len(unionSelectSchemas) != 1 {
-		t.Fatalf("Address space analysis failed: expected 2 union select schemas but got %d", len(unionSelectSchemas))
-	}
-	for k, v := range unionSelectSchemas {
-		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
-	}
 	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
 	if !requestBodyOk {
 		t.Fatalf("Address space analysis failed: expected to dereference 'request.body'")
@@ -315,17 +304,6 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	if addressSpace == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil address space")
 	}
-	simpleSelectSchema := addressSpace.GetSimpleSelectSchema()
-	if simpleSelectSchema == nil {
-		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
-	}
-	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
-	if len(unionSelectSchemas) != 2 {
-		t.Fatalf("Address space analysis failed: expected 2 union select schemas but got %d", len(unionSelectSchemas))
-	}
-	for k, v := range unionSelectSchemas {
-		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
-	}
 	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
 	if !requestBodyOk {
 		t.Fatalf("Address space analysis failed: expected to dereference 'request.body'")
@@ -429,17 +407,6 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	addressSpace := addressSpaceAnalyzer.GetAddressSpace()
 	if addressSpace == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil address space")
-	}
-	simpleSelectSchema := addressSpace.GetSimpleSelectSchema()
-	if simpleSelectSchema == nil {
-		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
-	}
-	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
-	if len(unionSelectSchemas) != 2 {
-		t.Fatalf("Address space analysis failed: expected 2 union select schemas but got %d", len(unionSelectSchemas))
-	}
-	for k, v := range unionSelectSchemas {
-		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
 	}
 	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
 	if !requestBodyOk {
@@ -551,20 +518,9 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	if addressSpace == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil address space")
 	}
-	simpleSelectSchema := addressSpace.GetSimpleSelectSchema()
-	if simpleSelectSchema == nil {
-		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
-	}
-	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
-	if len(unionSelectSchemas) != expectedUnionProjectionCount {
-		t.Fatalf("Address space analysis failed: expected %d union select schemas but got %d", expectedUnionProjectionCount, len(unionSelectSchemas))
-	}
 	globalSelectSchemas := addressSpace.GetGlobalSelectSchemas()
 	if len(globalSelectSchemas) < expectedUnionProjectionCount {
-		t.Fatalf("Address space analysis failed: expected >= %d union select schemas but got %d", expectedUnionProjectionCount, len(unionSelectSchemas))
-	}
-	for k, v := range unionSelectSchemas {
-		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
+		t.Fatalf("Address space analysis failed: expected >= %d union select schemas but got %d", expectedUnionProjectionCount, len(globalSelectSchemas))
 	}
 	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
 	if !requestBodyOk {
@@ -736,16 +692,5 @@ func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 	addressSpace := addressSpaceAnalyzer.GetAddressSpace()
 	if addressSpace == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil address space")
-	}
-	simpleSelectSchema := addressSpace.GetSimpleSelectSchema()
-	if simpleSelectSchema == nil {
-		t.Fatalf("Address space analysis failed: expected non-nil simple select schema")
-	}
-	unionSelectSchemas := addressSpace.GetUnionSelectSchemas()
-	if len(unionSelectSchemas) != 2 {
-		t.Fatalf("Address space analysis failed: expected 2 union select schemas but got %d", len(unionSelectSchemas))
-	}
-	for k, v := range unionSelectSchemas {
-		t.Logf("Union select schema key: %s, schema title: %s", k, v.GetTitle())
 	}
 }

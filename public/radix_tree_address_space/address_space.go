@@ -159,10 +159,6 @@ type AddressSpaceAnalyzer interface {
 type AddressSpace interface {
 	GetServer() *openapi3.Server
 	GetServerVars() map[string]string
-	GetRequestBodyParams() map[string]anysdk.Addressable
-	GetSimpleSelectKey() string
-	GetSimpleSelectSchema() anysdk.Schema
-	GetUnionSelectSchemas() map[string]anysdk.Schema
 	GetGlobalSelectSchemas() map[string]anysdk.Schema
 	DereferenceAddress(address string) (any, bool)
 	WriteToAddress(address string, val any) error
@@ -188,7 +184,6 @@ type standardNamespace struct {
 	requestBodySchema     anysdk.Schema
 	responseBodyMediaType string
 	requestBodyMediaType  string
-	pathString            string
 	serverUrlString       string
 	request               *http.Request
 	response              *http.Response
@@ -482,22 +477,6 @@ func (ns *standardNamespace) GetServer() *openapi3.Server {
 
 func (ns *standardNamespace) GetServerVars() map[string]string {
 	return ns.serverVars
-}
-
-func (ns *standardNamespace) GetRequestBodyParams() map[string]anysdk.Addressable {
-	return ns.requestBodyParams
-}
-
-func (ns *standardNamespace) GetSimpleSelectKey() string {
-	return ns.simpleSelectKey
-}
-
-func (ns *standardNamespace) GetSimpleSelectSchema() anysdk.Schema {
-	return ns.simpleSelectSchema
-}
-
-func (ns *standardNamespace) GetUnionSelectSchemas() map[string]anysdk.Schema {
-	return ns.unionSelectSchemas
 }
 
 func (ns *standardNamespace) GetGlobalSelectSchemas() map[string]anysdk.Schema {
