@@ -1,32 +1,16 @@
 package radix_tree_address_space_test
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 
-	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
-	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
-
-func getNewTestDataMockRegistry(relativePath string) (anysdk.RegistryAPI, error) {
-	return anysdk.NewRegistry(
-		anysdk.RegistryConfig{
-			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
-			LocalDocRoot:     relativePath,
-			AllowSrcDownload: false,
-			VerifyConfig: &edcrypto.VerifierConfig{
-				NopVerify: true,
-			},
-		},
-		nil)
-}
 
 type dummyRoundTripper struct {
 	resp *http.Response
@@ -225,9 +209,13 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
-	staticAnalyzer, analyzerErr := analyzerFactory.CreateProviderServiceLevelStaticAnalyzer(
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateAggregateStaticAnalyzer(
 		googleProviderPath,
+		"google",
 		"compute",
+		"instanceGroups",
+		"aggregatedList",
+		false,
 	)
 	if analyzerErr != nil {
 		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
@@ -240,23 +228,25 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	for _, err := range errorSlice {
 		t.Logf("Static analysis error: %v", err)
 	}
-	// these are shallow
-	resources := staticAnalyzer.GetResources()
-	t.Logf("Discovered %d resources", len(resources))
-	if len(resources) == 0 {
-		t.Fatalf("Static analysis failed: expected non-zero resources but got %d", len(resources))
+	hierarchy, isHierarchyExisting := staticAnalyzer.GetFullHierarchy()
+	if !isHierarchyExisting {
+		t.Fatalf("Static analysis failed: expected full hierarchy to exist")
 	}
-	instanceGroupsResource, instanceGroupsResourceExists := resources["instanceGroups"]
-	if !instanceGroupsResourceExists {
-		t.Fatalf("Static analysis failed: expected 'images' resource to exist")
+	resource := hierarchy.GetResource()
+	if resource == nil {
+		t.Fatalf("Static analysis failed: expected non-nil resource from hierarchy")
 	}
-	selectInstanceGroupMethod, selectInstanceGroupMethodErr := instanceGroupsResource.FindMethod("aggregatedList")
-	if selectInstanceGroupMethodErr != nil {
-		t.Fatalf("Static analysis failed: expected 'select' method to exist on 'instanceGroups' resource")
+	method := hierarchy.GetMethod()
+	if method == nil {
+		t.Fatalf("Static analysis failed: expected non-nil method from hierarchy")
 	}
-	prov, hasProv := instanceGroupsResource.GetProvider()
-	if !hasProv {
-		t.Fatalf("Static analysis failed: expected provider to exist on 'instanceGroups' resource")
+	prov := hierarchy.GetProvider()
+	if prov == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from hierarchy")
+	}
+	altProv, hasAltProv := resource.GetProvider()
+	if !hasAltProv || altProv == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from resource")
 	}
 	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
 	if !hasRegistryAPI {
@@ -280,17 +270,13 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	if rsc == nil {
 		t.Fatalf("Static analysis failed: expected non-nil 'instanceGroups' resource to exist")
 	}
-	selectInstanceGroupMethod, selectInstanceGroupMethodErr = rsc.FindMethod("aggregatedList")
-	if selectInstanceGroupMethodErr != nil {
-		t.Fatalf("Static analysis failed: expected 'select' method to exist on 'instanceGroups' resource")
-	}
 
 	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
 		radix_tree_address_space.NewAddressSpaceGrammar(),
 		prov,
 		svc,
 		rsc,
-		selectInstanceGroupMethod,
+		method,
 		map[string]string{
 			"amalgam": "response.body.$.items",
 			"name":    "response.body.$.items[*].instanceGroups[*].name",

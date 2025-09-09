@@ -135,20 +135,28 @@ func NewAddressSpaceGrammar() AddressSpaceGrammar {
 }
 
 type AddressSpaceAnalysisPassManager interface {
-	ApplyPasses(AddressSpace) error
+	ApplyPasses() error
 	GetAddressSpace() (AddressSpace, bool)
 }
 
-func NewAddressSpaceAnalysisPassManager() AddressSpaceAnalysisPassManager {
-	return &standardAddressSpaceAnalysisPassManager{}
+func NewAddressSpaceAnalysisPassManager(formulator AddressSpaceFormulator) AddressSpaceAnalysisPassManager {
+	return &standardAddressSpaceAnalysisPassManager{
+		formulator: formulator,
+	}
 }
 
 type standardAddressSpaceAnalysisPassManager struct {
+	formulator   AddressSpaceFormulator
 	addressSpace AddressSpace
 }
 
-func (pm *standardAddressSpaceAnalysisPassManager) ApplyPasses(as AddressSpace) error {
-	rv := as.Analyze()
+func (pm *standardAddressSpaceAnalysisPassManager) ApplyPasses() error {
+	rv := pm.formulator.Formulate()
+	if rv != nil {
+		return rv
+	}
+	as := pm.formulator.GetAddressSpace()
+	rv = as.Analyze()
 	if rv != nil {
 		return rv
 	}
