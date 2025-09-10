@@ -132,25 +132,36 @@ type StaticAnalyzerFactory interface {
 		providerURL string,
 		serviceName string,
 	) (StaticAnalyzer, error)
-	CreateAggregateStaticAnalyzer(
+	CreateMethodAggregateStaticAnalyzer(
 		providerURL string,
 		providerName string,
 		serviceName string,
 		resourceName string,
 		methodSelectorName string,
 		isFuzzy bool,
-	) (AggregateStaticAnalyzer, error)
+	) (MethodAggregateStaticAnalyzer, error)
+	CreateResourceAggregateStaticAnalyzer(
+		providerURL string,
+		providerName string,
+		serviceName string,
+		resourceName string,
+	) (ResourceAggregateStaticAnalyzer, error)
 }
 
-type AnalyzedFullHierarchy interface {
+type AnalyzedPartialHierarchy interface {
 	GetProvider() anysdk.Provider
 	GetService() anysdk.ProviderService
 	GetResource() anysdk.Resource
-	GetMethod() anysdk.StandardOperationStore
+	GetMethods() anysdk.Methods
 	GetRegistryAPI() anysdk.RegistryAPI
 }
 
-type standardAnalyzedFullHierarchy struct {
+type AnalyzedFullHierarchy interface {
+	AnalyzedPartialHierarchy
+	GetMethod() anysdk.StandardOperationStore
+}
+
+type standardAnalyzedHierarchy struct {
 	provider    anysdk.Provider
 	service     anysdk.ProviderService
 	resource    anysdk.Resource
@@ -158,40 +169,49 @@ type standardAnalyzedFullHierarchy struct {
 	registryAPI anysdk.RegistryAPI
 }
 
-func (afh *standardAnalyzedFullHierarchy) GetProvider() anysdk.Provider {
+func (afh *standardAnalyzedHierarchy) GetProvider() anysdk.Provider {
 	return afh.provider
 }
 
-func (afh *standardAnalyzedFullHierarchy) GetService() anysdk.ProviderService {
+func (afh *standardAnalyzedHierarchy) GetService() anysdk.ProviderService {
 	return afh.service
 }
 
-func (afh *standardAnalyzedFullHierarchy) GetResource() anysdk.Resource {
+func (afh *standardAnalyzedHierarchy) GetResource() anysdk.Resource {
 	return afh.resource
 }
 
-func (afh *standardAnalyzedFullHierarchy) GetMethod() anysdk.StandardOperationStore {
+func (afh *standardAnalyzedHierarchy) GetMethod() anysdk.StandardOperationStore {
 	return afh.method
 }
 
-func (afh *standardAnalyzedFullHierarchy) GetRegistryAPI() anysdk.RegistryAPI {
+func (afh *standardAnalyzedHierarchy) GetMethods() anysdk.Methods {
+	return afh.resource.GetMethods()
+}
+
+func (afh *standardAnalyzedHierarchy) GetRegistryAPI() anysdk.RegistryAPI {
 	return afh.registryAPI
 }
 
-type AggregateStaticAnalyzer interface {
+type MethodAggregateStaticAnalyzer interface {
 	StaticAnalyzer
 	GetFullHierarchy() (AnalyzedFullHierarchy, bool)
 }
 
-func newAggregateStaticAnalyzer(
+type ResourceAggregateStaticAnalyzer interface {
+	StaticAnalyzer
+	GetPartialHierarchy() (AnalyzedPartialHierarchy, bool)
+}
+
+func newMethodAggregateStaticAnalyzer(
 	psrAnalyzer ProviderServiceResourceAnalyzer,
 	providerName string,
 	serviceName string,
 	resourceName string,
 	methodSelectorName string,
 	isFuzzy bool,
-) AggregateStaticAnalyzer {
-	return &standardAggregateStaticAnalyzer{
+) MethodAggregateStaticAnalyzer {
+	return &standardMethodAggregateStaticAnalyzer{
 		psrAnalyzer:        psrAnalyzer,
 		providerName:       providerName,
 		serviceName:        serviceName,
@@ -201,9 +221,103 @@ func newAggregateStaticAnalyzer(
 	}
 }
 
-type standardAggregateStaticAnalyzer struct {
+func newResourceAggregateStaticAnalyzer(
+	psrAnalyzer ProviderServiceResourceAnalyzer,
+	providerName string,
+	serviceName string,
+	resourceName string,
+) ResourceAggregateStaticAnalyzer {
+	return &standardResourceAggregateStaticAnalyzer{
+		psrAnalyzer:  psrAnalyzer,
+		providerName: providerName,
+		serviceName:  serviceName,
+		resourceName: resourceName,
+	}
+}
+
+type standardResourceAggregateStaticAnalyzer struct {
+	psrAnalyzer      ProviderServiceResourceAnalyzer
+	providerName     string
+	serviceName      string
+	resourceName     string
+	partialHierarchy AnalyzedPartialHierarchy
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetPartialHierarchy() (AnalyzedPartialHierarchy, bool) {
+	return asa.partialHierarchy, asa.partialHierarchy != nil
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetErrors() []error {
+	return asa.psrAnalyzer.GetErrors()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetWarnings() []string {
+	return asa.psrAnalyzer.GetWarnings()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetAffirmatives() []string {
+	return asa.psrAnalyzer.GetAffirmatives()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+	return asa.psrAnalyzer.GetRegistryAPI()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
+	staticAnalyzer := asa.psrAnalyzer
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		return err
+	}
+	// these are shallow
+	resources := staticAnalyzer.GetResources()
+	if len(resources) == 0 {
+		return fmt.Errorf("static analysis failed: expected non-zero resources but got %d", len(resources))
+	}
+	resource, imagesResourceExists := resources[asa.resourceName]
+	if !imagesResourceExists {
+		return fmt.Errorf("static analysis failed: expected '%s' resource to exist", asa.resourceName)
+	}
+	if resource == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
+	}
+	prov, hasProv := resource.GetProvider()
+	if !hasProv {
+		return fmt.Errorf("static analysis failed: expected provider to exist on '%s' resource", asa.resourceName)
+	}
+	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
+	if !hasRegistryAPI {
+		return fmt.Errorf("static analysis failed: expected registry API to exist on static analyzer")
+	}
+	if registryAPI == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil registry API to exist on static analyzer")
+	}
+	providerService, providerServiceErr := prov.GetProviderService(asa.serviceName)
+	if providerServiceErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+	}
+	svc, svcErr := registryAPI.GetServiceFragment(providerService, asa.resourceName)
+	if svcErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+	}
+	shallowRsc, rscErr := svc.GetResource(asa.resourceName)
+	if rscErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' resource to exist on service", asa.resourceName)
+	}
+	if shallowRsc == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
+	}
+	asa.partialHierarchy = &standardAnalyzedHierarchy{
+		provider:    prov,
+		service:     providerService,
+		resource:    resource,
+		registryAPI: registryAPI,
+	}
+	return nil
+}
+
+type standardMethodAggregateStaticAnalyzer struct {
 	psrAnalyzer        ProviderServiceResourceAnalyzer
-	providerPath       string
 	providerName       string
 	serviceName        string
 	resourceName       string
@@ -212,27 +326,27 @@ type standardAggregateStaticAnalyzer struct {
 	fullHierarchy      AnalyzedFullHierarchy
 }
 
-func (asa *standardAggregateStaticAnalyzer) GetFullHierarchy() (AnalyzedFullHierarchy, bool) {
+func (asa *standardMethodAggregateStaticAnalyzer) GetFullHierarchy() (AnalyzedFullHierarchy, bool) {
 	return asa.fullHierarchy, asa.fullHierarchy != nil
 }
 
-func (asa *standardAggregateStaticAnalyzer) GetErrors() []error {
+func (asa *standardMethodAggregateStaticAnalyzer) GetErrors() []error {
 	return asa.psrAnalyzer.GetErrors()
 }
 
-func (asa *standardAggregateStaticAnalyzer) GetWarnings() []string {
+func (asa *standardMethodAggregateStaticAnalyzer) GetWarnings() []string {
 	return asa.psrAnalyzer.GetWarnings()
 }
 
-func (asa *standardAggregateStaticAnalyzer) GetAffirmatives() []string {
+func (asa *standardMethodAggregateStaticAnalyzer) GetAffirmatives() []string {
 	return asa.psrAnalyzer.GetAffirmatives()
 }
 
-func (asa *standardAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+func (asa *standardMethodAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
 	return asa.psrAnalyzer.GetRegistryAPI()
 }
 
-func (asa *standardAggregateStaticAnalyzer) Analyze() error {
+func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 	staticAnalyzer := asa.psrAnalyzer
 	err := staticAnalyzer.Analyze()
 	if err != nil {
@@ -269,7 +383,7 @@ func (asa *standardAggregateStaticAnalyzer) Analyze() error {
 	}
 	prov, hasProv := resource.GetProvider()
 	if !hasProv {
-		return fmt.Errorf("static analysis failed: expected provider to exist on 'images' resource")
+		return fmt.Errorf("static analysis failed: expected provider to exist on '%s' resource", asa.resourceName)
 	}
 	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
 	if !hasRegistryAPI {
@@ -305,7 +419,7 @@ func (asa *standardAggregateStaticAnalyzer) Analyze() error {
 			return fmt.Errorf("static analysis failed: expected '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
 		}
 	}
-	asa.fullHierarchy = &standardAnalyzedFullHierarchy{
+	asa.fullHierarchy = &standardAnalyzedHierarchy{
 		provider:    prov,
 		service:     providerService,
 		resource:    resource,
@@ -390,14 +504,12 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	return staticAnalyzer, analyzerErr
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateAggregateStaticAnalyzer(
+func (f *simpleSQLiteAnalyzerFactory) CreateResourceAggregateStaticAnalyzer(
 	providerURL string,
 	providerName string,
 	serviceName string,
 	resourceName string,
-	methodName string,
-	isFuzzy bool,
-) (AggregateStaticAnalyzer, error) {
+) (ResourceAggregateStaticAnalyzer, error) {
 	psra, psraErr := f.CreateProviderServiceLevelStaticAnalyzer(
 		providerURL,
 		serviceName,
@@ -405,7 +517,31 @@ func (f *simpleSQLiteAnalyzerFactory) CreateAggregateStaticAnalyzer(
 	if psraErr != nil {
 		return nil, psraErr
 	}
-	aggregateAnalyzer := newAggregateStaticAnalyzer(
+	aggregateAnalyzer := newResourceAggregateStaticAnalyzer(
+		psra,
+		providerName,
+		serviceName,
+		resourceName,
+	)
+	return aggregateAnalyzer, nil
+}
+
+func (f *simpleSQLiteAnalyzerFactory) CreateMethodAggregateStaticAnalyzer(
+	providerURL string,
+	providerName string,
+	serviceName string,
+	resourceName string,
+	methodName string,
+	isFuzzy bool,
+) (MethodAggregateStaticAnalyzer, error) {
+	psra, psraErr := f.CreateProviderServiceLevelStaticAnalyzer(
+		providerURL,
+		serviceName,
+	)
+	if psraErr != nil {
+		return nil, psraErr
+	}
+	aggregateAnalyzer := newMethodAggregateStaticAnalyzer(
 		psra,
 		providerName,
 		serviceName,

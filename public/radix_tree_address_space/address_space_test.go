@@ -209,7 +209,256 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
-	staticAnalyzer, analyzerErr := analyzerFactory.CreateAggregateStaticAnalyzer(
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateMethodAggregateStaticAnalyzer(
+		googleProviderPath,
+		"google",
+		"compute",
+		"instanceGroups",
+		"aggregatedList",
+		false,
+	)
+	if analyzerErr != nil {
+		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
+	}
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		t.Fatalf("Static analysis failed: %v", err)
+	}
+	errorSlice := staticAnalyzer.GetErrors()
+	for _, err := range errorSlice {
+		t.Logf("Static analysis error: %v", err)
+	}
+	hierarchy, isHierarchyExisting := staticAnalyzer.GetFullHierarchy()
+	if !isHierarchyExisting {
+		t.Fatalf("Static analysis failed: expected full hierarchy to exist")
+	}
+	resource := hierarchy.GetResource()
+	if resource == nil {
+		t.Fatalf("Static analysis failed: expected non-nil resource from hierarchy")
+	}
+	method := hierarchy.GetMethod()
+	if method == nil {
+		t.Fatalf("Static analysis failed: expected non-nil method from hierarchy")
+	}
+	prov := hierarchy.GetProvider()
+	if prov == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from hierarchy")
+	}
+	altProv, hasAltProv := resource.GetProvider()
+	if !hasAltProv || altProv == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from resource")
+	}
+	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
+	if !hasRegistryAPI {
+		t.Fatalf("Static analysis failed: expected registry API to exist on static analyzer")
+	}
+	if registryAPI == nil {
+		t.Fatalf("Static analysis failed: expected non-nil registry API to exist on static analyzer")
+	}
+	providerService, providerServiceErr := prov.GetProviderService("compute")
+	if providerServiceErr != nil {
+		t.Fatalf("Static analysis failed: expected 'compute' service to exist on provider")
+	}
+	svc, svcErr := registryAPI.GetServiceFragment(providerService, "instanceGroups")
+	if svcErr != nil {
+		t.Fatalf("Static analysis failed: expected 'instanceGroups' service to exist on provider")
+	}
+	rsc, rscErr := svc.GetResource("instanceGroups")
+	if rscErr != nil {
+		t.Fatalf("Static analysis failed: expected 'instanceGroups' resource to exist on service")
+	}
+	if rsc == nil {
+		t.Fatalf("Static analysis failed: expected non-nil 'instanceGroups' resource to exist")
+	}
+
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
+		radix_tree_address_space.NewAddressSpaceGrammar(),
+		prov,
+		svc,
+		rsc,
+		method,
+		map[string]string{
+			"amalgam": "response.body.$.items",
+			"name":    "response.body.$.items[*].instanceGroups[*].name",
+		},
+	)
+	err = addressSpaceAnalyzer.Formulate()
+	if err != nil {
+		t.Fatalf("Address space analysis failed: %v", err)
+	}
+	addressSpace := addressSpaceAnalyzer.GetAddressSpace()
+	if addressSpace == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil address space")
+	}
+	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
+	if !requestBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'request.body'")
+	}
+	if requestBody != nil {
+		t.Fatalf("Address space analysis failed: expected nil 'request.body'")
+	}
+	responseBody, responseBodyOk := addressSpace.DereferenceAddress("response.body")
+	if !responseBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'response.body'")
+	}
+	if responseBody == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil 'response.body'")
+	}
+	projectParam, projectParamOk := addressSpace.DereferenceAddress(".project")
+	if !projectParamOk {
+		t.Fatalf("Address space analysis failed: expected to dereference '.project'")
+	}
+	if projectParam == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil '.project'")
+	}
+	mutateProjectErr := addressSpace.WriteToAddress(".project", "my-test-project")
+	if mutateProjectErr != nil {
+		t.Fatalf("Address space analysis failed: expected to write to address '.project'")
+	}
+	projectVal, projectValOk := addressSpace.ReadFromAddress(".project")
+	if !projectValOk {
+		t.Fatalf("Address space analysis failed: expected to read from address '.project'")
+	}
+	if projectVal == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil value from address '.project'")
+	}
+	if projectVal != "my-test-project" {
+		t.Fatalf("Address space analysis failed: expected 'my-test-project' from address '.project' but got '%v'", projectVal)
+	}
+}
+
+func TestSearchAliasedAddressSpaceGoogleCurrent(t *testing.T) {
+	registryLocalPath := "./testdata/registry/basic"
+	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
+	// expectedErrorCount := 282
+	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateResourceAggregateStaticAnalyzer(
+		googleProviderPath,
+		"google",
+		"compute",
+		"instanceGroups",
+	)
+	if analyzerErr != nil {
+		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
+	}
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		t.Fatalf("Static analysis failed: %v", err)
+	}
+	errorSlice := staticAnalyzer.GetErrors()
+	for _, err := range errorSlice {
+		t.Logf("Static analysis error: %v", err)
+	}
+	hierarchy, isHierarchyExisting := staticAnalyzer.GetPartialHierarchy()
+	if !isHierarchyExisting {
+		t.Fatalf("Static analysis failed: expected full hierarchy to exist")
+	}
+	resource := hierarchy.GetResource()
+	if resource == nil {
+		t.Fatalf("Static analysis failed: expected non-nil resource from hierarchy")
+	}
+	method, _, _ := resource.GetFirstMethodMatchFromSQLVerb(
+		"select",
+		map[string]interface{}{
+			"project": "my-test-project",
+		},
+	)
+	if method == nil {
+		t.Fatalf("Static analysis failed: expected non-nil method from hierarchy")
+	}
+	prov := hierarchy.GetProvider()
+	if prov == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from hierarchy")
+	}
+	altProv, hasAltProv := resource.GetProvider()
+	if !hasAltProv || altProv == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from resource")
+	}
+	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
+	if !hasRegistryAPI {
+		t.Fatalf("Static analysis failed: expected registry API to exist on static analyzer")
+	}
+	if registryAPI == nil {
+		t.Fatalf("Static analysis failed: expected non-nil registry API to exist on static analyzer")
+	}
+	providerService, providerServiceErr := prov.GetProviderService("compute")
+	if providerServiceErr != nil {
+		t.Fatalf("Static analysis failed: expected 'compute' service to exist on provider")
+	}
+	svc, svcErr := registryAPI.GetServiceFragment(providerService, "instanceGroups")
+	if svcErr != nil {
+		t.Fatalf("Static analysis failed: expected 'instanceGroups' service to exist on provider")
+	}
+	rsc, rscErr := svc.GetResource("instanceGroups")
+	if rscErr != nil {
+		t.Fatalf("Static analysis failed: expected 'instanceGroups' resource to exist on service")
+	}
+	if rsc == nil {
+		t.Fatalf("Static analysis failed: expected non-nil 'instanceGroups' resource to exist")
+	}
+
+	addressSpaceAnalyzer := radix_tree_address_space.NewAddressSpaceFormulator(
+		radix_tree_address_space.NewAddressSpaceGrammar(),
+		prov,
+		svc,
+		rsc,
+		method,
+		map[string]string{
+			"amalgam": "response.body.$.items",
+			"name":    "response.body.$.items[*].instanceGroups[*].name",
+		},
+	)
+	err = addressSpaceAnalyzer.Formulate()
+	if err != nil {
+		t.Fatalf("Address space analysis failed: %v", err)
+	}
+	addressSpace := addressSpaceAnalyzer.GetAddressSpace()
+	if addressSpace == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil address space")
+	}
+	requestBody, requestBodyOk := addressSpace.DereferenceAddress("request.body")
+	if !requestBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'request.body'")
+	}
+	if requestBody != nil {
+		t.Fatalf("Address space analysis failed: expected nil 'request.body'")
+	}
+	responseBody, responseBodyOk := addressSpace.DereferenceAddress("response.body")
+	if !responseBodyOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'response.body'")
+	}
+	if responseBody == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil 'response.body'")
+	}
+	projectParam, projectParamOk := addressSpace.DereferenceAddress(".project")
+	if !projectParamOk {
+		t.Fatalf("Address space analysis failed: expected to dereference '.project'")
+	}
+	if projectParam == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil '.project'")
+	}
+	mutateProjectErr := addressSpace.WriteToAddress(".project", "my-test-project")
+	if mutateProjectErr != nil {
+		t.Fatalf("Address space analysis failed: expected to write to address '.project'")
+	}
+	projectVal, projectValOk := addressSpace.ReadFromAddress(".project")
+	if !projectValOk {
+		t.Fatalf("Address space analysis failed: expected to read from address '.project'")
+	}
+	if projectVal == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil value from address '.project'")
+	}
+	if projectVal != "my-test-project" {
+		t.Fatalf("Address space analysis failed: expected 'my-test-project' from address '.project' but got '%v'", projectVal)
+	}
+}
+
+func TestIntelligentAliasedAddressSpaceGoogleCurrent(t *testing.T) {
+	registryLocalPath := "./testdata/registry/basic"
+	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
+	// expectedErrorCount := 282
+	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateMethodAggregateStaticAnalyzer(
 		googleProviderPath,
 		"google",
 		"compute",
