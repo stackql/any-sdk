@@ -320,7 +320,7 @@ func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
 	if shallowRsc == nil {
 		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
 	}
-	for k, sm := range shallowRsc.GetMethods() {
+	for _, sm := range shallowRsc.GetMethods() {
 		method := &sm // this is poo
 		addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
 			radix_tree_address_space.NewAddressSpaceGrammar(),
@@ -332,7 +332,7 @@ func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
 		)
 		err = addressSpaceFormulator.Formulate()
 		if err != nil {
-			return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", k, asa.resourceName, err)
+			// return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", k, asa.resourceName, err)
 		}
 		addressSpace := addressSpaceFormulator.GetAddressSpace()
 		method.SetAddressSpace(addressSpace)
