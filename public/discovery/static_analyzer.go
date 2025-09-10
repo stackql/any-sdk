@@ -10,6 +10,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
@@ -419,6 +420,20 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 			return fmt.Errorf("static analysis failed: expected '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
 		}
 	}
+	addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
+		radix_tree_address_space.NewAddressSpaceGrammar(),
+		prov,
+		svc,
+		resource,
+		method,
+		method.GetProjections(),
+	)
+	err = addressSpaceFormulator.Formulate()
+	if err != nil {
+		return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, err)
+	}
+	addressSpace := addressSpaceFormulator.GetAddressSpace()
+	method.SetAddressSpace(addressSpace)
 	asa.fullHierarchy = &standardAnalyzedHierarchy{
 		provider:    prov,
 		service:     providerService,

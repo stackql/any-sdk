@@ -1306,11 +1306,11 @@ resources:
           mediaType: application/json
           openAPIDocKey: '200'
           projection_map:
-            id: '$.items[*].instanceGroups.id'
-            name: '$.items[*].instanceGroups.name'
-            ig_region: '$.items[*].instanceGroups.region'
-            named_port_name: '$.items[*].instanceGroups.namedPorts[*].name'
-            named_port_port: '$.items[*].instanceGroups.namedPorts[*].port'
+            amalgam: 'body.$.items'
+            name: 'body.$.items[*].instanceGroups[*].name'
+            ig_region: 'body.$.items[*].instanceGroups[*].region'
+            named_port_name: 'body.$.items[*].instanceGroups[*].namedPorts[*].name'
+            named_port_port: 'body.$.items[*].instanceGroups[*].namedPorts[*].port'
 
       delete:
         operation:

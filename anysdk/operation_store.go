@@ -75,7 +75,10 @@ type OperationStore interface {
 	GetProviderService() ProviderService
 	GetProvider() Provider
 	GetService() OpenAPIService
+	SetAddressSpace(AddressSpace)
+	GetAddressSpace() (AddressSpace, bool)
 	GetResource() Resource
+	GetProjections() map[string]string
 	parameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
 	GetOperationParameter(key string) (Addressable, bool)
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
@@ -176,6 +179,30 @@ type standardOpenAPIOperationStore struct {
 	Provider          Provider        `json:"-" yaml:"-"` // upwards traversal
 	OpenAPIService    OpenAPIService  `json:"-" yaml:"-"` // upwards traversal
 	Resource          Resource        `json:"-" yaml:"-"` // upwards traversal
+	AddressSpace      AddressSpace    `json:"-" yaml:"-"`
+}
+
+func (op *standardOpenAPIOperationStore) GetProjections() map[string]string {
+	rv := make(map[string]string)
+	if op.Response != nil && op.Response.ProjectionMap != nil {
+		for k, v := range op.Response.ProjectionMap {
+			rv[k] = "response." + v
+		}
+	}
+	if op.Request != nil && op.Request.ProjectionMap != nil {
+		for k, v := range op.Request.ProjectionMap {
+			rv[k] = "request." + v
+		}
+	}
+	return rv
+}
+
+func (op *standardOpenAPIOperationStore) SetAddressSpace(as AddressSpace) {
+	op.AddressSpace = as
+}
+
+func (op *standardOpenAPIOperationStore) GetAddressSpace() (AddressSpace, bool) {
+	return op.AddressSpace, op.AddressSpace != nil
 }
 
 func (op *standardOpenAPIOperationStore) GetInline() []string {

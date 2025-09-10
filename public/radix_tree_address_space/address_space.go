@@ -136,7 +136,7 @@ func NewAddressSpaceGrammar() AddressSpaceGrammar {
 
 type AddressSpaceAnalysisPassManager interface {
 	ApplyPasses() error
-	GetAddressSpace() (AddressSpace, bool)
+	GetAddressSpace() (anysdk.AddressSpace, bool)
 }
 
 func NewAddressSpaceAnalysisPassManager(formulator AddressSpaceFormulator) AddressSpaceAnalysisPassManager {
@@ -147,7 +147,7 @@ func NewAddressSpaceAnalysisPassManager(formulator AddressSpaceFormulator) Addre
 
 type standardAddressSpaceAnalysisPassManager struct {
 	formulator   AddressSpaceFormulator
-	addressSpace AddressSpace
+	addressSpace anysdk.AddressSpace
 }
 
 func (pm *standardAddressSpaceAnalysisPassManager) ApplyPasses() error {
@@ -164,25 +164,13 @@ func (pm *standardAddressSpaceAnalysisPassManager) ApplyPasses() error {
 	return nil
 }
 
-func (pm *standardAddressSpaceAnalysisPassManager) GetAddressSpace() (AddressSpace, bool) {
+func (pm *standardAddressSpaceAnalysisPassManager) GetAddressSpace() (anysdk.AddressSpace, bool) {
 	return pm.addressSpace, pm.addressSpace != nil
 }
 
 type AddressSpaceFormulator interface {
 	Formulate() error
-	GetAddressSpace() AddressSpace
-}
-
-type AddressSpace interface {
-	GetGlobalSelectSchemas() map[string]anysdk.Schema
-	DereferenceAddress(address string) (any, bool)
-	WriteToAddress(address string, val any) error
-	ReadFromAddress(address string) (any, bool)
-	Analyze() error
-	ResolveSignature(map[string]any) bool
-	Expand(map[string]any) bool
-	Invoke(...any) error
-	ToMap() (map[string]any, error)
+	GetAddressSpace() anysdk.AddressSpace
 }
 
 type standardNamespace struct {
@@ -496,10 +484,10 @@ type standardAddressSpaceFormulator struct {
 	requiredNonBodyParams  map[string]anysdk.Addressable
 	requiredBodyAttributes map[string]anysdk.Addressable
 	aliasedUnionSelectKeys map[string]string
-	addressSpace           AddressSpace
+	addressSpace           anysdk.AddressSpace
 }
 
-func (asa *standardAddressSpaceFormulator) GetAddressSpace() AddressSpace {
+func (asa *standardAddressSpaceFormulator) GetAddressSpace() anysdk.AddressSpace {
 	return asa.addressSpace
 }
 
@@ -988,7 +976,7 @@ type AnalyzedInput interface {
 }
 
 type namespaceAnalyzedInput struct {
-	namespace AddressSpace
+	namespace anysdk.AddressSpace
 }
 
 func (nai *namespaceAnalyzedInput) GetQueryParams() map[string]any {
@@ -1054,7 +1042,7 @@ func (nai *namespaceAnalyzedInput) GetRequestBody() any {
 	return val
 }
 
-func newNamespaceAnalyzedInput(ns AddressSpace) AnalyzedInput {
+func newNamespaceAnalyzedInput(ns anysdk.AddressSpace) AnalyzedInput {
 	return &namespaceAnalyzedInput{
 		namespace: ns,
 	}
