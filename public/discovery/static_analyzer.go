@@ -429,27 +429,21 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 	return nil
 }
 
-type simpleSQLiteAnalyzerFactory struct {
-	registryURL string
-	rtCtx       dto.RuntimeCtx
+type StaticAnalyzerFactoryFactory interface {
+	CreateSQLiteStaticAnalyzerFactory(
+		registryURL string,
+		rtCtx dto.RuntimeCtx,
+	) (StaticAnalyzerFactory, error)
 }
 
-func NewSimpleSQLiteAnalyzerFactory(
-	registryURL string,
-	rtCtx dto.RuntimeCtx,
-) StaticAnalyzerFactory {
-	return &simpleSQLiteAnalyzerFactory{
-		registryURL: registryURL,
-		rtCtx:       rtCtx,
-	}
+type standardStaticAnalyzerFactoryFactory struct {
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
-	providerURL string,
-) (StaticAnalyzer, error) {
-	rtCtx := f.rtCtx
-	registryLocalPath := f.registryURL
-	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
+func NewStandardStaticAnalyzerFactoryFactory() StaticAnalyzerFactoryFactory {
+	return &standardStaticAnalyzerFactoryFactory{}
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) createSQLiteEngine() (sqlengine.SQLEngine, error) {
 	controlAttributes := sqlcontrol.GetControlAttributes("standard")
 	sqlCfg, err := dto.GetSQLBackendCfg("{}")
 	if err != nil {
@@ -462,6 +456,21 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	if engineErr != nil {
 		return nil, engineErr
 	}
+	if sqlEngine == nil {
+		return nil, fmt.Errorf("failed to create SQL engine: got nil")
+	}
+	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
+	if scriptErr != nil {
+		return nil, scriptErr
+	}
+	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
+	if scriptRunErr != nil {
+		return nil, scriptRunErr
+	}
+	return sqlEngine, nil
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) createNaivePersistenceSystem(sqlEngine sqlengine.SQLEngine) (persistence.PersistenceSystem, error) {
 	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
 	if err != nil {
 		return nil, err
@@ -477,6 +486,74 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	if scriptRunErr != nil {
 		return nil, scriptRunErr
 	}
+	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
+	if putErr != nil {
+		return nil, putErr
+	}
+	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
+	if getErr != nil {
+		return nil, getErr
+	}
+	if string(cachedVal) != "value" {
+		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
+	}
+	return persistenceSystem, nil
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) CreateSQLiteStaticAnalyzerFactory(
+	registryURL string,
+	rtCtx dto.RuntimeCtx,
+) (StaticAnalyzerFactory, error) {
+	sqlLiteEngine, err := sf.createSQLiteEngine()
+	if err != nil {
+		return nil, err
+	}
+	if sqlLiteEngine == nil {
+		return nil, fmt.Errorf("failed to create SQL engine: got nil")
+	}
+	persistenceSystem, err := sf.createNaivePersistenceSystem(sqlLiteEngine)
+	if err != nil {
+		return nil, err
+	}
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to create persistence system: got nil")
+	}
+	return newSimpleSQLiteAnalyzerFactory(
+		registryURL,
+		rtCtx,
+		sqlLiteEngine,
+		persistenceSystem,
+	), nil
+}
+
+type simpleSQLAnalyzerFactory struct {
+	registryURL       string
+	rtCtx             dto.RuntimeCtx
+	sqlEngine         sqlengine.SQLEngine
+	persistenceSystem persistence.PersistenceSystem
+}
+
+func newSimpleSQLiteAnalyzerFactory(
+	registryURL string,
+	rtCtx dto.RuntimeCtx,
+	sqlEngine sqlengine.SQLEngine,
+	persistenceSystem persistence.PersistenceSystem,
+) StaticAnalyzerFactory {
+	return &simpleSQLAnalyzerFactory{
+		registryURL:       registryURL,
+		rtCtx:             rtCtx,
+		sqlEngine:         sqlEngine,
+		persistenceSystem: persistenceSystem,
+	}
+}
+
+func (f *simpleSQLAnalyzerFactory) CreateStaticAnalyzer(
+	providerURL string,
+) (StaticAnalyzer, error) {
+	persistenceSystem := f.persistenceSystem
+	rtCtx := f.rtCtx
+	registryLocalPath := f.registryURL
+	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
 	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
 	if putErr != nil {
 		return nil, putErr
@@ -504,7 +581,7 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	return staticAnalyzer, analyzerErr
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateResourceAggregateStaticAnalyzer(
+func (f *simpleSQLAnalyzerFactory) CreateResourceAggregateStaticAnalyzer(
 	providerURL string,
 	providerName string,
 	serviceName string,
@@ -526,7 +603,7 @@ func (f *simpleSQLiteAnalyzerFactory) CreateResourceAggregateStaticAnalyzer(
 	return aggregateAnalyzer, nil
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateMethodAggregateStaticAnalyzer(
+func (f *simpleSQLAnalyzerFactory) CreateMethodAggregateStaticAnalyzer(
 	providerURL string,
 	providerName string,
 	serviceName string,
@@ -552,40 +629,14 @@ func (f *simpleSQLiteAnalyzerFactory) CreateMethodAggregateStaticAnalyzer(
 	return aggregateAnalyzer, nil
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
+func (f *simpleSQLAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
 	providerURL string,
 	serviceName string,
 ) (ProviderServiceResourceAnalyzer, error) {
+	persistenceSystem := f.persistenceSystem
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	controlAttributes := sqlcontrol.GetControlAttributes("standard")
-	sqlCfg, err := dto.GetSQLBackendCfg("{}")
-	if err != nil {
-		return nil, err
-	}
-	sqlEngine, engineErr := sqlengine.NewSQLEngine(
-		sqlCfg,
-		controlAttributes,
-	)
-	if engineErr != nil {
-		return nil, engineErr
-	}
-	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
-	if err != nil {
-		return nil, err
-	}
-	if persistenceSystem == nil {
-		return nil, fmt.Errorf("failed to create persistence system: got nil")
-	}
-	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
-	if scriptErr != nil {
-		return nil, scriptErr
-	}
-	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
-	if scriptRunErr != nil {
-		return nil, scriptRunErr
-	}
 	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
 	if putErr != nil {
 		return nil, putErr
@@ -627,40 +678,14 @@ func (f *simpleSQLiteAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
 	return psra, nil
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
+func (f *simpleSQLAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
 	providerURL string,
 	serviceName string,
 ) (StaticAnalyzer, error) {
+	persistenceSystem := f.persistenceSystem
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	controlAttributes := sqlcontrol.GetControlAttributes("standard")
-	sqlCfg, err := dto.GetSQLBackendCfg("{}")
-	if err != nil {
-		return nil, err
-	}
-	sqlEngine, engineErr := sqlengine.NewSQLEngine(
-		sqlCfg,
-		controlAttributes,
-	)
-	if engineErr != nil {
-		return nil, engineErr
-	}
-	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
-	if err != nil {
-		return nil, err
-	}
-	if persistenceSystem == nil {
-		return nil, fmt.Errorf("failed to create persistence system: got nil")
-	}
-	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
-	if scriptErr != nil {
-		return nil, scriptErr
-	}
-	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
-	if scriptRunErr != nil {
-		return nil, scriptRunErr
-	}
 	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
 	if putErr != nil {
 		return nil, putErr

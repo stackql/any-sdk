@@ -37,7 +37,9 @@ var aotCmd = &cobra.Command{
 
 func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string, extraArgs ...string) {
 
-	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryURL, rtCtx)
+	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateSQLiteStaticAnalyzerFactory(registryURL, rtCtx)
+	printErrorAndExitOneIfError(factoryFactoryErr)
 	var analyzer discovery.StaticAnalyzer
 	var factoryErr error
 	switch len(extraArgs) {
