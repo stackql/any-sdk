@@ -611,7 +611,7 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	}
 	simpleSelectKey := asa.method.GetSelectItemsKeySimple()
 	simpleSelectSchema, schemaErr := asa.method.GetSchemaAtPath(simpleSelectKey)
-	if schemaErr != nil {
+	if schemaErr != nil && !asa.method.IsNullary() {
 		inferredSelectKey := asa.method.LookupSelectItemsKey()
 		simpleSelectSchema, schemaErr = asa.method.GetSchemaAtPath(inferredSelectKey)
 		if schemaErr != nil {

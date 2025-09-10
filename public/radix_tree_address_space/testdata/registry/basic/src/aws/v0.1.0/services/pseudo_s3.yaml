@@ -1,0 +1,1228 @@
+openapi: 3.0.0
+info:
+  version: '2021-09-30'
+  x-release: v4
+  title: AWS S3 over Cloud Control API
+  description: 'For more information about Amazon Web Services Cloud Control API, see the <a href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/what-is-cloudcontrolapi.html">Amazon Web Services Cloud Control API User Guide</a>.'
+  x-logo:
+    url: 'https://twitter.com/awscloud/profile_image?size=original'
+    backgroundColor: '#FFFFFF'
+  termsOfService: 'https://aws.amazon.com/service-terms/'
+  license:
+    name: Apache 2.0 License
+    url: 'http://www.apache.org/licenses/'
+  x-providerName: amazonaws.com
+  x-serviceName: cloudcontrolapi
+externalDocs:
+  description: Amazon Web Services documentation
+  url: 'https://docs.aws.amazon.com/cloudcontrolapi/'
+paths:
+  /?__nativeEndpoint=true:
+    get:
+      description: Returns a list of all buckets owned by the authenticated sender
+        of the request. To use this operation, you must have the <code>s3:ListAllMyBuckets</code>
+        permission.
+      servers:
+        - description: The Amazon S3 multi-region endpoint
+          url: https://s3.{region}.amazonaws.com
+          variables:
+            region:
+              default: us-east-2
+              description: The AWS region
+              enum:
+              - us-east-2
+              - us-gov-east-1
+              - ca-central-1
+              - eu-north-1
+              - eu-west-2
+              - eu-west-3
+              - eu-central-1
+              - eu-south-1
+              - af-south-1
+              - ap-northeast-2
+              - ap-northeast-3
+              - ap-southeast-1
+              - ap-southeast-2
+              - ap-east-1
+              - ap-south-1
+              - me-south-1
+      externalDocs:
+        url: http://docs.amazonwebservices.com/AmazonS3/latest/API/RESTServiceGET.html
+      operationId: ListBuckets
+      responses:
+        '200':
+          content:
+            text/xml:
+              schema:
+                $ref: '#/components/schemas/ListBucketsOutput'
+          description: Success
+  /?Action=CreateResource&Version=2021-09-30:
+    parameters:
+    - $ref: '#/components/parameters/X-Amz-Content-Sha256'
+    - $ref: '#/components/parameters/X-Amz-Date'
+    - $ref: '#/components/parameters/X-Amz-Algorithm'
+    - $ref: '#/components/parameters/X-Amz-Credential'
+    - $ref: '#/components/parameters/X-Amz-Security-Token'
+    - $ref: '#/components/parameters/X-Amz-Signature'
+    - $ref: '#/components/parameters/X-Amz-SignedHeaders'
+    post:
+      operationId: CreateResource
+      parameters:
+      - description: Action Header
+        in: header
+        name: X-Amz-Target
+        required: false
+        schema:
+          default: CloudApiService.CreateResource
+          enum:
+          - CloudApiService.CreateResource
+          type: string
+      - in: header
+        name: Content-Type
+        required: false
+        schema:
+          default: application/x-amz-json-1.0
+          enum:
+          - application/x-amz-json-1.0
+          type: string
+      requestBody:
+        content:
+          application/x-amz-json-1.0:
+            schema:
+              $ref: '#/components/schemas/CreateResourceInput'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressEvent'
+          description: Success
+  /?Action=CreateResource&Version=2021-09-30&__detailDynamic=true:
+    parameters:
+    - $ref: '#/components/parameters/X-Amz-Content-Sha256'
+    - $ref: '#/components/parameters/X-Amz-Date'
+    - $ref: '#/components/parameters/X-Amz-Algorithm'
+    - $ref: '#/components/parameters/X-Amz-Credential'
+    - $ref: '#/components/parameters/X-Amz-Security-Token'
+    - $ref: '#/components/parameters/X-Amz-Signature'
+    - $ref: '#/components/parameters/X-Amz-SignedHeaders'
+    post:
+      operationId: CreateResource
+      parameters:
+      - description: Action Header
+        in: header
+        name: X-Amz-Target
+        required: false
+        schema:
+          default: CloudApiService.CreateResource
+          enum:
+          - CloudApiService.CreateResource
+          type: string
+      - in: header
+        name: Content-Type
+        required: false
+        schema:
+          default: application/x-amz-json-1.0
+          enum:
+          - application/x-amz-json-1.0
+          type: string
+      requestBody:
+        content:
+          application/x-amz-json-1.0:
+            schema:
+              $ref: '#/components/schemas/CreateDynamicResourceInput'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressEvent'
+          description: Success
+  /?Action=CreateResource&Version=2021-09-30&__detailSemantic=true:
+    parameters:
+    - $ref: '#/components/parameters/X-Amz-Content-Sha256'
+    - $ref: '#/components/parameters/X-Amz-Date'
+    - $ref: '#/components/parameters/X-Amz-Algorithm'
+    - $ref: '#/components/parameters/X-Amz-Credential'
+    - $ref: '#/components/parameters/X-Amz-Security-Token'
+    - $ref: '#/components/parameters/X-Amz-Signature'
+    - $ref: '#/components/parameters/X-Amz-SignedHeaders'
+    post:
+      operationId: CreateResource
+      parameters:
+      - description: Action Header
+        in: header
+        name: X-Amz-Target
+        required: false
+        schema:
+          default: CloudApiService.CreateResource
+          enum:
+          - CloudApiService.CreateResource
+          type: string
+      - in: header
+        name: Content-Type
+        required: false
+        schema:
+          default: application/x-amz-json-1.0
+          enum:
+          - application/x-amz-json-1.0
+          type: string
+      requestBody:
+        content:
+          application/x-amz-json-1.0:
+            schema:
+              $ref: '#/components/schemas/CreateDynamicResourceInput'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressEvent'
+          description: Success
+  /?Action=CreateResource&Version=2021-09-30&__detailTransformed=true:
+    parameters:
+    - $ref: '#/components/parameters/X-Amz-Content-Sha256'
+    - $ref: '#/components/parameters/X-Amz-Date'
+    - $ref: '#/components/parameters/X-Amz-Algorithm'
+    - $ref: '#/components/parameters/X-Amz-Credential'
+    - $ref: '#/components/parameters/X-Amz-Security-Token'
+    - $ref: '#/components/parameters/X-Amz-Signature'
+    - $ref: '#/components/parameters/X-Amz-SignedHeaders'
+    post:
+      operationId: CreateResource
+      parameters:
+      - description: Action Header
+        in: header
+        name: X-Amz-Target
+        required: false
+        schema:
+          default: CloudApiService.CreateResource
+          enum:
+          - CloudApiService.CreateResource
+          type: string
+      - in: header
+        name: Content-Type
+        required: false
+        schema:
+          default: application/x-amz-json-1.0
+          enum:
+          - application/x-amz-json-1.0
+          type: string
+      requestBody:
+        content:
+          application/x-amz-json-1.0:
+            schema:
+              $ref: '#/components/schemas/CreateTransformedResourceInput'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressEvent'
+          description: Success
+components:
+  parameters:
+    X-Amz-Content-Sha256:
+      name: X-Amz-Content-Sha256
+      in: header
+      schema:
+        type: string
+      required: false
+    X-Amz-Date:
+      name: X-Amz-Date
+      in: header
+      schema:
+        type: string
+      required: false
+    X-Amz-Algorithm:
+      name: X-Amz-Algorithm
+      in: header
+      schema:
+        type: string
+      required: false
+    X-Amz-Credential:
+      name: X-Amz-Credential
+      in: header
+      schema:
+        type: string
+      required: false
+    X-Amz-Security-Token:
+      name: X-Amz-Security-Token
+      in: header
+      schema:
+        type: string
+      required: false
+    X-Amz-Signature:
+      name: X-Amz-Signature
+      in: header
+      schema:
+        type: string
+      required: false
+    X-Amz-SignedHeaders:
+      name: X-Amz-SignedHeaders
+      in: header
+      schema:
+        type: string
+      required: false
+  schemas:
+    Bucket:
+      description: ' In terms of implementation, a Bucket is a resource. An Amazon
+        S3 bucket name is globally unique, and the namespace is shared by all Amazon
+        Web Services accounts. '
+      properties:
+        CreationDate:
+          allOf:
+          - $ref: '#/components/schemas/CreationDate'
+          - description: Date the bucket was created. This date can change when making
+              changes to your bucket, such as editing its bucket policy.
+        Name:
+          allOf:
+          - $ref: '#/components/schemas/BucketName'
+          - description: The name of the bucket.
+    BucketName:
+      type: string
+    Buckets:
+      items:
+        allOf:
+        - $ref: '#/components/schemas/Bucket'
+        - xml:
+            name: Bucket
+      type: array
+    CreateResourceInput:
+      properties:
+        ClientToken:
+          type: string
+        DesiredState:
+          format: password
+          maxLength: 65536
+          minLength: 1
+          pattern: '[\s\S]*'
+          type: string
+          x-stackQL-stringOnly: true
+          description: <p>Structured data format representing the desired state
+              of the resource, consisting of that resource's properties and their
+              desired values.</p> <note> <p>Cloud Control API currently supports JSON
+              as a structured data format.</p> </note> <pre><code> &lt;p&gt;Specify
+              the desired state as one of the following:&lt;/p&gt; &lt;ul&gt; &lt;li&gt;
+              &lt;p&gt;A JSON blob&lt;/p&gt; &lt;/li&gt; &lt;li&gt; &lt;p&gt;A local
+              path containing the desired state in JSON data format&lt;/p&gt; &lt;/li&gt;
+              &lt;/ul&gt; &lt;p&gt;For more information, see &lt;a href=&quot;https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/resource-operations-create.html#resource-operations-create-desiredstate&quot;&gt;Composing
+              the desired state of the resource&lt;/a&gt; in the &lt;i&gt;Amazon Web
+              Services Cloud Control API User Guide&lt;/i&gt;.&lt;/p&gt; &lt;p&gt;For
+              more information about the properties of a specific resource, refer
+              to the related topic for the resource in the &lt;a href=&quot;https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html&quot;&gt;Resource
+              and property types reference&lt;/a&gt; in the &lt;i&gt;CloudFormation
+              Users Guide&lt;/i&gt;.&lt;/p&gt; </code></pre>
+        RoleArn:
+          type: string
+        TypeName:
+          type: string
+        TypeVersionId:
+          type: string
+      title: CreateResourceInput
+      type: object
+    CreateDynamicResourceInput:
+      properties:
+        ClientToken:
+          type: string
+        DesiredState:
+          format: password
+          maxLength: 65536
+          minLength: 1
+          pattern: '[\s\S]*'
+          type: string
+          x-stackQL-stringOnly: true
+          description: <p>Structured data format representing the desired state
+              of the resource, consisting of that resource's properties and their
+              desired values.</p> <note> <p>Cloud Control API currently supports JSON
+              as a structured data format.</p> </note> <pre><code> &lt;p&gt;Specify
+              the desired state as one of the following:&lt;/p&gt; &lt;ul&gt; &lt;li&gt;
+              &lt;p&gt;A JSON blob&lt;/p&gt; &lt;/li&gt; &lt;li&gt; &lt;p&gt;A local
+              path containing the desired state in JSON data format&lt;/p&gt; &lt;/li&gt;
+              &lt;/ul&gt; &lt;p&gt;For more information, see &lt;a href=&quot;https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/resource-operations-create.html#resource-operations-create-desiredstate&quot;&gt;Composing
+              the desired state of the resource&lt;/a&gt; in the &lt;i&gt;Amazon Web
+              Services Cloud Control API User Guide&lt;/i&gt;.&lt;/p&gt; &lt;p&gt;For
+              more information about the properties of a specific resource, refer
+              to the related topic for the resource in the &lt;a href=&quot;https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html&quot;&gt;Resource
+              and property types reference&lt;/a&gt; in the &lt;i&gt;CloudFormation
+              Users Guide&lt;/i&gt;.&lt;/p&gt; </code></pre>
+        RoleArn:
+          type: string
+        TypeName:
+          type: string
+        TypeVersionId:
+          type: string
+      title: CreateDynamicResourceInput
+      type: object
+      required:
+        - DesiredState
+    CreateTransformedResourceInput:
+      properties:
+        ClientToken:
+          type: string
+        DesiredState:
+          type: object
+          x-stackQL-stringOnly: true
+          properties:
+            BucketName:
+              type: string
+            ObjectLockEnabled: 
+              type: boolean
+            Tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  Key:
+                    type: string
+                  Value:
+                    type: string
+        RoleArn:
+          type: string
+        TypeName:
+          type: string
+        TypeVersionId:
+          type: string
+      title: CreateDynamicResourceInput
+      type: object
+      required: []
+    CreationDate:
+      format: date-time
+      type: string
+    DisplayName:
+      type: string
+    ID:
+      type: string
+    ListBucketsOutput:
+      example:
+        Buckets:
+        - CreationDate: '2012-02-15T21: 03: 02.000Z'
+          Name: examplebucket
+        - CreationDate: '2011-07-24T19: 33: 50.000Z'
+          Name: examplebucket2
+        - CreationDate: '2010-12-17T00: 56: 49.000Z'
+          Name: examplebucket3
+        Owner:
+          DisplayName: own-display-name
+          ID: examplee7a2f25102679df27bb0ae12b3f85be6f290b936c4393484be31
+      properties:
+        Buckets:
+          allOf:
+          - $ref: '#/components/schemas/Buckets'
+          - description: The list of buckets owned by the requester.
+        Owner:
+          allOf:
+          - $ref: '#/components/schemas/Owner'
+          - description: The owner of the buckets listed.
+      type: object
+    Owner:
+      description: Container for the owner's display name and ID.
+      properties:
+        DisplayName:
+          allOf:
+          - $ref: '#/components/schemas/DisplayName'
+          - description: Container for the display name of the owner.
+        ID:
+          allOf:
+          - $ref: '#/components/schemas/ID'
+          - description: Container for the ID of the owner.
+      type: object
+    ProgressEvent:
+      properties:
+        ErrorCode:
+          type: string
+        EventTime:
+          type: number
+        Identifier:
+          type: string
+        Operation:
+          type: string
+        OperationStatus:
+          type: string
+        RequestToken:
+          type: string
+        ResourceModel:
+          type: string
+        RetryAfter:
+          type: number
+        StatusMessage:
+          type: string
+        TypeName:
+          type: string
+      type: object
+  x-stackQL-resources:
+    s3_bucket_listing:
+      name: s3_bucket_listing
+      id: aws.pseudo_s3.s3_bucket_listing
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3"
+              ddl: |
+                SELECT 
+                JSON_EXTRACT(Properties, '$.Arn') as Arn,
+                JSON_EXTRACT(Properties, '$.BucketName') as BucketName,
+                JSON_EXTRACT(Properties, '$.DomainName') as DomainName,
+                JSON_EXTRACT(Properties, '$.RegionalDomainName') as RegionalDomainName,
+                JSON_EXTRACT(Properties, '$.DualStackDomainName') as DualStackDomainName,
+                JSON_EXTRACT(Properties, '$.WebsiteURL') as WebsiteURL,
+                JSON_EXTRACT(Properties, '$.OwnershipControls.Rules[0].ObjectOwnership') as ObjectOwnership,
+                IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.RestrictPublicBuckets') = 0, 'false', 'true') as RestrictPublicBuckets,
+                IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.BlockPublicPolicy') = 0, 'false', 'true') as BlockPublicPolicy,
+                IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.BlockPublicAcls') = 0, 'false', 'true') as BlockPublicAcls,
+                IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.IgnorePublicAcls') = 0, 'false', 'true') as IgnorePublicAcls,
+                JSON_EXTRACT(Properties, '$.Tags') as Tags
+                FROM aws.cloud_control_legacy.resources WHERE region = 'ap-southeast-1' and data__TypeName = 'AWS::S3::Bucket'
+                ;
+              fallback:
+                predicate: sqlDialect == "postgres"
+                ddl: |
+                  SELECT 
+                  json_extract_path_text(Properties, 'Arn') as Arn,
+                  json_extract_path_text(Properties, 'BucketName') as BucketName,
+                  json_extract_path_text(Properties, 'DomainName') as DomainName,
+                  json_extract_path_text(Properties, 'RegionalDomainName') as RegionalDomainName,
+                  json_extract_path_text(Properties, 'DualStackDomainName') as DualStackDomainName,
+                  json_extract_path_text(Properties, 'WebsiteURL') as WebsiteURL,
+                  json_extract_path_text(Properties, 'OwnershipControls', 'Rules', '0', 'ObjectOwnership') as ObjectOwnership,
+                  CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'RestrictPublicBuckets') = '0' THEN 'false' ELSE 'true' END as RestrictPublicBuckets,
+                  CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'BlockPublicPolicy') = '0' THEN 'false' ELSE 'true' END as BlockPublicPolicy,
+                  CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'BlockPublicAcls') = '0' THEN 'false' ELSE 'true' END as BlockPublicAcls,
+                  CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'IgnorePublicAcls') = '0' THEN 'false' ELSE 'true' END as IgnorePublicAcls,
+                  json_extract_path_text(Properties, 'Tags') as Tags
+                  FROM aws.cloud_control_legacy.resources WHERE region = 'ap-southeast-1' and data__TypeName = 'AWS::S3::Bucket'
+                  ;
+    s3_bucket_detail:
+      name: s3_bucket_detail
+      id: aws.pseudo_s3.s3_bucket_detail
+      methods:
+        create_resource:
+          operation:
+            $ref: '#/paths/~1?Action=CreateResource&Version=2021-09-30&__detailDynamic=true/post'
+          request:
+            mediaType: application/x-amz-json-1.0
+            base: |
+              {
+                "TypeName": "AWS::S3::Bucket"
+              }
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+      sqlVerbs:
+        insert:
+          - $ref: '#/components/x-stackQL-resources/s3_bucket_detail/methods/create_resource'
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3"
+              ddl: |
+                SELECT
+                region,
+                data__Identifier,
+                JSON_EXTRACT(Properties, '$.AccelerateConfiguration') as accelerate_configuration,
+                JSON_EXTRACT(Properties, '$.AccessControl') as access_control,
+                JSON_EXTRACT(Properties, '$.AnalyticsConfigurations') as analytics_configurations,
+                JSON_EXTRACT(Properties, '$.BucketEncryption') as bucket_encryption,
+                JSON_EXTRACT(Properties, '$.BucketName') as bucket_name,
+                JSON_EXTRACT(Properties, '$.CorsConfiguration') as cors_configuration,
+                JSON_EXTRACT(Properties, '$.IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                JSON_EXTRACT(Properties, '$.InventoryConfigurations') as inventory_configurations,
+                JSON_EXTRACT(Properties, '$.LifecycleConfiguration') as lifecycle_configuration,
+                JSON_EXTRACT(Properties, '$.LoggingConfiguration') as logging_configuration,
+                JSON_EXTRACT(Properties, '$.MetricsConfigurations') as metrics_configurations,
+                JSON_EXTRACT(Properties, '$.NotificationConfiguration') as notification_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockConfiguration') as object_lock_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockEnabled') as object_lock_enabled,
+                JSON_EXTRACT(Properties, '$.OwnershipControls') as ownership_controls,
+                JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration') as public_access_block_configuration,
+                JSON_EXTRACT(Properties, '$.ReplicationConfiguration') as replication_configuration,
+                JSON_EXTRACT(Properties, '$.Tags') as tags,
+                JSON_EXTRACT(Properties, '$.VersioningConfiguration') as versioning_configuration,
+                JSON_EXTRACT(Properties, '$.WebsiteConfiguration') as website_configuration,
+                JSON_EXTRACT(Properties, '$.Arn') as arn,
+                JSON_EXTRACT(Properties, '$.DomainName') as domain_name,
+                JSON_EXTRACT(Properties, '$.DualStackDomainName') as dual_stack_domain_name,
+                JSON_EXTRACT(Properties, '$.RegionalDomainName') as regional_domain_name,
+                JSON_EXTRACT(Properties, '$.WebsiteURL') as website_url
+                FROM aws.cloud_control.resource WHERE data__TypeName = 'AWS::S3::Bucket'
+                AND data__Identifier = '<BucketName>'
+                AND region = 'us-east-1'
+                ;
+              fallback:
+                predicate: sqlDialect == "postgres"
+                ddl: |
+                  SELECT
+                  region,
+                  data__Identifier,
+                  json_extract_path_text(Properties, 'AccelerateConfiguration') as accelerate_configuration,
+                  json_extract_path_text(Properties, 'AccessControl') as access_control,
+                  json_extract_path_text(Properties, 'AnalyticsConfigurations') as analytics_configurations,
+                  json_extract_path_text(Properties, 'BucketEncryption') as bucket_encryption,
+                  json_extract_path_text(Properties, 'BucketName') as bucket_name,
+                  json_extract_path_text(Properties, 'CorsConfiguration') as cors_configuration,
+                  json_extract_path_text(Properties, 'IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                  json_extract_path_text(Properties, 'InventoryConfigurations') as inventory_configurations,
+                  json_extract_path_text(Properties, 'LifecycleConfiguration') as lifecycle_configuration,
+                  json_extract_path_text(Properties, 'LoggingConfiguration') as logging_configuration,
+                  json_extract_path_text(Properties, 'MetricsConfigurations') as metrics_configurations,
+                  json_extract_path_text(Properties, 'NotificationConfiguration') as notification_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockConfiguration') as object_lock_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockEnabled') as object_lock_enabled,
+                  json_extract_path_text(Properties, 'OwnershipControls') as ownership_controls,
+                  json_extract_path_text(Properties, 'PublicAccessBlockConfiguration') as public_access_block_configuration,
+                  json_extract_path_text(Properties, 'ReplicationConfiguration') as replication_configuration,
+                  json_extract_path_text(Properties, 'Tags') as tags,
+                  json_extract_path_text(Properties, 'VersioningConfiguration') as versioning_configuration,
+                  json_extract_path_text(Properties, 'WebsiteConfiguration') as website_configuration,
+                  json_extract_path_text(Properties, 'Arn') as arn,
+                  json_extract_path_text(Properties, 'DomainName') as domain_name,
+                  json_extract_path_text(Properties, 'DualStackDomainName') as dual_stack_domain_name,
+                  json_extract_path_text(Properties, 'RegionalDomainName') as regional_domain_name,
+                  json_extract_path_text(Properties, 'WebsiteURL') as website_url
+                  FROM aws.cloud_control.resource WHERE data__TypeName = 'AWS::S3::Bucket'
+                  AND data__Identifier = '<BucketName>'
+                  AND region = 'us-east-1'
+                  ;
+    s3_bucket_detail_defaulted:
+      name: s3_bucket_detail_defaulted
+      id: aws.pseudo_s3.s3_bucket_detail_defaulted
+      methods:
+        create_resource:
+          operation:
+            $ref: '#/paths/~1?Action=CreateResource&Version=2021-09-30/post'
+          request:
+            mediaType: application/x-amz-json-1.0
+            default: |
+              {
+                "TypeName": "AWS::S3::Bucket",
+                "DesiredState": "{\"BucketName\":\"my-bucket\"}"
+              }
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+      sqlVerbs:
+        insert:
+          - $ref: '#/components/x-stackQL-resources/s3_bucket_detail_defaulted/methods/create_resource'
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3"
+              ddl: |
+                SELECT
+                region,
+                data__Identifier,
+                JSON_EXTRACT(Properties, '$.AccelerateConfiguration') as accelerate_configuration,
+                JSON_EXTRACT(Properties, '$.AccessControl') as access_control,
+                JSON_EXTRACT(Properties, '$.AnalyticsConfigurations') as analytics_configurations,
+                JSON_EXTRACT(Properties, '$.BucketEncryption') as bucket_encryption,
+                JSON_EXTRACT(Properties, '$.BucketName') as bucket_name,
+                JSON_EXTRACT(Properties, '$.CorsConfiguration') as cors_configuration,
+                JSON_EXTRACT(Properties, '$.IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                JSON_EXTRACT(Properties, '$.InventoryConfigurations') as inventory_configurations,
+                JSON_EXTRACT(Properties, '$.LifecycleConfiguration') as lifecycle_configuration,
+                JSON_EXTRACT(Properties, '$.LoggingConfiguration') as logging_configuration,
+                JSON_EXTRACT(Properties, '$.MetricsConfigurations') as metrics_configurations,
+                JSON_EXTRACT(Properties, '$.NotificationConfiguration') as notification_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockConfiguration') as object_lock_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockEnabled') as object_lock_enabled,
+                JSON_EXTRACT(Properties, '$.OwnershipControls') as ownership_controls,
+                JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration') as public_access_block_configuration,
+                JSON_EXTRACT(Properties, '$.ReplicationConfiguration') as replication_configuration,
+                JSON_EXTRACT(Properties, '$.Tags') as tags,
+                JSON_EXTRACT(Properties, '$.VersioningConfiguration') as versioning_configuration,
+                JSON_EXTRACT(Properties, '$.WebsiteConfiguration') as website_configuration,
+                JSON_EXTRACT(Properties, '$.Arn') as arn,
+                JSON_EXTRACT(Properties, '$.DomainName') as domain_name,
+                JSON_EXTRACT(Properties, '$.DualStackDomainName') as dual_stack_domain_name,
+                JSON_EXTRACT(Properties, '$.RegionalDomainName') as regional_domain_name,
+                JSON_EXTRACT(Properties, '$.WebsiteURL') as website_url
+                FROM aws.cloud_control.resource WHERE data__TypeName = 'AWS::S3::Bucket'
+                AND data__Identifier = '<BucketName>'
+                AND region = 'us-east-1'
+                ;
+              fallback:
+                predicate: sqlDialect == "postgres"
+                ddl: |
+                  SELECT
+                  region,
+                  data__Identifier,
+                  json_extract_path_text(Properties, 'AccelerateConfiguration') as accelerate_configuration,
+                  json_extract_path_text(Properties, 'AccessControl') as access_control,
+                  json_extract_path_text(Properties, 'AnalyticsConfigurations') as analytics_configurations,
+                  json_extract_path_text(Properties, 'BucketEncryption') as bucket_encryption,
+                  json_extract_path_text(Properties, 'BucketName') as bucket_name,
+                  json_extract_path_text(Properties, 'CorsConfiguration') as cors_configuration,
+                  json_extract_path_text(Properties, 'IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                  json_extract_path_text(Properties, 'InventoryConfigurations') as inventory_configurations,
+                  json_extract_path_text(Properties, 'LifecycleConfiguration') as lifecycle_configuration,
+                  json_extract_path_text(Properties, 'LoggingConfiguration') as logging_configuration,
+                  json_extract_path_text(Properties, 'MetricsConfigurations') as metrics_configurations,
+                  json_extract_path_text(Properties, 'NotificationConfiguration') as notification_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockConfiguration') as object_lock_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockEnabled') as object_lock_enabled,
+                  json_extract_path_text(Properties, 'OwnershipControls') as ownership_controls,
+                  json_extract_path_text(Properties, 'PublicAccessBlockConfiguration') as public_access_block_configuration,
+                  json_extract_path_text(Properties, 'ReplicationConfiguration') as replication_configuration,
+                  json_extract_path_text(Properties, 'Tags') as tags,
+                  json_extract_path_text(Properties, 'VersioningConfiguration') as versioning_configuration,
+                  json_extract_path_text(Properties, 'WebsiteConfiguration') as website_configuration,
+                  json_extract_path_text(Properties, 'Arn') as arn,
+                  json_extract_path_text(Properties, 'DomainName') as domain_name,
+                  json_extract_path_text(Properties, 'DualStackDomainName') as dual_stack_domain_name,
+                  json_extract_path_text(Properties, 'RegionalDomainName') as regional_domain_name,
+                  json_extract_path_text(Properties, 'WebsiteURL') as website_url
+                  FROM aws.cloud_control.resource WHERE data__TypeName = 'AWS::S3::Bucket'
+                  AND data__Identifier = '<BucketName>'
+                  AND region = 'us-east-1'
+                  ;
+    s3_bucket_detail_semantic:
+      name: s3_bucket_detail
+      id: aws.pseudo_s3.s3_bucket_detail
+      methods:
+        create_resource:
+          config:
+            requestBodyTranslate: 
+              algorithm: naive
+          operation:
+            $ref: '#/paths/~1?Action=CreateResource&Version=2021-09-30&__detailSemantic=true/post'
+          request:
+            mediaType: application/x-amz-json-1.0
+            base: |
+              {
+                "TypeName": "AWS::S3::Bucket"
+              }
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+      sqlVerbs:
+        insert:
+          - $ref: '#/components/x-stackQL-resources/s3_bucket_detail_semantic/methods/create_resource'
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3"
+              ddl: |
+                SELECT
+                region,
+                data__Identifier,
+                JSON_EXTRACT(Properties, '$.AccelerateConfiguration') as accelerate_configuration,
+                JSON_EXTRACT(Properties, '$.AccessControl') as access_control,
+                JSON_EXTRACT(Properties, '$.AnalyticsConfigurations') as analytics_configurations,
+                JSON_EXTRACT(Properties, '$.BucketEncryption') as bucket_encryption,
+                JSON_EXTRACT(Properties, '$.BucketName') as bucket_name,
+                JSON_EXTRACT(Properties, '$.CorsConfiguration') as cors_configuration,
+                JSON_EXTRACT(Properties, '$.IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                JSON_EXTRACT(Properties, '$.InventoryConfigurations') as inventory_configurations,
+                JSON_EXTRACT(Properties, '$.LifecycleConfiguration') as lifecycle_configuration,
+                JSON_EXTRACT(Properties, '$.LoggingConfiguration') as logging_configuration,
+                JSON_EXTRACT(Properties, '$.MetricsConfigurations') as metrics_configurations,
+                JSON_EXTRACT(Properties, '$.NotificationConfiguration') as notification_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockConfiguration') as object_lock_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockEnabled') as object_lock_enabled,
+                JSON_EXTRACT(Properties, '$.OwnershipControls') as ownership_controls,
+                JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration') as public_access_block_configuration,
+                JSON_EXTRACT(Properties, '$.ReplicationConfiguration') as replication_configuration,
+                JSON_EXTRACT(Properties, '$.Tags') as tags,
+                JSON_EXTRACT(Properties, '$.VersioningConfiguration') as versioning_configuration,
+                JSON_EXTRACT(Properties, '$.WebsiteConfiguration') as website_configuration,
+                JSON_EXTRACT(Properties, '$.Arn') as arn,
+                JSON_EXTRACT(Properties, '$.DomainName') as domain_name,
+                JSON_EXTRACT(Properties, '$.DualStackDomainName') as dual_stack_domain_name,
+                JSON_EXTRACT(Properties, '$.RegionalDomainName') as regional_domain_name,
+                JSON_EXTRACT(Properties, '$.WebsiteURL') as website_url
+                FROM aws.cloud_control.resources WHERE data__TypeName = 'AWS::S3::Bucket'
+                AND data__Identifier = '<BucketName>'
+                AND region = 'us-east-1'
+                ;
+              fallback:
+                predicate: sqlDialect == "postgres"
+                ddl: |
+                  SELECT
+                  region,
+                  data__Identifier,
+                  json_extract_path_text(Properties, 'AccelerateConfiguration') as accelerate_configuration,
+                  json_extract_path_text(Properties, 'AccessControl') as access_control,
+                  json_extract_path_text(Properties, 'AnalyticsConfigurations') as analytics_configurations,
+                  json_extract_path_text(Properties, 'BucketEncryption') as bucket_encryption,
+                  json_extract_path_text(Properties, 'BucketName') as bucket_name,
+                  json_extract_path_text(Properties, 'CorsConfiguration') as cors_configuration,
+                  json_extract_path_text(Properties, 'IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                  json_extract_path_text(Properties, 'InventoryConfigurations') as inventory_configurations,
+                  json_extract_path_text(Properties, 'LifecycleConfiguration') as lifecycle_configuration,
+                  json_extract_path_text(Properties, 'LoggingConfiguration') as logging_configuration,
+                  json_extract_path_text(Properties, 'MetricsConfigurations') as metrics_configurations,
+                  json_extract_path_text(Properties, 'NotificationConfiguration') as notification_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockConfiguration') as object_lock_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockEnabled') as object_lock_enabled,
+                  json_extract_path_text(Properties, 'OwnershipControls') as ownership_controls,
+                  json_extract_path_text(Properties, 'PublicAccessBlockConfiguration') as public_access_block_configuration,
+                  json_extract_path_text(Properties, 'ReplicationConfiguration') as replication_configuration,
+                  json_extract_path_text(Properties, 'Tags') as tags,
+                  json_extract_path_text(Properties, 'VersioningConfiguration') as versioning_configuration,
+                  json_extract_path_text(Properties, 'WebsiteConfiguration') as website_configuration,
+                  json_extract_path_text(Properties, 'Arn') as arn,
+                  json_extract_path_text(Properties, 'DomainName') as domain_name,
+                  json_extract_path_text(Properties, 'DualStackDomainName') as dual_stack_domain_name,
+                  json_extract_path_text(Properties, 'RegionalDomainName') as regional_domain_name,
+                  json_extract_path_text(Properties, 'WebsiteURL') as website_url
+                  FROM aws.cloud_control.resources WHERE data__TypeName = 'AWS::S3::Bucket'
+                  AND data__Identifier = '<BucketName>'
+                  AND region = 'us-east-1'
+                  ;
+    s3_bucket_detail_transformed:
+      name: s3_bucket_detail
+      id: aws.pseudo_s3.s3_bucket_detail
+      methods:
+        create_resource:
+          config:
+            requestBodyTranslate: 
+              algorithm: naive_DesiredState
+          operation:
+            $ref: '#/paths/~1?Action=CreateResource&Version=2021-09-30&__detailTransformed=true/post'
+          request:
+            mediaType: application/x-amz-json-1.0
+            base: |
+              {
+                "TypeName": "AWS::S3::Bucket"
+              }
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+      sqlVerbs:
+        insert:
+          - $ref: '#/components/x-stackQL-resources/s3_bucket_detail_transformed/methods/create_resource'
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3"
+              ddl: |
+                SELECT
+                region,
+                data__Identifier,
+                JSON_EXTRACT(Properties, '$.AccelerateConfiguration') as accelerate_configuration,
+                JSON_EXTRACT(Properties, '$.AccessControl') as access_control,
+                JSON_EXTRACT(Properties, '$.AnalyticsConfigurations') as analytics_configurations,
+                JSON_EXTRACT(Properties, '$.BucketEncryption') as bucket_encryption,
+                JSON_EXTRACT(Properties, '$.BucketName') as bucket_name,
+                JSON_EXTRACT(Properties, '$.CorsConfiguration') as cors_configuration,
+                JSON_EXTRACT(Properties, '$.IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                JSON_EXTRACT(Properties, '$.InventoryConfigurations') as inventory_configurations,
+                JSON_EXTRACT(Properties, '$.LifecycleConfiguration') as lifecycle_configuration,
+                JSON_EXTRACT(Properties, '$.LoggingConfiguration') as logging_configuration,
+                JSON_EXTRACT(Properties, '$.MetricsConfigurations') as metrics_configurations,
+                JSON_EXTRACT(Properties, '$.NotificationConfiguration') as notification_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockConfiguration') as object_lock_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockEnabled') as object_lock_enabled,
+                JSON_EXTRACT(Properties, '$.OwnershipControls') as ownership_controls,
+                JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration') as public_access_block_configuration,
+                JSON_EXTRACT(Properties, '$.ReplicationConfiguration') as replication_configuration,
+                JSON_EXTRACT(Properties, '$.Tags') as tags,
+                JSON_EXTRACT(Properties, '$.VersioningConfiguration') as versioning_configuration,
+                JSON_EXTRACT(Properties, '$.WebsiteConfiguration') as website_configuration,
+                JSON_EXTRACT(Properties, '$.Arn') as arn,
+                JSON_EXTRACT(Properties, '$.DomainName') as domain_name,
+                JSON_EXTRACT(Properties, '$.DualStackDomainName') as dual_stack_domain_name,
+                JSON_EXTRACT(Properties, '$.RegionalDomainName') as regional_domain_name,
+                JSON_EXTRACT(Properties, '$.WebsiteURL') as website_url
+                FROM aws.cloud_control.resources WHERE data__TypeName = 'AWS::S3::Bucket'
+                AND data__Identifier = '<BucketName>'
+                AND region = 'us-east-1'
+                ;
+              fallback:
+                predicate: sqlDialect == "postgres"
+                ddl: |
+                  SELECT
+                  region,
+                  data__Identifier,
+                  json_extract_path_text(Properties, 'AccelerateConfiguration') as accelerate_configuration,
+                  json_extract_path_text(Properties, 'AccessControl') as access_control,
+                  json_extract_path_text(Properties, 'AnalyticsConfigurations') as analytics_configurations,
+                  json_extract_path_text(Properties, 'BucketEncryption') as bucket_encryption,
+                  json_extract_path_text(Properties, 'BucketName') as bucket_name,
+                  json_extract_path_text(Properties, 'CorsConfiguration') as cors_configuration,
+                  json_extract_path_text(Properties, 'IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                  json_extract_path_text(Properties, 'InventoryConfigurations') as inventory_configurations,
+                  json_extract_path_text(Properties, 'LifecycleConfiguration') as lifecycle_configuration,
+                  json_extract_path_text(Properties, 'LoggingConfiguration') as logging_configuration,
+                  json_extract_path_text(Properties, 'MetricsConfigurations') as metrics_configurations,
+                  json_extract_path_text(Properties, 'NotificationConfiguration') as notification_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockConfiguration') as object_lock_configuration,
+                  json_extract_path_text(Properties, 'ObjectLockEnabled') as object_lock_enabled,
+                  json_extract_path_text(Properties, 'OwnershipControls') as ownership_controls,
+                  json_extract_path_text(Properties, 'PublicAccessBlockConfiguration') as public_access_block_configuration,
+                  json_extract_path_text(Properties, 'ReplicationConfiguration') as replication_configuration,
+                  json_extract_path_text(Properties, 'Tags') as tags,
+                  json_extract_path_text(Properties, 'VersioningConfiguration') as versioning_configuration,
+                  json_extract_path_text(Properties, 'WebsiteConfiguration') as website_configuration,
+                  json_extract_path_text(Properties, 'Arn') as arn,
+                  json_extract_path_text(Properties, 'DomainName') as domain_name,
+                  json_extract_path_text(Properties, 'DualStackDomainName') as dual_stack_domain_name,
+                  json_extract_path_text(Properties, 'RegionalDomainName') as regional_domain_name,
+                  json_extract_path_text(Properties, 'WebsiteURL') as website_url
+                  FROM aws.cloud_control.resources WHERE data__TypeName = 'AWS::S3::Bucket'
+                  AND data__Identifier = '<BucketName>'
+                  AND region = 'us-east-1'
+                  ;
+    s3_buckets_native:
+      name: s3_buckets_native
+      id: aws.pseudo_s3.s3_buckets_native
+      methods:
+        buckets_list:
+          operation:
+            $ref: '#/paths/~1?__nativeEndpoint=true/get'
+          serviceName: s3
+          response:
+            mediaType: text/xml
+            objectKey: /*/Buckets/Bucket
+            openAPIDocKey: '200'
+      sqlVerbs:
+        select:
+        - $ref: '#/components/x-stackQL-resources/s3_buckets_native/methods/buckets_list'
+    s3_bucket_polymorphic:
+      name: s3_bucket_polymorphic
+      id: aws.pseudo_s3.s3_bucket_polymorphic
+      methods:
+        create_resource:
+          config:
+            requestBodyTranslate: 
+              algorithm: naive_DesiredState
+          operation:
+            $ref: '#/paths/~1?Action=CreateResource&Version=2021-09-30&__detailTransformed=true/post'
+          request:
+            mediaType: application/x-amz-json-1.0
+            base: |
+              {
+                "TypeName": "AWS::S3::Bucket"
+              }
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+      sqlVerbs:
+        insert:
+          - $ref: '#/components/x-stackQL-resources/s3_bucket_detail_transformed/methods/create_resource'
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3" && requiredParams == [ data__Identifier, region ]
+              ddl: |
+                SELECT
+                region,
+                data__Identifier,
+                JSON_EXTRACT(Properties, '$.AccelerateConfiguration') as accelerate_configuration,
+                JSON_EXTRACT(Properties, '$.AccessControl') as access_control,
+                JSON_EXTRACT(Properties, '$.AnalyticsConfigurations') as analytics_configurations,
+                JSON_EXTRACT(Properties, '$.BucketEncryption') as bucket_encryption,
+                JSON_EXTRACT(Properties, '$.BucketName') as bucket_name,
+                JSON_EXTRACT(Properties, '$.CorsConfiguration') as cors_configuration,
+                JSON_EXTRACT(Properties, '$.IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                JSON_EXTRACT(Properties, '$.InventoryConfigurations') as inventory_configurations,
+                JSON_EXTRACT(Properties, '$.LifecycleConfiguration') as lifecycle_configuration,
+                JSON_EXTRACT(Properties, '$.LoggingConfiguration') as logging_configuration,
+                JSON_EXTRACT(Properties, '$.MetricsConfigurations') as metrics_configurations,
+                JSON_EXTRACT(Properties, '$.NotificationConfiguration') as notification_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockConfiguration') as object_lock_configuration,
+                JSON_EXTRACT(Properties, '$.ObjectLockEnabled') as object_lock_enabled,
+                JSON_EXTRACT(Properties, '$.OwnershipControls') as ownership_controls,
+                JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration') as public_access_block_configuration,
+                JSON_EXTRACT(Properties, '$.ReplicationConfiguration') as replication_configuration,
+                JSON_EXTRACT(Properties, '$.Tags') as tags,
+                JSON_EXTRACT(Properties, '$.VersioningConfiguration') as versioning_configuration,
+                JSON_EXTRACT(Properties, '$.WebsiteConfiguration') as website_configuration,
+                JSON_EXTRACT(Properties, '$.Arn') as arn,
+                JSON_EXTRACT(Properties, '$.DomainName') as domain_name,
+                JSON_EXTRACT(Properties, '$.DualStackDomainName') as dual_stack_domain_name,
+                JSON_EXTRACT(Properties, '$.RegionalDomainName') as regional_domain_name,
+                JSON_EXTRACT(Properties, '$.WebsiteURL') as website_url
+                FROM aws.cloud_control.resource WHERE data__TypeName = 'AWS::S3::Bucket'
+                AND data__Identifier = '<BucketName>'
+                AND region = 'us-east-1'
+                ;
+              fallback:
+                predicate: sqlDialect == "sqlite3"
+                ddl: |
+                  SELECT 
+                  JSON_EXTRACT(Properties, '$.Arn') as Arn,
+                  JSON_EXTRACT(Properties, '$.BucketName') as BucketName,
+                  JSON_EXTRACT(Properties, '$.DomainName') as DomainName,
+                  JSON_EXTRACT(Properties, '$.RegionalDomainName') as RegionalDomainName,
+                  JSON_EXTRACT(Properties, '$.DualStackDomainName') as DualStackDomainName,
+                  JSON_EXTRACT(Properties, '$.WebsiteURL') as WebsiteURL,
+                  JSON_EXTRACT(Properties, '$.OwnershipControls.Rules[0].ObjectOwnership') as ObjectOwnership,
+                  IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.RestrictPublicBuckets') = 0, 'false', 'true') as RestrictPublicBuckets,
+                  IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.BlockPublicPolicy') = 0, 'false', 'true') as BlockPublicPolicy,
+                  IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.BlockPublicAcls') = 0, 'false', 'true') as BlockPublicAcls,
+                  IIF(JSON_EXTRACT(Properties, '$.PublicAccessBlockConfiguration.IgnorePublicAcls') = 0, 'false', 'true') as IgnorePublicAcls,
+                  JSON_EXTRACT(Properties, '$.Tags') as Tags
+                  FROM aws.cloud_control.resources WHERE region = 'ap-southeast-1' and data__TypeName = 'AWS::S3::Bucket'
+                  ;
+                fallback:
+                  predicate: sqlDialect == "postgres" && requiredParams == [ "data__Identifier", region ]
+                  ddl: |
+                    SELECT
+                    region,
+                    data__Identifier,
+                    json_extract_path_text(Properties, 'AccelerateConfiguration') as accelerate_configuration,
+                    json_extract_path_text(Properties, 'AccessControl') as access_control,
+                    json_extract_path_text(Properties, 'AnalyticsConfigurations') as analytics_configurations,
+                    json_extract_path_text(Properties, 'BucketEncryption') as bucket_encryption,
+                    json_extract_path_text(Properties, 'BucketName') as bucket_name,
+                    json_extract_path_text(Properties, 'CorsConfiguration') as cors_configuration,
+                    json_extract_path_text(Properties, 'IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                    json_extract_path_text(Properties, 'InventoryConfigurations') as inventory_configurations,
+                    json_extract_path_text(Properties, 'LifecycleConfiguration') as lifecycle_configuration,
+                    json_extract_path_text(Properties, 'LoggingConfiguration') as logging_configuration,
+                    json_extract_path_text(Properties, 'MetricsConfigurations') as metrics_configurations,
+                    json_extract_path_text(Properties, 'NotificationConfiguration') as notification_configuration,
+                    json_extract_path_text(Properties, 'ObjectLockConfiguration') as object_lock_configuration,
+                    json_extract_path_text(Properties, 'ObjectLockEnabled') as object_lock_enabled,
+                    json_extract_path_text(Properties, 'OwnershipControls') as ownership_controls,
+                    json_extract_path_text(Properties, 'PublicAccessBlockConfiguration') as public_access_block_configuration,
+                    json_extract_path_text(Properties, 'ReplicationConfiguration') as replication_configuration,
+                    json_extract_path_text(Properties, 'Tags') as tags,
+                    json_extract_path_text(Properties, 'VersioningConfiguration') as versioning_configuration,
+                    json_extract_path_text(Properties, 'WebsiteConfiguration') as website_configuration,
+                    json_extract_path_text(Properties, 'Arn') as arn,
+                    json_extract_path_text(Properties, 'DomainName') as domain_name,
+                    json_extract_path_text(Properties, 'DualStackDomainName') as dual_stack_domain_name,
+                    json_extract_path_text(Properties, 'RegionalDomainName') as regional_domain_name,
+                    json_extract_path_text(Properties, 'WebsiteURL') as website_url
+                    FROM aws.cloud_control.resource WHERE data__TypeName = 'AWS::S3::Bucket'
+                    AND data__Identifier = '<BucketName>'
+                    AND region = 'us-east-1'
+                    ;
+                  fallback:
+                    predicate: sqlDialect == "postgres"
+                    ddl: |
+                      SELECT 
+                      json_extract_path_text(Properties, 'Arn') as Arn,
+                      json_extract_path_text(Properties, 'BucketName') as BucketName,
+                      json_extract_path_text(Properties, 'DomainName') as DomainName,
+                      json_extract_path_text(Properties, 'RegionalDomainName') as RegionalDomainName,
+                      json_extract_path_text(Properties, 'DualStackDomainName') as DualStackDomainName,
+                      json_extract_path_text(Properties, 'WebsiteURL') as WebsiteURL,
+                      json_extract_path_text(Properties, 'OwnershipControls', 'Rules', '0', 'ObjectOwnership') as ObjectOwnership,
+                      CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'RestrictPublicBuckets') = '0' THEN 'false' ELSE 'true' END as RestrictPublicBuckets,
+                      CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'BlockPublicPolicy') = '0' THEN 'false' ELSE 'true' END as BlockPublicPolicy,
+                      CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'BlockPublicAcls') = '0' THEN 'false' ELSE 'true' END as BlockPublicAcls,
+                      CASE WHEN json_extract_path_text(Properties, 'PublicAccessBlockConfiguration', 'IgnorePublicAcls') = '0' THEN 'false' ELSE 'true' END as IgnorePublicAcls,
+                      json_extract_path_text(Properties, 'Tags') as Tags
+                      FROM aws.cloud_control.resources WHERE region = 'ap-southeast-1' and data__TypeName = 'AWS::S3::Bucket'
+                      ;
+    s3_bucket_list_and_detail:
+      name: s3_bucket_list_and_detail
+      id: aws.pseudo_s3.s3_bucket_list_and_detail
+      methods: {}
+      sqlVerbs: {}
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3"
+              ddl: |
+                SELECT
+                detail.region,
+                detail.data__Identifier,
+                JSON_EXTRACT(detail.Properties, '$.AccelerateConfiguration') as accelerate_configuration,
+                JSON_EXTRACT(detail.Properties, '$.AccessControl') as access_control,
+                JSON_EXTRACT(detail.Properties, '$.AnalyticsConfigurations') as analytics_configurations,
+                JSON_EXTRACT(detail.Properties, '$.BucketEncryption') as bucket_encryption,
+                JSON_EXTRACT(detail.Properties, '$.BucketName') as bucket_name,
+                JSON_EXTRACT(detail.Properties, '$.CorsConfiguration') as cors_configuration,
+                JSON_EXTRACT(detail.Properties, '$.IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                JSON_EXTRACT(detail.Properties, '$.InventoryConfigurations') as inventory_configurations,
+                JSON_EXTRACT(detail.Properties, '$.LifecycleConfiguration') as lifecycle_configuration,
+                JSON_EXTRACT(detail.Properties, '$.LoggingConfiguration') as logging_configuration,
+                JSON_EXTRACT(detail.Properties, '$.MetricsConfigurations') as metrics_configurations,
+                JSON_EXTRACT(detail.Properties, '$.NotificationConfiguration') as notification_configuration,
+                JSON_EXTRACT(detail.Properties, '$.ObjectLockConfiguration') as object_lock_configuration,
+                JSON_EXTRACT(detail.Properties, '$.ObjectLockEnabled') as object_lock_enabled,
+                JSON_EXTRACT(detail.Properties, '$.OwnershipControls') as ownership_controls,
+                JSON_EXTRACT(detail.Properties, '$.PublicAccessBlockConfiguration') as public_access_block_configuration,
+                JSON_EXTRACT(detail.Properties, '$.ReplicationConfiguration') as replication_configuration,
+                JSON_EXTRACT(detail.Properties, '$.Tags') as tags,
+                JSON_EXTRACT(detail.Properties, '$.VersioningConfiguration') as versioning_configuration,
+                JSON_EXTRACT(detail.Properties, '$.WebsiteConfiguration') as website_configuration,
+                JSON_EXTRACT(detail.Properties, '$.Arn') as arn,
+                JSON_EXTRACT(detail.Properties, '$.DomainName') as domain_name,
+                JSON_EXTRACT(detail.Properties, '$.DualStackDomainName') as dual_stack_domain_name,
+                JSON_EXTRACT(detail.Properties, '$.RegionalDomainName') as regional_domain_name,
+                JSON_EXTRACT(detail.Properties, '$.WebsiteURL') as website_url
+                FROM  aws.cloud_control.resources listing 
+                INNER JOIN aws.cloud_control.resource detail 
+                on detail.data__Identifier = listing.Identifier
+                and detail.region = listing.region
+                WHERE listing.data__TypeName = 'AWS::S3::Bucket'
+                AND detail.data__TypeName = 'AWS::S3::Bucket'
+                AND listing.region = 'us-east-1'
+                ;
+              fallback:
+                predicate: sqlDialect == "postgres"
+                ddl: |
+                  SELECT
+                  detail.region,
+                  detail.data__Identifier,
+                  json_extract_path_text(detail.Properties, 'AccelerateConfiguration') as accelerate_configuration,
+                  json_extract_path_text(detail.Properties, 'AccessControl') as access_control,
+                  json_extract_path_text(detail.Properties, 'AnalyticsConfigurations') as analytics_configurations,
+                  json_extract_path_text(detail.Properties, 'BucketEncryption') as bucket_encryption,
+                  json_extract_path_text(detail.Properties, 'BucketName') as bucket_name,
+                  json_extract_path_text(detail.Properties, 'CorsConfiguration') as cors_configuration,
+                  json_extract_path_text(detail.Properties, 'IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                  json_extract_path_text(detail.Properties, 'InventoryConfigurations') as inventory_configurations,
+                  json_extract_path_text(detail.Properties, 'LifecycleConfiguration') as lifecycle_configuration,
+                  json_extract_path_text(detail.Properties, 'LoggingConfiguration') as logging_configuration,
+                  json_extract_path_text(detail.Properties, 'MetricsConfigurations') as metrics_configurations,
+                  json_extract_path_text(detail.Properties, 'NotificationConfiguration') as notification_configuration,
+                  json_extract_path_text(detail.Properties, 'ObjectLockConfiguration') as object_lock_configuration,
+                  json_extract_path_text(detail.Properties, 'ObjectLockEnabled') as object_lock_enabled,
+                  json_extract_path_text(detail.Properties, 'OwnershipControls') as ownership_controls,
+                  json_extract_path_text(detail.Properties, 'PublicAccessBlockConfiguration') as public_access_block_configuration,
+                  json_extract_path_text(detail.Properties, 'ReplicationConfiguration') as replication_configuration,
+                  json_extract_path_text(detail.Properties, 'Tags') as tags,
+                  json_extract_path_text(detail.Properties, 'VersioningConfiguration') as versioning_configuration,
+                  json_extract_path_text(detail.Properties, 'WebsiteConfiguration') as website_configuration,
+                  json_extract_path_text(detail.Properties, 'Arn') as arn,
+                  json_extract_path_text(detail.Properties, 'DomainName') as domain_name,
+                  json_extract_path_text(detail.Properties, 'DualStackDomainName') as dual_stack_domain_name,
+                  json_extract_path_text(detail.Properties, 'RegionalDomainName') as regional_domain_name,
+                  json_extract_path_text(detail.Properties, 'WebsiteURL') as website_url
+                  FROM  aws.cloud_control.resources listing 
+                  INNER JOIN aws.cloud_control.resource detail 
+                  on detail.data__Identifier = listing.Identifier
+                  and detail.region = listing.region
+                  WHERE listing.data__TypeName = 'AWS::S3::Bucket'
+                  AND detail.data__TypeName = 'AWS::S3::Bucket'
+                  AND listing.region = 'us-east-1'
+                  ;
+    s3_extravogant_bucket_list_and_detail:
+      name: s3_extravogant_bucket_list_and_detail
+      id: aws.pseudo_s3.s3_extravogant_bucket_list_and_detail
+      methods: {}
+      sqlVerbs: {}
+      config:
+        views:
+          'select':
+              predicate: sqlDialect == "sqlite3"
+              ddl: |
+                SELECT
+                detail.region as region,
+                detail.data__Identifier as id,
+                JSON_EXTRACT(json_each.value, '$.Key') as tag_key,
+                JSON_EXTRACT(json_each.value, '$.Value') as tag_value,
+                JSON_EXTRACT(detail.Properties, '$.AccelerateConfiguration') as accelerate_configuration,
+                JSON_EXTRACT(detail.Properties, '$.AccessControl') as access_control,
+                JSON_EXTRACT(detail.Properties, '$.AnalyticsConfigurations') as analytics_configurations,
+                JSON_EXTRACT(detail.Properties, '$.BucketEncryption') as bucket_encryption,
+                JSON_EXTRACT(detail.Properties, '$.BucketName') as bucket_name,
+                JSON_EXTRACT(detail.Properties, '$.CorsConfiguration') as cors_configuration,
+                JSON_EXTRACT(detail.Properties, '$.IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                JSON_EXTRACT(detail.Properties, '$.InventoryConfigurations') as inventory_configurations,
+                JSON_EXTRACT(detail.Properties, '$.LifecycleConfiguration') as lifecycle_configuration,
+                JSON_EXTRACT(detail.Properties, '$.LoggingConfiguration') as logging_configuration,
+                JSON_EXTRACT(detail.Properties, '$.MetricsConfigurations') as metrics_configurations,
+                JSON_EXTRACT(detail.Properties, '$.NotificationConfiguration') as notification_configuration,
+                JSON_EXTRACT(detail.Properties, '$.ObjectLockConfiguration') as object_lock_configuration,
+                JSON_EXTRACT(detail.Properties, '$.ObjectLockEnabled') as object_lock_enabled,
+                JSON_EXTRACT(detail.Properties, '$.OwnershipControls') as ownership_controls,
+                JSON_EXTRACT(detail.Properties, '$.PublicAccessBlockConfiguration') as public_access_block_configuration,
+                JSON_EXTRACT(detail.Properties, '$.ReplicationConfiguration') as replication_configuration,
+                JSON_EXTRACT(detail.Properties, '$.Tags') as tags,
+                JSON_EXTRACT(detail.Properties, '$.VersioningConfiguration') as versioning_configuration,
+                JSON_EXTRACT(detail.Properties, '$.WebsiteConfiguration') as website_configuration,
+                JSON_EXTRACT(detail.Properties, '$.Arn') as arn,
+                JSON_EXTRACT(detail.Properties, '$.DomainName') as domain_name,
+                JSON_EXTRACT(detail.Properties, '$.DualStackDomainName') as dual_stack_domain_name,
+                JSON_EXTRACT(detail.Properties, '$.RegionalDomainName') as regional_domain_name,
+                JSON_EXTRACT(detail.Properties, '$.WebsiteURL') as website_url
+                FROM  aws.cloud_control.resources listing 
+                INNER JOIN aws.cloud_control.resource detail 
+                on detail.data__Identifier = listing.Identifier
+                and detail.region = listing.region
+                , json_each(JSON_EXTRACT(detail.Properties, '$.Tags'))
+                WHERE listing.data__TypeName = 'AWS::S3::Bucket'
+                AND detail.data__TypeName = 'AWS::S3::Bucket'
+                AND listing.region IN ('us-east-1', 'ap-southeast-1')
+                ;
+              fallback:
+                predicate: sqlDialect == "postgres"
+                ddl: |
+                  SELECT
+                  detail.region as region,
+                  detail.data__Identifier as id,
+                  json_extract_path_text(ta.value, 'Key') as tag_key,
+                  json_extract_path_text(ta.value, 'Value') as tag_value,
+                  json_extract_path_text(detail.Properties, 'AccelerateConfiguration') as accelerate_configuration,
+                  json_extract_path_text(detail.Properties, 'AccessControl') as access_control,
+                  json_extract_path_text(detail.Properties, 'AnalyticsConfigurations') as analytics_configurations,
+                  json_extract_path_text(detail.Properties, 'BucketEncryption') as bucket_encryption,
+                  json_extract_path_text(detail.Properties, 'BucketName') as bucket_name,
+                  json_extract_path_text(detail.Properties, 'CorsConfiguration') as cors_configuration,
+                  json_extract_path_text(detail.Properties, 'IntelligentTieringConfigurations') as intelligent_tiering_configurations,
+                  json_extract_path_text(detail.Properties, 'InventoryConfigurations') as inventory_configurations,
+                  json_extract_path_text(detail.Properties, 'LifecycleConfiguration') as lifecycle_configuration,
+                  json_extract_path_text(detail.Properties, 'LoggingConfiguration') as logging_configuration,
+                  json_extract_path_text(detail.Properties, 'MetricsConfigurations') as metrics_configurations,
+                  json_extract_path_text(detail.Properties, 'NotificationConfiguration') as notification_configuration,
+                  json_extract_path_text(detail.Properties, 'ObjectLockConfiguration') as object_lock_configuration,
+                  json_extract_path_text(detail.Properties, 'ObjectLockEnabled') as object_lock_enabled,
+                  json_extract_path_text(detail.Properties, 'OwnershipControls') as ownership_controls,
+                  json_extract_path_text(detail.Properties, 'PublicAccessBlockConfiguration') as public_access_block_configuration,
+                  json_extract_path_text(detail.Properties, 'ReplicationConfiguration') as replication_configuration,
+                  json_extract_path_text(detail.Properties, 'Tags') as tags,
+                  json_extract_path_text(detail.Properties, 'VersioningConfiguration') as versioning_configuration,
+                  json_extract_path_text(detail.Properties, 'WebsiteConfiguration') as website_configuration,
+                  json_extract_path_text(detail.Properties, 'Arn') as arn,
+                  json_extract_path_text(detail.Properties, 'DomainName') as domain_name,
+                  json_extract_path_text(detail.Properties, 'DualStackDomainName') as dual_stack_domain_name,
+                  json_extract_path_text(detail.Properties, 'RegionalDomainName') as regional_domain_name,
+                  json_extract_path_text(detail.Properties, 'WebsiteURL') as website_url
+                  FROM  aws.cloud_control.resources listing 
+                  INNER JOIN aws.cloud_control.resource detail 
+                  on detail.data__Identifier = listing.Identifier
+                  and detail.region = listing.region
+                  , json_array_elements_text(json_extract_path_text(detail.Properties, 'Tags')) as ta
+                  WHERE listing.data__TypeName = 'AWS::S3::Bucket'
+                  AND detail.data__TypeName = 'AWS::S3::Bucket'
+                  AND listing.region IN ('us-east-1', 'ap-southeast-1')
+                  ;
+
+    
+servers:
+  - url: 'https://cloudcontrolapi.{region}.amazonaws.com'
+    variables:
+      region:
+        description: The AWS region
+        enum:
+          - us-east-1
+          - us-east-2
+          - us-west-1
+          - us-west-2
+          - us-gov-west-1
+          - us-gov-east-1
+          - ca-central-1
+          - eu-north-1
+          - eu-west-1
+          - eu-west-2
+          - eu-west-3
+          - eu-central-1
+          - eu-south-1
+          - af-south-1
+          - ap-northeast-1
+          - ap-northeast-2
+          - ap-northeast-3
+          - ap-southeast-1
+          - ap-southeast-2
+          - ap-east-1
+          - ap-south-1
+          - sa-east-1
+          - me-south-1
+        default: us-east-1
+    description: The CloudControlApi multi-region endpoint
+security:
+  - hmac: []
+x-stackQL-config:
+  requestTranslate:
+    algorithm: drop_double_underscore_params
