@@ -174,14 +174,11 @@ type AddressSpaceFormulator interface {
 }
 
 type AddressSpace interface {
-	GetServer() *openapi3.Server
-	GetServerVars() map[string]string
 	GetGlobalSelectSchemas() map[string]anysdk.Schema
 	DereferenceAddress(address string) (any, bool)
 	WriteToAddress(address string, val any) error
 	ReadFromAddress(address string) (any, bool)
 	Analyze() error
-	GetRequest() (*http.Request, bool)
 	ResolveSignature(map[string]any) bool
 	Expand(map[string]any) bool
 	Invoke(...any) error
@@ -433,13 +430,6 @@ func (ns *standardNamespace) ToMap() (map[string]any, error) {
 	return rv, nil
 }
 
-func (ns *standardNamespace) GetRequest() (*http.Request, bool) {
-	if ns.request != nil {
-		return ns.request, true
-	}
-	return nil, false
-}
-
 func (ns *standardNamespace) WriteToAddress(address string, val any) error {
 	err := ns.shadowQuery.Insert(address, val)
 	return err
@@ -491,14 +481,6 @@ func (ns *standardNamespace) DereferenceAddress(address string) (any, bool) {
 		}
 	}
 	return nil, false
-}
-
-func (ns *standardNamespace) GetServer() *openapi3.Server {
-	return ns.server
-}
-
-func (ns *standardNamespace) GetServerVars() map[string]string {
-	return ns.serverVars
 }
 
 func (ns *standardNamespace) GetGlobalSelectSchemas() map[string]anysdk.Schema {
