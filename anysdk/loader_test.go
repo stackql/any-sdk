@@ -35,7 +35,7 @@ func TestSimpleOktaApplicationServiceRead(t *testing.T) {
 	setupFileRoot(t)
 	for _, vr := range oktaTestableVersions {
 
-		pr, err := LoadProviderByName("okta", vr)
+		pr, err := LoadProviderByName("okta", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -45,7 +45,7 @@ func TestSimpleOktaApplicationServiceRead(t *testing.T) {
 			t.Fatalf("Test failed: could not locate ProviderService for okta.application")
 		}
 
-		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr))
+		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -65,7 +65,7 @@ func TestSimpleOktaApplicationServiceReadAndDump(t *testing.T) {
 	setupFileRoot(t)
 
 	for _, vr := range oktaTestableVersions {
-		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr))
+		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -90,7 +90,7 @@ func TestSimpleOktaApplicationServiceReadAndDump(t *testing.T) {
 func TestSimpleOktaApplicationServiceReadAndDumpString(t *testing.T) {
 	setupFileRoot(t)
 	for _, vr := range oktaTestableVersions {
-		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr))
+		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -125,7 +125,7 @@ func TestSimpleOktaApplicationServiceReadAndDumpString(t *testing.T) {
 func TestSimpleOktaApplicationServiceJsonReadAndDumpString(t *testing.T) {
 	setupFileRoot(t)
 	for _, vr := range oktaTestableVersions {
-		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr))
+		b, err := GetServiceDocBytes(fmt.Sprintf("okta/%s/services/Application.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -163,7 +163,7 @@ func TestSimpleOktaApplicationServiceJsonReadAndDumpString(t *testing.T) {
 func TestSimpleAWSec2ServiceJsonReadAndDumpString(t *testing.T) {
 	setupFileRoot(t)
 	for _, vr := range awsTestableVersions {
-		b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", vr))
+		b, err := GetServiceDocBytes(fmt.Sprintf("aws/%s/services/ec2.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -217,7 +217,7 @@ func TestSimpleAWSec2ServiceJsonReadAndDumpString(t *testing.T) {
 func TestSimpleGoogleComputeServiceJsonReadAndDumpString(t *testing.T) {
 	setupFileRoot(t)
 	for _, vr := range googleTestableVersions {
-		pr, err := LoadProviderByName("googleapis.com", vr)
+		pr, err := LoadProviderByName("googleapis.com", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -227,12 +227,12 @@ func TestSimpleGoogleComputeServiceJsonReadAndDumpString(t *testing.T) {
 			t.Fatalf("Test failed: could not locate ProviderService for google.compute")
 		}
 
-		b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/services-split/compute/compute-v1.yaml", vr))
+		b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/services-split/compute/compute-v1.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
 
-		br, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/resources/compute-v1.yaml", vr))
+		br, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/resources/compute-v1.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -277,7 +277,7 @@ func TestSimpleGoogleComputeResourcesJsonRead(t *testing.T) {
 
 	for _, vr := range googleTestableVersions {
 
-		pr, err := LoadProviderByName("googleapis.com", vr)
+		pr, err := LoadProviderByName("googleapis.com", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -287,7 +287,7 @@ func TestSimpleGoogleComputeResourcesJsonRead(t *testing.T) {
 			t.Fatalf("Test failed: could not locate ProviderService for google.compute")
 		}
 
-		b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/resources/compute-v1.yaml", vr))
+		b, err := GetServiceDocBytes(fmt.Sprintf("googleapis.com/%s/resources/compute-v1.yaml", vr), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -313,7 +313,7 @@ func TestIndirectGoogleComputeResourcesJsonRead(t *testing.T) {
 	setupFileRoot(t)
 
 	for _, vr := range googleTestableVersions {
-		pr, err := LoadProviderByName("googleapis.com", vr)
+		pr, err := LoadProviderByName("googleapis.com", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -340,7 +340,7 @@ func TestIndirectGoogleComputeServiceSubsetJsonRead(t *testing.T) {
 
 	for _, vr := range googleTestableVersions {
 
-		pr, err := LoadProviderByName("googleapis.com", vr)
+		pr, err := LoadProviderByName("googleapis.com", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -361,7 +361,7 @@ func TestIndirectGoogleComputeServiceSubsetJsonRead(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
-		sb, err := GetServiceDocBytes(getMethod.GetOperationRef().ExtractServiceDocPath())
+		sb, err := GetServiceDocBytes(getMethod.GetOperationRef().ExtractServiceDocPath(), "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -387,7 +387,7 @@ func TestIndirectGoogleComputeServiceSubsetAccess(t *testing.T) {
 
 	for _, vr := range googleTestableVersions {
 
-		pr, err := LoadProviderByName("googleapis.com", vr)
+		pr, err := LoadProviderByName("googleapis.com", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}

@@ -347,29 +347,6 @@ func inferMaxResultsElement(OperationStore) internaldto.HTTPElement {
 	)
 }
 
-func HTTPApiCallFromRequest(
-	cc client.AnySdkClientConfigurator,
-	runtimeCtx dto.RuntimeCtx,
-	authCtx *dto.AuthCtx,
-	authTypeRequested string,
-	enforceRevokeFirst bool,
-	outErrFile io.Writer,
-	prov Provider,
-	method OperationStore,
-	request *http.Request,
-) (*http.Response, error) {
-	return httpApiCallFromRequest(
-		cc,
-		runtimeCtx,
-		authCtx,
-		authTypeRequested,
-		enforceRevokeFirst,
-		outErrFile,
-		method,
-		request,
-	)
-}
-
 func GetMonitorRequest(urlStr string) (client.AnySdkArgList, error) {
 	urlObj, err := url.Parse(urlStr)
 	if err != nil {

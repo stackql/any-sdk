@@ -34,6 +34,7 @@ type OpenAPIService interface {
 	getPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	getQueryTransposeAlgorithm() string
+	GetT() *openapi3.T
 	getT() *openapi3.T
 	iDiscoveryDoc()
 	isObjectSchemaImplicitlyUnioned() bool
@@ -54,6 +55,10 @@ type localTemplatedService struct {
 	StackQLConfig   StackQLConfig                `json:"-" yaml:"-"`
 	ProviderService ProviderService              `json:"-" yaml:"-"` // upwards traversal
 	Provider        Provider                     `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (sv *localTemplatedService) GetT() *openapi3.T {
+	return sv.OpenapiSvc
 }
 
 func (sv *localTemplatedService) getT() *openapi3.T {
@@ -173,6 +178,10 @@ func (sv *standardService) setResourceMap(rsc map[string]*standardResource) {
 }
 
 func (sv *standardService) iDiscoveryDoc() {}
+
+func (sv *standardService) GetT() *openapi3.T {
+	return sv.getT()
+}
 
 func (sv *standardService) getT() *openapi3.T {
 	return sv.T

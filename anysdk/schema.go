@@ -47,6 +47,7 @@ type Schema interface {
 	GetType() string
 	GetPropertySchema(key string) (Schema, error)
 	GetRequired() []string
+	GetAlias() string
 	GetSelectSchema(itemsKey, mediaType string) (Schema, string, error)
 	IsArrayRef() bool
 	IsBoolean() bool
@@ -66,6 +67,7 @@ type Schema interface {
 	getDescendent(path []string) (Schema, bool)
 	getFatItemsSchema(srs openapi3.SchemaRefs) Schema
 	getItemsRef() (*openapi3.SchemaRef, bool)
+	GetXMLALiasOrName() string
 	getXMLALiasOrName() string
 	getKey() string
 	getOpenapiSchema() (*openapi3.Schema, bool)
@@ -85,10 +87,11 @@ type Schema interface {
 	setKey(string)
 	setRawProperty(string, *openapi3.SchemaRef)
 	setXml(interface{})
+	ExtractMediaTypeSynonym(mediaType string) string
 	extractMediaTypeSynonym(mediaType string) string // TODO: implement upwards-searchable configurable type set matching
 	toFlatDescriptionMap(extended bool) map[string]interface{}
-	unmarshalJSONResponseBody(body io.Reader, path string) (interface{}, interface{}, error)
-	unmarshalXMLResponseBody(body io.Reader, path string) (interface{}, *xmlquery.Node, error)
+	unmarshalJSONBody(body io.Reader, path string) (interface{}, interface{}, error)
+	unmarshalXMLBody(body io.Reader, path string) (interface{}, *xmlquery.Node, error)
 	processHttpResponse(r *http.Response, path string, defaultMediaType string, overrideMediaType string) (response.Response, error)
 	getSelectItemsSchema(key string, mediaType string) (Schema, string, error)
 	getProperties() Schemas
@@ -100,6 +103,7 @@ type Schema interface {
 	getExtension(k string) (interface{}, bool)
 	isStringOnly() bool
 	unmarshalReaderResponseAtPath(r io.Reader, path string, mediaType string, fallbackMediaType string) (interface{}, interface{}, error)
+	GetSchemaAtPath(key string, mediaType string) (Schema, error)
 }
 
 func ProviderTypeConditionIsValid(providerType string, lhs string, rhs interface{}) bool {
@@ -133,6 +137,17 @@ func (s *standardSchema) getAdditionalProperties() (Schema, bool) {
 			true
 	}
 	return nil, false
+}
+
+func (s *standardSchema) GetAlias() string {
+	alias, hasAlias := s.Extensions[ExtensionKeyAlias]
+	if hasAlias {
+		aliasStr, isStr := alias.(string)
+		if isStr {
+			return aliasStr
+		}
+	}
+	return ""
 }
 
 func (s *standardSchema) setPropertyOpenapi3(k string, ps *openapi3.SchemaRef) {
@@ -452,6 +467,10 @@ func (s *standardSchema) GetSelectionName() string {
 
 func (s *standardSchema) getName() string {
 	return getPathSuffix(s.key)
+}
+
+func (s *standardSchema) GetXMLALiasOrName() string {
+	return s.getXMLALiasOrName()
 }
 
 func (s *standardSchema) getXMLALiasOrName() string {
@@ -779,12 +798,21 @@ func (schema *standardSchema) GetSelectSchema(itemsKey, mediaType string) (Schem
 	return nil, "", fmt.Errorf("unable to complete schema.GetSelectSchema() for schema = '%v' and itemsKey = '%s'", schema, itemsKey)
 }
 
+func (schema *standardSchema) ExtractMediaTypeSynonym(mediaType string) string {
+	return schema.extractMediaTypeSynonym(mediaType)
+}
+
 func (schema *standardSchema) extractMediaTypeSynonym(mediaType string) string {
 	m, ok := media.DefaultMediaFuzzyMatcher.Find(mediaType)
 	if ok {
 		return m
 	}
 	return mediaType
+}
+
+func (schema *standardSchema) GetSchemaAtPath(key string, mediaType string) (Schema, error) {
+	rv, _, err := schema.getSelectItemsSchema(key, mediaType)
+	return rv, err
 }
 
 func (schema *standardSchema) getSelectItemsSchema(key string, mediaType string) (Schema, string, error) {
@@ -1331,11 +1359,11 @@ func (s *standardSchema) FindByPath(path string, visited map[string]bool) Schema
 	return nil
 }
 
-func (s *standardSchema) unmarshalXMLResponseBody(body io.Reader, path string) (interface{}, *xmlquery.Node, error) {
+func (s *standardSchema) unmarshalXMLBody(body io.Reader, path string) (interface{}, *xmlquery.Node, error) {
 	return xmlmap.GetSubObjTyped(body, path, s.Schema)
 }
 
-func (s *standardSchema) unmarshalJSONResponseBody(body io.Reader, path string) (interface{}, interface{}, error) {
+func (s *standardSchema) unmarshalJSONBody(body io.Reader, path string) (interface{}, interface{}, error) {
 	var target interface{}
 	err := json.NewDecoder(body).Decode(&target)
 	if err != nil {
@@ -1409,6 +1437,28 @@ func (s *standardSchema) unmarshalResponseAtPath(r *http.Response, path string, 
 	return response.NewResponse(processedResponse, rawResponse, r), nil
 }
 
+// func (s *standardSchema) unmarshalRequestBodyAtPath(r *http.Request, path string, defaultMediaType string, overrideMediaType string) (response.Response, error) {
+
+// 	mediaType := overrideMediaType
+// 	if mediaType == "" {
+// 		var err error
+// 		mediaType, err = media.GetRequestMediaType(r, defaultMediaType)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
+// 	processedResponse, rawResponse, err := s.unmarshalReaderResponseAtPath(r.Body, path, mediaType, defaultMediaType)
+// 	if err != nil {
+// 		// This is a hack to preserve existing behavior
+// 		// TODO: clean this up
+// 		if processedResponse == nil {
+// 			return nil, err
+// 		}
+// 		return response.NewResponse(processedResponse, processedResponse, r), err
+// 	}
+// 	return response.NewResponse(processedResponse, rawResponse, r), nil
+// }
+
 func (s *standardSchema) unmarshalReaderResponseAtPath(r io.Reader, path string, mediaType string, fallbackMediaType string) (interface{}, interface{}, error) {
 	conformedMediaType := s.extractMediaTypeSynonym(mediaType)
 	switch conformedMediaType {
@@ -1419,7 +1469,7 @@ func (s *standardSchema) unmarshalReaderResponseAtPath(r io.Reader, path string,
 		if !ok {
 			return nil, nil, fmt.Errorf("cannot find xml descendent for path %+v", pathSplit)
 		}
-		processedResponse, rawResponse, err := ss.unmarshalXMLResponseBody(r, path)
+		processedResponse, rawResponse, err := ss.unmarshalXMLBody(r, path)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1433,7 +1483,7 @@ func (s *standardSchema) unmarshalReaderResponseAtPath(r io.Reader, path string,
 			if !ok {
 				return nil, nil, fmt.Errorf("cannot find json descendent for path %+v", pathSplit)
 			}
-			processedResponse, rawResponse, err := ss.unmarshalJSONResponseBody(r, path)
+			processedResponse, rawResponse, err := ss.unmarshalJSONBody(r, path)
 			if err != nil {
 				return map[string]interface{}{}, rawResponse, err
 			}

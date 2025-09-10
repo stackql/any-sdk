@@ -31,13 +31,18 @@ type Resource interface {
 	GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool)
 	GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
 	GetService() (OpenAPIService, bool)
+	GetProvider() (Provider, bool)
 	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
 	GetMethodsMatched() Methods
+	GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]any, bool)
 	ToMap(extended bool) map[string]interface{}
 	// unexported mutators
 	getSQLVerbs() map[string][]OpenAPIOperationStoreRef
 	setProvider(p Provider)
 	setService(s OpenAPIService)
+	SetProvider(p Provider)
+	SetService(s OpenAPIService)
+	SetProviderService(ps ProviderService)
 	setProviderService(ps ProviderService)
 	getUnionRequiredParameters(method StandardOperationStore) (map[string]Addressable, error)
 	setMethod(string, *standardOpenAPIOperationStore)
@@ -83,8 +88,19 @@ func (r *standardResource) GetService() (OpenAPIService, bool) {
 	return r.OpenAPIService, true
 }
 
+func (r *standardResource) GetProvider() (Provider, bool) {
+	if r.Provider == nil {
+		return nil, false
+	}
+	return r.Provider, true
+}
+
 func (r *standardResource) getSQLVerbs() map[string][]OpenAPIOperationStoreRef {
 	return r.SQLVerbs
+}
+
+func (r *standardResource) SetService(s OpenAPIService) {
+	r.setService(s)
 }
 
 func (r *standardResource) setService(s OpenAPIService) {
@@ -103,6 +119,14 @@ func (r *standardResource) setMethod(k string, v *standardOpenAPIOperationStore)
 		return
 	}
 	r.Methods[k] = *v
+}
+
+func (r *standardResource) SetProvider(p Provider) {
+	r.Provider = p
+}
+
+func (r *standardResource) SetProviderService(ps ProviderService) {
+	r.ProviderService = ps
 }
 
 func (r *standardResource) setProvider(p Provider) {
@@ -271,6 +295,18 @@ func (rs *standardResource) getFirstMethodMatchFromSQLVerb(sqlVerb string, param
 		return nil, parameters, false
 	}
 	return ms.getFirstMatch(parameters)
+}
+
+func (rs *standardResource) GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
+	return rs.getFirstMethodMatchFromSQLVerb(sqlVerb, parameters)
+}
+
+func (rs *standardResource) getFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
+	ms, err := rs.getMethodsForSQLVerb(sqlVerb)
+	if err != nil {
+		return nil, parameters, false
+	}
+	return ms.getFirstNamespaceMatch(parameters)
 }
 
 func (rs *standardResource) GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool) {

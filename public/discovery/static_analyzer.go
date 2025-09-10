@@ -10,13 +10,15 @@ import (
 	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
 
 var (
-	_ StaticAnalyzer                = &genericStaticAnalyzer{}
-	_ persistence.PersistenceSystem = &aotPersistenceSystem{}
+	_ StaticAnalyzer                  = &genericStaticAnalyzer{}
+	_ StaticAnalyzer                  = &serviceLevelStaticAnalyzer{}
+	_ ProviderServiceResourceAnalyzer = &standardProviderServiceResourceAnalyzer{}
 )
 
 type AnalyzerCfg interface {
@@ -106,7 +108,7 @@ func newGenericStaticAnalyzer(
 	}
 }
 
-func getNewMockRegistry(relativePath string) (anysdk.RegistryAPI, error) {
+func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
 	return anysdk.NewRegistry(
 		anysdk.RegistryConfig{
 			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
@@ -123,33 +125,375 @@ type StaticAnalyzerFactory interface {
 	CreateStaticAnalyzer(
 		providerURL string,
 	) (StaticAnalyzer, error)
+	CreateProviderServiceLevelStaticAnalyzer(
+		providerURL string,
+		serviceName string,
+	) (ProviderServiceResourceAnalyzer, error)
 	CreateServiceLevelStaticAnalyzer(
 		providerURL string,
 		serviceName string,
 	) (StaticAnalyzer, error)
+	CreateMethodAggregateStaticAnalyzer(
+		providerURL string,
+		providerName string,
+		serviceName string,
+		resourceName string,
+		methodSelectorName string,
+		isFuzzy bool,
+	) (MethodAggregateStaticAnalyzer, error)
+	CreateResourceAggregateStaticAnalyzer(
+		providerURL string,
+		providerName string,
+		serviceName string,
+		resourceName string,
+	) (ResourceAggregateStaticAnalyzer, error)
 }
 
-type simpleSQLiteAnalyzerFactory struct {
-	registryURL string
-	rtCtx       dto.RuntimeCtx
+type AnalyzedPartialHierarchy interface {
+	GetProvider() anysdk.Provider
+	GetService() anysdk.ProviderService
+	GetResource() anysdk.Resource
+	GetMethods() anysdk.Methods
+	GetRegistryAPI() anysdk.RegistryAPI
 }
 
-func NewSimpleSQLiteAnalyzerFactory(
-	registryURL string,
-	rtCtx dto.RuntimeCtx,
-) StaticAnalyzerFactory {
-	return &simpleSQLiteAnalyzerFactory{
-		registryURL: registryURL,
-		rtCtx:       rtCtx,
+type AnalyzedFullHierarchy interface {
+	AnalyzedPartialHierarchy
+	GetMethod() anysdk.StandardOperationStore
+}
+
+type standardAnalyzedHierarchy struct {
+	provider    anysdk.Provider
+	service     anysdk.ProviderService
+	resource    anysdk.Resource
+	method      anysdk.StandardOperationStore
+	registryAPI anysdk.RegistryAPI
+}
+
+func (afh *standardAnalyzedHierarchy) GetProvider() anysdk.Provider {
+	return afh.provider
+}
+
+func (afh *standardAnalyzedHierarchy) GetService() anysdk.ProviderService {
+	return afh.service
+}
+
+func (afh *standardAnalyzedHierarchy) GetResource() anysdk.Resource {
+	return afh.resource
+}
+
+func (afh *standardAnalyzedHierarchy) GetMethod() anysdk.StandardOperationStore {
+	return afh.method
+}
+
+func (afh *standardAnalyzedHierarchy) GetMethods() anysdk.Methods {
+	return afh.resource.GetMethods()
+}
+
+func (afh *standardAnalyzedHierarchy) GetRegistryAPI() anysdk.RegistryAPI {
+	return afh.registryAPI
+}
+
+type MethodAggregateStaticAnalyzer interface {
+	StaticAnalyzer
+	GetFullHierarchy() (AnalyzedFullHierarchy, bool)
+}
+
+type ResourceAggregateStaticAnalyzer interface {
+	StaticAnalyzer
+	GetPartialHierarchy() (AnalyzedPartialHierarchy, bool)
+	FindMethodByVerbAndParameters(sqlVerb string, params map[string]any) (anysdk.StandardOperationStore, map[string]any, bool)
+}
+
+func newMethodAggregateStaticAnalyzer(
+	psrAnalyzer ProviderServiceResourceAnalyzer,
+	providerName string,
+	serviceName string,
+	resourceName string,
+	methodSelectorName string,
+	isFuzzy bool,
+) MethodAggregateStaticAnalyzer {
+	return &standardMethodAggregateStaticAnalyzer{
+		psrAnalyzer:        psrAnalyzer,
+		providerName:       providerName,
+		serviceName:        serviceName,
+		resourceName:       resourceName,
+		methodSelectorName: methodSelectorName,
+		isFuzzy:            isFuzzy,
 	}
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
-	providerURL string,
-) (StaticAnalyzer, error) {
-	rtCtx := f.rtCtx
-	registryLocalPath := f.registryURL
-	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
+func newResourceAggregateStaticAnalyzer(
+	psrAnalyzer ProviderServiceResourceAnalyzer,
+	providerName string,
+	serviceName string,
+	resourceName string,
+) ResourceAggregateStaticAnalyzer {
+	return &standardResourceAggregateStaticAnalyzer{
+		psrAnalyzer:  psrAnalyzer,
+		providerName: providerName,
+		serviceName:  serviceName,
+		resourceName: resourceName,
+	}
+}
+
+type standardResourceAggregateStaticAnalyzer struct {
+	psrAnalyzer      ProviderServiceResourceAnalyzer
+	providerName     string
+	serviceName      string
+	resourceName     string
+	partialHierarchy AnalyzedPartialHierarchy
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) FindMethodByVerbAndParameters(sqlVerb string, params map[string]any) (anysdk.StandardOperationStore, map[string]any, bool) {
+	if asa.partialHierarchy == nil {
+		return nil, nil, false
+	}
+	resource := asa.partialHierarchy.GetResource()
+	if resource == nil {
+		return nil, nil, false
+	}
+	return resource.GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb, params)
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetPartialHierarchy() (AnalyzedPartialHierarchy, bool) {
+	return asa.partialHierarchy, asa.partialHierarchy != nil
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetErrors() []error {
+	return asa.psrAnalyzer.GetErrors()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetWarnings() []string {
+	return asa.psrAnalyzer.GetWarnings()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetAffirmatives() []string {
+	return asa.psrAnalyzer.GetAffirmatives()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+	return asa.psrAnalyzer.GetRegistryAPI()
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
+	staticAnalyzer := asa.psrAnalyzer
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		return err
+	}
+	// these are shallow
+	resources := staticAnalyzer.GetResources()
+	if len(resources) == 0 {
+		return fmt.Errorf("static analysis failed: expected non-zero resources but got %d", len(resources))
+	}
+	resource, imagesResourceExists := resources[asa.resourceName]
+	if !imagesResourceExists {
+		return fmt.Errorf("static analysis failed: expected '%s' resource to exist", asa.resourceName)
+	}
+	if resource == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
+	}
+	prov, hasProv := resource.GetProvider()
+	if !hasProv {
+		return fmt.Errorf("static analysis failed: expected provider to exist on '%s' resource", asa.resourceName)
+	}
+	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
+	if !hasRegistryAPI {
+		return fmt.Errorf("static analysis failed: expected registry API to exist on static analyzer")
+	}
+	if registryAPI == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil registry API to exist on static analyzer")
+	}
+	providerService, providerServiceErr := prov.GetProviderService(asa.serviceName)
+	if providerServiceErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+	}
+	svc, svcErr := registryAPI.GetServiceFragment(providerService, asa.resourceName)
+	if svcErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+	}
+	shallowRsc, rscErr := svc.GetResource(asa.resourceName)
+	if rscErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' resource to exist on service", asa.resourceName)
+	}
+	if shallowRsc == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
+	}
+	for _, sm := range shallowRsc.GetMethods() {
+		method := &sm // this is poo
+		addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
+			radix_tree_address_space.NewAddressSpaceGrammar(),
+			prov,
+			svc,
+			resource,
+			method,
+			method.GetProjections(),
+		)
+		err = addressSpaceFormulator.Formulate()
+		if err != nil {
+			// return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", k, asa.resourceName, err)
+		}
+		addressSpace := addressSpaceFormulator.GetAddressSpace()
+		method.SetAddressSpace(addressSpace)
+	}
+
+	asa.partialHierarchy = &standardAnalyzedHierarchy{
+		provider:    prov,
+		service:     providerService,
+		resource:    resource,
+		registryAPI: registryAPI,
+	}
+	return nil
+}
+
+type standardMethodAggregateStaticAnalyzer struct {
+	psrAnalyzer        ProviderServiceResourceAnalyzer
+	providerName       string
+	serviceName        string
+	resourceName       string
+	methodSelectorName string
+	isFuzzy            bool
+	fullHierarchy      AnalyzedFullHierarchy
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) GetFullHierarchy() (AnalyzedFullHierarchy, bool) {
+	return asa.fullHierarchy, asa.fullHierarchy != nil
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) GetErrors() []error {
+	return asa.psrAnalyzer.GetErrors()
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) GetWarnings() []string {
+	return asa.psrAnalyzer.GetWarnings()
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) GetAffirmatives() []string {
+	return asa.psrAnalyzer.GetAffirmatives()
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+	return asa.psrAnalyzer.GetRegistryAPI()
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
+	staticAnalyzer := asa.psrAnalyzer
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		return err
+	}
+	// these are shallow
+	resources := staticAnalyzer.GetResources()
+	if len(resources) == 0 {
+		return fmt.Errorf("static analysis failed: expected non-zero resources but got %d", len(resources))
+	}
+	resource, imagesResourceExists := resources[asa.resourceName]
+	if !imagesResourceExists {
+		return fmt.Errorf("static analysis failed: expected '%s' resource to exist", asa.resourceName)
+	}
+	if resource == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
+	}
+	var method anysdk.StandardOperationStore
+	var methodExists bool
+	if asa.isFuzzy {
+		method, _, methodExists = resource.GetFirstMethodFromSQLVerb(asa.methodSelectorName)
+		if !methodExists {
+			return fmt.Errorf("static analysis failed: expected '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
+		}
+	} else {
+		var methoErr error
+		method, methoErr = resource.FindMethod(asa.methodSelectorName)
+		if methoErr != nil {
+			return fmt.Errorf("static analysis failed: expected '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
+		}
+	}
+	if method == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
+	}
+	prov, hasProv := resource.GetProvider()
+	if !hasProv {
+		return fmt.Errorf("static analysis failed: expected provider to exist on '%s' resource", asa.resourceName)
+	}
+	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
+	if !hasRegistryAPI {
+		return fmt.Errorf("static analysis failed: expected registry API to exist on static analyzer")
+	}
+	if registryAPI == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil registry API to exist on static analyzer")
+	}
+	providerService, providerServiceErr := prov.GetProviderService(asa.serviceName)
+	if providerServiceErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+	}
+	svc, svcErr := registryAPI.GetServiceFragment(providerService, asa.resourceName)
+	if svcErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+	}
+	shallowRsc, rscErr := svc.GetResource(asa.resourceName)
+	if rscErr != nil {
+		return fmt.Errorf("static analysis failed: expected '%s' resource to exist on service", asa.resourceName)
+	}
+	if shallowRsc == nil {
+		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
+	}
+	if asa.isFuzzy {
+		method, _, methodExists = shallowRsc.GetFirstMethodFromSQLVerb(asa.methodSelectorName)
+		if !methodExists {
+			return fmt.Errorf("static analysis failed: expected 'select' method to exist on '%s' resource", asa.resourceName)
+		}
+	} else {
+		var methoErr error
+		method, methoErr = shallowRsc.FindMethod(asa.methodSelectorName)
+		if methoErr != nil {
+			return fmt.Errorf("static analysis failed: expected '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
+		}
+	}
+	addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
+		radix_tree_address_space.NewAddressSpaceGrammar(),
+		prov,
+		svc,
+		resource,
+		method,
+		method.GetProjections(),
+	)
+	err = addressSpaceFormulator.Formulate()
+	if err != nil {
+		return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, err)
+	}
+	addressSpace := addressSpaceFormulator.GetAddressSpace()
+	method.SetAddressSpace(addressSpace)
+	asa.fullHierarchy = &standardAnalyzedHierarchy{
+		provider:    prov,
+		service:     providerService,
+		resource:    resource,
+		method:      method,
+		registryAPI: registryAPI,
+	}
+	return nil
+}
+
+type StaticAnalyzerFactoryFactory interface {
+	CreateNaiveSQLiteStaticAnalyzerFactory(
+		registryAPI anysdk.RegistryAPI,
+		rtCtx dto.RuntimeCtx,
+	) (StaticAnalyzerFactory, error)
+	CreateStaticAnalyzerFactoryFromPersistenceSystem(
+		registryAPI anysdk.RegistryAPI,
+		rtCtx dto.RuntimeCtx,
+		persistenceSystem persistence.PersistenceSystem,
+	) (StaticAnalyzerFactory, error)
+}
+
+type standardStaticAnalyzerFactoryFactory struct {
+}
+
+func NewStandardStaticAnalyzerFactoryFactory() StaticAnalyzerFactoryFactory {
+	return &standardStaticAnalyzerFactoryFactory{}
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) createSQLiteEngine() (sqlengine.SQLEngine, error) {
 	controlAttributes := sqlcontrol.GetControlAttributes("standard")
 	sqlCfg, err := dto.GetSQLBackendCfg("{}")
 	if err != nil {
@@ -162,12 +506,8 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	if engineErr != nil {
 		return nil, engineErr
 	}
-	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
-	if err != nil {
-		return nil, err
-	}
-	if persistenceSystem == nil {
-		return nil, fmt.Errorf("failed to create persistence system: got nil")
+	if sqlEngine == nil {
+		return nil, fmt.Errorf("failed to create SQL engine: got nil")
 	}
 	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
 	if scriptErr != nil {
@@ -176,6 +516,17 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
 	if scriptRunErr != nil {
 		return nil, scriptRunErr
+	}
+	return sqlEngine, nil
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) createNaivePersistenceSystem(sqlEngine sqlengine.SQLEngine) (persistence.PersistenceSystem, error) {
+	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
+	if err != nil {
+		return nil, err
+	}
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to create persistence system: got nil")
 	}
 	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
 	if putErr != nil {
@@ -188,7 +539,75 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	if string(cachedVal) != "value" {
 		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
 	}
-	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	return persistenceSystem, nil
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) CreateStaticAnalyzerFactoryFromPersistenceSystem(
+	registryAPI anysdk.RegistryAPI,
+	rtCtx dto.RuntimeCtx,
+	persistenceSystem persistence.PersistenceSystem,
+) (StaticAnalyzerFactory, error) {
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to analyzer from nil persistence system")
+	}
+	return newSimpleSQLAnalyzerFactory(
+		registryAPI.GetLocalDocTrunk(),
+		rtCtx,
+		persistenceSystem,
+	), nil
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) CreateNaiveSQLiteStaticAnalyzerFactory(
+	registryAPI anysdk.RegistryAPI,
+	rtCtx dto.RuntimeCtx,
+) (StaticAnalyzerFactory, error) {
+	sqlLiteEngine, err := sf.createSQLiteEngine()
+	if err != nil {
+		return nil, err
+	}
+	if sqlLiteEngine == nil {
+		return nil, fmt.Errorf("failed to create SQL engine: got nil")
+	}
+	persistenceSystem, err := sf.createNaivePersistenceSystem(sqlLiteEngine)
+	if err != nil {
+		return nil, err
+	}
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to create persistence system: got nil")
+	}
+	return sf.CreateStaticAnalyzerFactoryFromPersistenceSystem(
+		registryAPI,
+		rtCtx,
+		persistenceSystem,
+	)
+}
+
+type simpleSQLAnalyzerFactory struct {
+	registryURL       string
+	rtCtx             dto.RuntimeCtx
+	persistenceSystem persistence.PersistenceSystem
+}
+
+func newSimpleSQLAnalyzerFactory(
+	registryURL string,
+	rtCtx dto.RuntimeCtx,
+	persistenceSystem persistence.PersistenceSystem,
+) StaticAnalyzerFactory {
+	return &simpleSQLAnalyzerFactory{
+		registryURL:       registryURL,
+		rtCtx:             rtCtx,
+		persistenceSystem: persistenceSystem,
+	}
+}
+
+func (f *simpleSQLAnalyzerFactory) CreateStaticAnalyzer(
+	providerURL string,
+) (StaticAnalyzer, error) {
+	persistenceSystem := f.persistenceSystem
+	rtCtx := f.rtCtx
+	registryLocalPath := f.registryURL
+	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
+	registry, registryErr := getNewLocalRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
 	}
@@ -204,52 +623,101 @@ func (f *simpleSQLiteAnalyzerFactory) CreateStaticAnalyzer(
 	return staticAnalyzer, analyzerErr
 }
 
-func (f *simpleSQLiteAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
+func (f *simpleSQLAnalyzerFactory) CreateResourceAggregateStaticAnalyzer(
+	providerURL string,
+	providerName string,
+	serviceName string,
+	resourceName string,
+) (ResourceAggregateStaticAnalyzer, error) {
+	psra, psraErr := f.CreateProviderServiceLevelStaticAnalyzer(
+		providerURL,
+		serviceName,
+	)
+	if psraErr != nil {
+		return nil, psraErr
+	}
+	aggregateAnalyzer := newResourceAggregateStaticAnalyzer(
+		psra,
+		providerName,
+		serviceName,
+		resourceName,
+	)
+	return aggregateAnalyzer, nil
+}
+
+func (f *simpleSQLAnalyzerFactory) CreateMethodAggregateStaticAnalyzer(
+	providerURL string,
+	providerName string,
+	serviceName string,
+	resourceName string,
+	methodName string,
+	isFuzzy bool,
+) (MethodAggregateStaticAnalyzer, error) {
+	psra, psraErr := f.CreateProviderServiceLevelStaticAnalyzer(
+		providerURL,
+		serviceName,
+	)
+	if psraErr != nil {
+		return nil, psraErr
+	}
+	aggregateAnalyzer := newMethodAggregateStaticAnalyzer(
+		psra,
+		providerName,
+		serviceName,
+		resourceName,
+		methodName,
+		isFuzzy,
+	)
+	return aggregateAnalyzer, nil
+}
+
+func (f *simpleSQLAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
 	providerURL string,
 	serviceName string,
-) (StaticAnalyzer, error) {
+) (ProviderServiceResourceAnalyzer, error) {
+	persistenceSystem := f.persistenceSystem
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	controlAttributes := sqlcontrol.GetControlAttributes("standard")
-	sqlCfg, err := dto.GetSQLBackendCfg("{}")
-	if err != nil {
-		return nil, err
+	registry, registryErr := getNewLocalRegistry(registryLocalPath)
+	if registryErr != nil {
+		return nil, registryErr
 	}
-	sqlEngine, engineErr := sqlengine.NewSQLEngine(
-		sqlCfg,
-		controlAttributes,
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg.SetIsProviderServicesMustExpand(true)
+	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
+	discoveryStore := getDiscoveryStore(persistenceSystem, registry, rtCtx)
+	discoveryAdapter := getDiscoveryAdapter(analysisCfg, persistenceSystem, discoveryStore, registry, rtCtx)
+	provider, fileErr := anysdk.LoadProviderDocFromFile(analysisCfg.GetDocRoot())
+	anysdk.OpenapiFileRoot = analysisCfg.GetRegistryRootDir()
+	if fileErr != nil {
+		return nil, fileErr
+	}
+	providerService, serviceErr := provider.GetProviderService(serviceName)
+	if serviceErr != nil {
+		return nil, serviceErr
+	}
+	psra := NewProviderServiceResourceAnalyzer(
+		analysisCfg,
+		discoveryAdapter,
+		discoveryStore,
+		provider,
+		providerService,
+		serviceName,
+		registry,
 	)
-	if engineErr != nil {
-		return nil, engineErr
-	}
-	persistenceSystem, err := persistence.NewSQLPersistenceSystem("naive", sqlEngine)
-	if err != nil {
-		return nil, err
-	}
-	if persistenceSystem == nil {
-		return nil, fmt.Errorf("failed to create persistence system: got nil")
-	}
-	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
-	if scriptErr != nil {
-		return nil, scriptErr
-	}
-	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
-	if scriptRunErr != nil {
-		return nil, scriptRunErr
-	}
-	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
-	if putErr != nil {
-		return nil, putErr
-	}
-	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
-	if getErr != nil {
-		return nil, getErr
-	}
-	if string(cachedVal) != "value" {
-		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
-	}
-	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	return psra, nil
+}
+
+func (f *simpleSQLAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
+	providerURL string,
+	serviceName string,
+) (StaticAnalyzer, error) {
+	persistenceSystem := f.persistenceSystem
+	rtCtx := f.rtCtx
+	registryLocalPath := f.registryURL
+	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
+	registry, registryErr := getNewLocalRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
 	}
@@ -322,6 +790,7 @@ type StaticAnalyzer interface {
 	GetErrors() []error
 	GetWarnings() []string
 	GetAffirmatives() []string
+	GetRegistryAPI() (anysdk.RegistryAPI, bool)
 }
 
 type genericStaticAnalyzer struct {
@@ -398,6 +867,13 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 	return nil
 }
 
+func (osa *genericStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+	if osa.registryAPI != nil {
+		return osa.registryAPI, true
+	}
+	return nil, false
+}
+
 func (osa *genericStaticAnalyzer) GetErrors() []error {
 	return osa.errors
 }
@@ -408,6 +884,146 @@ func (osa *genericStaticAnalyzer) GetWarnings() []string {
 
 func (osa *genericStaticAnalyzer) GetAffirmatives() []string {
 	return osa.affirmatives
+}
+
+func NewProviderServiceResourceAnalyzer(
+	cfg AnalyzerCfg,
+	discoveryAdapter IDiscoveryAdapter,
+	discoveryStore IDiscoveryStore,
+	provider anysdk.Provider,
+	providerService anysdk.ProviderService,
+	resourceKey string,
+	registryAPI anysdk.RegistryAPI,
+) ProviderServiceResourceAnalyzer {
+	return &standardProviderServiceResourceAnalyzer{
+		cfg:                      cfg,
+		discoveryStore:           discoveryStore,
+		discoveryAdapter:         discoveryAdapter,
+		provider:                 provider,
+		providerService:          providerService,
+		serviceKey:               resourceKey,
+		errors:                   []error{},
+		warnings:                 []string{},
+		affirmatives:             []string{},
+		resources:                map[string]anysdk.Resource{},
+		resourceServiceFragments: map[string]anysdk.Service{},
+		registryAPI:              registryAPI,
+	}
+}
+
+type ProviderServiceResourceAnalyzer interface {
+	StaticAnalyzer
+	GetResources() map[string]anysdk.Resource
+	GetServiceFragments() map[string]anysdk.Service
+}
+
+type standardProviderServiceResourceAnalyzer struct {
+	cfg                      AnalyzerCfg
+	discoveryStore           IDiscoveryStore
+	discoveryAdapter         IDiscoveryAdapter
+	provider                 anysdk.Provider
+	providerService          anysdk.ProviderService
+	serviceKey               string
+	errors                   []error
+	warnings                 []string
+	affirmatives             []string
+	resources                map[string]anysdk.Resource
+	resourceServiceFragments map[string]anysdk.Service
+	registryAPI              anysdk.RegistryAPI
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+	if srf.registryAPI != nil {
+		return srf.registryAPI, true
+	}
+	return nil, false
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetErrors() []error {
+	return srf.errors
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetWarnings() []string {
+	return srf.warnings
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetAffirmatives() []string {
+	return srf.affirmatives
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetResources() map[string]anysdk.Resource {
+	return srf.resources
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetServiceFragments() map[string]anysdk.Service {
+	return srf.resourceServiceFragments
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) Analyze() error {
+	key := srf.serviceKey
+	providerService := srf.providerService
+	rrr := providerService.GetResourcesRefRef()
+	resources := make(map[string]anysdk.Resource)
+	if rrr != "" {
+		// Should be sole place for ResourcesRef dereference
+		disDoc, docErr := srf.discoveryStore.processResourcesDiscoveryDoc(
+			srf.provider,
+			providerService,
+			fmt.Sprintf("%s.%s", srf.discoveryAdapter.getAlias(), key))
+		if docErr != nil {
+			srf.errors = append(srf.errors, docErr)
+		}
+		if disDoc == nil {
+			err := fmt.Errorf("discovery document is nil for service %s", key)
+			srf.errors = append(srf.errors, err)
+			return err
+		}
+		shallowResources := disDoc.GetResources()
+		for resKey := range shallowResources {
+			_, foundRsc := resources[resKey]
+			if foundRsc {
+				continue
+			}
+			svcFrag, svcFragErr := srf.registryAPI.GetServiceFragment(providerService, resKey)
+			if svcFragErr != nil {
+				srf.errors = append(srf.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", key, svcFragErr))
+				continue
+			} else if svcFrag == nil {
+				srf.errors = append(srf.errors, fmt.Errorf("service fragment is nil for svc name = %s", key))
+				continue
+			}
+			deepResources, deepResourcesErr := svcFrag.GetResources()
+			if deepResourcesErr != nil {
+				srf.errors = append(srf.errors, fmt.Errorf("failed to get resources for svc name = %s: %v", key, deepResourcesErr))
+				continue
+			}
+			for resourceKey, resVal := range deepResources {
+				resVal.SetProvider(srf.provider)
+				resVal.SetProviderService(providerService)
+				resources[resourceKey] = resVal
+				srf.resourceServiceFragments[resourceKey] = svcFrag
+			}
+		}
+	} else {
+		// Dereferences ServiceRef, not sole location
+		svc, err := providerService.GetService()
+		if err != nil {
+			if !srf.cfg.IsProviderServicesMustExpand() {
+				return nil
+			}
+			err := fmt.Errorf("failed to get service handle for %s: %v", key, err)
+			srf.errors = append(srf.errors, err)
+			return err
+		}
+		resources, err = svc.GetResources()
+		if err != nil {
+			err := fmt.Errorf("failed to get resources for service %s: %v", key, err)
+			srf.errors = append(srf.errors, err)
+			return err
+		}
+	}
+	srf.resources = resources
+	return nil
 }
 
 func NewServiceLevelStaticAnalyzer(
@@ -446,6 +1062,13 @@ type serviceLevelStaticAnalyzer struct {
 	registryAPI        anysdk.RegistryAPI
 }
 
+func (osa *serviceLevelStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+	if osa.registryAPI != nil {
+		return osa.registryAPI, true
+	}
+	return nil, false
+}
+
 func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 	anysdk.OpenapiFileRoot = osa.cfg.GetRegistryRootDir()
 	protocolType, protocolTypeErr := osa.provider.GetProtocolType()
@@ -468,42 +1091,28 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 		osa.errors = append(osa.errors, err)
 		return err
 	}
-	// Perform additional checks on the service
-	rrr := providerService.GetResourcesRefRef()
-	if rrr != "" {
-		// Should be sole place for ResourcesRef dereference
-		disDoc, docErr := osa.discoveryStore.processResourcesDiscoveryDoc(
-			osa.provider,
-			providerService,
-			fmt.Sprintf("%s.%s", osa.discoveryAdapter.getAlias(), k))
-		if docErr != nil {
-			osa.errors = append(osa.errors, docErr)
-		}
-		if disDoc == nil {
-			err := fmt.Errorf("discovery document is nil for service %s", k)
-			osa.errors = append(osa.errors, err)
-			return err
-		}
-		resources = disDoc.GetResources()
-	} else {
-		// Dereferences ServiceRef, not sole location
-		svc, err := providerService.GetService()
-		if err != nil {
-			if !osa.cfg.IsProviderServicesMustExpand() {
-				return nil
-			}
-			err := fmt.Errorf("failed to get service handle for %s: %v", k, err)
-			osa.errors = append(osa.errors, err)
-			return err
-		}
-		resources, err = svc.GetResources()
-		if err != nil {
-			err := fmt.Errorf("failed to get resources for service %s: %v", k, err)
-			osa.errors = append(osa.errors, err)
-			return err
-		}
+	providerServiceResourceAnalyzer := NewProviderServiceResourceAnalyzer(
+		osa.cfg,
+		osa.discoveryAdapter,
+		osa.discoveryStore,
+		osa.provider,
+		providerService,
+		k,
+		osa.registryAPI,
+	)
+	psraErr := providerServiceResourceAnalyzer.Analyze()
+	osa.affirmatives = append(osa.affirmatives, providerServiceResourceAnalyzer.GetAffirmatives()...)
+	osa.warnings = append(osa.warnings, providerServiceResourceAnalyzer.GetWarnings()...)
+	osa.errors = append(osa.errors, providerServiceResourceAnalyzer.GetErrors()...)
+	if psraErr != nil {
+		return psraErr
 	}
+	resources = providerServiceResourceAnalyzer.GetResources()
+	// Perform additional checks on the service
 	if len(resources) == 0 {
+		if !osa.cfg.IsProviderServicesMustExpand() {
+			return nil
+		}
 		err := fmt.Errorf("no resources found for provider %s", k)
 		osa.errors = append(osa.errors, err)
 		return err
@@ -516,23 +1125,12 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 		//   - expected response attributes:
 		//        -  LocalSchemaRef x 2 for sync and async schema overrides
 		//   - OpenAPIOperationStoreRef via resolveSQLVerb()
-
-		// This is a crude trick to prevent pointless service doc re-processing
 		methods := resource.GetMethods()
-		if len(methods) == 0 {
-			_, svcErr := osa.registryAPI.GetServiceFragment(providerService, resourceKey)
-			if svcErr != nil {
-				osa.errors = append(osa.errors, fmt.Errorf("failed to get service fragment for svc name = %s: %v", providerService.GetName(), svcErr))
-				continue
-			}
-			methods = resource.GetMethods()
-		}
-		if len(methods) == 0 {
-			osa.errors = append(osa.errors, fmt.Errorf("no methods found for resource %s", resourceKey))
-			continue
-		}
 		for methodName, method := range methods {
 			// Perform analysis on each method
+			if !osa.cfg.IsProviderServicesMustExpand() {
+				continue
+			}
 
 			switch protocolType {
 			case client.HTTP:
@@ -604,32 +1202,4 @@ func (osa *serviceLevelStaticAnalyzer) GetWarnings() []string {
 
 func (osa *serviceLevelStaticAnalyzer) GetAffirmatives() []string {
 	return osa.affirmatives
-}
-
-type aotPersistenceSystem struct {
-	systemName string
-}
-
-func (aps *aotPersistenceSystem) GetSystemName() string {
-	return aps.systemName
-}
-
-func (aps *aotPersistenceSystem) HandleExternalTables(providerName string, externalTables map[string]anysdk.SQLExternalTable) error {
-	// Implement logic to handle external tables
-	return nil
-}
-
-func (aps *aotPersistenceSystem) HandleViewCollection(viewCollection []anysdk.View) error {
-	// Implement logic to handle view collection
-	return nil
-}
-
-func (aps *aotPersistenceSystem) CacheStoreGet(key string) ([]byte, error) {
-	// Implement logic to get data from cache store
-	return nil, nil
-}
-
-func (aps *aotPersistenceSystem) CacheStorePut(key string, value []byte, expiration string, ttl int) error {
-	// Implement logic to put data into cache store
-	return nil
 }
