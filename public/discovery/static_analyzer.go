@@ -476,11 +476,11 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 
 type StaticAnalyzerFactoryFactory interface {
 	CreateNaiveSQLiteStaticAnalyzerFactory(
-		registryURL string,
+		registryAPI anysdk.RegistryAPI,
 		rtCtx dto.RuntimeCtx,
 	) (StaticAnalyzerFactory, error)
 	CreateStaticAnalyzerFactoryFromPersistenceSystem(
-		registryURL string,
+		registryAPI anysdk.RegistryAPI,
 		rtCtx dto.RuntimeCtx,
 		persistenceSystem persistence.PersistenceSystem,
 	) (StaticAnalyzerFactory, error)
@@ -543,7 +543,7 @@ func (sf *standardStaticAnalyzerFactoryFactory) createNaivePersistenceSystem(sql
 }
 
 func (sf *standardStaticAnalyzerFactoryFactory) CreateStaticAnalyzerFactoryFromPersistenceSystem(
-	registryURL string,
+	registryAPI anysdk.RegistryAPI,
 	rtCtx dto.RuntimeCtx,
 	persistenceSystem persistence.PersistenceSystem,
 ) (StaticAnalyzerFactory, error) {
@@ -551,14 +551,14 @@ func (sf *standardStaticAnalyzerFactoryFactory) CreateStaticAnalyzerFactoryFromP
 		return nil, fmt.Errorf("failed to analyzer from nil persistence system")
 	}
 	return newSimpleSQLAnalyzerFactory(
-		registryURL,
+		registryAPI.GetLocalDocTrunk(),
 		rtCtx,
 		persistenceSystem,
 	), nil
 }
 
 func (sf *standardStaticAnalyzerFactoryFactory) CreateNaiveSQLiteStaticAnalyzerFactory(
-	registryURL string,
+	registryAPI anysdk.RegistryAPI,
 	rtCtx dto.RuntimeCtx,
 ) (StaticAnalyzerFactory, error) {
 	sqlLiteEngine, err := sf.createSQLiteEngine()
@@ -576,7 +576,7 @@ func (sf *standardStaticAnalyzerFactoryFactory) CreateNaiveSQLiteStaticAnalyzerF
 		return nil, fmt.Errorf("failed to create persistence system: got nil")
 	}
 	return sf.CreateStaticAnalyzerFactoryFromPersistenceSystem(
-		registryURL,
+		registryAPI,
 		rtCtx,
 		persistenceSystem,
 	)

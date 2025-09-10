@@ -1,16 +1,32 @@
 package radix_tree_address_space_test
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
+	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
+
+func getNewTestDataMockRegistry(relativePath string) (anysdk.RegistryAPI, error) {
+	return anysdk.NewRegistry(
+		anysdk.RegistryConfig{
+			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
+			LocalDocRoot:     relativePath,
+			AllowSrcDownload: false,
+			VerifyConfig: &edcrypto.VerifierConfig{
+				NopVerify: true,
+			},
+		},
+		nil)
+}
 
 type dummyRoundTripper struct {
 	resp *http.Response
@@ -44,10 +60,14 @@ func TestNewAddressSpace(t *testing.T) {
 
 func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -213,10 +233,14 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 
 func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -340,10 +364,14 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 
 func TestHeavyAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -451,10 +479,14 @@ func TestHeavyAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 
 func TestSearchAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -587,10 +619,14 @@ func TestSearchAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 
 func TestIntelligentAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -714,10 +750,14 @@ func TestIntelligentAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 
 func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -822,6 +862,10 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 
 func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	providerPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	serviceName := "compute"
 	resourceName := "firewallPolicies"
@@ -829,7 +873,7 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	expectedUnionProjectionCount := 4
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -994,10 +1038,14 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 
 func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}

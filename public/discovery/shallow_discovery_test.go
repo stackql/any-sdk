@@ -291,10 +291,15 @@ func TestShallowDiscoveryGoogleLegacy(t *testing.T) {
 
 func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(
+		localRegistry, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}

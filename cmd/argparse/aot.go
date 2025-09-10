@@ -7,8 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/discovery"
+	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
 
 var aotCmd = &cobra.Command{
@@ -35,10 +37,25 @@ var aotCmd = &cobra.Command{
 	},
 }
 
+func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
+	return anysdk.NewRegistry(
+		anysdk.RegistryConfig{
+			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
+			LocalDocRoot:     relativePath,
+			AllowSrcDownload: false,
+			VerifyConfig: &edcrypto.VerifierConfig{
+				NopVerify: true,
+			},
+		},
+		nil)
+}
+
 func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string, extraArgs ...string) {
 
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryURL, rtCtx)
+	registry, registryErr := getNewLocalRegistry(registryURL)
+	printErrorAndExitOneIfError(registryErr)
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registry, rtCtx)
 	printErrorAndExitOneIfError(factoryFactoryErr)
 	var analyzer discovery.StaticAnalyzer
 	var factoryErr error

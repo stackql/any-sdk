@@ -54,6 +54,8 @@ type RegistryAPI interface {
 	RemoveProviderVersion(string, string) error
 	ClearProviderCache(string) error
 	GetLocalDocRoot() string
+	GetLocalDocTrunk() string
+	GetLocalProviderDocPath(prov string, version string) string
 }
 
 type RegistryConfig struct {
@@ -261,10 +263,7 @@ func (r *Registry) GetDocBytes(docPath string) ([]byte, error) {
 }
 
 func (r *Registry) getProviderDocBytes(prov string, version string) ([]byte, error) {
-	switch prov {
-	case "google":
-		prov = "googleapis.com"
-	}
+	prov = r.renameProvider(prov)
 	return r.getVerifiedDocBytes(path.Join(prov, version, "provider.yaml"))
 }
 
@@ -273,10 +272,7 @@ func (r *Registry) PullProviderArchive(prov string, version string) (io.ReadClos
 }
 
 func (r *Registry) pullProviderArchive(prov string, version string) (io.ReadCloser, error) {
-	switch prov {
-	case "google":
-		prov = "googleapis.com"
-	}
+	prov = r.renameProvider(prov)
 	fp := path.Join(prov, fmt.Sprintf("%s.tgz", version))
 	return r.pullArchive(fp)
 }
@@ -293,10 +289,7 @@ func (r *Registry) pullAndPersistProviderArchive(prov string, version string) er
 	if err != nil {
 		return err
 	}
-	pr := prov
-	if pr == "google" {
-		pr = "googleapis.com"
-	}
+	pr := r.renameProvider(prov)
 	err = os.RemoveAll(path.Join(r.getLocalDocRoot(), pr, version))
 	if err != nil {
 		return err
@@ -446,6 +439,14 @@ func (r *Registry) getRemoteProviderList() (io.ReadCloser, error) {
 	return response.Body, nil
 }
 
+func (r *Registry) GetLocalDocTrunk() string {
+	return r.getLocalDocTrunk()
+}
+
+func (r *Registry) getLocalDocTrunk() string {
+	return r.localDocRoot
+}
+
 func (r *Registry) getLocalDocRoot() string {
 	switch r.localSrcPrefix {
 	case "":
@@ -505,6 +506,27 @@ func (r *Registry) getLocalArchiveRoot() string {
 	default:
 		return path.Join(r.localDocRoot, r.localDistPrefix)
 	}
+}
+
+func (r *Registry) renameProvider(prov string) string {
+	switch prov {
+	case "google":
+		prov = "googleapis.com"
+	}
+	return prov
+}
+
+func (r *Registry) GetLocalProviderDocPath(prov string, version string) string {
+	return r.getLocalProviderDocPath(prov, version)
+}
+
+func (r *Registry) getLocalProviderDocPath(prov string, version string) string {
+	return path.Join(r.getLocalProviderRootDirPath(prov, version), "provider.yaml")
+}
+
+func (r *Registry) getLocalProviderRootDirPath(prov string, version string) string {
+	prov = r.renameProvider(prov)
+	return path.Join(r.getLocalDocRoot(), prov, version)
 }
 
 func (r *Registry) getLocalDocPath(docPath string) string {
@@ -672,10 +694,7 @@ func (r *Registry) GetLatestAvailableVersion(providerName string) (string, error
 }
 
 func (r *Registry) getLatestAvailableVersion(providerName string) (string, error) {
-	switch providerName {
-	case "google":
-		providerName = "googleapis.com"
-	}
+	providerName = r.renameProvider(providerName)
 	if r.isLocalFile() {
 		deSlice, err := os.ReadDir(path.Join(r.srcUrl.Path, providerName))
 		if err != nil {
@@ -724,9 +743,9 @@ func (r *Registry) getLatestPublishedVersion(providerName string) (string, error
 }
 
 // RemoveProviderVersion removes a specific version of a provider
-// e.g) RemoveProviderVersion("googleapis.com", "v23.09.00169")
+// e.g) RemoveProviderVersion("okta", "v23.09.00169")
 func (r *Registry) RemoveProviderVersion(providerId string, version string) error {
-	providerPath := path.Join(r.getLocalDocRoot(), providerId, version)
+	providerPath := r.getLocalProviderRootDirPath(providerId, version)
 	return os.RemoveAll(providerPath)
 }
 
