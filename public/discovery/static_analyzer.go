@@ -430,9 +430,14 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 }
 
 type StaticAnalyzerFactoryFactory interface {
-	CreateSQLiteStaticAnalyzerFactory(
+	CreateNaiveSQLiteStaticAnalyzerFactory(
 		registryURL string,
 		rtCtx dto.RuntimeCtx,
+	) (StaticAnalyzerFactory, error)
+	CreateStaticAnalyzerFactoryFromPersistenceSystem(
+		registryURL string,
+		rtCtx dto.RuntimeCtx,
+		persistenceSystem persistence.PersistenceSystem,
 	) (StaticAnalyzerFactory, error)
 }
 
@@ -492,7 +497,22 @@ func (sf *standardStaticAnalyzerFactoryFactory) createNaivePersistenceSystem(sql
 	return persistenceSystem, nil
 }
 
-func (sf *standardStaticAnalyzerFactoryFactory) CreateSQLiteStaticAnalyzerFactory(
+func (sf *standardStaticAnalyzerFactoryFactory) CreateStaticAnalyzerFactoryFromPersistenceSystem(
+	registryURL string,
+	rtCtx dto.RuntimeCtx,
+	persistenceSystem persistence.PersistenceSystem,
+) (StaticAnalyzerFactory, error) {
+	if persistenceSystem == nil {
+		return nil, fmt.Errorf("failed to analyzer from nil persistence system")
+	}
+	return newSimpleSQLAnalyzerFactory(
+		registryURL,
+		rtCtx,
+		persistenceSystem,
+	), nil
+}
+
+func (sf *standardStaticAnalyzerFactoryFactory) CreateNaiveSQLiteStaticAnalyzerFactory(
 	registryURL string,
 	rtCtx dto.RuntimeCtx,
 ) (StaticAnalyzerFactory, error) {
@@ -510,31 +530,27 @@ func (sf *standardStaticAnalyzerFactoryFactory) CreateSQLiteStaticAnalyzerFactor
 	if persistenceSystem == nil {
 		return nil, fmt.Errorf("failed to create persistence system: got nil")
 	}
-	return newSimpleSQLiteAnalyzerFactory(
+	return sf.CreateStaticAnalyzerFactoryFromPersistenceSystem(
 		registryURL,
 		rtCtx,
-		sqlLiteEngine,
 		persistenceSystem,
-	), nil
+	)
 }
 
 type simpleSQLAnalyzerFactory struct {
 	registryURL       string
 	rtCtx             dto.RuntimeCtx
-	sqlEngine         sqlengine.SQLEngine
 	persistenceSystem persistence.PersistenceSystem
 }
 
-func newSimpleSQLiteAnalyzerFactory(
+func newSimpleSQLAnalyzerFactory(
 	registryURL string,
 	rtCtx dto.RuntimeCtx,
-	sqlEngine sqlengine.SQLEngine,
 	persistenceSystem persistence.PersistenceSystem,
 ) StaticAnalyzerFactory {
 	return &simpleSQLAnalyzerFactory{
 		registryURL:       registryURL,
 		rtCtx:             rtCtx,
-		sqlEngine:         sqlEngine,
 		persistenceSystem: persistenceSystem,
 	}
 }

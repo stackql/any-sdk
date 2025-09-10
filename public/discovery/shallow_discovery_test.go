@@ -294,7 +294,7 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
