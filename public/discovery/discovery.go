@@ -7,6 +7,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/docparser"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"gopkg.in/yaml.v2"
 
 	"github.com/stackql/any-sdk/pkg/nomenclature"
@@ -194,26 +195,48 @@ func (store *TTLDiscoveryStore) ProcessProviderDiscoveryDoc(url string, alias st
 	}
 }
 
+// TODO: this is the obvious place to add namespace analysis and persistence.
+//
+//	Therefore, need to ensure it happens only after all dependents and prior to any namespace usage.
 func (store *TTLDiscoveryStore) PersistServiceShard(
 	pr anysdk.Provider,
 	serviceHandle anysdk.ProviderService,
 	resourceKey string,
 ) (anysdk.Service, error) {
 	k := fmt.Sprintf("services.%s.%s", pr.GetName(), serviceHandle.GetName())
-	svc, ok := serviceHandle.PeekServiceFragment(resourceKey)
-	if ok && svc != nil {
-		return svc, nil
+	rv, ok := serviceHandle.PeekServiceFragment(resourceKey)
+	var err error
+	if ok && rv != nil {
+		return rv, nil
+	} else {
+		b, err := store.persistenceSystem.CacheStoreGet(k)
+		if b != nil && err == nil {
+			rv, err = anysdk.LoadServiceDocFromBytes(serviceHandle, b)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			rv, err = store.registry.GetServiceFragment(serviceHandle, resourceKey)
+			if err != nil {
+				return nil, err
+			}
+			serviceHandle.SetServiceRefVal(rv)
+		}
 	}
-	b, err := store.persistenceSystem.CacheStoreGet(k)
-	if b != nil && err == nil {
-		return anysdk.LoadServiceDocFromBytes(serviceHandle, b)
+	rsc, rscErr := rv.GetResource(resourceKey)
+	if rscErr != nil && resourceKey != "" {
+		return nil, rscErr
 	}
-	shard, err := store.registry.GetServiceFragment(serviceHandle, resourceKey)
-	if err != nil {
-		return nil, err
+	resourceAddressSpaceExpander := radix_tree_address_space.NewResourceAddressSpaceExpander(
+		pr,
+		rv,
+		rsc,
+	)
+	expandErr := resourceAddressSpaceExpander.Expand()
+	if expandErr != nil {
+		return nil, expandErr
 	}
-	serviceHandle.SetServiceRefVal(shard)
-	return shard, err
+	return rv, err
 }
 
 //nolint:revive // complexity is fine

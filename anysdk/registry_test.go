@@ -144,7 +144,7 @@ func runRemote(t *testing.T, rc RegistryConfig, tf func(t *testing.T, r Registry
 
 func execTestRegistrySimpleOktaApplicationServiceRead(t *testing.T, r RegistryAPI) {
 	for _, vr := range oktaTestableVersions {
-		pr, err := LoadProviderByName("okta", vr)
+		pr, err := LoadProviderByName("okta", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -302,7 +302,7 @@ func execTestRegistrySimpleOktaPullAndPersist(t *testing.T, r RegistryAPI) {
 
 		assert.NilError(t, err)
 
-		pr, err := LoadProviderByName("okta", vr)
+		pr, err := LoadProviderByName("okta", vr, "")
 		if err != nil {
 			t.Fatalf("Test failed: %v", err)
 		}
@@ -358,7 +358,7 @@ func execTestRegistryIndirectGoogleComputeServiceMethodResolutionSeparateDocs(t 
 			"project": struct{}{},
 		}
 
-		os, remainingParams, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", matchParams)
+		os, remainingParams, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", matchParams)
 
 		assert.Assert(t, ok)
 
@@ -404,7 +404,7 @@ func execTestRegistryCanHandleArrayResponts(t *testing.T, r RegistryAPI) {
 			"org": struct{}{},
 		}
 
-		os, remainingParams, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", matchParams)
+		os, remainingParams, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", matchParams)
 
 		assert.Assert(t, ok)
 
@@ -466,7 +466,7 @@ func execTestRegistryCanHandleUnspecifiedResponseWithDefaults(t *testing.T, r Re
 			"zone":    struct{}{},
 		}
 
-		os, remainingParams, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", matchParams)
+		os, remainingParams, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", matchParams)
 
 		assert.Assert(t, ok)
 

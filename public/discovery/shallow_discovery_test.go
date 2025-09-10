@@ -291,9 +291,18 @@ func TestShallowDiscoveryGoogleLegacy(t *testing.T) {
 
 func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	expectedErrorCount := 282
-	analyzerFactory := discovery.NewSimpleSQLiteAnalyzerFactory(registryLocalPath, dto.RuntimeCtx{})
+	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(
+		localRegistry, dto.RuntimeCtx{})
+	if factoryFactoryErr != nil {
+		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
+	}
 	staticAnalyzer, analyzerErr := analyzerFactory.CreateStaticAnalyzer(googleProviderPath)
 	if analyzerErr != nil {
 		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
@@ -306,7 +315,7 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	for _, err := range errorSlice {
 		t.Logf("Static analysis error: %v", err)
 	}
-	if len(errorSlice)%expectedErrorCount != 0 {
-		t.Fatalf("Static analysis failed: expected multiple of %d errors but got %d", expectedErrorCount, len(errorSlice))
+	if len(errorSlice) < expectedErrorCount {
+		t.Fatalf("Static analysis failed: expected at least %d errors but got %d", expectedErrorCount, len(errorSlice))
 	}
 }

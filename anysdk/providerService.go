@@ -179,7 +179,7 @@ func (sv *standardProviderService) ConditionIsValid(lhs string, rhs interface{})
 }
 
 func extractService(ps ProviderService) (Service, error) {
-	b, err := getServiceDocBytes(ps.getServiceRefRef())
+	b, err := getServiceDocBytes(ps.getServiceRefRef(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func extractService(ps ProviderService) (Service, error) {
 }
 
 func getResourcesShallow(ps ProviderService) (ResourceRegister, error) {
-	b, err := getServiceDocBytes(ps.getResourcesRefRef())
+	b, err := getServiceDocBytes(ps.getResourcesRefRef(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -266,28 +266,18 @@ func (ps *standardProviderService) GetService() (Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	openApiSvc, isOpenApiSvc := svc.(OpenAPIService)
-	if !isOpenApiSvc {
-		return nil, fmt.Errorf("disallowed type for openapi service '%T'", svc)
-	}
-	ps.OpenAPIService = openApiSvc
-	return ps.OpenAPIService, nil
-}
 
-func (ps *standardProviderService) extractService() (OpenAPIService, error) {
-	if ps.ServiceRef.Value != nil {
-		return ps.ServiceRef.Value, nil
-	}
-	svc, err := extractService(ps)
-	if err != nil {
-		return nil, err
-	}
-	openApiSvc, isOpenApiSvc := svc.(OpenAPIService)
-	if !isOpenApiSvc {
+	switch svc := svc.(type) {
+	case OpenAPIService:
+		ps.OpenAPIService = svc
+		svc.setProvider(ps.Provider)
+	case *localTemplatedService:
+		ps.GenericService = svc
+		svc.setProvider(ps.Provider)
+	default:
 		return nil, fmt.Errorf("disallowed type for openapi service '%T'", svc)
 	}
-	ps.OpenAPIService = openApiSvc
-	return ps.OpenAPIService, nil
+	return svc, nil
 }
 
 func (ps *standardProviderService) getServiceDocRef(rr ResourceRegister, rsc Resource) ServiceRef {
@@ -324,7 +314,7 @@ func (ps *standardProviderService) GetServiceFragment(resourceKey string) (Servi
 	if sdRef.Value != nil {
 		return sdRef.Value, nil
 	}
-	sb, err := getServiceDocBytes(sdRef.Ref)
+	sb, err := getServiceDocBytes(sdRef.Ref, "")
 	if err != nil {
 		return nil, err
 	}

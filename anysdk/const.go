@@ -15,12 +15,22 @@ const (
 )
 
 const (
+	LocationRequestBody string = "requestBody"
+	LocationPath        string = "path"
+	LocationQuery       string = "query"
+	LocationHeader      string = "header"
+	LocationCookie      string = "cookie"
+	LocationServer      string = "server"
+)
+
+const (
 	ExtensionKeyAlwaysRequired string = "x-alwaysRequired"
 	ExtensionKeyGraphQL        string = "x-stackQL-graphQL"
 	ExtensionKeyConfig         string = "x-stackQL-config"
 	ExtensionKeyProvider       string = "x-stackql-provider"
 	ExtensionKeyResources      string = "x-stackQL-resources"
 	ExtensionKeyStringOnly     string = "x-stackQL-stringOnly"
+	ExtensionKeyAlias          string = "x-stackQL-alias"
 )
 
 const (
