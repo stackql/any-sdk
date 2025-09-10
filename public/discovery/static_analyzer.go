@@ -562,17 +562,6 @@ func (f *simpleSQLAnalyzerFactory) CreateStaticAnalyzer(
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
-	if putErr != nil {
-		return nil, putErr
-	}
-	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
-	if getErr != nil {
-		return nil, getErr
-	}
-	if string(cachedVal) != "value" {
-		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
-	}
 	registry, registryErr := getNewMockRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
@@ -645,17 +634,6 @@ func (f *simpleSQLAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
-	if putErr != nil {
-		return nil, putErr
-	}
-	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
-	if getErr != nil {
-		return nil, getErr
-	}
-	if string(cachedVal) != "value" {
-		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
-	}
 	registry, registryErr := getNewMockRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
@@ -694,17 +672,6 @@ func (f *simpleSQLAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
-	if putErr != nil {
-		return nil, putErr
-	}
-	cachedVal, getErr := persistenceSystem.CacheStoreGet("key")
-	if getErr != nil {
-		return nil, getErr
-	}
-	if string(cachedVal) != "value" {
-		return nil, fmt.Errorf("unexpected cached value: %v", string(cachedVal))
-	}
 	registry, registryErr := getNewMockRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
