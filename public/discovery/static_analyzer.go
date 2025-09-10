@@ -202,6 +202,7 @@ type MethodAggregateStaticAnalyzer interface {
 type ResourceAggregateStaticAnalyzer interface {
 	StaticAnalyzer
 	GetPartialHierarchy() (AnalyzedPartialHierarchy, bool)
+	FindMethodByVerbAndParameters(sqlVerb string, params map[string]any) (anysdk.StandardOperationStore, map[string]any, bool)
 }
 
 func newMethodAggregateStaticAnalyzer(
@@ -242,6 +243,17 @@ type standardResourceAggregateStaticAnalyzer struct {
 	serviceName      string
 	resourceName     string
 	partialHierarchy AnalyzedPartialHierarchy
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) FindMethodByVerbAndParameters(sqlVerb string, params map[string]any) (anysdk.StandardOperationStore, map[string]any, bool) {
+	if asa.partialHierarchy == nil {
+		return nil, nil, false
+	}
+	resource := asa.partialHierarchy.GetResource()
+	if resource == nil {
+		return nil, nil, false
+	}
+	return resource.GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb, params)
 }
 
 func (asa *standardResourceAggregateStaticAnalyzer) GetPartialHierarchy() (AnalyzedPartialHierarchy, bool) {
@@ -308,6 +320,24 @@ func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
 	if shallowRsc == nil {
 		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
 	}
+	for k, sm := range shallowRsc.GetMethods() {
+		method := &sm // this is poo
+		addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
+			radix_tree_address_space.NewAddressSpaceGrammar(),
+			prov,
+			svc,
+			resource,
+			method,
+			method.GetProjections(),
+		)
+		err = addressSpaceFormulator.Formulate()
+		if err != nil {
+			return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", k, asa.resourceName, err)
+		}
+		addressSpace := addressSpaceFormulator.GetAddressSpace()
+		method.SetAddressSpace(addressSpace)
+	}
+
 	asa.partialHierarchy = &standardAnalyzedHierarchy{
 		provider:    prov,
 		service:     providerService,

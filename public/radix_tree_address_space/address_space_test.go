@@ -164,11 +164,14 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	if projectVal != "my-test-project" {
 		t.Fatalf("Address space analysis failed: expected 'my-test-project' from address '.project' but got '%v'", projectVal)
 	}
-	isResolved := addressSpace.ResolveSignature(map[string]any{
+	isResolved, remainder := addressSpace.ResolveSignature(map[string]any{
 		"project": "my-test-project",
 	})
 	if !isResolved {
 		t.Fatalf("Address space analysis failed: expected signature to be resolved")
+	}
+	if len(remainder) != 0 {
+		t.Fatalf("Address space analysis failed: expected no remainder but got %d", len(remainder))
 	}
 	dummyReq := &http.Request{
 		Method: "GET",
@@ -480,14 +483,20 @@ func TestSearchAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	if resource == nil {
 		t.Fatalf("Static analysis failed: expected non-nil resource from hierarchy")
 	}
-	method, _, _ := resource.GetFirstMethodMatchFromSQLVerb(
+	method, remainder, methodFound := staticAnalyzer.FindMethodByVerbAndParameters(
 		"select",
-		map[string]interface{}{
+		map[string]any{
 			"project": "my-test-project",
 		},
 	)
+	if !methodFound {
+		t.Fatalf("Static analysis failed: expected to find method by verb and parameters")
+	}
 	if method == nil {
 		t.Fatalf("Static analysis failed: expected non-nil method from hierarchy")
+	}
+	if len(remainder) != 0 {
+		t.Fatalf("Static analysis failed: expected no remainder but got %d", len(remainder))
 	}
 	prov := hierarchy.GetProvider()
 	if prov == nil {

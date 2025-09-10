@@ -231,7 +231,11 @@ func (ns *standardNamespace) Analyze() error {
 	return nil
 }
 
-func (ns *standardNamespace) ResolveSignature(params map[string]any) bool {
+func (ns *standardNamespace) ResolveSignature(params map[string]any) (bool, map[string]any) {
+	copyParams := make(map[string]any, len(params))
+	for k, v := range params {
+		copyParams[k] = v
+	}
 	requiredNonBodyParams := ns.method.GetRequiredNonBodyParameters()
 	requiredBodyPrarms := make(map[string]anysdk.Addressable)
 	for k, v := range ns.requestBodyParams {
@@ -242,8 +246,9 @@ func (ns *standardNamespace) ResolveSignature(params map[string]any) bool {
 	for k, _ := range params {
 		_, hasKey := ns.globalAliasMap.Peek(k)
 		if !hasKey {
-			return false
+			return false, copyParams
 		}
+		delete(copyParams, k)
 		_, isRequiredNonBodyParam := requiredNonBodyParams[k]
 		if isRequiredNonBodyParam {
 			delete(requiredNonBodyParams, k)
@@ -255,7 +260,7 @@ func (ns *standardNamespace) ResolveSignature(params map[string]any) bool {
 			continue
 		}
 	}
-	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0
+	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0, copyParams
 }
 
 func (ns *standardNamespace) Expand(params map[string]any) bool {

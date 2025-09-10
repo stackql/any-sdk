@@ -80,6 +80,7 @@ type OperationStore interface {
 	GetResource() Resource
 	GetProjections() map[string]string
 	parameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
+	namespaceParameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
 	GetOperationParameter(key string) (Addressable, bool)
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
 	ProcessResponse(*http.Response) (ProcessedOperationResponse, error) // to be removed
@@ -579,6 +580,47 @@ func (op *standardOpenAPIOperationStore) GetPaginationResponseTokenSemantic() (T
 }
 
 func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
+	copiedParams := make(map[string]interface{})
+	for k, v := range params {
+		copiedParams[k] = v
+	}
+	requiredParameters := NewParameterSuffixMap()
+	optionalParameters := NewParameterSuffixMap()
+	for k, v := range op.getRequiredParameters() {
+		key := fmt.Sprintf("%s.%s", op.getName(), k)
+		_, keyExists := requiredParameters.Get(key)
+		if keyExists {
+			return copiedParams, false
+		}
+		requiredParameters.Put(key, v)
+	}
+	for k, vOpt := range op.getOptionalParameters() {
+		key := fmt.Sprintf("%s.%s", op.getName(), k)
+		_, keyExists := optionalParameters.Get(key)
+		if keyExists {
+			return copiedParams, false
+		}
+		optionalParameters.Put(key, vOpt)
+	}
+	for k := range copiedParams {
+		if requiredParameters.Delete(k) {
+			delete(copiedParams, k)
+			continue
+		}
+		if optionalParameters.Delete(k) {
+			delete(copiedParams, k)
+			continue
+		}
+		// log.Debugf("parameter '%s' unmatched for method '%s'\n", k, op.getName())
+	}
+	if requiredParameters.Size() == 0 {
+		return copiedParams, true
+	}
+	// log.Debugf("unmatched **required** paramter count = %d for method '%s'\n", requiredParameters.Size(), op.getName())
+	return copiedParams, false
+}
+
+func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
 	copiedParams := make(map[string]interface{})
 	for k, v := range params {
 		copiedParams[k] = v
