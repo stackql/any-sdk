@@ -53,6 +53,7 @@ type RegistryAPI interface {
 	LoadProviderByName(string, string) (Provider, error)
 	RemoveProviderVersion(string, string) error
 	ClearProviderCache(string) error
+	GetLocalDocRoot() string
 }
 
 type RegistryConfig struct {
@@ -142,6 +143,10 @@ func newRegistry(registryCfg RegistryConfig, transport http.RoundTripper) (Regis
 		nopVerifier:      nopVerify,
 	}
 	return rv, nil
+}
+
+func (r *Registry) GetLocalDocRoot() string {
+	return r.getLocalDocRoot()
 }
 
 func (r *Registry) ListLocallyAvailableProviders() map[string]ProviderDescription {
