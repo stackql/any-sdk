@@ -108,7 +108,7 @@ func newGenericStaticAnalyzer(
 	}
 }
 
-func getNewMockRegistry(relativePath string) (anysdk.RegistryAPI, error) {
+func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
 	return anysdk.NewRegistry(
 		anysdk.RegistryConfig{
 			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
@@ -607,7 +607,7 @@ func (f *simpleSQLAnalyzerFactory) CreateStaticAnalyzer(
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	registry, registryErr := getNewLocalRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
 	}
@@ -679,7 +679,7 @@ func (f *simpleSQLAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	registry, registryErr := getNewLocalRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
 	}
@@ -717,7 +717,7 @@ func (f *simpleSQLAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
 	rtCtx := f.rtCtx
 	registryLocalPath := f.registryURL
 	analyzerCfgPath := strings.TrimPrefix(registryLocalPath, "./") + "/src"
-	registry, registryErr := getNewMockRegistry(registryLocalPath)
+	registry, registryErr := getNewLocalRegistry(registryLocalPath)
 	if registryErr != nil {
 		return nil, registryErr
 	}
