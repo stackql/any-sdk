@@ -478,14 +478,6 @@ func (sf *standardStaticAnalyzerFactoryFactory) createNaivePersistenceSystem(sql
 	if persistenceSystem == nil {
 		return nil, fmt.Errorf("failed to create persistence system: got nil")
 	}
-	setUpScript, scriptErr := sqlengine.GetSQLEngineSetupDDL("sqlite")
-	if scriptErr != nil {
-		return nil, scriptErr
-	}
-	scriptRunErr := sqlEngine.ExecInTxn([]string{setUpScript})
-	if scriptRunErr != nil {
-		return nil, scriptRunErr
-	}
 	putErr := persistenceSystem.CacheStorePut("key", []byte("value"), "", 3600)
 	if putErr != nil {
 		return nil, putErr
