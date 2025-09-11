@@ -30,6 +30,7 @@ type Resource interface {
 	FindMethod(key string) (StandardOperationStore, error)
 	GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool)
 	GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
+	GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
 	GetService() (OpenAPIService, bool)
 	GetProvider() (Provider, bool)
 	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
@@ -299,6 +300,10 @@ func (rs *standardResource) getFirstMethodMatchFromSQLVerb(sqlVerb string, param
 
 func (rs *standardResource) GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
 	return rs.getFirstMethodMatchFromSQLVerb(sqlVerb, parameters)
+}
+
+func (rs *standardResource) GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
+	return rs.getFirstNamespaceMethodMatchFromSQLVerb(sqlVerb, parameters)
 }
 
 func (rs *standardResource) getFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
