@@ -320,22 +320,14 @@ func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
 	if shallowRsc == nil {
 		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
 	}
-	for _, sm := range shallowRsc.GetMethods() {
-		method := &sm // this is poo
-		addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
-			radix_tree_address_space.NewAddressSpaceGrammar(),
-			prov,
-			svc,
-			resource,
-			method,
-			method.GetProjections(),
-		)
-		err = addressSpaceFormulator.Formulate()
-		if err != nil {
-			// return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", k, asa.resourceName, err)
-		}
-		addressSpace := addressSpaceFormulator.GetAddressSpace()
-		method.SetAddressSpace(addressSpace)
+	resourceAddressSpaceExpander := radix_tree_address_space.NewResourceAddressSpaceExpander(
+		prov,
+		svc,
+		shallowRsc,
+	)
+	expandErr := resourceAddressSpaceExpander.Expand()
+	if expandErr != nil {
+		return fmt.Errorf("static analysis failed: could not expand address space for resource '%s': %w", asa.resourceName, expandErr)
 	}
 
 	asa.partialHierarchy = &standardAnalyzedHierarchy{

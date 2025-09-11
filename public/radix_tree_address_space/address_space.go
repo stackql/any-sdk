@@ -1217,3 +1217,47 @@ func parameterizeFromAnalyzedInput(prov anysdk.Provider, parentDoc anysdk.Servic
 	}
 	return requestValidationInput, nil
 }
+
+type AddressSpaceExpander interface {
+	Expand() error
+}
+
+func NewResourceAddressSpaceExpander(
+	provider anysdk.Provider,
+	service anysdk.Service,
+	resource anysdk.Resource,
+) AddressSpaceExpander {
+	return &rscNamespaceExpander{
+		provider: provider,
+		service:  service,
+		resource: resource,
+	}
+}
+
+type rscNamespaceExpander struct {
+	provider anysdk.Provider
+	service  anysdk.Service
+	resource anysdk.Resource
+}
+
+func (rex *rscNamespaceExpander) Expand() error {
+	shallowRsc := rex.resource
+	for _, sm := range shallowRsc.GetMethods() {
+		method := &sm // this is poo
+		addressSpaceFormulator := NewAddressSpaceFormulator(
+			NewAddressSpaceGrammar(),
+			rex.provider,
+			rex.service,
+			rex.resource,
+			method,
+			method.GetProjections(),
+		)
+		err := addressSpaceFormulator.Formulate()
+		if err != nil {
+			return err
+		}
+		addressSpace := addressSpaceFormulator.GetAddressSpace()
+		method.SetAddressSpace(addressSpace)
+	}
+	return nil
+}
