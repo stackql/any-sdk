@@ -1186,3 +1186,64 @@ func TestHeavyAliasedAddressSpaceAWSCurrent(t *testing.T) {
 		t.Fatalf("Static analysis failed: expected non-nil registry API to exist on static analyzer")
 	}
 }
+
+func TestLocalExec(t *testing.T) {
+	registryLocalPath := "./testdata/registry/basic"
+	localRegistry, registryErr := getNewTestDataMockRegistry(registryLocalPath)
+	if registryErr != nil {
+		t.Fatalf("Failed to create mock registry: %v", registryErr)
+	}
+	providerPath := "testdata/registry/basic/src/local_openssl/v0.1.0/provider.yaml"
+	// expectedErrorCount := 282
+	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	if factoryFactoryErr != nil {
+		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
+	}
+	staticAnalyzer, analyzerErr := analyzerFactory.CreateMethodAggregateStaticAnalyzer(
+		providerPath,
+		"local_openssl",
+		"keys",
+		"x509",
+		"describe_certificate",
+		false,
+	)
+	if analyzerErr != nil {
+		t.Fatalf("Failed to create static analyzer: %v", analyzerErr)
+	}
+	err := staticAnalyzer.Analyze()
+	if err != nil {
+		t.Fatalf("Static analysis failed: %v", err)
+	}
+	errorSlice := staticAnalyzer.GetErrors()
+	for _, err := range errorSlice {
+		t.Logf("Static analysis error: %v", err)
+	}
+	hierarchy, isHierarchyExisting := staticAnalyzer.GetFullHierarchy()
+	if !isHierarchyExisting {
+		t.Fatalf("Static analysis failed: expected full hierarchy to exist")
+	}
+	resource := hierarchy.GetResource()
+	if resource == nil {
+		t.Fatalf("Static analysis failed: expected non-nil resource from hierarchy")
+	}
+	method := hierarchy.GetMethod()
+	if method == nil {
+		t.Fatalf("Static analysis failed: expected non-nil method from hierarchy")
+	}
+	prov := hierarchy.GetProvider()
+	if prov == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from hierarchy")
+	}
+	altProv, hasAltProv := resource.GetProvider()
+	if !hasAltProv || altProv == nil {
+		t.Fatalf("Static analysis failed: expected non-nil provider from resource")
+	}
+	registryAPI, hasRegistryAPI := staticAnalyzer.GetRegistryAPI()
+	if !hasRegistryAPI {
+		t.Fatalf("Static analysis failed: expected registry API to exist on static analyzer")
+	}
+	if registryAPI == nil {
+		t.Fatalf("Static analysis failed: expected non-nil registry API to exist on static analyzer")
+	}
+}

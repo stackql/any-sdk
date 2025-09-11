@@ -12,6 +12,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/queryrouter"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
@@ -589,15 +590,19 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	servers, _ := asa.method.GetServers()
 	svcServers, _ := asa.service.GetServers()
 	servers = append(servers, svcServers...)
-	if len(servers) == 0 {
+	var selectedServer *openapi3.Server
+	protocolType, _ := asa.provider.GetProtocolType()
+	if len(servers) == 0 && protocolType != client.LocalTemplated {
 		return fmt.Errorf("no servers defined for operation %s", asa.method.GetName())
 	}
-	firstServer := servers[0]
-	if firstServer == nil {
-		return fmt.Errorf("no servers defined for operation %s", asa.method.GetName())
-	}
-	for k, v := range firstServer.Variables {
-		serverVars[k] = v.Default
+	if len(servers) > 0 {
+		selectedServer = servers[0]
+		if selectedServer == nil {
+			return fmt.Errorf("no servers defined for operation %s", asa.method.GetName())
+		}
+		for k, v := range selectedServer.Variables {
+			serverVars[k] = v.Default
+		}
 	}
 	requestBodySchema, requestBodySchemaErr := asa.method.GetRequestBodySchema()
 	requestBodyMediaType := asa.method.GetRequestBodyMediaType()
@@ -659,7 +664,7 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	// }
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
-		server:                firstServer,
+		server:                selectedServer,
 		serverVars:            serverVars,
 		requestBodyParams:     requestBodyParams,
 		simpleSelectKey:       simpleSelectKey,

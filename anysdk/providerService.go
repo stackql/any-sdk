@@ -266,28 +266,18 @@ func (ps *standardProviderService) GetService() (Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	openApiSvc, isOpenApiSvc := svc.(OpenAPIService)
-	if !isOpenApiSvc {
-		return nil, fmt.Errorf("disallowed type for openapi service '%T'", svc)
-	}
-	ps.OpenAPIService = openApiSvc
-	return ps.OpenAPIService, nil
-}
 
-func (ps *standardProviderService) extractService() (OpenAPIService, error) {
-	if ps.ServiceRef.Value != nil {
-		return ps.ServiceRef.Value, nil
-	}
-	svc, err := extractService(ps)
-	if err != nil {
-		return nil, err
-	}
-	openApiSvc, isOpenApiSvc := svc.(OpenAPIService)
-	if !isOpenApiSvc {
+	switch svc := svc.(type) {
+	case OpenAPIService:
+		ps.OpenAPIService = svc
+		svc.setProvider(ps.Provider)
+	case *localTemplatedService:
+		ps.GenericService = svc
+		svc.setProvider(ps.Provider)
+	default:
 		return nil, fmt.Errorf("disallowed type for openapi service '%T'", svc)
 	}
-	ps.OpenAPIService = openApiSvc
-	return ps.OpenAPIService, nil
+	return svc, nil
 }
 
 func (ps *standardProviderService) getServiceDocRef(rr ResourceRegister, rsc Resource) ServiceRef {

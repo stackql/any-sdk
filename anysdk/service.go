@@ -65,6 +65,25 @@ func (sv *localTemplatedService) getT() *openapi3.T {
 	return sv.OpenapiSvc
 }
 
+func (sv *localTemplatedService) setProvider(provider Provider) {
+	sv.Provider = provider
+	for _, rsc := range sv.Rsc {
+		rsc.setProvider(provider)
+		if len(rsc.Methods) > 0 {
+			for _, m := range rsc.Methods {
+				m.setProvider(provider)
+				if m.Inverse != nil {
+					inverseOpStore, inverseOpStoreExists := m.Inverse.getOpenAPIOperationStore()
+					if inverseOpStoreExists {
+						inverseOpStore.setProvider(provider)
+					}
+				}
+			}
+		}
+
+	}
+}
+
 func (sv *localTemplatedService) GetServers() (openapi3.Servers, bool) {
 	return nil, false
 }
