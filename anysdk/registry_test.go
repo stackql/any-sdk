@@ -358,7 +358,7 @@ func execTestRegistryIndirectGoogleComputeServiceMethodResolutionSeparateDocs(t 
 			"project": struct{}{},
 		}
 
-		os, remainingParams, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", matchParams)
+		os, remainingParams, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", matchParams)
 
 		assert.Assert(t, ok)
 
@@ -404,7 +404,7 @@ func execTestRegistryCanHandleArrayResponts(t *testing.T, r RegistryAPI) {
 			"org": struct{}{},
 		}
 
-		os, remainingParams, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", matchParams)
+		os, remainingParams, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", matchParams)
 
 		assert.Assert(t, ok)
 
@@ -466,7 +466,7 @@ func execTestRegistryCanHandleUnspecifiedResponseWithDefaults(t *testing.T, r Re
 			"zone":    struct{}{},
 		}
 
-		os, remainingParams, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", matchParams)
+		os, remainingParams, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", matchParams)
 
 		assert.Assert(t, ok)
 

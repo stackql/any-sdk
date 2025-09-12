@@ -253,7 +253,7 @@ func (asa *standardResourceAggregateStaticAnalyzer) FindMethodByVerbAndParameter
 	if resource == nil {
 		return nil, nil, false
 	}
-	return resource.GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb, params)
+	return resource.GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb, params)
 }
 
 func (asa *standardResourceAggregateStaticAnalyzer) GetPartialHierarchy() (AnalyzedPartialHierarchy, bool) {

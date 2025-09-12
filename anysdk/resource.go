@@ -29,13 +29,11 @@ type Resource interface {
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	FindMethod(key string) (StandardOperationStore, error)
 	GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool)
-	GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
 	GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
 	GetService() (OpenAPIService, bool)
 	GetProvider() (Provider, bool)
 	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
 	GetMethodsMatched() Methods
-	GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]any, bool)
 	ToMap(extended bool) map[string]interface{}
 	// unexported mutators
 	getSQLVerbs() map[string][]OpenAPIOperationStoreRef
@@ -284,22 +282,6 @@ func (rs *standardResource) getMethodsMatched() Methods {
 		rv[k] = m
 	}
 	return rv
-}
-
-func (rs *standardResource) GetFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
-	return rs.getFirstMethodMatchFromSQLVerb(sqlVerb, parameters)
-}
-
-func (rs *standardResource) getFirstMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
-	ms, err := rs.getMethodsForSQLVerb(sqlVerb)
-	if err != nil {
-		return nil, parameters, false
-	}
-	return ms.getFirstMatch(parameters)
-}
-
-func (rs *standardResource) GetFirstNamepsaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
-	return rs.getFirstMethodMatchFromSQLVerb(sqlVerb, parameters)
 }
 
 func (rs *standardResource) GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {

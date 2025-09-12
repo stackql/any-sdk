@@ -153,7 +153,7 @@ func TestJSONPathHandle(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, rsc != nil)
 
-	ops, _, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", nil)
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", nil)
 	assert.Assert(t, ok)
 	// assert.Assert(t, st != "")
 	assert.Assert(t, ops != nil)
@@ -202,7 +202,7 @@ func TestJSONPathHandleEnforcedResponseMediaType(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, rsc != nil)
 
-	ops, _, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", nil)
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", nil)
 	assert.Assert(t, ok)
 	// assert.Assert(t, st != "")
 	assert.Assert(t, ops != nil)
@@ -287,7 +287,7 @@ func TestVariableHostRouting(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, rsc != nil)
 
-	ops, _, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", nil)
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", nil)
 	assert.Assert(t, ok)
 	// assert.Assert(t, st != "")
 	assert.Assert(t, ops != nil)
@@ -352,7 +352,7 @@ func TestVariableHostRoutingFutureProofed(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, rsc != nil)
 
-	ops, _, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", nil)
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", nil)
 	assert.Assert(t, ok)
 	// assert.Assert(t, st != "")
 	assert.Assert(t, ops != nil)
@@ -421,7 +421,7 @@ func TestMethodLevelVariableHostRoutingFutureProofed(t *testing.T) {
 		"owner": "joeblow",
 		"repo":  "dummyapp",
 	}
-	ops, _, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", stringParams)
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", stringParams)
 	assert.Assert(t, ok)
 	// assert.Assert(t, st != "")
 	assert.Assert(t, ops != nil)
@@ -491,7 +491,7 @@ func TestStaticHostRouting(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, rsc != nil)
 
-	ops, _, ok := rsc.GetFirstMethodMatchFromSQLVerb("select", map[string]interface{}{"parent": "organizations/123123123123"})
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", map[string]interface{}{"parent": "organizations/123123123123"})
 	assert.Assert(t, ok)
 	// assert.Assert(t, st != "")
 	assert.Assert(t, ops != nil)
