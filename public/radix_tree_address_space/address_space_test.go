@@ -222,7 +222,7 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	if invocationErr != nil {
 		t.Fatalf("Address space analysis failed: expected invocation to succeed: %v", invocationErr)
 	}
-	mappedNamsespace, mapErr := addressSpace.ToMap()
+	mappedNamsespace, mapErr := addressSpace.ToMap(radix_tree_address_space.NewStandardAddressSpaceExpansionConfig(true, true))
 	if mapErr != nil {
 		t.Fatalf("Address space analysis failed: expected to map namespace: %v", mapErr)
 	}
@@ -1024,7 +1024,7 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	if invocationErr != nil {
 		t.Fatalf("Address space analysis failed: expected invocation to succeed: %v", invocationErr)
 	}
-	mappedNamsespace, mapErr := addressSpace.ToMap()
+	mappedNamsespace, mapErr := addressSpace.ToMap(radix_tree_address_space.NewStandardAddressSpaceExpansionConfig(true, true))
 	if mappedNamsespace["short_name"] != "my-short-name" {
 		t.Fatalf("Address space analysis failed: expected 'my-short-name' for 'short_name' but got '%v'", mappedNamsespace["short_name"])
 	}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -41,6 +42,29 @@ const (
 	pathTypeRequestHeader  pathType = "request_header"
 	pathTypeResponseHeader pathType = "response_header"
 )
+
+type standardAddressSpaceExpansionConfig struct {
+	isLegacy           bool
+	isAllowNilResponse bool
+}
+
+func NewStandardAddressSpaceExpansionConfig(
+	isLegacy bool,
+	isAllowNilResponse bool,
+) anysdk.AddressSpaceExpansionConfig {
+	return &standardAddressSpaceExpansionConfig{
+		isLegacy:           isLegacy,
+		isAllowNilResponse: isAllowNilResponse,
+	}
+}
+
+func (aec *standardAddressSpaceExpansionConfig) IsLegacy() bool {
+	return aec.isLegacy
+}
+
+func (aec *standardAddressSpaceExpansionConfig) IsAllowNilResponse() bool {
+	return aec.isAllowNilResponse
+}
 
 // AddressSpaceGrammar defines the search DSL
 type AddressSpaceGrammar interface {
@@ -157,10 +181,6 @@ func (pm *standardAddressSpaceAnalysisPassManager) ApplyPasses() error {
 		return rv
 	}
 	as := pm.formulator.GetAddressSpace()
-	rv = as.Analyze()
-	if rv != nil {
-		return rv
-	}
 	pm.addressSpace = as
 	return nil
 }
@@ -262,38 +282,6 @@ func (ns *standardNamespace) ResolveSignature(params map[string]any) (bool, map[
 		}
 	}
 	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0, copyParams
-}
-
-func (ns *standardNamespace) Expand(params map[string]any) bool {
-	requiredNonBodyParams := ns.method.GetRequiredNonBodyParameters()
-	requiredBodyPrarms := make(map[string]anysdk.Addressable)
-	for k, v := range ns.requestBodyParams {
-		if v.IsRequired() {
-			requiredBodyPrarms[k] = v
-		}
-	}
-	// populate the shadow query
-	for k, v := range params {
-		path, hasPath := ns.globalAliasMap.Peek(k)
-		if !hasPath {
-			return false
-		}
-		err := ns.shadowQuery.Insert(path, v)
-		if err != nil {
-			return false
-		}
-		_, isRequiredNonBodyParam := requiredNonBodyParams[k]
-		if isRequiredNonBodyParam {
-			delete(requiredNonBodyParams, k)
-			continue
-		}
-		_, isRequiredBodyParam := requiredBodyPrarms[k]
-		if isRequiredBodyParam {
-			delete(requiredBodyPrarms, k)
-			continue
-		}
-	}
-	return len(requiredNonBodyParams) == 0 && len(requiredBodyPrarms) == 0
 }
 
 func (ns *standardNamespace) copyResponse(resp *http.Response) (*http.Response, error) {
@@ -411,7 +399,62 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 	return nil
 }
 
-func (ns *standardNamespace) ToMap() (map[string]any, error) {
+func (ns *standardNamespace) getLegacyColumns(cfg anysdk.AddressSpaceExpansionConfig, requestSchema anysdk.Schema, m anysdk.StandardOperationStore) ([]anysdk.Column, error) {
+	schemaAnalyzer := newLegacyTableSchemaAnalyzer(requestSchema, m, cfg.IsAllowNilResponse())
+	return schemaAnalyzer.GetColumns()
+}
+
+type standardRelation struct {
+	columns []anysdk.Column
+}
+
+func (sr *standardRelation) GetColumns() []anysdk.Column {
+	return sr.columns
+}
+
+func (ns *standardNamespace) getLegacyRelation(cfg anysdk.AddressSpaceExpansionConfig, requestSchema anysdk.Schema, m anysdk.StandardOperationStore) (anysdk.Relation, error) {
+	cols, err := ns.getLegacyColumns(cfg, requestSchema, m)
+	if err != nil {
+		return nil, err
+	}
+	return &standardRelation{
+		columns: cols,
+	}, nil
+}
+
+func (ns *standardNamespace) globalAliasesToRelation() (anysdk.Relation, error) {
+	columns := make([]anysdk.Column, 0, len(ns.globalSelectSchemas))
+	aliases := make([]string, 0, len(ns.globalSelectSchemas))
+	i := 0
+	for alias := range ns.globalSelectSchemas {
+		aliases[i] = alias
+		i++
+	}
+	sort.Strings(aliases)
+	for i, alias := range aliases {
+		schema := ns.globalSelectSchemas[alias]
+		col := newSimpleColumn(alias, schema)
+		columns[i] = col
+	}
+	return &standardRelation{
+		columns: columns,
+	}, nil
+}
+
+func (ns *standardNamespace) ToRelation(cfg anysdk.AddressSpaceExpansionConfig) (anysdk.Relation, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("nil config")
+	}
+	if cfg.IsLegacy() {
+		return ns.getLegacyRelation(cfg, ns.requestBodySchema, ns.method)
+	}
+	return ns.globalAliasesToRelation()
+}
+
+func (ns *standardNamespace) ToMap(cfg anysdk.AddressSpaceExpansionConfig) (map[string]any, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("nil config")
+	}
 	rv := make(map[string]any)
 	aliasToPrefixMap := ns.globalAliasMap.GetAliasToPrefixMap()
 	for alias, path := range aliasToPrefixMap {
