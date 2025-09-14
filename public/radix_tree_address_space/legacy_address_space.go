@@ -16,17 +16,20 @@ type simpleLegacyTableSchemaAnalyzer struct {
 	s                    anysdk.Schema
 	m                    anysdk.OperationStore
 	isNilResponseAllowed bool
+	selectItemsKey       string
 }
 
 func newLegacyTableSchemaAnalyzer(
 	s anysdk.Schema,
 	m anysdk.OperationStore,
 	isNilResponseAllowed bool,
+	selectItemsKey string,
 ) legacyTableSchemaAnalyzer {
 	return &simpleLegacyTableSchemaAnalyzer{
 		s:                    s,
 		m:                    m,
 		isNilResponseAllowed: isNilResponseAllowed,
+		selectItemsKey:       selectItemsKey,
 	}
 }
 
@@ -46,7 +49,11 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error)
 	// if !hasAddressSpace || addressSpace == nil {
 	// 	return nil, fmt.Errorf("no address space found for method %s", ta.m.GetName())
 	// }
-	tab := ta.s.Tabulate(false, "")
+	var defaultColName string
+	if ta.selectItemsKey != "" {
+		defaultColName = TrimSelectItemsKey(ta.selectItemsKey)
+	}
+	tab := ta.s.Tabulate(false, defaultColName)
 	_, mediaType, err := ta.m.GetResponseBodySchemaAndMediaType()
 	if err != nil {
 		return nil, err

@@ -401,7 +401,12 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 }
 
 func (ns *standardNamespace) getLegacyColumns(cfg anysdk.AddressSpaceExpansionConfig, requestSchema anysdk.Schema, m anysdk.StandardOperationStore) ([]anysdk.Column, error) {
-	schemaAnalyzer := newLegacyTableSchemaAnalyzer(requestSchema, m, cfg.IsAllowNilResponse())
+	schemaAnalyzer := newLegacyTableSchemaAnalyzer(
+		requestSchema,
+		m,
+		cfg.IsAllowNilResponse(),
+		ns.simpleSelectKey,
+	)
 	return schemaAnalyzer.GetColumns()
 }
 
