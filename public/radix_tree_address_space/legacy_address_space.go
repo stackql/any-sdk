@@ -1,6 +1,7 @@
 package radix_tree_address_space
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/stackql/any-sdk/anysdk"
@@ -49,6 +50,12 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error)
 	// if !hasAddressSpace || addressSpace == nil {
 	// 	return nil, fmt.Errorf("no address space found for method %s", ta.m.GetName())
 	// }
+	if ta.s == nil {
+		if ta.isNilResponseAllowed {
+			return []anysdk.Column{}, nil
+		}
+		return nil, fmt.Errorf("no schema found for method %s", ta.m.GetName())
+	}
 	var defaultColName string
 	if ta.selectItemsKey != "" {
 		defaultColName = TrimSelectItemsKey(ta.selectItemsKey)
