@@ -203,6 +203,7 @@ type standardNamespace struct {
 	method                anysdk.StandardOperationStore
 	simpleSelectKey       string
 	simpleSelectSchema    anysdk.Schema
+	legacySelectSchema    anysdk.Schema
 	responseBodySchema    anysdk.Schema
 	requestBodySchema     anysdk.Schema
 	responseBodyMediaType string
@@ -446,7 +447,7 @@ func (ns *standardNamespace) ToRelation(cfg anysdk.AddressSpaceExpansionConfig) 
 		return nil, fmt.Errorf("nil config")
 	}
 	if cfg.IsLegacy() {
-		return ns.getLegacyRelation(cfg, ns.simpleSelectSchema, ns.method)
+		return ns.getLegacyRelation(cfg, ns.legacySelectSchema, ns.method)
 	}
 	return ns.globalAliasesToRelation()
 }
@@ -667,6 +668,9 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		}
 		simpleSelectKey = inferredSelectKey
 	}
+	legacySelectKey := asa.method.LookupSelectItemsKey()
+	legacySelectSchema, _ := asa.method.GetSchemaAtPath(legacySelectKey)
+
 	if simpleSelectSchema == nil && !asa.method.IsNullary() {
 		return fmt.Errorf("no schema found at path %s", simpleSelectKey)
 	}
@@ -711,6 +715,7 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		serverVars:            serverVars,
 		requestBodyParams:     requestBodyParams,
 		simpleSelectKey:       simpleSelectKey,
+		legacySelectSchema:    legacySelectSchema,
 		simpleSelectSchema:    simpleSelectSchema,
 		unionSelectSchemas:    unionSelectSchemas,
 		globalSelectSchemas:   globalSelectSchemas,
