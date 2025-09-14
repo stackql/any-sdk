@@ -665,8 +665,13 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		}
 	}
 
-	// legacySelectKey := asa.method.LookupSelectItemsKey()
-	legacySelectSchema, mediaType, _ := asa.method.GetFinalResponseBodySchemaAndMediaType()
+	legacySelectKey := asa.method.LookupSelectItemsKey()
+	legacySelectSchema, _ := asa.method.GetSchemaAtPath(legacySelectKey)
+
+	finalSelectSchema, _, finalSelectErr := asa.method.GetFinalSelectSchemaAndObjectPath()
+	if finalSelectErr == nil {
+		legacySelectSchema = finalSelectSchema
+	}
 
 	simpleSelectKey := asa.method.GetSelectItemsKeySimple()
 	simpleSelectSchema, schemaErr := asa.method.GetSchemaAtPath(simpleSelectKey)
@@ -675,6 +680,9 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		simpleSelectSchema, schemaErr = asa.method.GetSchemaAtPath(inferredSelectKey)
 		if schemaErr != nil {
 			return fmt.Errorf("error getting schema at path %s: %v", inferredSelectKey, schemaErr)
+		}
+		if simpleSelectKey != "" && finalSelectErr != nil {
+			legacySelectSchema = simpleSelectSchema // prefer explicit selection if available
 		}
 		simpleSelectKey = inferredSelectKey
 	}
@@ -719,25 +727,24 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	// }
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
-		server:                 selectedServer,
-		serverVars:             serverVars,
-		requestBodyParams:      requestBodyParams,
-		simpleSelectKey:        simpleSelectKey,
-		finalResponseMediaType: mediaType,
-		legacySelectSchema:     legacySelectSchema,
-		simpleSelectSchema:     simpleSelectSchema,
-		unionSelectSchemas:     unionSelectSchemas,
-		globalSelectSchemas:    globalSelectSchemas,
-		responseBodySchema:     responseSchema,
-		requestBodySchema:      requestBodySchema,
-		responseBodyMediaType:  responseMediaType,
-		requestBodyMediaType:   requestBodyMediaType,
-		explicitAliasMap:       explicitAliasMap,
-		globalAliasMap:         globalAliasMap,
-		prov:                   asa.provider,
-		svc:                    asa.service,
-		method:                 asa.method,
-		shadowQuery:            NewRadixTree(),
+		server:                selectedServer,
+		serverVars:            serverVars,
+		requestBodyParams:     requestBodyParams,
+		simpleSelectKey:       simpleSelectKey,
+		legacySelectSchema:    legacySelectSchema,
+		simpleSelectSchema:    simpleSelectSchema,
+		unionSelectSchemas:    unionSelectSchemas,
+		globalSelectSchemas:   globalSelectSchemas,
+		responseBodySchema:    responseSchema,
+		requestBodySchema:     requestBodySchema,
+		responseBodyMediaType: responseMediaType,
+		requestBodyMediaType:  requestBodyMediaType,
+		explicitAliasMap:      explicitAliasMap,
+		globalAliasMap:        globalAliasMap,
+		prov:                  asa.provider,
+		svc:                   asa.service,
+		method:                asa.method,
+		shadowQuery:           NewRadixTree(),
 	}
 	if addressSpace == nil {
 		return fmt.Errorf("failed to create address space for operation %s", asa.method.GetName())

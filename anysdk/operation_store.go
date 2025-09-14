@@ -83,6 +83,7 @@ type OperationStore interface {
 	namespaceParameterMatch(params map[string]interface{}) (map[string]interface{}, bool)
 	GetOperationParameter(key string) (Addressable, bool)
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
+	GetFinalSelectSchemaAndObjectPath() (Schema, string, error)
 	ProcessResponse(*http.Response) (ProcessedOperationResponse, error) // to be removed
 	parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error)
 	GetSelectItemsKey() string
@@ -1518,6 +1519,20 @@ func (op *standardOpenAPIOperationStore) ShouldBeSelectable() bool {
 
 func (op *standardOpenAPIOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	k := op.lookupSelectItemsKey()
+	if op.Response != nil && op.Response.OverrideSchema != nil && op.Response.OverrideSchema.Value != nil {
+		return op.Response.OverrideSchema.Value.getSelectItemsSchema(k, op.Response.OverrideBodyMediaType)
+	}
+	if op.Response != nil && op.Response.Schema != nil {
+		return op.Response.Schema.getSelectItemsSchema(k, op.getOptimalResponseMediaType())
+	}
+	return nil, "", fmt.Errorf("no response body for operation =  %s", op.GetName())
+}
+
+func (op *standardOpenAPIOperationStore) GetFinalSelectSchemaAndObjectPath() (Schema, string, error) {
+	k := op.lookupSelectItemsKey()
+	if op.Response != nil && op.Response.AsyncOverrideSchema != nil && op.Response.AsyncOverrideSchema.Value != nil {
+		return op.Response.AsyncOverrideSchema.Value.getSelectItemsSchema(k, op.Response.AsyncOverrideBodyMediaType)
+	}
 	if op.Response != nil && op.Response.OverrideSchema != nil && op.Response.OverrideSchema.Value != nil {
 		return op.Response.OverrideSchema.Value.getSelectItemsSchema(k, op.Response.OverrideBodyMediaType)
 	}
