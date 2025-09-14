@@ -195,27 +195,28 @@ type AddressSpaceFormulator interface {
 }
 
 type standardNamespace struct {
-	serverVars            map[string]string
-	requestBodyParams     map[string]anysdk.Addressable
-	server                *openapi3.Server
-	prov                  anysdk.Provider
-	svc                   anysdk.Service
-	method                anysdk.StandardOperationStore
-	simpleSelectKey       string
-	simpleSelectSchema    anysdk.Schema
-	legacySelectSchema    anysdk.Schema
-	responseBodySchema    anysdk.Schema
-	requestBodySchema     anysdk.Schema
-	responseBodyMediaType string
-	requestBodyMediaType  string
-	serverUrlString       string
-	request               *http.Request
-	response              *http.Response
-	unionSelectSchemas    map[string]anysdk.Schema
-	globalSelectSchemas   map[string]anysdk.Schema
-	explicitAliasMap      AliasMap
-	globalAliasMap        AliasMap
-	shadowQuery           RadixTree
+	serverVars             map[string]string
+	requestBodyParams      map[string]anysdk.Addressable
+	server                 *openapi3.Server
+	prov                   anysdk.Provider
+	svc                    anysdk.Service
+	method                 anysdk.StandardOperationStore
+	simpleSelectKey        string
+	simpleSelectSchema     anysdk.Schema
+	legacySelectSchema     anysdk.Schema
+	responseBodySchema     anysdk.Schema
+	requestBodySchema      anysdk.Schema
+	finalResponseMediaType string
+	responseBodyMediaType  string
+	requestBodyMediaType   string
+	serverUrlString        string
+	request                *http.Request
+	response               *http.Response
+	unionSelectSchemas     map[string]anysdk.Schema
+	globalSelectSchemas    map[string]anysdk.Schema
+	explicitAliasMap       AliasMap
+	globalAliasMap         AliasMap
+	shadowQuery            RadixTree
 }
 
 func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) (string, error) {
@@ -400,9 +401,9 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 	return nil
 }
 
-func (ns *standardNamespace) getLegacyColumns(cfg anysdk.AddressSpaceExpansionConfig, requestSchema anysdk.Schema, m anysdk.StandardOperationStore) ([]anysdk.Column, error) {
+func (ns *standardNamespace) getLegacyColumns(cfg anysdk.AddressSpaceExpansionConfig, responseSchema anysdk.Schema, m anysdk.StandardOperationStore) ([]anysdk.Column, error) {
 	schemaAnalyzer := newLegacyTableSchemaAnalyzer(
-		requestSchema,
+		responseSchema,
 		m,
 		cfg.IsAllowNilResponse(),
 		ns.simpleSelectKey,
@@ -418,8 +419,8 @@ func (sr *standardRelation) GetColumns() []anysdk.Column {
 	return sr.columns
 }
 
-func (ns *standardNamespace) getLegacyRelation(cfg anysdk.AddressSpaceExpansionConfig, requestSchema anysdk.Schema, m anysdk.StandardOperationStore) (anysdk.Relation, error) {
-	cols, err := ns.getLegacyColumns(cfg, requestSchema, m)
+func (ns *standardNamespace) getLegacyRelation(cfg anysdk.AddressSpaceExpansionConfig, responseSchema anysdk.Schema, m anysdk.StandardOperationStore) (anysdk.Relation, error) {
+	cols, err := ns.getLegacyColumns(cfg, responseSchema, m)
 	if err != nil {
 		return nil, err
 	}
@@ -664,8 +665,8 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		}
 	}
 
-	legacySelectKey := asa.method.LookupSelectItemsKey()
-	legacySelectSchema, _ := asa.method.GetSchemaAtPath(legacySelectKey)
+	// legacySelectKey := asa.method.LookupSelectItemsKey()
+	legacySelectSchema, mediaType, _ := asa.method.GetFinalResponseBodySchemaAndMediaType()
 
 	simpleSelectKey := asa.method.GetSelectItemsKeySimple()
 	simpleSelectSchema, schemaErr := asa.method.GetSchemaAtPath(simpleSelectKey)
@@ -674,9 +675,6 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		simpleSelectSchema, schemaErr = asa.method.GetSchemaAtPath(inferredSelectKey)
 		if schemaErr != nil {
 			return fmt.Errorf("error getting schema at path %s: %v", inferredSelectKey, schemaErr)
-		}
-		if simpleSelectKey != "" {
-			legacySelectSchema = simpleSelectSchema // prefer explicit selection if available
 		}
 		simpleSelectKey = inferredSelectKey
 	}
@@ -721,24 +719,25 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	// }
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
-		server:                selectedServer,
-		serverVars:            serverVars,
-		requestBodyParams:     requestBodyParams,
-		simpleSelectKey:       simpleSelectKey,
-		legacySelectSchema:    legacySelectSchema,
-		simpleSelectSchema:    simpleSelectSchema,
-		unionSelectSchemas:    unionSelectSchemas,
-		globalSelectSchemas:   globalSelectSchemas,
-		responseBodySchema:    responseSchema,
-		requestBodySchema:     requestBodySchema,
-		responseBodyMediaType: responseMediaType,
-		requestBodyMediaType:  requestBodyMediaType,
-		explicitAliasMap:      explicitAliasMap,
-		globalAliasMap:        globalAliasMap,
-		prov:                  asa.provider,
-		svc:                   asa.service,
-		method:                asa.method,
-		shadowQuery:           NewRadixTree(),
+		server:                 selectedServer,
+		serverVars:             serverVars,
+		requestBodyParams:      requestBodyParams,
+		simpleSelectKey:        simpleSelectKey,
+		finalResponseMediaType: mediaType,
+		legacySelectSchema:     legacySelectSchema,
+		simpleSelectSchema:     simpleSelectSchema,
+		unionSelectSchemas:     unionSelectSchemas,
+		globalSelectSchemas:    globalSelectSchemas,
+		responseBodySchema:     responseSchema,
+		requestBodySchema:      requestBodySchema,
+		responseBodyMediaType:  responseMediaType,
+		requestBodyMediaType:   requestBodyMediaType,
+		explicitAliasMap:       explicitAliasMap,
+		globalAliasMap:         globalAliasMap,
+		prov:                   asa.provider,
+		svc:                    asa.service,
+		method:                 asa.method,
+		shadowQuery:            NewRadixTree(),
 	}
 	if addressSpace == nil {
 		return fmt.Errorf("failed to create address space for operation %s", asa.method.GetName())
