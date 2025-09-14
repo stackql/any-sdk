@@ -446,7 +446,7 @@ func (ns *standardNamespace) ToRelation(cfg anysdk.AddressSpaceExpansionConfig) 
 		return nil, fmt.Errorf("nil config")
 	}
 	if cfg.IsLegacy() {
-		return ns.getLegacyRelation(cfg, ns.requestBodySchema, ns.method)
+		return ns.getLegacyRelation(cfg, ns.responseBodySchema, ns.method)
 	}
 	return ns.globalAliasesToRelation()
 }
