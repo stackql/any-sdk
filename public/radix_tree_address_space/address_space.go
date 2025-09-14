@@ -658,6 +658,10 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 			return err
 		}
 	}
+
+	legacySelectKey := asa.method.LookupSelectItemsKey()
+	legacySelectSchema, _ := asa.method.GetSchemaAtPath(legacySelectKey)
+
 	simpleSelectKey := asa.method.GetSelectItemsKeySimple()
 	simpleSelectSchema, schemaErr := asa.method.GetSchemaAtPath(simpleSelectKey)
 	if schemaErr != nil && !asa.method.IsNullary() {
@@ -666,10 +670,11 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		if schemaErr != nil {
 			return fmt.Errorf("error getting schema at path %s: %v", inferredSelectKey, schemaErr)
 		}
+		if simpleSelectKey != "" {
+			legacySelectSchema = simpleSelectSchema // prefer explicit selection if available
+		}
 		simpleSelectKey = inferredSelectKey
 	}
-	legacySelectKey := asa.method.LookupSelectItemsKey()
-	legacySelectSchema, _ := asa.method.GetSchemaAtPath(legacySelectKey)
 
 	if simpleSelectSchema == nil && !asa.method.IsNullary() {
 		return fmt.Errorf("no schema found at path %s", simpleSelectKey)
