@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/media"
 )
 
 type legacyTableSchemaAnalyzer interface {
@@ -45,7 +46,16 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error)
 	// if !hasAddressSpace || addressSpace == nil {
 	// 	return nil, fmt.Errorf("no address space found for method %s", ta.m.GetName())
 	// }
-	tableColumns := ta.s.Tabulate(false, "").GetColumns()
+	tab := ta.s.Tabulate(false, "")
+	_, mediaType, err := ta.m.GetResponseBodySchemaAndMediaType()
+	if err != nil {
+		return nil, err
+	}
+	switch mediaType {
+	case media.MediaTypeTextXML, media.MediaTypeXML:
+		tab = tab.RenameColumnsToXml()
+	}
+	tableColumns := tab.GetColumns()
 	existingColumns := make(map[string]struct{})
 	for _, col := range tableColumns {
 		existingColumns[col.GetName()] = struct{}{}
