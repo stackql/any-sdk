@@ -418,7 +418,7 @@ func (ns *standardNamespace) getLegacyColumnDescriptors(cfg anysdk.AddressSpaceE
 		cfg.IsAllowNilResponse(),
 		ns.simpleSelectKey,
 	)
-	colDescs, err := schemaAnalyzer.GetColumnDescriptors(ns.simpleSelectSchema.Tabulate(false, ns.simpleSelectKey))
+	colDescs, err := schemaAnalyzer.GetColumnDescriptors(responseSchema.Tabulate(false, ns.simpleSelectKey))
 	return colDescs, err
 }
 
