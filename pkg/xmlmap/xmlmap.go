@@ -367,11 +367,16 @@ func (s permissableMapWrapper) MarshalXML(e *xml.Encoder, start xml.StartElement
 	tokens := []xml.Token{start}
 
 	for key, value := range s.m {
-		t := xml.StartElement{Name: xml.Name{"", key}}
-		tokens = append(tokens, t, xml.CharData(fmt.Sprintf("%v", value)), xml.EndElement{t.Name})
+		t := xml.StartElement{Name: xml.Name{
+			Space: "",
+			Local: key,
+		}}
+		tokens = append(tokens, t, xml.CharData(fmt.Sprintf("%v", value)), xml.EndElement{Name: t.Name})
 	}
 
-	tokens = append(tokens, xml.EndElement{start.Name})
+	tokens = append(tokens, xml.EndElement{
+		Name: start.Name,
+	})
 
 	for _, t := range tokens {
 		err := e.EncodeToken(t)

@@ -317,7 +317,7 @@ func (l *standardLoader) mergeResources(svc OpenAPIService, rscMap map[string]Re
 		if rsc.GetServiceDocPath() != nil {
 			sr = rsc.GetServiceDocPath()
 		}
-		err := l.mergeResource(svc, rsc, sr)
+		err := l.mergeResource(k, svc, rsc, sr)
 		if err != nil {
 			return err
 		}
@@ -330,7 +330,7 @@ func (l *standardLoader) mergeResourcesScoped(svc OpenAPIService, svcUrl string,
 	scopedMap := make(map[string]Resource)
 	for k, rsc := range rr.GetResources() {
 		if rr.ObtainServiceDocUrl(k) == svcUrl {
-			err := l.mergeResource(svc, rsc, &ServiceRef{Ref: svcUrl})
+			err := l.mergeResource(k, svc, rsc, &ServiceRef{Ref: svcUrl})
 			if err != nil {
 				return err
 			}
@@ -349,14 +349,28 @@ func (l *standardLoader) mergeResourcesScoped(svc OpenAPIService, svcUrl string,
 	return nil
 }
 
-func (l *standardLoader) mergeResource(svc OpenAPIService,
+func (l *standardLoader) mergeResource(
+	rscKey string,
+	svc OpenAPIService,
 	rsc Resource,
 	sr *ServiceRef,
 ) error {
 	rsc.setService(svc) // must happen before resolving inverses
+	existingMethods := make(Methods)
+	existingResource, existingResourceErr := svc.GetResource(rscKey)
+	if existingResourceErr == nil && existingResource != nil {
+		existingMethods = existingResource.GetMethods()
+	}
 	for k, vOp := range rsc.GetMethods() {
 		v := vOp
 		v.setMethodKey(k)
+		existingMethod, existingMethodExists := existingMethods[k]
+		if existingMethodExists {
+			v = existingMethod
+			v.setMethodKey(k)
+			v.setResource(rsc)
+			continue
+		}
 		// TODO: replicate this for the damned inverse
 		err := l.resolveOperationRef(svc, rsc, &v, v.GetPathRef(), sr)
 		if err != nil {
@@ -579,20 +593,23 @@ func LoadProviderDocFromFile(fileName string) (Provider, error) {
 	return loadProviderDocFromBytes(bytes)
 }
 
-func GetProviderDocBytes(prov string) ([]byte, error) {
-	fn, err := getProviderDoc(prov)
+func GetProviderDocBytes(prov string, fileRoot string) ([]byte, error) {
+	fn, err := getProviderDoc(prov, fileRoot)
 	if err != nil {
 		return nil, err
 	}
 	return os.ReadFile(fn)
 }
 
-func getServiceDoc(url string) (io.ReadCloser, error) {
-	return os.Open(path.Join(OpenapiFileRoot, url))
+func getServiceDoc(url string, fileRoot string) (io.ReadCloser, error) {
+	if fileRoot == "" {
+		fileRoot = OpenapiFileRoot
+	}
+	return os.Open(path.Join(fileRoot, url))
 }
 
-func getServiceDocBytes(url string) ([]byte, error) {
-	f, err := getServiceDoc(url)
+func getServiceDocBytes(url string, fileRoot string) ([]byte, error) {
+	f, err := getServiceDoc(url, fileRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -606,16 +623,16 @@ func ReadService(b []byte) (Service, error) {
 	return svc, err
 }
 
-func GetResourcesRegisterDocBytes(url string) ([]byte, error) {
-	return getServiceDocBytes(url)
+func GetResourcesRegisterDocBytes(url string, fileRoot string) ([]byte, error) {
+	return getServiceDocBytes(url, fileRoot)
 }
 
-func GetServiceDocBytes(url string) ([]byte, error) {
-	return getServiceDocBytes(url)
+func GetServiceDocBytes(url string, fileRoot string) ([]byte, error) {
+	return getServiceDocBytes(url, fileRoot)
 }
 
-func LoadProviderByName(prov, version string) (Provider, error) {
-	b, err := GetProviderDocBytes(path.Join(prov, version))
+func LoadProviderByName(prov, version string, fileRoot string) (Provider, error) {
+	b, err := GetProviderDocBytes(path.Join(prov, version), fileRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -641,12 +658,15 @@ func findLatestDoc(serviceDir string) (string, error) {
 	return path.Join(serviceDir, fileNames[fileCount-1]), nil
 }
 
-func getProviderDoc(provider string) (string, error) {
+func getProviderDoc(provider string, fileRoot string) (string, error) {
+	if fileRoot == "" {
+		fileRoot = OpenapiFileRoot
+	}
 	switch provider {
 	case "google":
-		return findLatestDoc(path.Join(OpenapiFileRoot, "googleapis.com"))
+		return findLatestDoc(path.Join(fileRoot, "googleapis.com"))
 	}
-	return findLatestDoc(path.Join(OpenapiFileRoot, provider))
+	return findLatestDoc(path.Join(fileRoot, provider))
 }
 
 func loadOpenapiServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
@@ -763,6 +783,13 @@ func (loader *standardLoader) resolveOperationRef(doc OpenAPIService, rsc Resour
 	}
 
 	component.setOperationRef(&OperationRef{Value: op, Ref: component.GetOperationRef().Ref})
+	response, responseExists := component.GetResponse()
+	if responseExists {
+		err = loader.resolveExpectedResponse(doc, component.GetOperationRef().Value, response)
+		if err != nil {
+			return err
+		}
+	}
 	component.setPathItem(pi)
 	err = loader.extractAndMergeQueryTransposeOpLevel(component)
 	if err != nil {

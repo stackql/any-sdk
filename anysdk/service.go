@@ -34,6 +34,7 @@ type OpenAPIService interface {
 	getPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	getQueryTransposeAlgorithm() string
+	GetT() *openapi3.T
 	getT() *openapi3.T
 	iDiscoveryDoc()
 	isObjectSchemaImplicitlyUnioned() bool
@@ -56,8 +57,31 @@ type localTemplatedService struct {
 	Provider        Provider                     `json:"-" yaml:"-"` // upwards traversal
 }
 
+func (sv *localTemplatedService) GetT() *openapi3.T {
+	return sv.OpenapiSvc
+}
+
 func (sv *localTemplatedService) getT() *openapi3.T {
 	return sv.OpenapiSvc
+}
+
+func (sv *localTemplatedService) setProvider(provider Provider) {
+	sv.Provider = provider
+	for _, rsc := range sv.Rsc {
+		rsc.setProvider(provider)
+		if len(rsc.Methods) > 0 {
+			for _, m := range rsc.Methods {
+				m.setProvider(provider)
+				if m.Inverse != nil {
+					inverseOpStore, inverseOpStoreExists := m.Inverse.getOpenAPIOperationStore()
+					if inverseOpStoreExists {
+						inverseOpStore.setProvider(provider)
+					}
+				}
+			}
+		}
+
+	}
 }
 
 func (sv *localTemplatedService) GetServers() (openapi3.Servers, bool) {
@@ -173,6 +197,10 @@ func (sv *standardService) setResourceMap(rsc map[string]*standardResource) {
 }
 
 func (sv *standardService) iDiscoveryDoc() {}
+
+func (sv *standardService) GetT() *openapi3.T {
+	return sv.getT()
+}
 
 func (sv *standardService) getT() *openapi3.T {
 	return sv.T

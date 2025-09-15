@@ -72,6 +72,20 @@ func isAcceptableMediaType(mediaType string) bool {
 	}
 }
 
+func GetRequestMediaType(r *http.Request, defaultMediaType string) (string, error) {
+	rt := r.Header.Get("Accept")
+	var mediaType string
+	var err error
+	if rt != "" {
+		mediaType, _, err = mime.ParseMediaType(rt)
+		if err != nil {
+			return "", err
+		}
+		return mediaType, nil
+	}
+	return defaultMediaType, nil
+}
+
 func GetResponseMediaType(r *http.Response, defaultMediaType string) (string, error) {
 	rt := r.Header.Get("Content-Type")
 	var mediaType string

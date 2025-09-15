@@ -29,6 +29,17 @@ type ColumnDescriptor interface {
 	setName(string)
 }
 
+type Relation interface {
+	GetColumns() []Column
+	GetColumnDescriptors() []ColumnDescriptor
+}
+
+type Column interface {
+	GetName() string
+	GetSchema() Schema
+	GetWidth() int
+}
+
 type standardColumnDescriptor struct {
 	Alias        string
 	Name         string

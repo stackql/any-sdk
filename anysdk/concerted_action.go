@@ -68,6 +68,7 @@ type MethodAnalysisOutput interface {
 	GetItemSchema() (Schema, bool)
 	GetResponseSchema() (Schema, bool)
 	IsNilResponseAllowed() bool
+	IsAwait() bool
 }
 
 type analysisOutput struct {
@@ -79,6 +80,7 @@ type analysisOutput struct {
 	responseSchema       Schema
 	itemSchema           Schema
 	isNilResponseAllowed bool
+	isAwait              bool
 }
 
 func (ao *analysisOutput) GetMethod() OperationStore {
@@ -91,6 +93,10 @@ func (ao *analysisOutput) IsNilResponseAllowed() bool {
 
 func (ao *analysisOutput) GetSelectItemsKey() string {
 	return ao.selectItemsKey
+}
+
+func (ao *analysisOutput) IsAwait() bool {
+	return ao.isAwait
 }
 
 func (ao *analysisOutput) GetItemSchema() (Schema, bool) {
@@ -149,6 +155,7 @@ func newMethodAnalysisOutput(
 	responseSchema Schema,
 	itemSchema Schema,
 	isNilResponseAllowed bool,
+	isAwait bool,
 ) MethodAnalysisOutput {
 	return &analysisOutput{
 		method:               method,
@@ -159,6 +166,7 @@ func newMethodAnalysisOutput(
 		responseSchema:       responseSchema,
 		itemSchema:           itemSchema,
 		isNilResponseAllowed: isNilResponseAllowed,
+		isAwait:              isAwait,
 	}
 }
 
@@ -239,5 +247,6 @@ func (ma *standardMethodAnalyzer) AnalyzeUnaryAction(
 		schema,
 		itemSchema,
 		isNilResponseAllowed,
+		isAwait,
 	), nil
 }
