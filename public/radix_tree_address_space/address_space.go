@@ -418,6 +418,12 @@ func (ns *standardNamespace) getLegacyColumnDescriptors(cfg anysdk.AddressSpaceE
 		cfg.IsAllowNilResponse(),
 		ns.simpleSelectKey,
 	)
+	if responseSchema == nil {
+		if cfg.IsAllowNilResponse() {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("disallowed nil response schema")
+	}
 	colDescs, err := schemaAnalyzer.GetColumnDescriptors(responseSchema.Tabulate(false, ns.simpleSelectKey))
 	return colDescs, err
 }
