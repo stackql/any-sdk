@@ -411,12 +411,28 @@ func (ns *standardNamespace) getLegacyColumns(cfg anysdk.AddressSpaceExpansionCo
 	return schemaAnalyzer.GetColumns()
 }
 
+func (ns *standardNamespace) getLegacyColumnDescriptors(cfg anysdk.AddressSpaceExpansionConfig, responseSchema anysdk.Schema, m anysdk.StandardOperationStore) ([]anysdk.ColumnDescriptor, error) {
+	schemaAnalyzer := newLegacyTableSchemaAnalyzer(
+		responseSchema,
+		m,
+		cfg.IsAllowNilResponse(),
+		ns.simpleSelectKey,
+	)
+	colDescs, err := schemaAnalyzer.GetColumnDescriptors(ns.simpleSelectSchema.Tabulate(false, ns.simpleSelectKey))
+	return colDescs, err
+}
+
 type standardRelation struct {
-	columns []anysdk.Column
+	columns           []anysdk.Column
+	columnDescriptors []anysdk.ColumnDescriptor
 }
 
 func (sr *standardRelation) GetColumns() []anysdk.Column {
 	return sr.columns
+}
+
+func (sr *standardRelation) GetColumnDescriptors() []anysdk.ColumnDescriptor {
+	return sr.columnDescriptors
 }
 
 func (ns *standardNamespace) getLegacyRelation(cfg anysdk.AddressSpaceExpansionConfig, responseSchema anysdk.Schema, m anysdk.StandardOperationStore) (anysdk.Relation, error) {
@@ -424,8 +440,13 @@ func (ns *standardNamespace) getLegacyRelation(cfg anysdk.AddressSpaceExpansionC
 	if err != nil {
 		return nil, err
 	}
+	colDescriptors, err := ns.getLegacyColumnDescriptors(cfg, responseSchema, m)
+	if err != nil {
+		return nil, err
+	}
 	return &standardRelation{
-		columns: cols,
+		columns:           cols,
+		columnDescriptors: colDescriptors,
 	}, nil
 }
 

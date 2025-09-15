@@ -31,6 +31,7 @@ type ColumnDescriptor interface {
 
 type Relation interface {
 	GetColumns() []Column
+	GetColumnDescriptors() []ColumnDescriptor
 }
 
 type Column interface {
