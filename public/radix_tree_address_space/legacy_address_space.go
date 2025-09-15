@@ -9,6 +9,7 @@ import (
 )
 
 type legacyTableSchemaAnalyzer interface {
+	// Analyze() error
 	GetColumns() ([]anysdk.Column, error)
 	GetColumnDescriptors(anysdk.Tabulation) ([]anysdk.ColumnDescriptor, error)
 }
@@ -18,6 +19,8 @@ type simpleLegacyTableSchemaAnalyzer struct {
 	m                    anysdk.OperationStore
 	isNilResponseAllowed bool
 	selectItemsKey       string
+	columns              []anysdk.Column
+	columnDescriptors    []anysdk.ColumnDescriptor
 }
 
 func newLegacyTableSchemaAnalyzer(
@@ -41,6 +44,66 @@ func TrimSelectItemsKey(selectItemsKey string) string {
 	}
 	return splitSet[len(splitSet)-1]
 }
+
+// func (ta *simpleLegacyTableSchemaAnalyzer) Analyze() error {
+// 	var rv []anysdk.Column
+// 	// This will be a function of method not schema
+// 	// addressSpace, hasAddressSpace := ta.m.GetAddressSpace()
+// 	// if !hasAddressSpace || addressSpace == nil {
+// 	// 	return nil, fmt.Errorf("no address space found for method %s", ta.m.GetName())
+// 	// }
+// 	if ta.s == nil {
+// 		if ta.isNilResponseAllowed {
+// 			return nil
+// 		}
+// 		return fmt.Errorf("no schema found for method %s", ta.m.GetName())
+// 	}
+// 	var defaultColName string
+// 	if ta.selectItemsKey != "" {
+// 		defaultColName = TrimSelectItemsKey(ta.selectItemsKey)
+// 	}
+// 	tab := ta.s.Tabulate(false, defaultColName)
+// 	_, mediaType, err := ta.m.GetResponseBodySchemaAndMediaType()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	switch mediaType {
+// 	case media.MediaTypeTextXML, media.MediaTypeXML:
+// 		tab = tab.RenameColumnsToXml()
+// 	}
+// 	tableColumns := tab.GetColumns()
+// 	existingColumns := make(map[string]struct{})
+// 	for _, col := range tableColumns {
+// 		existingColumns[col.GetName()] = struct{}{}
+// 		rv = append(rv, newSimpleColumn(col.GetName(), col.GetSchema()))
+// 	}
+// 	unionedRequiredParams, err := ta.m.GetUnionRequiredParameters()
+// 	if err != nil && !ta.isNilResponseAllowed {
+// 		return err
+// 	}
+// 	for k, col := range unionedRequiredParams {
+// 		if _, ok := existingColumns[k]; ok {
+// 			continue
+// 		}
+// 		schema, _ := col.GetSchema()
+// 		existingColumns[col.GetName()] = struct{}{}
+// 		rv = append(rv, newSimpleColumn(k, schema))
+// 	}
+// 	servers, serversDoExist := ta.m.GetServers()
+// 	if serversDoExist {
+// 		for _, srv := range servers {
+// 			for k := range srv.Variables {
+// 				if _, ok := existingColumns[k]; ok {
+// 					continue
+// 				}
+// 				existingColumns[k] = struct{}{}
+// 				rv = append(rv, newSimpleStringColumn(k, ta.m))
+// 			}
+// 		}
+// 	}
+// 	ta.columns = rv
+// 	return nil
+// }
 
 // TODO: operate on namespace
 func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error) {
@@ -126,6 +189,14 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumnDescriptors(
 ) ([]anysdk.ColumnDescriptor, error) {
 	existingColumns := make(map[string]struct{})
 	var rv []anysdk.ColumnDescriptor
+	_, mediaType, err := ta.m.GetResponseBodySchemaAndMediaType()
+	if err != nil {
+		return nil, err
+	}
+	switch mediaType {
+	case media.MediaTypeTextXML, media.MediaTypeXML:
+		tabulation = tabulation.RenameColumnsToXml()
+	}
 	for _, col := range tabulation.GetColumns() {
 		colName := col.GetName()
 		existingColumns[colName] = struct{}{}
