@@ -52,6 +52,7 @@ func TestNewAddressSpace(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		false,
 	)
 	if addressSpace == nil {
 		t.Fatalf("expected non-nil address space")
@@ -140,6 +141,7 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 		map[string]string{
 			"amalgam": "response.body.$.items",
 		},
+		false,
 	)
 	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
@@ -316,6 +318,7 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"amalgam": "response.body.$.items",
 			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
+		false,
 	)
 	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
@@ -571,6 +574,7 @@ func TestSearchAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"amalgam": "response.body.$.items",
 			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
+		false,
 	)
 	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
@@ -702,6 +706,7 @@ func TestIntelligentAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"amalgam": "response.body.$.items",
 			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
+		false,
 	)
 	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
@@ -814,6 +819,7 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"amalgam": "response.body.$.items",
 			"name":    "response.body.$.items[*].instanceGroups[*].name",
 		},
+		false,
 	)
 	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
@@ -932,6 +938,7 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 			"operation_status":     "response.body.$.status",
 			"operation_start_time": "response.body.$.startTime",
 		},
+		false,
 	)
 	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {
@@ -1115,6 +1122,7 @@ func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 			"amalgam": "response.body./Volumes",
 			"vol":     "response.body./*/volumeSet/item",
 		},
+		false,
 	)
 	err = addressSpaceAnalyzer.Formulate()
 	if err != nil {

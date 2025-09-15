@@ -541,6 +541,7 @@ type standardAddressSpaceFormulator struct {
 	requiredBodyAttributes map[string]anysdk.Addressable
 	aliasedUnionSelectKeys map[string]string
 	addressSpace           anysdk.AddressSpace
+	isAwait                bool
 }
 
 func (asa *standardAddressSpaceFormulator) GetAddressSpace() anysdk.AddressSpace {
@@ -668,9 +669,14 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	legacySelectKey := asa.method.LookupSelectItemsKey()
 	legacySelectSchema, _ := asa.method.GetSchemaAtPath(legacySelectKey)
 
-	finalSelectSchema, _, finalSelectErr := asa.method.GetFinalSelectSchemaAndObjectPath()
-	if finalSelectErr == nil {
-		legacySelectSchema = finalSelectSchema
+	var finalSelectErr error
+
+	finalSelectSchema := legacySelectSchema
+	if asa.isAwait {
+		finalSelectSchema, _, finalSelectErr = asa.method.GetFinalSelectSchemaAndObjectPath()
+		if finalSelectErr == nil {
+			legacySelectSchema = finalSelectSchema
+		}
 	}
 
 	simpleSelectKey := asa.method.GetSelectItemsKeySimple()
@@ -760,6 +766,7 @@ func NewAddressSpaceFormulator(
 	resource anysdk.Resource,
 	method anysdk.StandardOperationStore,
 	aliasedUnionSelectKeys map[string]string,
+	isAwait bool,
 ) AddressSpaceFormulator {
 	return &standardAddressSpaceFormulator{
 		grammar:                grammar,
@@ -770,6 +777,7 @@ func NewAddressSpaceFormulator(
 		aliasedUnionSelectKeys: aliasedUnionSelectKeys,
 		requiredNonBodyParams:  make(map[string]anysdk.Addressable),
 		requiredBodyAttributes: make(map[string]anysdk.Addressable),
+		isAwait:                isAwait,
 	}
 }
 
@@ -1320,6 +1328,7 @@ func (rex *rscNamespaceExpander) Expand() error {
 			rex.resource,
 			method,
 			method.GetProjections(),
+			false, // TODO: isAwait (handle later) 2 x possible shcemas for await
 		)
 		err := addressSpaceFormulator.Formulate()
 		if err != nil {

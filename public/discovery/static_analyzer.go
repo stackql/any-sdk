@@ -449,6 +449,7 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 		resource,
 		method,
 		method.GetProjections(),
+		false, // TODO: isAwait (handle later) 2 x possible shcemas for await
 	)
 	err = addressSpaceFormulator.Formulate()
 	if err != nil {
