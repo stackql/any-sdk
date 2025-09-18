@@ -1,6 +1,10 @@
 
 
-Based upon [grpcurl](https://github.com/fullstorydev/grpcurl).  
+# gRPC
+
+At this point in time, this is not implemented.  However, it will be; gRPC is fully tractable with the requisite `.proto` files; compilation is not required.  Effectively, the RPC concept is ignored and it becomes an abstraction on protocol buffer communication.
+
+This is based upon [grpcurl](https://github.com/fullstorydev/grpcurl).  
 
 For convenience following examples, please clone `fullstorydev/grpcurl` into `${HOME}/stackql/grpcurl`, eg with `mkdir -p ${HOME}/stackql/grpcurl && git clone https://github.com/fullstorydev/grpcurl`.
 
@@ -90,7 +94,17 @@ When starting a new session, server writes:
 }
 ```
 
-When rejoining an existing session, server writes:
+When rejoining an existing session, eg:
+
+Eg
+
+```bash
+
+grpcurl -plaintext -H 'Authorization: token joeblow' -d '{ "init": { "resume_session_id": "000002" } } { "msg": "Hello I am angry!"  } {"hang_up": 0 } { "init": { "resume_session_id": "000002" } }  ' -import-path ${HOME}/stackql/grpcurl/internal/testing/cmd/bankdemo -proto support.proto  127.0.0.1:12345 Support/ChatCustomer
+
+```
+
+Server writes:
 
 ```json
 
@@ -118,34 +132,3 @@ When rejoining an existing session, server writes:
 
 ```
 
-Eg
-
-```bash
-
-grpcurl -plaintext -H 'Authorization: token joeblow' -d '{ "init": { "resume_session_id": "000002" } } { "msg": "Hello I am angry!"  } {"hang_up": 0 } { "init": { "resume_session_id": "000002" } }  ' -import-path ${HOME}/stackql/grpcurl/internal/testing/cmd/bankdemo -proto support.proto  127.0.0.1:12345 Support/ChatCustomer
-
-```
-
-```bash
-
-grpcurl -plaintext -H 'Authorization: token joeblow' -d '{ "init": { } } { "msg": "Hello I am angry!"  } { "msg": "Can you please fix my account?"  } ' -import-path ${HOME}/stackql/grpcurl/internal/testing/cmd/bankdemo -proto support.proto  127.0.0.1:12345 Support/ChatCustomer
-
-```
-
-
-```bash
-
-grpcurl -plaintext -H 'Authorization: token joeblow' -d '{ "init": { "resume_session_id": "000006"  } } { "msg": "Hello again I am now somewhat calm."  } { "hang_up": 3 } { "init": { } } { "hang_up": 3 } { "init": { } }  { "hang_up": 3 } { "init": { "resume_session_id": "000006"  } } ' -import-path ${HOME}/stackql/grpcurl/internal/testing/cmd/bankdemo -proto support.proto  127.0.0.1:12345 Support/ChatCustomer
-
-```
-
-
-```bash
-
-grpcurl -plaintext -H 'Authorization: token joeblow' -d '{ "init": { "resume_session_id": "000006"  } } { "msg": "Hello I am angry!"  } { "hang_up": 3 } ' -import-path ${HOME}/stackql/grpcurl/internal/testing/cmd/bankdemo -proto support.proto  127.0.0.1:12345 Support/ChatCustomer
-
-```
-
-```json
-
-```
