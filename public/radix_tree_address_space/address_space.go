@@ -202,28 +202,29 @@ type AddressSpaceFormulator interface {
 }
 
 type standardNamespace struct {
-	serverVars             map[string]string
-	requestBodyParams      map[string]anysdk.Addressable
-	server                 *openapi3.Server
-	prov                   anysdk.Provider
-	svc                    anysdk.Service
-	method                 anysdk.StandardOperationStore
-	simpleSelectKey        string
-	simpleSelectSchema     anysdk.Schema
-	legacySelectSchema     anysdk.Schema
-	responseBodySchema     anysdk.Schema
-	requestBodySchema      anysdk.Schema
-	finalResponseMediaType string
-	responseBodyMediaType  string
-	requestBodyMediaType   string
-	serverUrlString        string
-	request                *http.Request
-	response               *http.Response
-	unionSelectSchemas     map[string]anysdk.Schema
-	globalSelectSchemas    map[string]anysdk.Schema
-	explicitAliasMap       AliasMap
-	globalAliasMap         AliasMap
-	shadowQuery            RadixTree
+	serverVars              map[string]string
+	requestBodyParams       map[string]anysdk.Addressable
+	server                  *openapi3.Server
+	prov                    anysdk.Provider
+	svc                     anysdk.Service
+	method                  anysdk.StandardOperationStore
+	simpleSelectKey         string
+	simpleSelectSchema      anysdk.Schema
+	legacySelectSchema      anysdk.Schema
+	legacyFinalSelectSchema anysdk.Schema
+	responseBodySchema      anysdk.Schema
+	requestBodySchema       anysdk.Schema
+	finalResponseMediaType  string
+	responseBodyMediaType   string
+	requestBodyMediaType    string
+	serverUrlString         string
+	request                 *http.Request
+	response                *http.Response
+	unionSelectSchemas      map[string]anysdk.Schema
+	globalSelectSchemas     map[string]anysdk.Schema
+	explicitAliasMap        AliasMap
+	globalAliasMap          AliasMap
+	shadowQuery             RadixTree
 }
 
 func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) (string, error) {
@@ -487,6 +488,9 @@ func (ns *standardNamespace) ToRelation(cfg anysdk.AddressSpaceExpansionConfig) 
 		return nil, fmt.Errorf("nil config")
 	}
 	if cfg.IsLegacy() {
+		if cfg.IsAsync() {
+			return ns.getLegacyRelation(cfg, ns.legacyFinalSelectSchema, ns.method)
+		}
 		return ns.getLegacyRelation(cfg, ns.legacySelectSchema, ns.method)
 	}
 	return ns.globalAliasesToRelation()
@@ -702,6 +706,7 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 
 	legacySelectKey := asa.method.LookupSelectItemsKey()
 	legacySelectSchema, _ := asa.method.GetSchemaAtPath(legacySelectKey)
+	legacyFinalSelectSchema := legacySelectSchema
 
 	var finalSelectErr error
 
@@ -709,7 +714,7 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	if asa.isAwait {
 		finalSelectSchema, _, finalSelectErr = asa.method.GetFinalSelectSchemaAndObjectPath()
 		if finalSelectErr == nil {
-			legacySelectSchema = finalSelectSchema
+			legacyFinalSelectSchema = finalSelectSchema
 		}
 	}
 
@@ -767,24 +772,25 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	// }
 	responseSchema, responseMediaType, _ := asa.method.GetResponseBodySchemaAndMediaType()
 	addressSpace := &standardNamespace{
-		server:                selectedServer,
-		serverVars:            serverVars,
-		requestBodyParams:     requestBodyParams,
-		simpleSelectKey:       simpleSelectKey,
-		legacySelectSchema:    legacySelectSchema,
-		simpleSelectSchema:    simpleSelectSchema,
-		unionSelectSchemas:    unionSelectSchemas,
-		globalSelectSchemas:   globalSelectSchemas,
-		responseBodySchema:    responseSchema,
-		requestBodySchema:     requestBodySchema,
-		responseBodyMediaType: responseMediaType,
-		requestBodyMediaType:  requestBodyMediaType,
-		explicitAliasMap:      explicitAliasMap,
-		globalAliasMap:        globalAliasMap,
-		prov:                  asa.provider,
-		svc:                   asa.service,
-		method:                asa.method,
-		shadowQuery:           NewRadixTree(),
+		server:                  selectedServer,
+		serverVars:              serverVars,
+		requestBodyParams:       requestBodyParams,
+		simpleSelectKey:         simpleSelectKey,
+		legacySelectSchema:      legacySelectSchema,
+		legacyFinalSelectSchema: legacyFinalSelectSchema,
+		simpleSelectSchema:      simpleSelectSchema,
+		unionSelectSchemas:      unionSelectSchemas,
+		globalSelectSchemas:     globalSelectSchemas,
+		responseBodySchema:      responseSchema,
+		requestBodySchema:       requestBodySchema,
+		responseBodyMediaType:   responseMediaType,
+		requestBodyMediaType:    requestBodyMediaType,
+		explicitAliasMap:        explicitAliasMap,
+		globalAliasMap:          globalAliasMap,
+		prov:                    asa.provider,
+		svc:                     asa.service,
+		method:                  asa.method,
+		shadowQuery:             NewRadixTree(),
 	}
 	if addressSpace == nil {
 		return fmt.Errorf("failed to create address space for operation %s", asa.method.GetName())
