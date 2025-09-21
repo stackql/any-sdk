@@ -44,15 +44,18 @@ const (
 )
 
 type standardAddressSpaceExpansionConfig struct {
+	isAsync            bool
 	isLegacy           bool
 	isAllowNilResponse bool
 }
 
 func NewStandardAddressSpaceExpansionConfig(
+	isAsync bool,
 	isLegacy bool,
 	isAllowNilResponse bool,
 ) anysdk.AddressSpaceExpansionConfig {
 	return &standardAddressSpaceExpansionConfig{
+		isAsync:            isAsync,
 		isLegacy:           isLegacy,
 		isAllowNilResponse: isAllowNilResponse,
 	}
@@ -60,6 +63,10 @@ func NewStandardAddressSpaceExpansionConfig(
 
 func (aec *standardAddressSpaceExpansionConfig) IsLegacy() bool {
 	return aec.isLegacy
+}
+
+func (aec *standardAddressSpaceExpansionConfig) IsAsync() bool {
+	return aec.isAsync
 }
 
 func (aec *standardAddressSpaceExpansionConfig) IsAllowNilResponse() bool {
