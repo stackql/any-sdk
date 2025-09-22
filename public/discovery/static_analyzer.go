@@ -9,6 +9,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
 	"github.com/stackql/any-sdk/pkg/dto"
+	"github.com/stackql/any-sdk/pkg/logging"
 	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
@@ -347,6 +348,9 @@ type standardMethodAggregateStaticAnalyzer struct {
 	methodSelectorName string
 	isFuzzy            bool
 	fullHierarchy      AnalyzedFullHierarchy
+	warnings           []string
+	errors             []error
+	affirmatives       []string
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetFullHierarchy() (AnalyzedFullHierarchy, bool) {
@@ -354,19 +358,28 @@ func (asa *standardMethodAggregateStaticAnalyzer) GetFullHierarchy() (AnalyzedFu
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetErrors() []error {
-	return asa.psrAnalyzer.GetErrors()
+	return asa.errors
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetWarnings() []string {
-	return asa.psrAnalyzer.GetWarnings()
+	return asa.warnings
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetAffirmatives() []string {
-	return asa.psrAnalyzer.GetAffirmatives()
+	return asa.affirmatives
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
 	return asa.psrAnalyzer.GetRegistryAPI()
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) generateDummyRequiredMap(method anysdk.StandardOperationStore) (map[string]any, error) {
+	requiredDummy := method.GetRequiredParameters()
+	rv := make(map[string]any, len(requiredDummy))
+	for k, v := range requiredDummy {
+		rv[k] = v
+	}
+	return rv, nil
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
@@ -463,6 +476,37 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 		resource:    resource,
 		method:      method,
 		registryAPI: registryAPI,
+	}
+	dummyParameters, dummyParametersErr := asa.generateDummyRequiredMap(method)
+	if dummyParametersErr != nil {
+		return fmt.Errorf("static analysis failed: could not generate dummy parameters for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, dummyParametersErr)
+	}
+	protocolType, protocolTypeErr := prov.GetProtocolType()
+	if protocolTypeErr != nil {
+		asa.errors = append(asa.errors, fmt.Errorf("warning: could not determine protocol type for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, protocolTypeErr))
+	}
+	switch protocolType {
+	case client.HTTP:
+		preparator := anysdk.NewHTTPPreparator(
+			prov,
+			svc,
+			method,
+			map[int]map[string]interface{}{
+				0: dummyParameters,
+			},
+			nil,
+			nil,
+			logging.GetLogger(),
+		)
+		armoury, armouryErr := preparator.BuildHTTPRequestCtx(anysdk.NewHTTPPreparatorConfig(false))
+		if armouryErr != nil {
+			asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, armouryErr))
+		} else {
+			if armoury == nil {
+				asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': got nil armoury", asa.methodSelectorName, asa.resourceName))
+			}
+		}
+	default:
 	}
 	return nil
 }

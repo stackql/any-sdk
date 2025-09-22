@@ -195,6 +195,7 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 		}
 		return nil
 	case client.HTTP:
+		var isFromAnnotation bool = false // TODO: publish something meaningful here
 		prep := anysdk.NewHTTPPreparator(
 			prov,
 			svc,
@@ -206,7 +207,7 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 			execCtx,
 			getLogger(),
 		)
-		armoury, err := prep.BuildHTTPRequestCtx()
+		armoury, err := prep.BuildHTTPRequestCtx(anysdk.NewHTTPPreparatorConfig(isFromAnnotation))
 		if err != nil {
 			return err
 		}

@@ -242,26 +242,6 @@ func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) 
 	return urltranslate.SanitiseServerURL(srvs[0])
 }
 
-func (ns *standardNamespace) Analyze() error {
-	var err error
-	// idea here is to poulate the request object from the shadow query
-	// e.g. if shadow query has "query.project" = "my-project"
-	req := &http.Request{}
-	serverVarsSuplied := ns.shadowQuery.ToFlatMap("server")
-	ns.serverUrlString, err = selectServer([]*openapi3.Server{ns.server}, serverVarsSuplied)
-	if err != nil {
-		return err
-	}
-	matureURL, err := url.Parse(ns.serverUrlString)
-	if err != nil {
-		return err
-	}
-
-	req.URL = matureURL
-	ns.request = req
-	return nil
-}
-
 func (ns *standardNamespace) ResolveSignature(params map[string]any) (bool, map[string]any) {
 	copyParams := make(map[string]any, len(params))
 	for k, v := range params {
@@ -368,13 +348,14 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 		reuestBodyMap := make(map[string]any)
 		requestContentType := ns.method.GetRequestBodyMediaTypeNormalised()
 		for k, v := range reuestBodyMapVerbose {
-			if requestContentType == media.MediaTypeJson || requestContentType == "" {
+			switch requestContentType {
+			case media.MediaTypeJson, "":
 				trimmedKey := strings.TrimPrefix(k, "$.")
 				reuestBodyMap[trimmedKey] = v
-			} else if requestContentType == media.MediaTypeXML {
+			case media.MediaTypeXML:
 				trimmedKey := strings.TrimPrefix(k, "/")
 				reuestBodyMap[trimmedKey] = v
-			} else {
+			default:
 				return fmt.Errorf("unsupported request content type: %s", requestContentType)
 			}
 		}
@@ -709,13 +690,11 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 	legacyFinalSelectSchema := legacySelectSchema
 
 	var finalSelectErr error
+	var asyncFinalSelectSchema anysdk.Schema
 
-	finalSelectSchema := legacySelectSchema
-	if asa.isAwait {
-		finalSelectSchema, _, finalSelectErr = asa.method.GetFinalSelectSchemaAndObjectPath()
-		if finalSelectErr == nil {
-			legacyFinalSelectSchema = finalSelectSchema
-		}
+	asyncFinalSelectSchema, _, finalSelectErr = asa.method.GetFinalSelectSchemaAndObjectPath()
+	if finalSelectErr == nil {
+		legacyFinalSelectSchema = asyncFinalSelectSchema
 	}
 
 	simpleSelectKey := asa.method.GetSelectItemsKeySimple()
