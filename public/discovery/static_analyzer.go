@@ -455,21 +455,6 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 			return fmt.Errorf("static analysis failed: expected '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
 		}
 	}
-	addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
-		radix_tree_address_space.NewAddressSpaceGrammar(),
-		prov,
-		svc,
-		resource,
-		method,
-		method.GetProjections(),
-		false, // TODO: isAwait (handle later) 2 x possible shcemas for await
-	)
-	err = addressSpaceFormulator.Formulate()
-	if err != nil {
-		return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, err)
-	}
-	addressSpace := addressSpaceFormulator.GetAddressSpace()
-	method.SetAddressSpace(addressSpace)
 	asa.fullHierarchy = &standardAnalyzedHierarchy{
 		provider:    prov,
 		service:     providerService,
@@ -477,20 +462,115 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 		method:      method,
 		registryAPI: registryAPI,
 	}
-	dummyParameters, dummyParametersErr := asa.generateDummyRequiredMap(method)
-	if dummyParametersErr != nil {
-		return fmt.Errorf("static analysis failed: could not generate dummy parameters for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, dummyParametersErr)
+	methodLevelAnalyzer := newStandardMethodPreparedAnalyzer(
+		prov,
+		svc,
+		resource,
+		method,
+		registryAPI,
+	)
+	analysisErr := methodLevelAnalyzer.Analyze()
+	asa.warnings = append(asa.warnings, methodLevelAnalyzer.GetWarnings()...)
+	asa.errors = append(asa.errors, methodLevelAnalyzer.GetErrors()...)
+	asa.affirmatives = append(asa.affirmatives, methodLevelAnalyzer.GetAffirmatives()...)
+	if analysisErr != nil {
+		return analysisErr
 	}
-	protocolType, protocolTypeErr := prov.GetProtocolType()
+	return nil
+}
+
+type standardMethodPreparedAnalyzer struct {
+	provider     anysdk.Provider
+	service      anysdk.Service
+	resource     anysdk.Resource
+	method       anysdk.StandardOperationStore
+	registrAPI   anysdk.RegistryAPI
+	errors       []error
+	warnings     []string
+	affirmatives []string
+}
+
+func newStandardMethodPreparedAnalyzer(
+	provider anysdk.Provider,
+	service anysdk.Service,
+	resource anysdk.Resource,
+	method anysdk.StandardOperationStore,
+	registryAPI anysdk.RegistryAPI,
+) StaticAnalyzer {
+	return &standardMethodPreparedAnalyzer{
+		provider:     provider,
+		service:      service,
+		resource:     resource,
+		method:       method,
+		errors:       []error{},
+		warnings:     []string{},
+		affirmatives: []string{},
+		registrAPI:   registryAPI,
+	}
+}
+
+func (asa *standardMethodPreparedAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
+	return asa.registrAPI, true
+}
+
+func (asa *standardMethodPreparedAnalyzer) GetErrors() []error {
+	return asa.errors
+}
+
+func (asa *standardMethodPreparedAnalyzer) GetWarnings() []string {
+	return asa.warnings
+}
+
+func (asa *standardMethodPreparedAnalyzer) GetAffirmatives() []string {
+	return asa.affirmatives
+}
+
+func (asa *standardMethodPreparedAnalyzer) generateDummyRequiredMap(method anysdk.StandardOperationStore) (map[string]any, error) {
+	requiredDummy := method.GetRequiredParameters()
+	rv := make(map[string]any, len(requiredDummy))
+	for k, v := range requiredDummy {
+		rv[k] = v
+	}
+	return rv, nil
+}
+
+func (asa *standardMethodPreparedAnalyzer) Analyze() error {
+	addressSpaceFormulator := radix_tree_address_space.NewAddressSpaceFormulator(
+		radix_tree_address_space.NewAddressSpaceGrammar(),
+		asa.provider,
+		asa.service,
+		asa.resource,
+		asa.method,
+		asa.method.GetProjections(),
+		false, // TODO: isAwait (handle later) 2 x possible shcemas for await
+	)
+	err := addressSpaceFormulator.Formulate()
+	if err != nil {
+		return fmt.Errorf("static analysis failed: could not formulate address space for method '%s' on resource '%s': %w", asa.method.GetName(), asa.resource.GetName(), err)
+	}
+	addressSpace := addressSpaceFormulator.GetAddressSpace()
+	asa.method.SetAddressSpace(addressSpace)
+	// asa.fullHierarchy = &standardAnalyzedHierarchy{
+	// 	provider:    prov,
+	// 	service:     providerService,
+	// 	resource:    resource,
+	// 	method:      method,
+	// 	registryAPI: registryAPI,
+	// }
+	dummyParameters, dummyParametersErr := asa.generateDummyRequiredMap(asa.method)
+	if dummyParametersErr != nil {
+		return fmt.Errorf("static analysis failed: could not generate dummy parameters for method '%s' on resource '%s': %w", asa.method.GetName(), asa.resource.GetName(), dummyParametersErr)
+	}
+	protocolType, protocolTypeErr := asa.provider.GetProtocolType()
 	if protocolTypeErr != nil {
-		asa.errors = append(asa.errors, fmt.Errorf("warning: could not determine protocol type for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, protocolTypeErr))
+		asa.errors = append(asa.errors, fmt.Errorf("warning: could not determine protocol type for method '%s' on resource '%s': %w", asa.method.GetName(), asa.resource.GetName(), protocolTypeErr))
 	}
 	switch protocolType {
 	case client.HTTP:
 		preparator := anysdk.NewHTTPPreparator(
-			prov,
-			svc,
-			method,
+			asa.provider,
+			asa.service,
+			asa.method,
 			map[int]map[string]interface{}{
 				0: dummyParameters,
 			},
@@ -500,10 +580,10 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 		)
 		armoury, armouryErr := preparator.BuildHTTPRequestCtx(anysdk.NewHTTPPreparatorConfig(false))
 		if armouryErr != nil {
-			asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': %w", asa.methodSelectorName, asa.resourceName, armouryErr))
+			asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': %w", asa.method.GetName(), asa.resource.GetName(), armouryErr))
 		} else {
 			if armoury == nil {
-				asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': got nil armoury", asa.methodSelectorName, asa.resourceName))
+				asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': got nil armoury", asa.method.GetName(), asa.resource.GetName()))
 			}
 		}
 	default:
@@ -1029,6 +1109,7 @@ func (srf *standardProviderServiceResourceAnalyzer) Analyze() error {
 				srf.errors = append(srf.errors, fmt.Errorf("service fragment is nil for svc name = %s", key))
 				continue
 			}
+			srf.resourceServiceFragments[resKey] = svcFrag
 			deepResources, deepResourcesErr := svcFrag.GetResources()
 			if deepResourcesErr != nil {
 				srf.errors = append(srf.errors, fmt.Errorf("failed to get resources for svc name = %s: %v", key, deepResourcesErr))
@@ -1057,6 +1138,9 @@ func (srf *standardProviderServiceResourceAnalyzer) Analyze() error {
 			err := fmt.Errorf("failed to get resources for service %s: %v", key, err)
 			srf.errors = append(srf.errors, err)
 			return err
+		}
+		for resourceKey := range resources {
+			srf.resourceServiceFragments[resourceKey] = svc
 		}
 	}
 	srf.resources = resources
@@ -1154,6 +1238,15 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 		osa.errors = append(osa.errors, err)
 		return err
 	}
+	svcFragments := providerServiceResourceAnalyzer.GetServiceFragments()
+	if len(svcFragments) == 0 {
+		if !osa.cfg.IsProviderServicesMustExpand() {
+			return nil
+		}
+		err := fmt.Errorf("no service fragments found for provider %s", k)
+		osa.errors = append(osa.errors, err)
+		return err
+	}
 	for resourceKey, resource := range resources {
 		// Loader.mergeResource() dereferences interesting stuff including:
 		//   - operation store attributes dereference:
@@ -1167,6 +1260,26 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 			// Perform analysis on each method
 			if !osa.cfg.IsProviderServicesMustExpand() {
 				continue
+			}
+			svc := svcFragments[resourceKey]
+			if svc == nil {
+				osa.errors = append(osa.errors, fmt.Errorf("service fragment is nil for resource %s", resourceKey))
+			} else {
+				methodAnalyzer := newStandardMethodPreparedAnalyzer(
+					osa.provider,
+					svc,
+					resource,
+					&method,
+					osa.registryAPI,
+				)
+
+				methodAnalyzerErr := methodAnalyzer.Analyze()
+				osa.affirmatives = append(osa.affirmatives, methodAnalyzer.GetAffirmatives()...)
+				osa.warnings = append(osa.warnings, methodAnalyzer.GetWarnings()...)
+				osa.errors = append(osa.errors, methodAnalyzer.GetErrors()...)
+				if methodAnalyzerErr != nil {
+					osa.errors = append(osa.errors, fmt.Errorf("static analysis found errors for method %s on resource %s: %v", methodName, resourceKey, methodAnalyzerErr))
+				}
 			}
 
 			switch protocolType {
