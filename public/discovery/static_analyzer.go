@@ -550,13 +550,6 @@ func (asa *standardMethodPreparedAnalyzer) Analyze() error {
 	}
 	addressSpace := addressSpaceFormulator.GetAddressSpace()
 	asa.method.SetAddressSpace(addressSpace)
-	// asa.fullHierarchy = &standardAnalyzedHierarchy{
-	// 	provider:    prov,
-	// 	service:     providerService,
-	// 	resource:    resource,
-	// 	method:      method,
-	// 	registryAPI: registryAPI,
-	// }
 	dummyParameters, dummyParametersErr := asa.generateDummyRequiredMap(asa.method)
 	if dummyParametersErr != nil {
 		return fmt.Errorf("static analysis failed: could not generate dummy parameters for method '%s' on resource '%s': %w", asa.method.GetName(), asa.resource.GetName(), dummyParametersErr)
@@ -578,13 +571,19 @@ func (asa *standardMethodPreparedAnalyzer) Analyze() error {
 			nil,
 			logging.GetLogger(),
 		)
+		var dummyKeys []string
+		for k := range dummyParameters {
+			dummyKeys = append(dummyKeys, k)
+		}
+		dummyKeysStr := strings.Join(dummyKeys, ", ")
 		armoury, armouryErr := preparator.BuildHTTPRequestCtx(anysdk.NewHTTPPreparatorConfig(false))
 		if armouryErr != nil {
-			asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': %w", asa.method.GetName(), asa.resource.GetName(), armouryErr))
+			asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s' using dummy parameter keys: '%s': %w", asa.method.GetName(), asa.resource.GetName(), dummyKeysStr, armouryErr))
 		} else {
 			if armoury == nil {
-				asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s': got nil armoury", asa.method.GetName(), asa.resource.GetName()))
+				asa.errors = append(asa.errors, fmt.Errorf("warning: could not build HTTP request context for method '%s' on resource '%s' using dummy parameter keys: '%s': got nil armoury", asa.method.GetName(), asa.resource.GetName(), dummyKeysStr))
 			}
+			asa.affirmatives = append(asa.affirmatives, fmt.Sprintf("successfully built HTTP request context for method '%s' on resource '%s' using dummy parameter keys: '%s'", asa.method.GetName(), asa.resource.GetName(), dummyKeysStr))
 		}
 	default:
 	}
