@@ -13,9 +13,27 @@ import (
 	"github.com/stackql/any-sdk/pkg/streaming"
 )
 
+type HTTPPreparatorConfig interface {
+	IsFromAnnotation() bool
+}
+
+type standardHTTPPreparatorConfig struct {
+	isFromAnnotation bool
+}
+
+func (cfg *standardHTTPPreparatorConfig) IsFromAnnotation() bool {
+	return cfg.isFromAnnotation
+}
+
+func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
+	return &standardHTTPPreparatorConfig{
+		isFromAnnotation: isFromAnnotation,
+	}
+}
+
 type HTTPPreparator interface {
-	BuildHTTPRequestCtx() (HTTPArmoury, error)
-	BuildHTTPRequestCtxFromAnnotation() (HTTPArmoury, error)
+	BuildHTTPRequestCtx(HTTPPreparatorConfig) (HTTPArmoury, error)
+	// BuildHTTPRequestCtxFromAnnotation() (HTTPArmoury, error)
 }
 
 type standardHTTPPreparator struct {
@@ -65,7 +83,10 @@ func newHTTPPreparator(
 }
 
 //nolint:funlen,gocognit // TODO: review
-func (pr *standardHTTPPreparator) BuildHTTPRequestCtx() (HTTPArmoury, error) {
+func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) (HTTPArmoury, error) {
+	if cfg.IsFromAnnotation() {
+		return pr.buildHTTPRequestCtxFromAnnotation()
+	}
 	method, methodOk := pr.m.(StandardOperationStore)
 	if !methodOk {
 		return nil, fmt.Errorf("operation store is not a standard operation store")
@@ -209,7 +230,7 @@ func getRequest(
 }
 
 //nolint:funlen,gocognit // acceptable
-func (pr *standardHTTPPreparator) BuildHTTPRequestCtxFromAnnotation() (HTTPArmoury, error) {
+func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation() (HTTPArmoury, error) {
 	var err error
 	httpArmoury := NewHTTPArmoury()
 	var requestSchema, responseSchema Schema
