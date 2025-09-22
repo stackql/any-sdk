@@ -1,6 +1,7 @@
 package anysdk
 
 type AddressSpaceExpansionConfig interface {
+	IsAsync() bool
 	IsLegacy() bool
 	IsAllowNilResponse() bool
 }
