@@ -45,3 +45,17 @@ func TestValidateAndParseGoogleProviderFile(t *testing.T) {
 		t.Fatalf("unexpected non nil provider")
 	}
 }
+
+func TestFragmentedResourcesFile(t *testing.T) {
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/resources/compute-v1.yaml", "testdata/schema-definitions/fragmented-resources.schema.json", "fragmented-resources")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rv["resources"] == nil {
+		t.Fatalf("expected resources to be present")
+	}
+	resources, ok := rv["resources"].(map[string]any)
+	if !ok || len(resources) == 0 {
+		t.Fatalf("expected non-empty resources map, got %v", rv["resources"])
+	}
+}
