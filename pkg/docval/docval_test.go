@@ -36,12 +36,12 @@ func TestLocalValidateAndParseValidProviderFile(t *testing.T) {
 	}
 }
 
-func TestValidateAndParseValidProviderFile(t *testing.T) {
+func TestValidateAndParseGoogleProviderFile(t *testing.T) {
 	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/provider.yaml", "testdata/schema-definitions/provider.schema.json", "provider")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected an error, got none")
 	}
-	if rv["name"] != "google" {
-		t.Fatalf("unexpected provider name: %v", rv["name"])
+	if rv != nil {
+		t.Fatalf("unexpected non nil provider")
 	}
 }

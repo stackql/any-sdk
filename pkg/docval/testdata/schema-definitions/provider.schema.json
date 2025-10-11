@@ -47,18 +47,48 @@
       "additionalProperties": {
         "type": "object",
         "required": [
+          "description",
+          "id",
+          "name",
+          "service",
           "title",
           "version"
         ],
         "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "serviceName:version (e.g., keys:v0.1.0)"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9._-]+$"
+          },
+          "preferred": {
+            "type": "boolean"
+          },
+          "service": {
+            "type": "object",
+            "description": "Reference to the local service document.",
+            "required": [
+              "$ref"
+            ],
+            "properties": {
+              "$ref": {
+                "type": "string",
+                "description": "Local relative YAML/JSON path with optional JSON Pointer fragment (no scheme, no leading slash)."
+              }
+            },
+            "additionalProperties": false
+          },
           "title": {
             "type": "string"
           },
           "version": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^v?\\d+(\\.\\d+){0,2}(-[0-9A-Za-z.-]+)?$"
           }
         },
         "additionalProperties": true
