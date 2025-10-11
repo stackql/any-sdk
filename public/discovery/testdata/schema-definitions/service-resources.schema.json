@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "service-resources.schema.json",
+  "title": "OpenAPI 3.0 service with optional x-stackQL-resources",
+  "type": "object",
+
+  "allOf": [
+    { "$ref": "./openapi-3.0.schema.json" }
+  ],
+
+  "properties": {
+    "components": {
+      "type": "object",
+      "properties": {
+        "x-stackQL-resources": {
+          "$ref": "./resources-core.schema.json#/$defs/ResourceMap"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+
+  "additionalProperties": true
+}

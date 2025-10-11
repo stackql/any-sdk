@@ -25,7 +25,7 @@ func getFilePathUnescapedFromRepositoryRoot(relativePath string) (string, error)
 func GetForwardSlashFilePathFromRepositoryRoot(relativePath string) (string, error) {
 	_, filename, _, _ := runtime.Caller(0)
 	curDir := path.Dir(filename)
-	rv, err := filepath.Abs(path.Join(curDir, "../..", relativePath))
+	rv, err := filepath.Abs(filepath.Join(curDir, "../..", relativePath))
 	return filepath.ToSlash(rv), err
 }
 

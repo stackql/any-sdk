@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/stackql/any-sdk/pkg/fileutil"
 )
@@ -77,7 +77,7 @@ func GetAwsEc2ListMultiResponseReader() io.ReadCloser {
 }
 
 func GetK8SNodesListMultiResponseReader() (io.ReadCloser, error) {
-	f, err := fileutil.GetFilePathFromRepositoryRoot(path.Join("test", "input", "k8s-nodes.json"))
+	f, err := fileutil.GetFilePathFromRepositoryRoot(filepath.Join("test", "input", "k8s-nodes.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func GetK8SNodesListMultiResponseReader() (io.ReadCloser, error) {
 }
 
 func GetContrivedPagesResponseReader() (io.ReadCloser, error) {
-	f, err := fileutil.GetFilePathFromRepositoryRoot(path.Join("test", "input", "github-pages.json"))
+	f, err := fileutil.GetFilePathFromRepositoryRoot(filepath.Join("test", "input", "github-pages.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func GetContrivedPagesResponseReader() (io.ReadCloser, error) {
 }
 
 func GetGoogleFoldersListResponseReader() (io.ReadCloser, error) {
-	f, err := fileutil.GetFilePathFromRepositoryRoot(path.Join("test", "input", "google-folders.json"))
+	f, err := fileutil.GetFilePathFromRepositoryRoot(filepath.Join("test", "input", "google-folders.json"))
 	if err != nil {
 		return nil, err
 	}

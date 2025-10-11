@@ -2,12 +2,14 @@ package discovery
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
+	"github.com/stackql/any-sdk/pkg/docval"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/logging"
 	"github.com/stackql/any-sdk/public/persistence"
@@ -26,39 +28,51 @@ type AnalyzerCfg interface {
 	GetProtocolType() string
 	GetDocRoot() string
 	GetRegistryRootDir() string
+	GetSchemaRootDir() string
 	GetProviderStr() string
 	GetRootURL() string
 	IsProviderServicesMustExpand() bool
 	IsVerbose() bool
 	SetIsVerbose(bool)
 	SetIsProviderServicesMustExpand(bool)
+	IsSkipSchemaValidation() bool
 }
 
 type standardAnalyzerCfg struct {
 	protocolType               string
 	docRoot                    string
 	registryRootDir            string
+	schemaRootDir              string
 	providerStr                string
 	rootURL                    string
 	providerServicesMustExpand bool
 	isVerbose                  bool
+	skipSchemaValidation       bool
 }
 
 func NewAnalyzerCfg(
 	protocolType string,
 	registryRootDir string,
 	docRoot string,
+	schemaDir string,
+	skipSchemaValidation bool,
 ) AnalyzerCfg {
 	return &standardAnalyzerCfg{
 		protocolType:               protocolType,
 		registryRootDir:            registryRootDir,
 		docRoot:                    docRoot,
 		providerServicesMustExpand: true, // default thorough analysis
+		schemaRootDir:              schemaDir,
+		skipSchemaValidation:       skipSchemaValidation,
 	}
 }
 
 func (sac *standardAnalyzerCfg) GetProtocolType() string {
 	return sac.protocolType
+}
+
+func (sac *standardAnalyzerCfg) GetSchemaRootDir() string {
+	return sac.schemaRootDir
 }
 
 func (sac *standardAnalyzerCfg) IsVerbose() bool {
@@ -85,6 +99,10 @@ func (sac *standardAnalyzerCfg) GetRootURL() string {
 	return sac.rootURL
 }
 
+func (sac *standardAnalyzerCfg) IsSkipSchemaValidation() bool {
+	return sac.skipSchemaValidation
+}
+
 func (sac *standardAnalyzerCfg) IsProviderServicesMustExpand() bool {
 	return sac.providerServicesMustExpand
 }
@@ -99,6 +117,7 @@ func newGenericStaticAnalyzer(
 	discoveryStore IDiscoveryStore,
 	discoveryAdapter IDiscoveryAdapter,
 	registryAPI anysdk.RegistryAPI,
+	schemaDir string,
 ) StaticAnalyzer {
 	return &genericStaticAnalyzer{
 		cfg:               analysisCfg,
@@ -106,6 +125,8 @@ func newGenericStaticAnalyzer(
 		discoveryStore:    discoveryStore,
 		discoveryAdapter:  discoveryAdapter,
 		registryAPI:       registryAPI,
+		schemaDir:         schemaDir,
+		validator:         docval.NewFileValidator(schemaDir),
 	}
 }
 
@@ -670,6 +691,7 @@ func (sf *standardStaticAnalyzerFactoryFactory) CreateStaticAnalyzerFactoryFromP
 		registryAPI.GetLocalDocTrunk(),
 		rtCtx,
 		persistenceSystem,
+		rtCtx.CLISchemaDir,
 	), nil
 }
 
@@ -699,20 +721,25 @@ func (sf *standardStaticAnalyzerFactoryFactory) CreateNaiveSQLiteStaticAnalyzerF
 }
 
 type simpleSQLAnalyzerFactory struct {
-	registryURL       string
-	rtCtx             dto.RuntimeCtx
-	persistenceSystem persistence.PersistenceSystem
+	registryURL          string
+	rtCtx                dto.RuntimeCtx
+	persistenceSystem    persistence.PersistenceSystem
+	schemaDir            string
+	skipSchemaValidation bool
 }
 
 func newSimpleSQLAnalyzerFactory(
 	registryURL string,
 	rtCtx dto.RuntimeCtx,
 	persistenceSystem persistence.PersistenceSystem,
+	schemaDir string,
 ) StaticAnalyzerFactory {
 	return &simpleSQLAnalyzerFactory{
-		registryURL:       registryURL,
-		rtCtx:             rtCtx,
-		persistenceSystem: persistenceSystem,
+		registryURL:          registryURL,
+		rtCtx:                rtCtx,
+		persistenceSystem:    persistenceSystem,
+		schemaDir:            schemaDir,
+		skipSchemaValidation: rtCtx.CLISkipSchemaValidation,
 	}
 }
 
@@ -727,7 +754,7 @@ func (f *simpleSQLAnalyzerFactory) CreateStaticAnalyzer(
 	if registryErr != nil {
 		return nil, registryErr
 	}
-	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL, f.schemaDir, f.skipSchemaValidation)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
 	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
 	staticAnalyzer, analyzerErr := NewStaticAnalyzer(
@@ -799,7 +826,7 @@ func (f *simpleSQLAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
 	if registryErr != nil {
 		return nil, registryErr
 	}
-	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL, f.schemaDir, f.skipSchemaValidation)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
 	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
 	discoveryStore := getDiscoveryStore(persistenceSystem, registry, rtCtx)
@@ -837,7 +864,7 @@ func (f *simpleSQLAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
 	if registryErr != nil {
 		return nil, registryErr
 	}
-	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL, f.schemaDir, f.skipSchemaValidation)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
 	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
 	discoveryStore := getDiscoveryStore(persistenceSystem, registry, rtCtx)
@@ -873,9 +900,9 @@ func NewStaticAnalyzer(
 	discoveryAdapter := getDiscoveryAdapter(analysisCfg, persistenceSystem, discoveryStore, registryAPI, rtCtx)
 	switch analysisCfg.GetProtocolType() {
 	case "openapi":
-		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI), nil
+		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI, rtCtx.CLISchemaDir), nil
 	case "local_templated":
-		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI), nil
+		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI, rtCtx.CLISchemaDir), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol type: %s", analysisCfg.GetProtocolType())
 	}
@@ -918,6 +945,8 @@ type genericStaticAnalyzer struct {
 	discoveryAdapter  IDiscoveryAdapter
 	discoveryStore    IDiscoveryStore
 	registryAPI       anysdk.RegistryAPI
+	schemaDir         string
+	validator         docval.FileValidator
 }
 
 // For each operation store in each resource:
@@ -945,6 +974,42 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 		// unacceptable
 		osa.errors = append(osa.errors, fmt.Errorf("unsupported protocol type for provider %s: %s", provider.GetName(), provider.GetProtocolTypeString()))
 	}
+
+	// --- DOCVAL ANALYSIS ---
+	schemaDir := osa.schemaDir
+	if !osa.cfg.IsSkipSchemaValidation() {
+		result, err := osa.validator.ValidateAndParseFile(osa.cfg.GetDocRoot(), "provider.schema.json")
+		if err != nil {
+			osa.errors = append(osa.errors, fmt.Errorf("docval error in provider file: %v", err))
+		}
+		if result == nil {
+			osa.errors = append(osa.errors, fmt.Errorf("docval error in provider file: got nil result"))
+		}
+	}
+
+	if !osa.cfg.IsSkipSchemaValidation() && !osa.cfg.IsProviderServicesMustExpand() {
+		for _, svc := range provider.GetProviderServices() {
+			if osa.cfg.IsProviderServicesMustExpand() {
+				continue
+			}
+			svcRelativePath := svc.GetServiceRefRef()
+			svcPath := filepath.Join(osa.cfg.GetRegistryRootDir(), svcRelativePath)
+			schemaPath := "service-resource.schema.json"
+			if protocolType == client.LocalTemplated {
+				schemaPath = filepath.Join(schemaDir, "local-templated-service-resource.schema.json")
+			}
+			if svcPath != "" {
+				result, err := osa.validator.ValidateAndParseFile(svcPath, schemaPath)
+				if err != nil {
+					osa.errors = append(osa.errors, fmt.Errorf("docval error in service file %s: %v", svcPath, err))
+				}
+				if result == nil {
+					osa.errors = append(osa.errors, fmt.Errorf("docval error in service file %s: got nil result", svcPath))
+				}
+			}
+		}
+	}
+	// --- END DOCVAL ANALYSIS ---
 	providerServices := provider.GetProviderServices()
 	var wg sync.WaitGroup
 	serviceAnalyzers := make(map[string]StaticAnalyzer, len(providerServices))

@@ -68,7 +68,7 @@ func TestBasicAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -242,7 +242,7 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -374,7 +374,7 @@ func TestHeavyAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -489,7 +489,7 @@ func TestSearchAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -630,7 +630,7 @@ func TestIntelligentAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -762,7 +762,7 @@ func TestConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -879,7 +879,7 @@ func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	expectedUnionProjectionCount := 4
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -1052,7 +1052,7 @@ func TestBasicAddressSpaceAWSCurrent(t *testing.T) {
 	googleProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -1143,7 +1143,7 @@ func TestHeavyAliasedAddressSpaceAWSCurrent(t *testing.T) {
 	providerPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}
@@ -1204,7 +1204,7 @@ func TestLocalExec(t *testing.T) {
 	providerPath := "testdata/registry/basic/src/local_openssl/v0.1.0/provider.yaml"
 	// expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
-	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{})
+	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"})
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}

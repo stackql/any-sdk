@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fragmented-resources.schema.json",
+  "title": "Resources fragment (resources map only)",
+  "type": "object",
+  "required": ["resources"],
+  "properties": {
+    "resources": { "$ref": "resources-core.schema.json#/$defs/ResourceMap" },
+    "info": {
+      "type": "object",
+      "description": "Optional metadata block for the fragment file.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

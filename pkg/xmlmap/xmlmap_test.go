@@ -1,7 +1,6 @@
 package xmlmap_test
 
 import (
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 )
 
 func getFileRoot(t *testing.T) string {
-	rv, err := fileutil.GetFilePathUnescapedFromRepositoryRoot(path.Join("test", "registry", "src"))
+	rv, err := fileutil.GetFilePathUnescapedFromRepositoryRoot(filepath.Join("test", "registry", "src"))
 	assert.NilError(t, err)
 	return rv
 }
