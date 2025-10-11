@@ -26,7 +26,7 @@ func TestValidateAndParse_ValidJSON(t *testing.T) {
 	}
 }
 
-func TestValidateAndParseValidProviderFile(t *testing.T) {
+func TestLocalValidateAndParseValidProviderFile(t *testing.T) {
 	rv, err := docval.ValidateAndParseFile("testdata/docs/local_openssl/v0.1.0/provider.yaml", "testdata/schema-definitions/provider.schema.json", "provider")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -36,7 +36,7 @@ func TestValidateAndParseValidProviderFile(t *testing.T) {
 	}
 }
 
-func TestNegativeValidateAndParseValidProviderFile(t *testing.T) {
+func TestValidateAndParseValidProviderFile(t *testing.T) {
 	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/provider.yaml", "testdata/schema-definitions/provider.schema.json", "provider")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
