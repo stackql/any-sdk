@@ -7,7 +7,6 @@
     "name",
     "id",
     "version",
-    "protocolType",
     "providerServices"
   ],
   "properties": {
@@ -20,7 +19,7 @@
     },
     "version": {
       "type": "string",
-      "pattern": "^v?\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$"
+      "pattern": "^v?\\d+(\\.\\d+){0,2}(-[0-9A-Za-z.-]+)?$"
     },
     "description": {
       "type": "string"

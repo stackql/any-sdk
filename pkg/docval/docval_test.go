@@ -37,11 +37,11 @@ func TestValidateAndParseValidProviderFile(t *testing.T) {
 }
 
 func TestNegativeValidateAndParseValidProviderFile(t *testing.T) {
-	_, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/provider.yaml", "testdata/schema-definitions/provider.schema.json", "provider")
-	if err == nil {
-		t.Fatalf("expected error, got none")
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/provider.yaml", "testdata/schema-definitions/provider.schema.json", "provider")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
-	// if rv["name"] != "google" {
-	// 	t.Fatalf("unexpected provider name: %v", rv["name"])
-	// }
+	if rv["name"] != "google" {
+		t.Fatalf("unexpected provider name: %v", rv["name"])
+	}
 }
