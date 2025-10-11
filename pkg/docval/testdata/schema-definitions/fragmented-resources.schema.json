@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.stackql.io/any-sdk/fragmented-resources.schema.json",
+  "title": "Resources fragment (x-stackQL-resources only)",
+  "type": "object",
+  "properties": {
+    "components": {
+      "type": "object",
+      "properties": {
+        "x-stackQL-resources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "methods",
+              "sqlVerbs"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/resourceId"
+              },
+              "name": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "methods": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "operationId": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "HEAD",
+                        "OPTIONS"
+                      ]
+                    },
+                    "auth": {
+                      "$ref": "#/$defs/authRef"
+                    },
+                    "primaryIdentifier": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "output": {
+                      "type": "object"
+                    },
+                    "scope": {
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "$ref": "#/$defs/evidence"
+                    }
+                  },
+                  "required": [
+                    "operationId"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "sqlVerbs": {
+                "$ref": "#/$defs/sqlVerbsMap"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "x-stackQL-resources"
+      ],
+      "additionalProperties": true
+    },
+    "$refDocs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "components"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "providerId": {
+      "type": "string",
+      "pattern": "^[a-z0-9.-]+$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^v?\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$"
+    },
+    "serviceId": {
+      "type": "string",
+      "pattern": "^[a-z0-9.-]+$"
+    },
+    "resourceId": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+$"
+    },
+    "methodId": {
+      "type": "string",
+      "pattern": "^[a-z_][a-z0-9_]*$"
+    },
+    "sqlVerb": {
+      "type": "string",
+      "enum": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source",
+          "locator"
+        ],
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "locator": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "authRef": {
+      "type": "object",
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "oauth2"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "token_url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "apiKey"
+            },
+            "in": {
+              "type": "string",
+              "enum": [
+                "header",
+                "query"
+              ]
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "in",
+            "name"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "sigv4"
+            },
+            "service": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "service"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "aad"
+            },
+            "resource": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "resource"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      ]
+    },
+    "sqlVerbsMap": {
+      "type": "object",
+      "properties": {
+        "select": {
+          "$ref": "#/$defs/sqlVerbEntry"
+        },
+        "insert": {
+          "$ref": "#/$defs/sqlVerbEntry"
+        },
+        "update": {
+          "$ref": "#/$defs/sqlVerbEntry"
+        },
+        "delete": {
+          "$ref": "#/$defs/sqlVerbEntry"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sqlVerbEntry": {
+      "type": "object",
+      "properties": {
+        "operationIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "operationIds"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

@@ -19,6 +19,7 @@ require (
 	github.com/jackc/pgx/v5 v5.0.4
 	github.com/lib/pq v1.10.4
 	github.com/mattn/go-sqlite3 v1.14.31
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/snowflakedb/gosnowflake v1.15.0
 	github.com/spf13/cobra v1.4.0
