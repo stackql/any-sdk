@@ -55,7 +55,18 @@ A formal definition must be supplied.
 
 ## 3. Global Invariants
 
-### 3.1 Operation Identity
+### 3.1 Document Schemas
+
+As mentioned above, the root document for each provider is `provider.yaml`; the expected schema is mastered at [`cicd/schema-definitions/provider.schema.json`](/cicd/schema-definitions/provider.schema.json).
+
+For each service document referenced from this root, the schema varies on provider `protocolType`:
+
+- `http` => [`cicd/schema-definitions/service-resources.schema.json`](/cicd/schema-definitions/service-resources.schema.json).
+- `local_templated` => [`cicd/schema-definitions/local-templated.service-resources.schema.json`](/cicd/schema-definitions/local-templated.service-resources.schema.json).
+
+There is also support for spliting service and resource files, although this is rarely used.  The schema for such a split out resource file is visible at [`cicd/schema-definitions/fragmented-resources.schema.json`](/cicd/schema-definitions/fragmented-resources.schema.json).
+
+### 3.2 Operation Identity
 
 Each operation must be routable through:
 
@@ -77,48 +88,49 @@ Methods mapped to SQL verbs are annotated in an `sqlVerbs` dictionary, which all
 
 ---
 
-### 3.2 HTTP Semantics
+### 3.3 HTTP Semantics
 _TBA._
 
 ---
 
-### 3.3 Authentication
+### 3.4 Authentication
 _TBA._  
 This is yet to be formally defined. OAuth, simple key-based authentication, and various environment-variable-based patterns are supported.  
 Unauthenticated systems should be explicitly designated as having `null` auth.
 
 ---
 
-### 3.4 Pagination
+### 3.5 Pagination
 Opt-in, with default behavior. _TBA._
 
 ---
 
-### 3.5 Errors
+### 3.6 Errors
 Canonically aligned with `openapi3`.
 
 ---
 
-### 3.6 Rate Limiting
+### 3.7 Rate Limiting
 Modeled as a class of failure within a broader collection of possible failure classes, including network and system failures.
 
 ---
 
-### 3.7 Long-Running Operations (LRO)
+### 3.8 Long-Running Operations (LRO)
 If an operation is asynchronous:
 - Different providers have different polling or notification methods.  
 - Initially, behavior similar to Google’s `Operation` polling is supported.
 
 ---
 
-### 3.8 OS / Non-HTTP Transports
+### 3.9 OS / Non-HTTP Transports
 _TBA._  
 See the `local_openssl` provider for an example.
 
 ---
 
 ## 4. Validation Rules
-These are informally enforced through the `any-sdk` CLI, specifically the `aot` command.
+
+These are informally enforced through the `any-sdk` CLI, specifically the `aot` command.  This includes various configuration options.
 
 ---
 

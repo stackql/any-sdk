@@ -13,6 +13,10 @@ import (
 	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
 
+const (
+	schemaLocalPath = "testdata/schema-definitions"
+)
+
 func getNewTestDataMockRegistry(relativePath string) (anysdk.RegistryAPI, error) {
 	return anysdk.NewRegistry(
 		anysdk.RegistryConfig{
@@ -131,9 +135,9 @@ func TestDiscoveryAWS(t *testing.T) {
 		t.Fatal("Expected 'aws' provider to be available")
 	}
 	awsProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", awsProviderPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", awsProviderPath, schemaLocalPath, true)
 	analysisCfg.SetIsProviderServicesMustExpand(true) // not always the case
-	rtCtx := dto.RuntimeCtx{}
+	rtCtx := dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
 		analysisCfg,
 		persistenceSystem,
@@ -201,9 +205,9 @@ func TestShallowDiscoveryGoogleCurrent(t *testing.T) {
 		t.Fatal("Expected 'google' provider to be available")
 	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath, schemaLocalPath, true)
 	analysisCfg.SetIsProviderServicesMustExpand(false) // heaps of empties present
-	rtCtx := dto.RuntimeCtx{}
+	rtCtx := dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
 		analysisCfg,
 		persistenceSystem,
@@ -215,7 +219,7 @@ func TestShallowDiscoveryGoogleCurrent(t *testing.T) {
 	}
 	err = staticAnalyzer.Analyze()
 	if err != nil {
-		t.Fatalf("Static analysis failed: %v", err)
+		t.Fatalf("Erroneous google provider should not fail with skipped schema validation: %v", err)
 	}
 }
 
@@ -271,9 +275,9 @@ func TestShallowDiscoveryGoogleLegacy(t *testing.T) {
 		t.Fatal("Expected 'google' provider to be available")
 	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.0/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath, schemaLocalPath, true)
 	analysisCfg.SetIsProviderServicesMustExpand(false) // heaps of empties present
-	rtCtx := dto.RuntimeCtx{}
+	rtCtx := dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
 		analysisCfg,
 		persistenceSystem,
@@ -285,7 +289,7 @@ func TestShallowDiscoveryGoogleLegacy(t *testing.T) {
 	}
 	err = staticAnalyzer.Analyze()
 	if err != nil {
-		t.Fatalf("Static analysis failed: %v", err)
+		t.Fatalf("Erroneous google provider should not fail with skipped schema validation: %v", err)
 	}
 }
 
@@ -299,7 +303,8 @@ func TestDeepDiscoveryGoogleCurrent(t *testing.T) {
 	expectedErrorCount := 282
 	analyzerFactoryFactory := discovery.NewStandardStaticAnalyzerFactoryFactory()
 	analyzerFactory, factoryFactoryErr := analyzerFactoryFactory.CreateNaiveSQLiteStaticAnalyzerFactory(
-		localRegistry, dto.RuntimeCtx{})
+		localRegistry, dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"},
+	)
 	if factoryFactoryErr != nil {
 		t.Fatalf("Failed to create static analyzer factory: %v", factoryFactoryErr)
 	}

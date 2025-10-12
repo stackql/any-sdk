@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "local-templated.service-resources.schema.json",
+  "title": "Local templated service with top-level resources + OAS 3.0 constraints on selected keys",
+  "type": "object",
+
+  "properties": {
+    "openapi":    { "$ref": "./openapi-3.0.schema.json#/properties/openapi" },
+    "info":       { "$ref": "./openapi-3.0.schema.json#/definitions/Info" },
+    "paths":      { "$ref": "./openapi-3.0.schema.json#/definitions/Paths" },
+    "components": { "$ref": "./openapi-3.0.schema.json#/definitions/Components" },
+
+    "resources": {
+      "description": "Local templated resources map.",
+      "type": "object"
+    }
+  },
+
+  "required": ["openapi", "info", "paths", "components", "resources"],
+
+  "additionalProperties": true
+}

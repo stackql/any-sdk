@@ -35,6 +35,7 @@ type ProviderService interface {
 	GetTitle() string
 	GetVersion() string
 	GetDescription() string
+	GetServiceRefRef() string
 	//
 	getResourcesShallowWithRegistry(registry RegistryAPI) (ResourceRegister, error)
 	getServiceRefRef() string
@@ -118,6 +119,10 @@ func (sv *standardProviderService) setService(svc Service) bool {
 	}
 	sv.OpenAPIService = openApiSvc
 	return true
+}
+
+func (sv *standardProviderService) GetServiceRefRef() string {
+	return sv.getServiceRefRef()
 }
 
 func (sv *standardProviderService) getServiceRefRef() string {
