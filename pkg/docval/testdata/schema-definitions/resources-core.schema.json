@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "resources-core.schema.json",
+  "title": "any-sdk resources core",
+  "type": "object",
+  "$defs": {
+    "Name": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+
+    "VerbRefArray": {
+      "type": "array",
+      "description": "Array of $ref pointers to methods (internal, local file, or remote).",
+      "items": {
+        "type": "object",
+        "required": ["$ref"],
+        "properties": {
+          "$ref": {
+            "type": "string",
+            "description": "Reference token (internal pointer, local path, or URL). Keep regex permissive to avoid RE2 fragility.",
+            "pattern": "^[^\\s]+$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "Method": {
+      "type": "object",
+      "description": "Minimal method may be { operation: { $ref: <token> } }.",
+      "required": ["operation"],
+      "properties": {
+        "operation": {
+          "type": "object",
+          "required": ["$ref"],
+          "properties": {
+            "$ref": {
+              "type": "string",
+              "pattern": "^[^\\s]+$",
+              "description": "Reference to an operation definition (internal, local, or remote)."
+            }
+          },
+          "additionalProperties": true
+        },
+        "operationId": { "type": "string" },
+        "path": { "type": "string" },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        },
+        "auth": { "type": "object" },
+        "primaryIdentifier": { "type": "array", "items": { "type": "string" } },
+        "output": { "type": "object" },
+        "scope": { "type": "string" },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "locator"],
+            "properties": {
+              "source": { "type": "string" },
+              "locator": { "type": "string" },
+              "quote": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "MethodsMap": {
+      "type": "object",
+      "description": "Map of method name -> method object.",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/Name" },
+      "additionalProperties": { "$ref": "#/$defs/Method" }
+    },
+
+    "SqlVerbs": {
+      "type": "object",
+      "description": "SQL verb routing — each verb is an ordered array of $ref entries (ascending selectivity).",
+      "properties": {
+        "select":  { "$ref": "#/$defs/VerbRefArray" },
+        "insert":  { "$ref": "#/$defs/VerbRefArray" },
+        "update":  { "$ref": "#/$defs/VerbRefArray" },
+        "delete":  { "$ref": "#/$defs/VerbRefArray" },
+        "replace": { "$ref": "#/$defs/VerbRefArray" }
+      },
+      "additionalProperties": false
+    },
+
+    "Resource": {
+      "type": "object",
+      "required": ["id", "title", "methods"],
+      "properties": {
+        "description": { "type": "string" },
+        "id":   { "$ref": "#/$defs/Name" },
+        "name": { "$ref": "#/$defs/Name" },
+        "title": { "type": "string" },
+        "methods": { "$ref": "#/$defs/MethodsMap" },
+        "sqlVerbs": { "$ref": "#/$defs/SqlVerbs" }
+      },
+      "additionalProperties": true
+    },
+
+    "ResourceMap": {
+      "type": "object",
+      "description": "Map of resource name -> resource definition (NOT an array).",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/Name" },
+      "additionalProperties": { "$ref": "#/$defs/Resource" }
+    }
+  }
+}

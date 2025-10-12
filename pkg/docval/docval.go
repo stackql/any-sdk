@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
@@ -33,24 +32,6 @@ func ValidateAndParse(docBytes []byte, schemaBytes []byte, docType string) (map[
 	_ = docType
 
 	return obj, nil
-}
-
-// ValidateAndParseFile loads a document and its schema from the local filesystem,
-// then delegates to ValidateAndParse().
-//
-// Example:
-//
-//	parsed, err := docval.ValidateAndParseFile("provider.yaml", "provider.schema.json", "provider")
-func ValidateAndParseFile(docPath, schemaPath, docType string) (map[string]any, error) {
-	docBytes, err := os.ReadFile(docPath)
-	if err != nil {
-		return nil, fmt.Errorf("read document %q: %w", docPath, err)
-	}
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return nil, fmt.Errorf("read schema %q: %w", schemaPath, err)
-	}
-	return ValidateAndParse(docBytes, schemaBytes, docType)
 }
 
 // parseDocument tries YAML first (common for registry), then JSON.
