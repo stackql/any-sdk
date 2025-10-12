@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -83,6 +85,16 @@ func (v *fileValidator) rewriteSchemaRefsToFileURLs(schemaPath string) ([]byte, 
 	return buf.Bytes(), nil
 }
 
+func makeFileURL(abs string) string {
+	p := filepath.ToSlash(abs)
+	// Windows needs a leading slash so /A:/... is produced
+	if runtime.GOOS == "windows" && !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	u := url.URL{Scheme: "file", Path: p}
+	return u.String() // e.g. file:///A:/any-sdk/...
+}
+
 func readJSONSchema(path string, out *map[string]any) error {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -118,7 +130,7 @@ func rewriteRefs(v any, baseDir string) error {
 							return absErr
 						}
 						// Construct file:// URL with platform-independent separators
-						url := "file://" + filepath.ToSlash(abs)
+						url := makeFileURL(abs)
 						if frag != "" {
 							url += "#" + frag
 						}
