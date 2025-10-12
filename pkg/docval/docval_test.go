@@ -79,3 +79,15 @@ func TestSplitCompositeServiceFile(t *testing.T) {
 		t.Fatalf("expected components to be present")
 	}
 }
+
+func TestLocalTemplatedCompositeServiceFile(t *testing.T) {
+	rv, err := docval.ValidateAndParseFile("testdata/docs/local_openssl/v0.1.0/services/keys.yaml", "testdata/schema-definitions/local-templated.service-resources.schema.json", "composite-service")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rv["components"] == nil {
+		t.Fatalf("expected components to be present")
+	}
+}
+
+// pkg/docval/testdata/docs/local_openssl/v0.1.0/services/keys.yaml
