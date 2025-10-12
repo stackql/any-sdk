@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -51,7 +50,7 @@ func (v *fileValidator) ValidateAndParseFile(docPath string, schemaPath string) 
 // and for refs that are *external* (not starting with "#", not http/https, not file://),
 // rewrites them into absolute file:// URLs using schemaPath as the base.
 func (v *fileValidator) rewriteSchemaRefsToFileURLs(schemaPath string) ([]byte, error) {
-	absSchema, err := filepath.Abs(path.Join(v.rootSchemaDir, schemaPath))
+	absSchema, err := filepath.Abs(filepath.Join(v.rootSchemaDir, schemaPath))
 	if err != nil {
 		return nil, err
 	}
