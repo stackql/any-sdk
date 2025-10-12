@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 
 	"github.com/stackql/any-sdk/pkg/fileutil"
@@ -27,7 +27,7 @@ var (
 
 func setupFileRoot(t *testing.T) {
 	var err error
-	OpenapiFileRoot, err = fileutil.GetFilePathFromRepositoryRoot(filepath.Join("test", "registry", "src"))
+	OpenapiFileRoot, err = fileutil.GetFilePathFromRepositoryRoot(path.Join("test", "registry", "src"))
 	assert.NilError(t, err)
 }
 

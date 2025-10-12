@@ -2,7 +2,7 @@ package anysdk_test
 
 import (
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 
 	. "github.com/stackql/any-sdk/anysdk"
@@ -30,8 +30,8 @@ func init() {
 }
 
 func TestLocalTemplateClient(t *testing.T) {
-	providerPath := filepath.Join(OpenapiFileRoot, "local_openssl", "v0.1.0", "provider.yaml")
-	servicePath := filepath.Join(OpenapiFileRoot, "local_openssl", "v0.1.0", "services", "keys.yaml")
+	providerPath := path.Join(OpenapiFileRoot, "local_openssl", "v0.1.0", "provider.yaml")
+	servicePath := path.Join(OpenapiFileRoot, "local_openssl", "v0.1.0", "services", "keys.yaml")
 	pb, err := os.ReadFile(providerPath)
 	if err != nil {
 		t.Fatalf("error loading provider doc: %v", err)
@@ -61,9 +61,9 @@ func TestLocalTemplateClient(t *testing.T) {
 	executor := local_template_executor.NewLocalTemplateExecutor(args[0], args[1:], nil)
 	resp, err := executor.Execute(map[string]any{
 		"parameters": map[string]any{
-			"config_file":   filepath.Join(testRoot, "openssl/openssl.cnf"),
-			"key_out_file":  filepath.Join(testRoot, "tmp/key.pem"),
-			"cert_out_file": filepath.Join(testRoot, "tmp/cert.pem"),
+			"config_file":   path.Join(testRoot, "openssl/openssl.cnf"),
+			"key_out_file":  path.Join(testRoot, "tmp/key.pem"),
+			"cert_out_file": path.Join(testRoot, "tmp/cert.pem"),
 			"days":          90,
 		},
 	})

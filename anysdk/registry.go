@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 
@@ -264,7 +264,7 @@ func (r *Registry) GetDocBytes(docPath string) ([]byte, error) {
 
 func (r *Registry) getProviderDocBytes(prov string, version string) ([]byte, error) {
 	prov = r.renameProvider(prov)
-	return r.getVerifiedDocBytes(filepath.Join(prov, version, "provider.yaml"))
+	return r.getVerifiedDocBytes(path.Join(prov, version, "provider.yaml"))
 }
 
 func (r *Registry) PullProviderArchive(prov string, version string) (io.ReadCloser, error) {
@@ -273,7 +273,7 @@ func (r *Registry) PullProviderArchive(prov string, version string) (io.ReadClos
 
 func (r *Registry) pullProviderArchive(prov string, version string) (io.ReadCloser, error) {
 	prov = r.renameProvider(prov)
-	fp := filepath.Join(prov, fmt.Sprintf("%s.tgz", version))
+	fp := path.Join(prov, fmt.Sprintf("%s.tgz", version))
 	return r.pullArchive(fp)
 }
 
@@ -290,11 +290,11 @@ func (r *Registry) pullAndPersistProviderArchive(prov string, version string) er
 		return err
 	}
 	pr := r.renameProvider(prov)
-	err = os.RemoveAll(filepath.Join(r.getLocalDocRoot(), pr, version))
+	err = os.RemoveAll(path.Join(r.getLocalDocRoot(), pr, version))
 	if err != nil {
 		return err
 	}
-	return compression.DecompressToPath(rdr, filepath.Join(r.getLocalDocRoot(), pr))
+	return compression.DecompressToPath(rdr, path.Join(r.getLocalDocRoot(), pr))
 }
 
 func (r *Registry) LoadProviderByName(prov string, version string) (Provider, error) {
@@ -452,7 +452,7 @@ func (r *Registry) getLocalDocRoot() string {
 	case "":
 		return r.localDocRoot
 	default:
-		return filepath.Join(r.localDocRoot, r.localSrcPrefix)
+		return path.Join(r.localDocRoot, r.localSrcPrefix)
 	}
 }
 
@@ -461,7 +461,7 @@ func (r *Registry) extractEmbeddedDocs() string {
 	case "":
 		return r.localDocRoot
 	default:
-		return filepath.Join(r.localDocRoot, r.localSrcPrefix)
+		return path.Join(r.localDocRoot, r.localSrcPrefix)
 	}
 }
 
@@ -483,7 +483,7 @@ func (r *Registry) listLocalProviders() map[string]ProviderDescription {
 		rv := make(map[string]ProviderDescription)
 		for _, p := range provs {
 			if p.IsDir() && !strings.HasPrefix(p.Name(), ".") {
-				versions, err := os.ReadDir(filepath.Join(dr, p.Name()))
+				versions, err := os.ReadDir(path.Join(dr, p.Name()))
 				var val ProviderDescription
 				if err == nil {
 					for _, v := range versions {
@@ -504,7 +504,7 @@ func (r *Registry) getLocalArchiveRoot() string {
 	case "":
 		return r.localDocRoot
 	default:
-		return filepath.Join(r.localDocRoot, r.localDistPrefix)
+		return path.Join(r.localDocRoot, r.localDistPrefix)
 	}
 }
 
@@ -521,20 +521,20 @@ func (r *Registry) GetLocalProviderDocPath(prov string, version string) string {
 }
 
 func (r *Registry) getLocalProviderDocPath(prov string, version string) string {
-	return filepath.Join(r.getLocalProviderRootDirPath(prov, version), "provider.yaml")
+	return path.Join(r.getLocalProviderRootDirPath(prov, version), "provider.yaml")
 }
 
 func (r *Registry) getLocalProviderRootDirPath(prov string, version string) string {
 	prov = r.renameProvider(prov)
-	return filepath.Join(r.getLocalDocRoot(), prov, version)
+	return path.Join(r.getLocalDocRoot(), prov, version)
 }
 
 func (r *Registry) getLocalDocPath(docPath string) string {
-	return filepath.Join(r.getLocalDocRoot(), docPath)
+	return path.Join(r.getLocalDocRoot(), docPath)
 }
 
 func (r *Registry) getLocalArchivePath(docPath string) string {
-	return filepath.Join(r.getLocalArchiveRoot(), docPath)
+	return path.Join(r.getLocalArchiveRoot(), docPath)
 }
 
 func (r *Registry) getLocalDoc(docPath string) (io.ReadCloser, error) {
@@ -557,7 +557,7 @@ func (r *Registry) getLocalDoc(docPath string) (io.ReadCloser, error) {
 
 func (r *Registry) getUnVerifiedArchive(docPath string) (io.ReadCloser, error) {
 	if r.isLocalFile() {
-		return os.Open(filepath.Join(r.distUrl.Path, docPath))
+		return os.Open(path.Join(r.distUrl.Path, docPath))
 	}
 	if r.localDocRoot != "" {
 		localPath := r.getLocalArchivePath(docPath)
@@ -596,7 +596,7 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 		if r.srcUrl.Host == "." {
 			localPath = "." + localPath
 		}
-		rb, err := os.Open(filepath.Join(localPath, docPath))
+		rb, err := os.Open(path.Join(localPath, docPath))
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local registry file: '%s'", err.Error())
 		}
@@ -610,7 +610,7 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 			rv := edcrypto.NewVerifierResponse(true, nil, fileLockSafeReadCloser, nil)
 			return &rv, nil
 		}
-		sb, err := os.Open(filepath.Join(localPath, fmt.Sprintf("%s.sig", docPath)))
+		sb, err := os.Open(path.Join(localPath, fmt.Sprintf("%s.sig", docPath)))
 		if err != nil {
 			return nil, fmt.Errorf("cannot read local signature file: '%s'", err.Error())
 		}
@@ -647,7 +647,7 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 	if err != nil {
 		return nil, err
 	}
-	fullUrl.Path = filepath.Join(fullUrl.Path, docPath)
+	fullUrl.Path = path.Join(fullUrl.Path, docPath)
 	verifyUrl := fullUrl.String()
 	if r.isHttp() {
 		if !r.allowSrcDownload {
@@ -696,7 +696,7 @@ func (r *Registry) GetLatestAvailableVersion(providerName string) (string, error
 func (r *Registry) getLatestAvailableVersion(providerName string) (string, error) {
 	providerName = r.renameProvider(providerName)
 	if r.isLocalFile() {
-		deSlice, err := os.ReadDir(filepath.Join(r.srcUrl.Path, providerName))
+		deSlice, err := os.ReadDir(path.Join(r.srcUrl.Path, providerName))
 		if err != nil {
 			return "", err
 		}
@@ -709,7 +709,7 @@ func (r *Registry) getLatestAvailableVersion(providerName string) (string, error
 		return semver.FindLatestStable(deStrSlice)
 	}
 
-	deSlice, err := os.ReadDir(filepath.Join(r.getLocalDocRoot(), providerName))
+	deSlice, err := os.ReadDir(path.Join(r.getLocalDocRoot(), providerName))
 	if err != nil {
 		return "", err
 	}
@@ -752,6 +752,6 @@ func (r *Registry) RemoveProviderVersion(providerId string, version string) erro
 // ClearProviderCache clears the cache for a specific provider
 // e.g) ClearProviderCache("aws")
 func (r *Registry) ClearProviderCache(providerId string) error {
-	cachePath := filepath.Join(r.getLocalDocRoot(), providerId)
+	cachePath := path.Join(r.getLocalDocRoot(), providerId)
 	return os.RemoveAll(cachePath)
 }

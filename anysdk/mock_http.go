@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/stackql/any-sdk/pkg/fileutil"
@@ -27,7 +27,7 @@ func NewSimpleMockRegistryRoundTripper(fileRoot string, registryRoot *url.URL) *
 }
 
 func (rt *SimpleMockRegistryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	fp, err := fileutil.GetForwardSlashFilePathFromRepositoryRoot(filepath.Join(rt.fileRoot, strings.TrimPrefix(req.URL.Path, rt.registryRoot.Path)))
+	fp, err := fileutil.GetForwardSlashFilePathFromRepositoryRoot(path.Join(rt.fileRoot, strings.TrimPrefix(req.URL.Path, rt.registryRoot.Path)))
 	if err != nil {
 		return nil, err
 	}

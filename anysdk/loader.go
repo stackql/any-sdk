@@ -8,7 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -605,7 +605,7 @@ func getServiceDoc(url string, fileRoot string) (io.ReadCloser, error) {
 	if fileRoot == "" {
 		fileRoot = OpenapiFileRoot
 	}
-	return os.Open(filepath.Join(fileRoot, url))
+	return os.Open(path.Join(fileRoot, url))
 }
 
 func getServiceDocBytes(url string, fileRoot string) ([]byte, error) {
@@ -632,7 +632,7 @@ func GetServiceDocBytes(url string, fileRoot string) ([]byte, error) {
 }
 
 func LoadProviderByName(prov, version string, fileRoot string) (Provider, error) {
-	b, err := GetProviderDocBytes(filepath.Join(prov, version), fileRoot)
+	b, err := GetProviderDocBytes(path.Join(prov, version), fileRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +655,7 @@ func findLatestDoc(serviceDir string) (string, error) {
 		return "", fmt.Errorf("no openapi files present in directory = '%s'", serviceDir)
 	}
 	sort.Strings(fileNames)
-	return filepath.Join(serviceDir, fileNames[fileCount-1]), nil
+	return path.Join(serviceDir, fileNames[fileCount-1]), nil
 }
 
 func getProviderDoc(provider string, fileRoot string) (string, error) {
@@ -664,9 +664,9 @@ func getProviderDoc(provider string, fileRoot string) (string, error) {
 	}
 	switch provider {
 	case "google":
-		return findLatestDoc(filepath.Join(fileRoot, "googleapis.com"))
+		return findLatestDoc(path.Join(fileRoot, "googleapis.com"))
 	}
-	return findLatestDoc(filepath.Join(fileRoot, provider))
+	return findLatestDoc(path.Join(fileRoot, provider))
 }
 
 func loadOpenapiServiceDocFromBytes(ps ProviderService, bytes []byte) (OpenAPIService, error) {
