@@ -11,6 +11,8 @@ Simple AOT Analysis Google Provider with CLI
     ...    aot
     ...    \./test/registry
     ...    \./test/registry/src/googleapis\.com/v0\.1\.2/provider\.yaml
+    ...    \-\-schema-dir 
+    ...    cicd/schema-definitions
     ...    cwd=${CWD_FOR_EXEC}
     ...    stdout=${CURDIR}${/}/tmp${/}Simple-AOT-Analysis-Google-Provider-with-CLI.txt
     ...    stderr=${CURDIR}${/}/tmp${/}Simple-AOT-Analysis-Google-Provider-with-CLI_stderr.txt
@@ -30,6 +32,8 @@ Simple AOT Analysis AWS Provider with CLI
     ...    \./test/registry
     ...    \./test/registry/src/aws/v0\.1\.0/provider\.yaml
     ...    \-v
+    ...    \-\-schema-dir 
+    ...    cicd/schema-definitions
     ...    cwd=${CWD_FOR_EXEC}
     ...    stdout=${CURDIR}${/}/tmp${/}Simple-AOT-Analysis-AWS-Provider-with-CLI.txt
     ...    stderr=${CURDIR}${/}/tmp${/}Simple-AOT-Analysis-AWS-Provider-with-CLI_stderr.txt
@@ -50,6 +54,8 @@ Simple AOT Service Level Analysis AWS EC2 with CLI
     ...    \./test/registry
     ...    \./test/registry/src/aws/v0\.1\.0/provider\.yaml
     ...    ec2
+    ...    \-\-schema-dir 
+    ...    cicd/schema-definitions
     ...    cwd=${CWD_FOR_EXEC}
     ...    stdout=${CURDIR}${/}/tmp${/}Simple-AOT-Service-Level-Analysis-AWS-EC2-with-CLI.txt
     ...    stderr=${CURDIR}${/}/tmp${/}Simple-AOT-Service-Level-Analysis-AWS-EC2-with-CLI_stderr.txt

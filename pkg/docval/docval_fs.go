@@ -66,7 +66,10 @@ func (v *fileValidator) rewriteSchemaRefsToFileURLs(schemaPath string) ([]byte, 
 	}
 
 	// walk and rewrite
-	rewriteRefs(m, rootPath)
+	rewriteErr := rewriteRefs(m, rootPath)
+	if rewriteErr != nil {
+		return nil, rewriteErr
+	}
 
 	// marshal back to JSON
 
@@ -93,7 +96,7 @@ func readJSONSchema(path string, out *map[string]any) error {
 	return nil
 }
 
-func rewriteRefs(v any, baseDir string) {
+func rewriteRefs(v any, baseDir string) error {
 	switch t := v.(type) {
 	case map[string]any:
 		if raw, ok := t["$ref"]; ok {
@@ -109,6 +112,11 @@ func rewriteRefs(v any, baseDir string) {
 					if path != "" {
 						abs := filepath.Join(baseDir, filepath.FromSlash(path))
 						abs = filepath.Clean(abs)
+						abs, absErr := filepath.Abs(abs)
+						if absErr != nil {
+							// leave as-is on error
+							return absErr
+						}
 						// Construct file:// URL with platform-independent separators
 						url := "file://" + filepath.ToSlash(abs)
 						if frag != "" {
@@ -121,15 +129,22 @@ func rewriteRefs(v any, baseDir string) {
 		}
 		// walk children
 		for k, child := range t {
-			rewriteRefs(child, baseDir)
+			err := rewriteRefs(child, baseDir)
+			if err != nil {
+				return err
+			}
 			t[k] = child
 		}
 	case []any:
 		for i, child := range t {
-			rewriteRefs(child, baseDir)
+			err := rewriteRefs(child, baseDir)
+			if err != nil {
+				return err
+			}
 			t[i] = child
 		}
 	}
+	return nil
 }
 
 func splitRef(ref string) (path string, frag string) {

@@ -978,7 +978,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 	// --- DOCVAL ANALYSIS ---
 	schemaDir := osa.schemaDir
 	if !osa.cfg.IsSkipSchemaValidation() {
-		result, err := osa.validator.ValidateAndParseFile(osa.cfg.GetDocRoot(), filepath.Join(schemaDir, "provider.schema.json"))
+		result, err := osa.validator.ValidateAndParseFile(osa.cfg.GetDocRoot(), "provider.schema.json")
 		if err != nil {
 			osa.errors = append(osa.errors, fmt.Errorf("docval error in provider file: %v", err))
 		}
@@ -994,7 +994,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			}
 			svcRelativePath := svc.GetServiceRefRef()
 			svcPath := filepath.Join(osa.cfg.GetRegistryRootDir(), svcRelativePath)
-			schemaPath := filepath.Join(schemaDir, "service-resource.schema.json")
+			schemaPath := "service-resource.schema.json"
 			if protocolType == client.LocalTemplated {
 				schemaPath = filepath.Join(schemaDir, "local-templated-service-resource.schema.json")
 			}
