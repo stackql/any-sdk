@@ -26,6 +26,7 @@ type AnalyzerCfg interface {
 	GetProtocolType() string
 	GetDocRoot() string
 	GetRegistryRootDir() string
+	GetSchemaRootDir() string
 	GetProviderStr() string
 	GetRootURL() string
 	IsProviderServicesMustExpand() bool
@@ -38,6 +39,7 @@ type standardAnalyzerCfg struct {
 	protocolType               string
 	docRoot                    string
 	registryRootDir            string
+	schemaRootDir              string
 	providerStr                string
 	rootURL                    string
 	providerServicesMustExpand bool
@@ -48,17 +50,23 @@ func NewAnalyzerCfg(
 	protocolType string,
 	registryRootDir string,
 	docRoot string,
+	schemaDir string,
 ) AnalyzerCfg {
 	return &standardAnalyzerCfg{
 		protocolType:               protocolType,
 		registryRootDir:            registryRootDir,
 		docRoot:                    docRoot,
 		providerServicesMustExpand: true, // default thorough analysis
+		schemaRootDir:              schemaDir,
 	}
 }
 
 func (sac *standardAnalyzerCfg) GetProtocolType() string {
 	return sac.protocolType
+}
+
+func (sac *standardAnalyzerCfg) GetSchemaRootDir() string {
+	return sac.schemaRootDir
 }
 
 func (sac *standardAnalyzerCfg) IsVerbose() bool {
@@ -670,6 +678,7 @@ func (sf *standardStaticAnalyzerFactoryFactory) CreateStaticAnalyzerFactoryFromP
 		registryAPI.GetLocalDocTrunk(),
 		rtCtx,
 		persistenceSystem,
+		rtCtx.CLISchemaDir,
 	), nil
 }
 
@@ -702,17 +711,20 @@ type simpleSQLAnalyzerFactory struct {
 	registryURL       string
 	rtCtx             dto.RuntimeCtx
 	persistenceSystem persistence.PersistenceSystem
+	schemaDir         string
 }
 
 func newSimpleSQLAnalyzerFactory(
 	registryURL string,
 	rtCtx dto.RuntimeCtx,
 	persistenceSystem persistence.PersistenceSystem,
+	schemaDir string,
 ) StaticAnalyzerFactory {
 	return &simpleSQLAnalyzerFactory{
 		registryURL:       registryURL,
 		rtCtx:             rtCtx,
 		persistenceSystem: persistenceSystem,
+		schemaDir:         schemaDir,
 	}
 }
 
@@ -727,7 +739,7 @@ func (f *simpleSQLAnalyzerFactory) CreateStaticAnalyzer(
 	if registryErr != nil {
 		return nil, registryErr
 	}
-	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL, f.schemaDir)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
 	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
 	staticAnalyzer, analyzerErr := NewStaticAnalyzer(
@@ -799,7 +811,7 @@ func (f *simpleSQLAnalyzerFactory) CreateProviderServiceLevelStaticAnalyzer(
 	if registryErr != nil {
 		return nil, registryErr
 	}
-	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL, f.schemaDir)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
 	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
 	discoveryStore := getDiscoveryStore(persistenceSystem, registry, rtCtx)
@@ -837,7 +849,7 @@ func (f *simpleSQLAnalyzerFactory) CreateServiceLevelStaticAnalyzer(
 	if registryErr != nil {
 		return nil, registryErr
 	}
-	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL)
+	analysisCfg := NewAnalyzerCfg("openapi", analyzerCfgPath, providerURL, f.schemaDir)
 	analysisCfg.SetIsProviderServicesMustExpand(true)
 	analysisCfg.SetIsVerbose(rtCtx.VerboseFlag)
 	discoveryStore := getDiscoveryStore(persistenceSystem, registry, rtCtx)
@@ -945,6 +957,37 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 		// unacceptable
 		osa.errors = append(osa.errors, fmt.Errorf("unsupported protocol type for provider %s: %s", provider.GetName(), provider.GetProtocolTypeString()))
 	}
+
+	// --- DOCVAL ANALYSIS ---
+	// schemaDir := "cicd/schema-definitions"
+	// if osa.cfg.GetDocRoot() != "" {
+	// 	result, err := docval.ValidateAndParseFile(osa.cfg.GetDocRoot(), path.Join(schemaDir, "provider.schema.json"))
+	// 	if err != nil {
+	// 		osa.errors = append(osa.errors, fmt.Errorf("docval error in provider file: %v", err))
+	// 	}
+	// 	if result == nil {
+	// 		osa.errors = append(osa.errors, fmt.Errorf("docval error in provider file: got nil result"))
+	// 	}
+	// }
+
+	// schemaDir = path.Join(osa.cfg.GetRegistryRootDir(), "cicd/schema-definitions")
+	// for _, svc := range provider.GetProviderServices() {
+	// 	svcPath := svc.GetServiceRefRef()
+	// 	schemaPath := path.Join(schemaDir, "service-resource.schema.json")
+	// 	if protocolType == client.LocalTemplated {
+	// 		schemaPath = path.Join(schemaDir, "local-templated-service-resource.schema.json")
+	// 	}
+	// 	if svcPath != "" {
+	// 		result, err := docval.ValidateAndParseFile(svcPath, schemaPath)
+	// 		if err != nil {
+	// 			osa.errors = append(osa.errors, fmt.Errorf("docval error in service file %s: %v", svcPath, err))
+	// 		}
+	// 		if result == nil {
+	// 			osa.errors = append(osa.errors, fmt.Errorf("docval error in service file %s: got nil result", svcPath))
+	// 		}
+	// 	}
+	// }
+	// --- END DOCVAL ANALYSIS ---
 	providerServices := provider.GetProviderServices()
 	var wg sync.WaitGroup
 	serviceAnalyzers := make(map[string]StaticAnalyzer, len(providerServices))

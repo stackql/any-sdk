@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.stackql.io/any-sdk/provider.schema.json",
+  "title": "stackql any-sdk provider document",
+  "type": "object",
+  "required": [
+    "name",
+    "id",
+    "version",
+    "providerServices"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9.-_]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^v?\\d+(\\.\\d+){0,2}(-[0-9A-Za-z.-]+)?$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "homepage": {
+      "type": "string"
+    },
+    "protocolType": {
+      "type": "string",
+      "enum": [
+        "http",
+        "local_templated"
+      ]
+    },
+    "auth": {
+      "type": "object"
+    },
+    "providerServices": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z0-9.-_]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "description",
+          "id",
+          "name",
+          "service",
+          "title",
+          "version"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "serviceName:version (e.g., keys:v0.1.0)"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9._-]+$"
+          },
+          "preferred": {
+            "type": "boolean"
+          },
+          "service": {
+            "type": "object",
+            "description": "Reference to the local service document.",
+            "required": [
+              "$ref"
+            ],
+            "properties": {
+              "$ref": {
+                "type": "string",
+                "description": "Local relative YAML/JSON path with optional JSON Pointer fragment (no scheme, no leading slash)."
+              }
+            },
+            "additionalProperties": false
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^v?\\d+(\\.\\d+){0,2}(-[0-9A-Za-z.-]+)?$"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "x-stackQL-info": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
