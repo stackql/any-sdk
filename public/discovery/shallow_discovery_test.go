@@ -135,7 +135,7 @@ func TestDiscoveryAWS(t *testing.T) {
 		t.Fatal("Expected 'aws' provider to be available")
 	}
 	awsProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", awsProviderPath, schemaLocalPath, false)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", awsProviderPath, schemaLocalPath, true)
 	analysisCfg.SetIsProviderServicesMustExpand(true) // not always the case
 	rtCtx := dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(

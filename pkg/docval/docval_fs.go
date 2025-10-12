@@ -5,9 +5,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
+
+type FileValidator interface {
+	ValidateAndParseFile(docPath string, schemaPath string) (map[string]any, error)
+}
+
+type fileValidator struct {
+	rootSchemaDir string
+}
+
+func NewFileValidator(rootSchemaDir string) FileValidator {
+	return &fileValidator{
+		rootSchemaDir: rootSchemaDir,
+	}
+}
 
 // ValidateAndParseFile loads a document and its schema from the local filesystem,
 // rewrites external $ref values to absolute file:// URLs, and delegates to ValidateAndParse().
@@ -15,14 +30,14 @@ import (
 // Example:
 //
 //	parsed, err := docval.ValidateAndParseFile("fragment.yaml", "fragmented-resources.schema.json", "fragment")
-func ValidateAndParseFile(docPath string, schemaPath string) (map[string]any, error) {
+func (v *fileValidator) ValidateAndParseFile(docPath string, schemaPath string) (map[string]any, error) {
 	docType := "" // reserved for future use
 	docBytes, err := os.ReadFile(docPath)
 	if err != nil {
 		return nil, fmt.Errorf("read document %q: %w", docPath, err)
 	}
 
-	rewritten, err := rewriteSchemaRefsToFileURLs(schemaPath)
+	rewritten, err := v.rewriteSchemaRefsToFileURLs(schemaPath)
 	if err != nil {
 		return nil, fmt.Errorf("prepare schema %q: %w", schemaPath, err)
 	}
@@ -35,12 +50,16 @@ func ValidateAndParseFile(docPath string, schemaPath string) (map[string]any, er
 // rewriteSchemaRefsToFileURLs loads a JSON schema, finds all objects with a "$ref" string,
 // and for refs that are *external* (not starting with "#", not http/https, not file://),
 // rewrites them into absolute file:// URLs using schemaPath as the base.
-func rewriteSchemaRefsToFileURLs(schemaPath string) ([]byte, error) {
-	absSchema, err := filepath.Abs(schemaPath)
+func (v *fileValidator) rewriteSchemaRefsToFileURLs(schemaPath string) ([]byte, error) {
+	absSchema, err := filepath.Abs(path.Join(v.rootSchemaDir, schemaPath))
 	if err != nil {
 		return nil, err
 	}
-	rootDir := filepath.Dir(absSchema)
+
+	rootPath, err := filepath.Abs(v.rootSchemaDir)
+	if err != nil {
+		return nil, err
+	}
 
 	var m map[string]any
 	if err := readJSONSchema(absSchema, &m); err != nil {
@@ -48,7 +67,9 @@ func rewriteSchemaRefsToFileURLs(schemaPath string) ([]byte, error) {
 	}
 
 	// walk and rewrite
-	rewriteRefs(m, rootDir)
+	rewriteRefs(m, rootPath)
+
+	// marshal back to JSON
 
 	// re-encode pretty
 	var buf bytes.Buffer

@@ -126,6 +126,7 @@ func newGenericStaticAnalyzer(
 		discoveryAdapter:  discoveryAdapter,
 		registryAPI:       registryAPI,
 		schemaDir:         schemaDir,
+		validator:         docval.NewFileValidator(schemaDir),
 	}
 }
 
@@ -945,6 +946,7 @@ type genericStaticAnalyzer struct {
 	discoveryStore    IDiscoveryStore
 	registryAPI       anysdk.RegistryAPI
 	schemaDir         string
+	validator         docval.FileValidator
 }
 
 // For each operation store in each resource:
@@ -976,7 +978,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 	// --- DOCVAL ANALYSIS ---
 	schemaDir := osa.schemaDir
 	if !osa.cfg.IsSkipSchemaValidation() {
-		result, err := docval.ValidateAndParseFile(osa.cfg.GetDocRoot(), path.Join(schemaDir, "provider.schema.json"))
+		result, err := osa.validator.ValidateAndParseFile(osa.cfg.GetDocRoot(), path.Join(schemaDir, "provider.schema.json"))
 		if err != nil {
 			osa.errors = append(osa.errors, fmt.Errorf("docval error in provider file: %v", err))
 		}
@@ -997,7 +999,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 				schemaPath = path.Join(schemaDir, "local-templated-service-resource.schema.json")
 			}
 			if svcPath != "" {
-				result, err := docval.ValidateAndParseFile(svcPath, schemaPath)
+				result, err := osa.validator.ValidateAndParseFile(svcPath, schemaPath)
 				if err != nil {
 					osa.errors = append(osa.errors, fmt.Errorf("docval error in service file %s: %v", svcPath, err))
 				}
