@@ -69,6 +69,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIResourceStr, "resource", ``, "resource name")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMethodName, "method", ``, "method name")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLISchemaDir, "schema-dir", ``, "path to schema directory")
+	rootCmd.PersistentFlags().BoolVar(&runtimeCtx.CLISkipSchemaValidation, "skip-schema-validation", false, "skip schema validation")
 	rootCmd.PersistentFlags().BoolVarP(&runtimeCtx.VerboseFlag, dto.VerboseFlagKey, "v", false, "Verbose flag")
 
 	rootCmd.AddCommand(execCmd)

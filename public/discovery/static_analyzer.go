@@ -734,10 +734,11 @@ func newSimpleSQLAnalyzerFactory(
 	schemaDir string,
 ) StaticAnalyzerFactory {
 	return &simpleSQLAnalyzerFactory{
-		registryURL:       registryURL,
-		rtCtx:             rtCtx,
-		persistenceSystem: persistenceSystem,
-		schemaDir:         schemaDir,
+		registryURL:          registryURL,
+		rtCtx:                rtCtx,
+		persistenceSystem:    persistenceSystem,
+		schemaDir:            schemaDir,
+		skipSchemaValidation: rtCtx.CLISkipSchemaValidation,
 	}
 }
 
