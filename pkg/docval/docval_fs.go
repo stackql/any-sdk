@@ -15,7 +15,8 @@ import (
 // Example:
 //
 //	parsed, err := docval.ValidateAndParseFile("fragment.yaml", "fragmented-resources.schema.json", "fragment")
-func ValidateAndParseFile(docPath, schemaPath, docType string) (map[string]any, error) {
+func ValidateAndParseFile(docPath string, schemaPath string) (map[string]any, error) {
+	docType := "" // reserved for future use
 	docBytes, err := os.ReadFile(docPath)
 	if err != nil {
 		return nil, fmt.Errorf("read document %q: %w", docPath, err)

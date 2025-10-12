@@ -27,7 +27,7 @@ func TestValidateAndParse_ValidJSON(t *testing.T) {
 }
 
 func TestLocalValidateAndParseValidProviderFile(t *testing.T) {
-	rv, err := docval.ValidateAndParseFile("testdata/docs/local_openssl/v0.1.0/provider.yaml", "testdata/schema-definitions/provider.schema.json", "provider")
+	rv, err := docval.ValidateAndParseFile("testdata/docs/local_openssl/v0.1.0/provider.yaml", "testdata/schema-definitions/provider.schema.json")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -37,7 +37,7 @@ func TestLocalValidateAndParseValidProviderFile(t *testing.T) {
 }
 
 func TestValidateAndParseGoogleProviderFile(t *testing.T) {
-	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/provider.yaml", "testdata/schema-definitions/provider.schema.json", "provider")
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/provider.yaml", "testdata/schema-definitions/provider.schema.json")
 	if err == nil {
 		t.Fatalf("expected an error, got none")
 	}
@@ -47,7 +47,7 @@ func TestValidateAndParseGoogleProviderFile(t *testing.T) {
 }
 
 func TestFragmentedResourcesFile(t *testing.T) {
-	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/resources/compute-v1.yaml", "testdata/schema-definitions/fragmented-resources.schema.json", "fragmented-resources")
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/resources/compute-v1.yaml", "testdata/schema-definitions/fragmented-resources.schema.json")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -61,7 +61,7 @@ func TestFragmentedResourcesFile(t *testing.T) {
 }
 
 func TestMonolithicCompositeServiceFile(t *testing.T) {
-	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/services/bigquery-v2.yaml", "testdata/schema-definitions/service-resources.schema.json", "composite-service")
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/services/bigquery-v2.yaml", "testdata/schema-definitions/service-resources.schema.json")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -71,7 +71,7 @@ func TestMonolithicCompositeServiceFile(t *testing.T) {
 }
 
 func TestSplitCompositeServiceFile(t *testing.T) {
-	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/services-split/compute/compute-disks-v1.yaml", "testdata/schema-definitions/service-resources.schema.json", "composite-service")
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/services-split/compute/compute-disks-v1.yaml", "testdata/schema-definitions/service-resources.schema.json")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -81,7 +81,7 @@ func TestSplitCompositeServiceFile(t *testing.T) {
 }
 
 func TestLocalTemplatedCompositeServiceFile(t *testing.T) {
-	rv, err := docval.ValidateAndParseFile("testdata/docs/local_openssl/v0.1.0/services/keys.yaml", "testdata/schema-definitions/local-templated.service-resources.schema.json", "composite-service")
+	rv, err := docval.ValidateAndParseFile("testdata/docs/local_openssl/v0.1.0/services/keys.yaml", "testdata/schema-definitions/local-templated.service-resources.schema.json")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -89,5 +89,3 @@ func TestLocalTemplatedCompositeServiceFile(t *testing.T) {
 		t.Fatalf("expected components to be present")
 	}
 }
-
-// pkg/docval/testdata/docs/local_openssl/v0.1.0/services/keys.yaml
