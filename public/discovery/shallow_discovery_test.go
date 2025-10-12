@@ -135,7 +135,7 @@ func TestDiscoveryAWS(t *testing.T) {
 		t.Fatal("Expected 'aws' provider to be available")
 	}
 	awsProviderPath := "testdata/registry/basic/src/aws/v0.1.0/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", awsProviderPath, schemaLocalPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", awsProviderPath, schemaLocalPath, false)
 	analysisCfg.SetIsProviderServicesMustExpand(true) // not always the case
 	rtCtx := dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
@@ -205,7 +205,7 @@ func TestShallowDiscoveryGoogleCurrent(t *testing.T) {
 		t.Fatal("Expected 'google' provider to be available")
 	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.2/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath, schemaLocalPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath, schemaLocalPath, true)
 	analysisCfg.SetIsProviderServicesMustExpand(false) // heaps of empties present
 	rtCtx := dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
@@ -219,7 +219,7 @@ func TestShallowDiscoveryGoogleCurrent(t *testing.T) {
 	}
 	err = staticAnalyzer.Analyze()
 	if err != nil {
-		t.Fatalf("Static analysis failed: %v", err)
+		t.Fatalf("Erroneous google provider should not fail with skipped schema validation: %v", err)
 	}
 }
 
@@ -275,7 +275,7 @@ func TestShallowDiscoveryGoogleLegacy(t *testing.T) {
 		t.Fatal("Expected 'google' provider to be available")
 	}
 	googleProviderPath := "testdata/registry/basic/src/googleapis.com/v0.1.0/provider.yaml"
-	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath, schemaLocalPath)
+	analysisCfg := discovery.NewAnalyzerCfg("openapi", "testdata/registry/basic/src", googleProviderPath, schemaLocalPath, true)
 	analysisCfg.SetIsProviderServicesMustExpand(false) // heaps of empties present
 	rtCtx := dto.RuntimeCtx{CLISchemaDir: "testdata/schema-definitions"}
 	staticAnalyzer, analyzerErr := discovery.NewStaticAnalyzer(
@@ -289,7 +289,7 @@ func TestShallowDiscoveryGoogleLegacy(t *testing.T) {
 	}
 	err = staticAnalyzer.Analyze()
 	if err != nil {
-		t.Fatalf("Static analysis failed: %v", err)
+		t.Fatalf("Erroneous google provider should not fail with skipped schema validation: %v", err)
 	}
 }
 
