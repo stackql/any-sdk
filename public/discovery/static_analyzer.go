@@ -107,6 +107,7 @@ func newGenericStaticAnalyzer(
 	discoveryStore IDiscoveryStore,
 	discoveryAdapter IDiscoveryAdapter,
 	registryAPI anysdk.RegistryAPI,
+	schemaDir string,
 ) StaticAnalyzer {
 	return &genericStaticAnalyzer{
 		cfg:               analysisCfg,
@@ -114,6 +115,7 @@ func newGenericStaticAnalyzer(
 		discoveryStore:    discoveryStore,
 		discoveryAdapter:  discoveryAdapter,
 		registryAPI:       registryAPI,
+		schemaDir:         schemaDir,
 	}
 }
 
@@ -885,9 +887,9 @@ func NewStaticAnalyzer(
 	discoveryAdapter := getDiscoveryAdapter(analysisCfg, persistenceSystem, discoveryStore, registryAPI, rtCtx)
 	switch analysisCfg.GetProtocolType() {
 	case "openapi":
-		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI), nil
+		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI, rtCtx.CLISchemaDir), nil
 	case "local_templated":
-		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI), nil
+		return newGenericStaticAnalyzer(analysisCfg, persistenceSystem, discoveryStore, discoveryAdapter, registryAPI, rtCtx.CLISchemaDir), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol type: %s", analysisCfg.GetProtocolType())
 	}
@@ -930,6 +932,7 @@ type genericStaticAnalyzer struct {
 	discoveryAdapter  IDiscoveryAdapter
 	discoveryStore    IDiscoveryStore
 	registryAPI       anysdk.RegistryAPI
+	schemaDir         string
 }
 
 // For each operation store in each resource:
