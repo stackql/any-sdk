@@ -59,3 +59,23 @@ func TestFragmentedResourcesFile(t *testing.T) {
 		t.Fatalf("expected non-empty resources map, got %v", rv["resources"])
 	}
 }
+
+func TestMonolithicCompositeServiceFile(t *testing.T) {
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/services/bigquery-v2.yaml", "testdata/schema-definitions/service-resources.schema.json", "composite-service")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rv["components"] == nil {
+		t.Fatalf("expected components to be present")
+	}
+}
+
+func TestSplitCompositeServiceFile(t *testing.T) {
+	rv, err := docval.ValidateAndParseFile("testdata/docs/googleapis.com/v0.1.2/services-split/compute/compute-disks-v1.yaml", "testdata/schema-definitions/service-resources.schema.json", "composite-service")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rv["components"] == nil {
+		t.Fatalf("expected components to be present")
+	}
+}

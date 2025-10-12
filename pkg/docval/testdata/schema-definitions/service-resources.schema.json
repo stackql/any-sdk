@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "service-resources.schema.json",
+  "title": "HTTP service document resources view",
+  "type": "object",
+  "required": ["components"],
+  "properties": {
+    "components": {
+      "type": "object",
+      "properties": {
+        "x-stackQL-resources": { "$ref": "resources-core.schema.json#/$defs/ResourceMap" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
