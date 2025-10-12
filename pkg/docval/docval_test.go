@@ -1,14 +1,29 @@
 package docval_test
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stackql/any-sdk/pkg/docval"
 )
 
 var (
-	validator docval.FileValidator = docval.NewFileValidator("testdata/schema-definitions")
+	validator docval.FileValidator
 )
+
+func init() {
+	// Normalize CWD so all relative testdata paths work
+	_, thisFile, _, _ := runtime.Caller(0)
+	pkgDir := filepath.Dir(thisFile)
+	if err := os.Chdir(pkgDir); err != nil {
+		panic(err)
+	}
+
+	// Initialize validator once
+	validator = docval.NewFileValidator(filepath.Join("testdata", "schema-definitions"))
+}
 
 func TestValidateAndParse_ValidJSON(t *testing.T) {
 	jsonDoc := []byte(`{"name": "Alice", "age": 30}`)
