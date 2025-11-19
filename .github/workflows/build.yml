@@ -20,7 +20,7 @@ env:
   GOPRIVATE: github.com/stackql/*
   GH_ACCESS_TOKEN: ${{ secrets.ACTIONS_PRIVATE_PACKAGE_SECRET }}
   PLANCACHEENABLED: "true"
-  GOLANG_VERSION: 1.22
+  GOLANG_VERSION: 1.25.3
   STACKQL_CORE_REPOSITORY: ${{ vars.STACKQL_CORE_REPOSITORY != '' && vars.STACKQL_CORE_REPOSITORY || 'stackql/stackql' }}
   STACKQL_CORE_REF: ${{ vars.STACKQL_CORE_REF != '' && vars.STACKQL_CORE_REF || 'main' }}
 
@@ -140,6 +140,9 @@ jobs:
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
+    
+    - name: API sprawl check
+      run: ./cicd/scripts/hack/check_api_growth.sh
     
     - name: Setup system dependencies
       run: |
