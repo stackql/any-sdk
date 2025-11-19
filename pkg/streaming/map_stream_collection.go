@@ -42,7 +42,7 @@ func (sc *standardMapStreamCollection) Write(input []map[string]interface{}) err
 			sb.WriteString(err.Error())
 			sb.WriteString(";")
 		}
-		return fmt.Errorf(sb.String())
+		return fmt.Errorf("%s", sb.String())
 	}
 	return nil
 }
