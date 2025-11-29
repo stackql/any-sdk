@@ -48,28 +48,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PeopleResponse'
-  /People('{UserName}'):
-    get:
-      operationId: people_get
-      summary: Get a person by username
-      parameters:
-        - name: UserName
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: $select
-          in: query
-          description: Comma-separated list of properties to include
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Person'
   /Airlines:
     get:
       operationId: airlines_list
@@ -265,16 +243,9 @@ components:
             mediaType: application/json
             openAPIDocKey: '200'
             objectKey: $.value[*]
-        get:
-          operation:
-            $ref: '#/paths/~1People(%27%7BUserName%7D%27)/get'
-          response:
-            mediaType: application/json
-            openAPIDocKey: '200'
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/people/methods/list'
-          - $ref: '#/components/x-stackQL-resources/people/methods/get'
         insert: []
         update: []
         replace: []
