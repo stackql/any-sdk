@@ -525,7 +525,7 @@ sqlExternalTables:
 
 Enables SQL clause pushdown to API query parameters. Supports OData and custom API dialects for filter, projection, ordering, and limit operations.
 
-**Location:** `x-stackQL-config.queryParamPushdown` at provider, service, resource, or method level. Lower-level config overrides higher-level config.
+**Location:** Must be set at the **method level** within `methods.<methodName>.config.queryParamPushdown`. Unlike other config options (pagination, requestTranslate, etc.), queryParamPushdown does NOT inherit from resource, service, or provider levels.
 
 ```yaml
 x-stackQL-config:
@@ -670,28 +670,35 @@ x-stackQL-resources:
       list:
         operation:
           $ref: '#/paths/~1People/get'
-    config:
-      queryParamPushdown:
-        select:
-          dialect: odata
-        filter:
-          dialect: odata
-          supportedOperators:
-            - "eq"
-            - "ne"
-            - "gt"
-            - "lt"
-            - "ge"
-            - "le"
-            - "contains"
-            - "startswith"
-            - "endswith"
-        orderBy:
-          dialect: odata
-        top:
-          dialect: odata
-        count:
-          dialect: odata
+        response:
+          mediaType: application/json
+          openAPIDocKey: '200'
+          objectKey: $.value[*]
+        config:
+          queryParamPushdown:
+            select:
+              dialect: odata
+            filter:
+              dialect: odata
+              supportedOperators:
+                - "eq"
+                - "ne"
+                - "gt"
+                - "lt"
+                - "ge"
+                - "le"
+                - "contains"
+                - "startswith"
+                - "endswith"
+            orderBy:
+              dialect: odata
+            top:
+              dialect: odata
+            count:
+              dialect: odata
+    sqlVerbs:
+      select:
+        - $ref: '#/components/x-stackQL-resources/people/methods/list'
 ```
 
 ---
