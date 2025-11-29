@@ -384,7 +384,7 @@ Configuration can be set at provider, providerService, resource, or method level
 | `variations` | Schema variation handling | Yes |
 | `views` | SQL view definitions | No |
 | `sqlExternalTables` | External table definitions | No |
-| `queryParamPushdown` | Query pushdown to API params | **No** |
+| `queryParamPushdown` | Query pushdown to API params | Yes |
 
 ### Config Structure
 
@@ -453,44 +453,84 @@ Method → Resource → Service → ProviderService → Provider
 - `requestTranslate`
 - `requestBodyTranslate`
 - `variations`
+- `queryParamPushdown`
 
 **Without Inheritance** (must be set at specific level):
-- `queryParamPushdown` - **Must be set at METHOD level only**
 - `views` - Set at method or resource level
 - `sqlExternalTables` - Set at method or resource level
 
-### Query Parameter Pushdown Location
+### Query Parameter Pushdown Inheritance
 
-The `queryParamPushdown` configuration must be placed within a method's `config` block:
+The `queryParamPushdown` configuration supports full inheritance. Set a default at service level and override at resource or method level as needed:
 
 ```yaml
+# Service-level default - inherited by all resources/methods
+x-stackQL-config:
+  queryParamPushdown:
+    select:
+      dialect: odata
+    filter:
+      dialect: odata
+      supportedOperators: ["eq", "ne"]
+    orderBy:
+      dialect: odata
+    top:
+      dialect: odata
+    count:
+      dialect: odata
+
 components:
   x-stackQL-resources:
+    # Inherits service-level config (no config specified)
+    airlines:
+      id: provider.service.airlines
+      name: airlines
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1airlines/get'
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/airlines/methods/list'
+
+    # Resource-level override (more operators)
     people:
       id: provider.service.people
       name: people
+      config:
+        queryParamPushdown:
+          filter:
+            dialect: odata
+            supportedOperators: ["eq", "ne", "gt", "lt", "contains"]
       methods:
         list:
           operation:
             $ref: '#/paths/~1people/get'
-          response:
-            mediaType: application/json
-            openAPIDocKey: '200'
-            objectKey: $.value[*]
-          config:                          # Method-level config
-            queryParamPushdown:            # Must be here, not at resource level
-              filter:
-                dialect: odata
-                supportedOperators: ["eq", "ne", "contains"]
-              select:
-                dialect: odata
-              orderBy:
-                dialect: odata
-              top:
-                dialect: odata
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/people/methods/list'
+
+    # Method-level override (restricted columns)
+    airports:
+      id: provider.service.airports
+      name: airports
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1airports/get'
+          config:
+            queryParamPushdown:
+              select:
+                dialect: odata
+                supportedColumns: ["Name", "IcaoCode"]
+              filter:
+                dialect: odata
+                supportedColumns: ["Name", "IcaoCode"]
+              top:
+                maxValue: 100
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/airports/methods/list'
 ```
 
 ---

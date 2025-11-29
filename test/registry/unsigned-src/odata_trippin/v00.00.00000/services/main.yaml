@@ -6,9 +6,33 @@ info:
     The TripPin service is the official OData reference implementation.
     It demonstrates full OData query capabilities including $filter, $select,
     $orderby, $top, $skip, and $count.
+
+    This provider demonstrates queryParamPushdown config inheritance:
+    - Service-level: Basic OData config (inherited by airlines)
+    - Resource-level: Full OData config for people (overrides service)
+    - Method-level: Restricted config for airports (overrides service)
 servers:
   - url: https://services.odata.org/TripPinRESTierService
     description: OData TripPin Reference Service
+
+# Service-level queryParamPushdown config - inherited by all resources/methods
+# unless overridden at resource or method level
+x-stackQL-config:
+  queryParamPushdown:
+    select:
+      dialect: odata
+    filter:
+      dialect: odata
+      supportedOperators:
+        - "eq"
+        - "ne"
+    orderBy:
+      dialect: odata
+    top:
+      dialect: odata
+    count:
+      dialect: odata
+
 paths:
   /People:
     get:
@@ -230,11 +254,39 @@ components:
               items:
                 type: number
   x-stackQL-resources:
+    # RESOURCE-LEVEL CONFIG: people has config at resource level
+    # This overrides the service-level config with full OData support
     people:
       id: odata_trippin.main.people
       name: people
       title: People
-      description: People in the TripPin service
+      description: People in the TripPin service - demonstrates RESOURCE-level config inheritance
+      config:
+        queryParamPushdown:
+          # Full OData support - overrides service-level config
+          select:
+            dialect: odata
+          filter:
+            dialect: odata
+            supportedOperators:
+              - "eq"
+              - "ne"
+              - "gt"
+              - "ge"
+              - "lt"
+              - "le"
+              - "and"
+              - "or"
+              - "not"
+              - "contains"
+              - "startswith"
+              - "endswith"
+          orderBy:
+            dialect: odata
+          top:
+            dialect: odata
+          count:
+            dialect: odata
       methods:
         list:
           operation:
@@ -243,32 +295,6 @@ components:
             mediaType: application/json
             openAPIDocKey: '200'
             objectKey: $.value[*]
-          config:
-            queryParamPushdown:
-              # Full OData support - TripPin is the reference implementation
-              select:
-                dialect: odata
-              filter:
-                dialect: odata
-                supportedOperators:
-                  - "eq"
-                  - "ne"
-                  - "gt"
-                  - "ge"
-                  - "lt"
-                  - "le"
-                  - "and"
-                  - "or"
-                  - "not"
-                  - "contains"
-                  - "startswith"
-                  - "endswith"
-              orderBy:
-                dialect: odata
-              top:
-                dialect: odata
-              count:
-                dialect: odata
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/people/methods/list'
@@ -276,11 +302,14 @@ components:
         update: []
         replace: []
         delete: []
+
+    # SERVICE-LEVEL INHERITANCE: airlines has NO config at resource or method level
+    # It inherits queryParamPushdown from the service-level x-stackQL-config
     airlines:
       id: odata_trippin.main.airlines
       name: airlines
       title: Airlines
-      description: Airlines in the TripPin service
+      description: Airlines in the TripPin service - demonstrates SERVICE-level config inheritance (no resource or method config)
       methods:
         list:
           operation:
@@ -289,32 +318,7 @@ components:
             mediaType: application/json
             openAPIDocKey: '200'
             objectKey: $.value[*]
-          config:
-            queryParamPushdown:
-              select:
-                dialect: odata
-                supportedColumns:
-                  - "AirlineCode"
-                  - "Name"
-              filter:
-                dialect: odata
-                supportedOperators:
-                  - "eq"
-                  - "ne"
-                  - "contains"
-                  - "startswith"
-                supportedColumns:
-                  - "AirlineCode"
-                  - "Name"
-              orderBy:
-                dialect: odata
-                supportedColumns:
-                  - "AirlineCode"
-                  - "Name"
-              top:
-                dialect: odata
-              count:
-                dialect: odata
+          # NO config here - inherits from service-level x-stackQL-config
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/airlines/methods/list'
@@ -322,11 +326,14 @@ components:
         update: []
         replace: []
         delete: []
+
+    # METHOD-LEVEL CONFIG: airports has config at method level
+    # This overrides the service-level config with restricted column support
     airports:
       id: odata_trippin.main.airports
       name: airports
       title: Airports
-      description: Airports in the TripPin service
+      description: Airports in the TripPin service - demonstrates METHOD-level config (overrides service-level)
       methods:
         list:
           operation:

@@ -525,7 +525,13 @@ sqlExternalTables:
 
 Enables SQL clause pushdown to API query parameters. Supports OData and custom API dialects for filter, projection, ordering, and limit operations.
 
-**Location:** Must be set at the **method level** within `methods.<methodName>.config.queryParamPushdown`. Unlike other config options (pagination, requestTranslate, etc.), queryParamPushdown does NOT inherit from resource, service, or provider levels.
+**Location:** Can be set at **provider, providerService, service, resource, or method level**. Config inherits from higher levels, with lower levels overriding higher levels:
+
+```
+Method -> Resource -> Service -> ProviderService -> Provider
+```
+
+This allows you to set a default OData config at the service level and have all resources/methods inherit it, while still allowing specific methods to override with custom settings.
 
 ```yaml
 x-stackQL-config:
@@ -659,46 +665,92 @@ x-stackQL-config:
 | `["col1", "col2"]` | Only these items supported |
 | `[]` | No items supported (effectively disabled) |
 
-**OData Example (TripPin Reference Service):**
+**OData Example with Inheritance (TripPin Reference Service):**
+
+Set a default config at service level, then override at resource or method level as needed:
 
 ```yaml
-x-stackQL-resources:
-  people:
-    id: odata.trippin.people
-    name: people
-    methods:
-      list:
-        operation:
-          $ref: '#/paths/~1People/get'
-        response:
-          mediaType: application/json
-          openAPIDocKey: '200'
-          objectKey: $.value[*]
-        config:
-          queryParamPushdown:
-            select:
-              dialect: odata
-            filter:
-              dialect: odata
-              supportedOperators:
-                - "eq"
-                - "ne"
-                - "gt"
-                - "lt"
-                - "ge"
-                - "le"
-                - "contains"
-                - "startswith"
-                - "endswith"
-            orderBy:
-              dialect: odata
-            top:
-              dialect: odata
-            count:
-              dialect: odata
-    sqlVerbs:
-      select:
-        - $ref: '#/components/x-stackQL-resources/people/methods/list'
+# Service-level config - inherited by all resources/methods
+x-stackQL-config:
+  queryParamPushdown:
+    select:
+      dialect: odata
+    filter:
+      dialect: odata
+      supportedOperators:
+        - "eq"
+        - "ne"
+    orderBy:
+      dialect: odata
+    top:
+      dialect: odata
+    count:
+      dialect: odata
+
+components:
+  x-stackQL-resources:
+    # Inherits service-level config (no override needed)
+    airlines:
+      id: odata.trippin.airlines
+      name: airlines
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1Airlines/get'
+          # No config - inherits from service level
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/airlines/methods/list'
+
+    # Resource-level override with full operator support
+    people:
+      id: odata.trippin.people
+      name: people
+      config:
+        queryParamPushdown:
+          filter:
+            dialect: odata
+            supportedOperators:
+              - "eq"
+              - "ne"
+              - "gt"
+              - "lt"
+              - "contains"
+              - "startswith"
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1People/get'
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/people/methods/list'
+
+    # Method-level override with restricted columns
+    airports:
+      id: odata.trippin.airports
+      name: airports
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1Airports/get'
+          config:
+            queryParamPushdown:
+              select:
+                dialect: odata
+                supportedColumns:
+                  - "Name"
+                  - "IcaoCode"
+              filter:
+                dialect: odata
+                supportedColumns:
+                  - "Name"
+                  - "IcaoCode"
+              top:
+                dialect: odata
+                maxValue: 100
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/airports/methods/list'
 ```
 
 ---

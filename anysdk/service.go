@@ -34,6 +34,7 @@ type OpenAPIService interface {
 	getPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	getQueryTransposeAlgorithm() string
+	getQueryParamPushdown() (QueryParamPushdown, bool)
 	GetT() *openapi3.T
 	getT() *openapi3.T
 	iDiscoveryDoc()
@@ -269,6 +270,13 @@ func (svc *standardService) getPaginationResponseTokenSemantic() (TokenSemantic,
 		if pagExists && pag.GetResponseToken() != nil {
 			return pag.GetResponseToken(), true
 		}
+	}
+	return nil, false
+}
+
+func (svc *standardService) getQueryParamPushdown() (QueryParamPushdown, bool) {
+	if svc.StackQLConfig != nil {
+		return svc.StackQLConfig.GetQueryParamPushdown()
 	}
 	return nil, false
 }

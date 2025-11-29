@@ -28,6 +28,7 @@ type Provider interface {
 	GetProviderServices() map[string]ProviderService
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetProviderService(key string) (ProviderService, error)
 	getQueryTransposeAlgorithm() string
 	GetRequestTranslateAlgorithm() string
@@ -126,6 +127,13 @@ func (pr *standardProvider) GetPaginationResponseTokenSemantic() (TokenSemantic,
 		return nil, false
 	}
 	return pr.StackQLConfig.Pagination.ResponseToken, true
+}
+
+func (pr *standardProvider) GetQueryParamPushdown() (QueryParamPushdown, bool) {
+	if pr.StackQLConfig != nil {
+		return pr.StackQLConfig.GetQueryParamPushdown()
+	}
+	return nil, false
 }
 
 func (pr *standardProvider) MarshalJSON() ([]byte, error) {
