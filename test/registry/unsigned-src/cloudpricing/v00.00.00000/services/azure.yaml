@@ -174,16 +174,12 @@ components:
         delete: []
       config:
         queryParamPushdown:
+          # Azure Retail Prices API only supports $filter with 'eq' operator
+          # No support for $select, $orderby, $top, or $count
           filter:
             dialect: odata
             supportedOperators:
               - "eq"
-              - "ne"
-              - "lt"
-              - "gt"
-              - "le"
-              - "ge"
-              - "contains"
             supportedColumns:
               - "armRegionName"
               - "location"
@@ -198,16 +194,6 @@ components:
               - "serviceFamily"
               - "priceType"
               - "armSkuName"
-          select:
-            dialect: odata
-          orderBy:
-            dialect: odata
-            supportedColumns:
-              - "retailPrice"
-              - "unitPrice"
-              - "effectiveStartDate"
-              - "serviceName"
-              - "productName"
         pagination:
           requestToken:
             key: "$skip"
