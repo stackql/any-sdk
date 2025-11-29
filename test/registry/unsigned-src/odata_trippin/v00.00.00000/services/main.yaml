@@ -243,6 +243,32 @@ components:
             mediaType: application/json
             openAPIDocKey: '200'
             objectKey: $.value[*]
+          config:
+            queryParamPushdown:
+              # Full OData support - TripPin is the reference implementation
+              select:
+                dialect: odata
+              filter:
+                dialect: odata
+                supportedOperators:
+                  - "eq"
+                  - "ne"
+                  - "gt"
+                  - "ge"
+                  - "lt"
+                  - "le"
+                  - "and"
+                  - "or"
+                  - "not"
+                  - "contains"
+                  - "startswith"
+                  - "endswith"
+              orderBy:
+                dialect: odata
+              top:
+                dialect: odata
+              count:
+                dialect: odata
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/people/methods/list'
@@ -250,32 +276,6 @@ components:
         update: []
         replace: []
         delete: []
-      config:
-        queryParamPushdown:
-          # Full OData support - TripPin is the reference implementation
-          select:
-            dialect: odata
-          filter:
-            dialect: odata
-            supportedOperators:
-              - "eq"
-              - "ne"
-              - "gt"
-              - "ge"
-              - "lt"
-              - "le"
-              - "and"
-              - "or"
-              - "not"
-              - "contains"
-              - "startswith"
-              - "endswith"
-          orderBy:
-            dialect: odata
-          top:
-            dialect: odata
-          count:
-            dialect: odata
     airlines:
       id: odata_trippin.main.airlines
       name: airlines
@@ -289,6 +289,32 @@ components:
             mediaType: application/json
             openAPIDocKey: '200'
             objectKey: $.value[*]
+          config:
+            queryParamPushdown:
+              select:
+                dialect: odata
+                supportedColumns:
+                  - "AirlineCode"
+                  - "Name"
+              filter:
+                dialect: odata
+                supportedOperators:
+                  - "eq"
+                  - "ne"
+                  - "contains"
+                  - "startswith"
+                supportedColumns:
+                  - "AirlineCode"
+                  - "Name"
+              orderBy:
+                dialect: odata
+                supportedColumns:
+                  - "AirlineCode"
+                  - "Name"
+              top:
+                dialect: odata
+              count:
+                dialect: odata
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/airlines/methods/list'
@@ -296,32 +322,6 @@ components:
         update: []
         replace: []
         delete: []
-      config:
-        queryParamPushdown:
-          select:
-            dialect: odata
-            supportedColumns:
-              - "AirlineCode"
-              - "Name"
-          filter:
-            dialect: odata
-            supportedOperators:
-              - "eq"
-              - "ne"
-              - "contains"
-              - "startswith"
-            supportedColumns:
-              - "AirlineCode"
-              - "Name"
-          orderBy:
-            dialect: odata
-            supportedColumns:
-              - "AirlineCode"
-              - "Name"
-          top:
-            dialect: odata
-          count:
-            dialect: odata
     airports:
       id: odata_trippin.main.airports
       name: airports
@@ -335,6 +335,36 @@ components:
             mediaType: application/json
             openAPIDocKey: '200'
             objectKey: $.value[*]
+          config:
+            queryParamPushdown:
+              select:
+                dialect: odata
+                supportedColumns:
+                  - "IcaoCode"
+                  - "Name"
+                  - "IataCode"
+              filter:
+                dialect: odata
+                supportedOperators:
+                  - "eq"
+                  - "ne"
+                  - "contains"
+                  - "startswith"
+                supportedColumns:
+                  - "IcaoCode"
+                  - "Name"
+                  - "IataCode"
+              orderBy:
+                dialect: odata
+                supportedColumns:
+                  - "Name"
+                  - "IcaoCode"
+                  - "IataCode"
+              top:
+                dialect: odata
+                maxValue: 100
+              count:
+                dialect: odata
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/airports/methods/list'
@@ -342,33 +372,3 @@ components:
         update: []
         replace: []
         delete: []
-      config:
-        queryParamPushdown:
-          select:
-            dialect: odata
-            supportedColumns:
-              - "IcaoCode"
-              - "Name"
-              - "IataCode"
-          filter:
-            dialect: odata
-            supportedOperators:
-              - "eq"
-              - "ne"
-              - "contains"
-              - "startswith"
-            supportedColumns:
-              - "IcaoCode"
-              - "Name"
-              - "IataCode"
-          orderBy:
-            dialect: odata
-            supportedColumns:
-              - "Name"
-              - "IcaoCode"
-              - "IataCode"
-          top:
-            dialect: odata
-            maxValue: 100
-          count:
-            dialect: odata
