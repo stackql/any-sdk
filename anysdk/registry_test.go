@@ -680,6 +680,7 @@ func execTestQueryParamPushdownConfig(t *testing.T, r RegistryAPI) {
 	cfg := method.GetStackQLConfig()
 	assert.Assert(t, cfg != nil)
 
+	// Get queryParamPushdown config from the method's StackQL config
 	qpp, ok := cfg.GetQueryParamPushdown()
 	assert.Assert(t, ok, "expected queryParamPushdown config to exist")
 
