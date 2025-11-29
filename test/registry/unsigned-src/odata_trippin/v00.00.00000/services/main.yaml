@@ -1,0 +1,403 @@
+openapi: 3.0.0
+info:
+  title: OData TripPin Reference Service
+  version: v00.00.00000
+  description: |
+    The TripPin service is the official OData reference implementation.
+    It demonstrates full OData query capabilities including $filter, $select,
+    $orderby, $top, $skip, and $count.
+servers:
+  - url: https://services.odata.org/TripPinRESTierService
+    description: OData TripPin Reference Service
+paths:
+  /People:
+    get:
+      operationId: people_list
+      summary: List people
+      description: Retrieves a list of people with full OData query support
+      parameters:
+        - name: $filter
+          in: query
+          description: OData filter expression
+          schema:
+            type: string
+        - name: $select
+          in: query
+          description: Comma-separated list of properties to include
+          schema:
+            type: string
+        - name: $orderby
+          in: query
+          description: Order results by property (e.g., "FirstName desc")
+          schema:
+            type: string
+        - name: $top
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+        - name: $count
+          in: query
+          description: Include count of matching resources
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeopleResponse'
+  /People('{UserName}'):
+    get:
+      operationId: people_get
+      summary: Get a person by username
+      parameters:
+        - name: UserName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: $select
+          in: query
+          description: Comma-separated list of properties to include
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+  /Airlines:
+    get:
+      operationId: airlines_list
+      summary: List airlines
+      parameters:
+        - name: $filter
+          in: query
+          schema:
+            type: string
+        - name: $select
+          in: query
+          schema:
+            type: string
+        - name: $orderby
+          in: query
+          schema:
+            type: string
+        - name: $top
+          in: query
+          schema:
+            type: integer
+        - name: $count
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AirlinesResponse'
+  /Airports:
+    get:
+      operationId: airports_list
+      summary: List airports
+      parameters:
+        - name: $filter
+          in: query
+          schema:
+            type: string
+        - name: $select
+          in: query
+          schema:
+            type: string
+        - name: $orderby
+          in: query
+          schema:
+            type: string
+        - name: $top
+          in: query
+          schema:
+            type: integer
+        - name: $count
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AirportsResponse'
+components:
+  schemas:
+    PeopleResponse:
+      type: object
+      properties:
+        '@odata.context':
+          type: string
+        '@odata.count':
+          type: integer
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+    Person:
+      type: object
+      properties:
+        UserName:
+          type: string
+        FirstName:
+          type: string
+        LastName:
+          type: string
+        MiddleName:
+          type: string
+        Gender:
+          type: string
+          enum: [Male, Female, Unknown]
+        Age:
+          type: integer
+        Emails:
+          type: array
+          items:
+            type: string
+        FavoriteFeature:
+          type: string
+        Features:
+          type: array
+          items:
+            type: string
+        AddressInfo:
+          type: array
+          items:
+            $ref: '#/components/schemas/Location'
+        HomeAddress:
+          $ref: '#/components/schemas/Location'
+    Location:
+      type: object
+      properties:
+        Address:
+          type: string
+        City:
+          $ref: '#/components/schemas/City'
+    City:
+      type: object
+      properties:
+        Name:
+          type: string
+        CountryRegion:
+          type: string
+        Region:
+          type: string
+    AirlinesResponse:
+      type: object
+      properties:
+        '@odata.context':
+          type: string
+        '@odata.count':
+          type: integer
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/Airline'
+    Airline:
+      type: object
+      properties:
+        AirlineCode:
+          type: string
+        Name:
+          type: string
+    AirportsResponse:
+      type: object
+      properties:
+        '@odata.context':
+          type: string
+        '@odata.count':
+          type: integer
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/Airport'
+    Airport:
+      type: object
+      properties:
+        IcaoCode:
+          type: string
+        Name:
+          type: string
+        IataCode:
+          type: string
+        Location:
+          $ref: '#/components/schemas/AirportLocation'
+    AirportLocation:
+      type: object
+      properties:
+        Address:
+          type: string
+        City:
+          $ref: '#/components/schemas/City'
+        Loc:
+          type: object
+          properties:
+            type:
+              type: string
+            coordinates:
+              type: array
+              items:
+                type: number
+  x-stackQL-resources:
+    people:
+      id: odata_trippin.main.people
+      name: people
+      title: People
+      description: People in the TripPin service
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1People/get'
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+            objectKey: $.value[*]
+        get:
+          operation:
+            $ref: '#/paths/~1People(%27%7BUserName%7D%27)/get'
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/people/methods/list'
+          - $ref: '#/components/x-stackQL-resources/people/methods/get'
+        insert: []
+        update: []
+        replace: []
+        delete: []
+      config:
+        queryParamPushdown:
+          # Full OData support - TripPin is the reference implementation
+          select:
+            dialect: odata
+          filter:
+            dialect: odata
+            supportedOperators:
+              - "eq"
+              - "ne"
+              - "gt"
+              - "ge"
+              - "lt"
+              - "le"
+              - "and"
+              - "or"
+              - "not"
+              - "contains"
+              - "startswith"
+              - "endswith"
+          orderBy:
+            dialect: odata
+          top:
+            dialect: odata
+          count:
+            dialect: odata
+    airlines:
+      id: odata_trippin.main.airlines
+      name: airlines
+      title: Airlines
+      description: Airlines in the TripPin service
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1Airlines/get'
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+            objectKey: $.value[*]
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/airlines/methods/list'
+        insert: []
+        update: []
+        replace: []
+        delete: []
+      config:
+        queryParamPushdown:
+          select:
+            dialect: odata
+            supportedColumns:
+              - "AirlineCode"
+              - "Name"
+          filter:
+            dialect: odata
+            supportedOperators:
+              - "eq"
+              - "ne"
+              - "contains"
+              - "startswith"
+            supportedColumns:
+              - "AirlineCode"
+              - "Name"
+          orderBy:
+            dialect: odata
+            supportedColumns:
+              - "AirlineCode"
+              - "Name"
+          top:
+            dialect: odata
+          count:
+            dialect: odata
+    airports:
+      id: odata_trippin.main.airports
+      name: airports
+      title: Airports
+      description: Airports in the TripPin service
+      methods:
+        list:
+          operation:
+            $ref: '#/paths/~1Airports/get'
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+            objectKey: $.value[*]
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/airports/methods/list'
+        insert: []
+        update: []
+        replace: []
+        delete: []
+      config:
+        queryParamPushdown:
+          select:
+            dialect: odata
+            supportedColumns:
+              - "IcaoCode"
+              - "Name"
+              - "IataCode"
+          filter:
+            dialect: odata
+            supportedOperators:
+              - "eq"
+              - "ne"
+              - "contains"
+              - "startswith"
+            supportedColumns:
+              - "IcaoCode"
+              - "Name"
+              - "IataCode"
+          orderBy:
+            dialect: odata
+            supportedColumns:
+              - "Name"
+              - "IcaoCode"
+              - "IataCode"
+          top:
+            dialect: odata
+            maxValue: 100
+          count:
+            dialect: odata

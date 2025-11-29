@@ -659,31 +659,38 @@ x-stackQL-config:
 | `["col1", "col2"]` | Only these items supported |
 | `[]` | No items supported (effectively disabled) |
 
-**OData Example (Azure Retail Prices API):**
+**OData Example (TripPin Reference Service):**
 
 ```yaml
 x-stackQL-resources:
-  prices:
-    id: azure.pricing.prices
-    name: prices
+  people:
+    id: odata.trippin.people
+    name: people
     methods:
       list:
         operation:
-          $ref: '#/paths/~1prices/get'
+          $ref: '#/paths/~1People/get'
     config:
       queryParamPushdown:
+        select:
+          dialect: odata
         filter:
           dialect: odata
           supportedOperators:
             - "eq"
+            - "ne"
+            - "gt"
+            - "lt"
+            - "ge"
+            - "le"
             - "contains"
-          supportedColumns:
-            - "serviceName"
-            - "serviceFamily"
-            - "armRegionName"
-            - "skuName"
-            - "priceType"
+            - "startswith"
+            - "endswith"
+        orderBy:
+          dialect: odata
         top:
+          dialect: odata
+        count:
           dialect: odata
 ```
 
