@@ -1,0 +1,16 @@
+id: cloudpricing
+name: cloudpricing
+title: Cloud Pricing APIs
+version: v00.00.00000
+description: Cloud pricing APIs for various cloud providers
+openapi: 3.0.0
+providerServices:
+  azure:
+    id: azure:v00.00.00000
+    name: azure
+    title: Azure Retail Prices
+    version: v00.00.00000
+    description: Azure Retail Prices API with OData support
+    preferred: true
+    service:
+      $ref: cloudpricing/v00.00.00000/services/azure.yaml

@@ -270,6 +270,7 @@ func TestXMLMArshal
 func TestXMLRequestBody
 func TestXMLSchemaInterrogation
 func TestXPathHandle
+func TestQueryParamPushdownConfig
 func TranslateServiceKeyGenericProviderToIql
 func TrimSelectItemsKey
 func ValidateAndParse

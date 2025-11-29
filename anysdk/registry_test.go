@@ -647,3 +647,77 @@ func TestRegistryProviderLatestVersion(t *testing.T) {
 
 	t.Logf("TestRegistryProviderLatestVersion passed\n")
 }
+
+func TestQueryParamPushdownConfig(t *testing.T) {
+	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestQueryParamPushdownConfig)
+}
+
+func execTestQueryParamPushdownConfig(t *testing.T, r RegistryAPI) {
+	pr, err := r.LoadProviderByName("cloudpricing", "v00.00.00000")
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+
+	sh, err := pr.GetProviderService("azure")
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+
+	assert.Assert(t, sh != nil)
+
+	sv, err := r.GetServiceFragment(sh, "prices")
+	assert.NilError(t, err)
+	assert.Assert(t, sv != nil)
+
+	rsc, err := sv.GetResource("prices")
+	assert.NilError(t, err)
+
+	// Get the list method
+	method, ok := rsc.GetMethods().FindMethod("list")
+	assert.Assert(t, ok)
+	assert.Assert(t, method != nil)
+
+	// Get the StackQL config from the method
+	cfg := method.GetStackQLConfig()
+	assert.Assert(t, cfg != nil)
+
+	// Get the queryParamPushdown config
+	qpp, ok := cfg.GetQueryParamPushdown()
+	assert.Assert(t, ok, "expected queryParamPushdown config to exist")
+
+	// Test filter config
+	filterPD, ok := qpp.GetFilter()
+	assert.Assert(t, ok, "expected filter pushdown config to exist")
+	assert.Equal(t, filterPD.GetDialect(), "odata")
+	assert.Equal(t, filterPD.GetParamName(), "$filter") // OData default
+	assert.Assert(t, filterPD.IsOperatorSupported("eq"))
+	assert.Assert(t, filterPD.IsOperatorSupported("contains"))
+	assert.Assert(t, !filterPD.IsOperatorSupported("like"))
+	assert.Assert(t, filterPD.IsColumnSupported("serviceName"))
+	assert.Assert(t, filterPD.IsColumnSupported("armRegionName"))
+	assert.Assert(t, !filterPD.IsColumnSupported("unknownColumn"))
+
+	// Test select config
+	selectPD, ok := qpp.GetSelect()
+	assert.Assert(t, ok, "expected select pushdown config to exist")
+	assert.Equal(t, selectPD.GetDialect(), "odata")
+	assert.Equal(t, selectPD.GetParamName(), "$select") // OData default
+
+	// Test orderBy config
+	orderByPD, ok := qpp.GetOrderBy()
+	assert.Assert(t, ok, "expected orderBy pushdown config to exist")
+	assert.Equal(t, orderByPD.GetDialect(), "odata")
+	assert.Equal(t, orderByPD.GetParamName(), "$orderby") // OData default
+	assert.Assert(t, orderByPD.IsColumnSupported("retailPrice"))
+	assert.Assert(t, orderByPD.IsColumnSupported("serviceName"))
+	assert.Assert(t, !orderByPD.IsColumnSupported("unknownColumn"))
+
+	// Test that top and count are not configured
+	_, topOk := qpp.GetTop()
+	assert.Assert(t, !topOk, "expected top pushdown config to NOT exist")
+
+	_, countOk := qpp.GetCount()
+	assert.Assert(t, !countOk, "expected count pushdown config to NOT exist")
+
+	t.Logf("TestQueryParamPushdownConfig passed")
+}
