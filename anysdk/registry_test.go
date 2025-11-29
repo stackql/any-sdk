@@ -647,3 +647,127 @@ func TestRegistryProviderLatestVersion(t *testing.T) {
 
 	t.Logf("TestRegistryProviderLatestVersion passed\n")
 }
+
+func TestQueryParamPushdownConfig(t *testing.T) {
+	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestQueryParamPushdownConfig)
+}
+
+func execTestQueryParamPushdownConfig(t *testing.T, r RegistryAPI) {
+	// Test using OData TripPin reference service - supports full OData query capabilities
+	pr, err := r.LoadProviderByName("odata_trippin", "v00.00.00000")
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+
+	sh, err := pr.GetProviderService("main")
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+	assert.Assert(t, sh != nil)
+
+	// Test 'people' resource - full OData support with all columns
+	sv, err := r.GetServiceFragment(sh, "people")
+	assert.NilError(t, err)
+	assert.Assert(t, sv != nil)
+
+	rsc, err := sv.GetResource("people")
+	assert.NilError(t, err)
+
+	method, ok := rsc.GetMethods().FindMethod("list")
+	assert.Assert(t, ok)
+	assert.Assert(t, method != nil)
+
+	cfg := method.GetStackQLConfig()
+	assert.Assert(t, cfg != nil)
+
+	qpp, ok := cfg.GetQueryParamPushdown()
+	assert.Assert(t, ok, "expected queryParamPushdown config to exist")
+
+	// Test filter config - full OData operator support
+	filterPD, ok := qpp.GetFilter()
+	assert.Assert(t, ok, "expected filter pushdown config to exist")
+	assert.Equal(t, filterPD.GetDialect(), "odata")
+	assert.Equal(t, filterPD.GetParamName(), "$filter") // OData default
+	assert.Assert(t, filterPD.IsOperatorSupported("eq"))
+	assert.Assert(t, filterPD.IsOperatorSupported("ne"))
+	assert.Assert(t, filterPD.IsOperatorSupported("gt"))
+	assert.Assert(t, filterPD.IsOperatorSupported("lt"))
+	assert.Assert(t, filterPD.IsOperatorSupported("contains"))
+	assert.Assert(t, filterPD.IsOperatorSupported("startswith"))
+	assert.Assert(t, filterPD.IsOperatorSupported("endswith"))
+	assert.Assert(t, filterPD.IsOperatorSupported("and"))
+	assert.Assert(t, filterPD.IsOperatorSupported("or"))
+	assert.Assert(t, !filterPD.IsOperatorSupported("like"), "OData doesn't support 'like'")
+	// No supportedColumns specified = all columns supported
+	assert.Assert(t, filterPD.IsColumnSupported("FirstName"))
+	assert.Assert(t, filterPD.IsColumnSupported("anyColumn"))
+
+	// Test select config
+	selectPD, ok := qpp.GetSelect()
+	assert.Assert(t, ok, "expected select pushdown config to exist")
+	assert.Equal(t, selectPD.GetDialect(), "odata")
+	assert.Equal(t, selectPD.GetParamName(), "$select") // OData default
+	assert.Equal(t, selectPD.GetDelimiter(), ",")       // OData default
+	// No supportedColumns = all columns supported
+	assert.Assert(t, selectPD.IsColumnSupported("FirstName"))
+	assert.Assert(t, selectPD.IsColumnSupported("anyColumn"))
+
+	// Test orderBy config
+	orderByPD, ok := qpp.GetOrderBy()
+	assert.Assert(t, ok, "expected orderBy pushdown config to exist")
+	assert.Equal(t, orderByPD.GetDialect(), "odata")
+	assert.Equal(t, orderByPD.GetParamName(), "$orderby") // OData default
+	assert.Equal(t, orderByPD.GetSyntax(), "odata")       // OData default
+
+	// Test top config
+	topPD, ok := qpp.GetTop()
+	assert.Assert(t, ok, "expected top pushdown config to exist")
+	assert.Equal(t, topPD.GetDialect(), "odata")
+	assert.Equal(t, topPD.GetParamName(), "$top") // OData default
+	assert.Equal(t, topPD.GetMaxValue(), 0)       // No maxValue set
+
+	// Test count config
+	countPD, ok := qpp.GetCount()
+	assert.Assert(t, ok, "expected count pushdown config to exist")
+	assert.Equal(t, countPD.GetDialect(), "odata")
+	assert.Equal(t, countPD.GetParamName(), "$count")         // OData default
+	assert.Equal(t, countPD.GetParamValue(), "true")          // OData default
+	assert.Equal(t, countPD.GetResponseKey(), "@odata.count") // OData default
+
+	// Test 'airports' resource - OData support with restricted columns and maxValue
+	svAirports, err := r.GetServiceFragment(sh, "airports")
+	assert.NilError(t, err)
+
+	rscAirports, err := svAirports.GetResource("airports")
+	assert.NilError(t, err)
+
+	methodAirports, ok := rscAirports.GetMethods().FindMethod("list")
+	assert.Assert(t, ok)
+
+	cfgAirports := methodAirports.GetStackQLConfig()
+	assert.Assert(t, cfgAirports != nil)
+
+	qppAirports, ok := cfgAirports.GetQueryParamPushdown()
+	assert.Assert(t, ok)
+
+	// Test filter with restricted columns
+	filterAirports, ok := qppAirports.GetFilter()
+	assert.Assert(t, ok)
+	assert.Assert(t, filterAirports.IsColumnSupported("Name"))
+	assert.Assert(t, filterAirports.IsColumnSupported("IcaoCode"))
+	assert.Assert(t, !filterAirports.IsColumnSupported("Location"), "Location is not in supportedColumns")
+
+	// Test select with restricted columns
+	selectAirports, ok := qppAirports.GetSelect()
+	assert.Assert(t, ok)
+	assert.Assert(t, selectAirports.IsColumnSupported("Name"))
+	assert.Assert(t, selectAirports.IsColumnSupported("IataCode"))
+	assert.Assert(t, !selectAirports.IsColumnSupported("Location"))
+
+	// Test top with maxValue
+	topAirports, ok := qppAirports.GetTop()
+	assert.Assert(t, ok)
+	assert.Equal(t, topAirports.GetMaxValue(), 100)
+
+	t.Logf("TestQueryParamPushdownConfig passed")
+}

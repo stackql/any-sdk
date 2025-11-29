@@ -28,6 +28,7 @@ type ClientConfiguratorInput interface
 type Column interface
 type ColumnDescriptor interface
 type ControlAttributes interface
+type CountPushdown interface
 type DataFlowCfg interface
 type DiscoveryDoc interface
 type ExecContext interface
@@ -37,6 +38,7 @@ type Executor interface
 type ExpectedRequest interface
 type ExpectedResponse interface
 type FileValidator interface
+type FilterPushdown interface
 type GQLReader interface
 type GraphQL interface
 type HTTPArmoury interface
@@ -67,6 +69,7 @@ type ObjectWithLineage interface
 type ObjectWithLineageCollection interface
 type ObjectWithLineageCollectionConfig interface
 type ObjectWithoutLineage interface
+type OrderByPushdown interface
 type OpenAPIService interface
 type OperationInverse interface
 type OperationSelector interface
@@ -87,6 +90,7 @@ type Provider interface
 type ProviderService interface
 type ProviderServiceResourceAnalyzer interface
 type QueryElement interface
+type QueryParamPushdown interface
 type QueryTransposer interface
 type QueryVar interface
 type RDBMSSystem interface
@@ -103,6 +107,7 @@ type SQLEngine interface
 type SQLExternalColumn interface
 type SQLExternalConnection interface
 type SQLExternalTable interface
+type SelectPushdown interface
 type Schema interface
 type Service interface
 type SessionContext interface
@@ -118,6 +123,7 @@ type StreamTransformer interface
 type StreamTransformerFactory interface
 type Tabulation interface
 type TokenSemantic interface
+type TopPushdown interface
 type Transform interface
 type TransformerLocator interface
 type Transport interface

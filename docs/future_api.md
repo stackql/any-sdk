@@ -77,3 +77,28 @@ New exported API is allowed only when:
   1. Update the API snapshot files.
   2. Update this document to justify the addition.
 
+## 5. Approved API Additions
+
+### 5.1 Query Parameter Pushdown (added 2025-11)
+
+**Purpose:** Enable SQL clause pushdown to API query parameters for OData and custom APIs.
+
+**New Interfaces (in `anysdk` package):**
+
+| Interface | Description |
+|-----------|-------------|
+| `QueryParamPushdown` | Root interface for accessing pushdown configuration |
+| `SelectPushdown` | Column projection (`$select`) configuration |
+| `FilterPushdown` | Row filtering (`$filter`) with operator/column restrictions |
+| `OrderByPushdown` | Ordering (`$orderby`) configuration |
+| `TopPushdown` | Row limit (`$top`) with optional max value |
+| `CountPushdown` | Count support (`$count`) configuration |
+
+**New Functions:**
+
+| Function | Description |
+|----------|-------------|
+| `GetTestingQueryParamPushdown` | Test helper for pushdown config validation |
+
+**Justification:** These interfaces extend `StackQLConfig` to support predicate pushdown, enabling efficient SQL-to-API translation for OData-compatible endpoints. They fit the Runtime Profile as configuration extensions for provider operations.
+
