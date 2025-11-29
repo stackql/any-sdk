@@ -21,6 +21,7 @@ type StackQLConfig interface {
 	GetVariations() (Variations, bool)
 	GetViews() map[string]View
 	GetExternalTables() map[string]SQLExternalTable
+	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	//
 	isObjectSchemaImplicitlyUnioned() bool
 	setResource(rsc Resource)
@@ -36,6 +37,7 @@ type standardStackQLConfig struct {
 	Views                map[string]*standardViewContainer   `json:"views" yaml:"views"`
 	ExternalTables       map[string]standardSQLExternalTable `json:"sqlExternalTables" yaml:"sqlExternalTables"`
 	Auth                 *standardAuthDTO                    `json:"auth,omitempty" yaml:"auth,omitempty"`
+	QueryParamPushdown   *standardQueryParamPushdown         `json:"queryParamPushdown,omitempty" yaml:"queryParamPushdown,omitempty"`
 }
 
 func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
@@ -48,6 +50,8 @@ func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
 		return qt.RequestTranslate, nil
 	case "views":
 		return qt.Views, nil
+	case "queryParamPushdown":
+		return qt.QueryParamPushdown, nil
 	default:
 		return nil, fmt.Errorf("could not resolve token '%s' from QueryTranspose doc object", token)
 	}
@@ -124,6 +128,13 @@ func (cfg *standardStackQLConfig) GetView(viewName string) (View, bool) {
 
 func (cfg *standardStackQLConfig) GetAuth() (AuthDTO, bool) {
 	return cfg.Auth, cfg.Auth != nil
+}
+
+func (cfg *standardStackQLConfig) GetQueryParamPushdown() (QueryParamPushdown, bool) {
+	if cfg.QueryParamPushdown == nil {
+		return nil, false
+	}
+	return cfg.QueryParamPushdown, true
 }
 
 func (cfg *standardStackQLConfig) GetExternalTables() map[string]SQLExternalTable {

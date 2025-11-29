@@ -49,6 +49,7 @@ func GetServicesHeader
 func GetSubObjFromNode
 func GetSubObjTyped
 func GetTabulation
+func GetTestingQueryParamPushdown
 func GetTestingView
 func GetTxnCoordinatorCfgCfg
 func InterfaceToBytes

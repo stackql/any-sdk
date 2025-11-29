@@ -521,6 +521,172 @@ sqlExternalTables:
         precision: integer
 ```
 
+### Query Parameter Pushdown (`queryParamPushdown`)
+
+Enables SQL clause pushdown to API query parameters. Supports OData and custom API dialects for filter, projection, ordering, and limit operations.
+
+**Location:** `x-stackQL-config.queryParamPushdown` at provider, service, resource, or method level. Lower-level config overrides higher-level config.
+
+```yaml
+x-stackQL-config:
+  queryParamPushdown:
+    # Column projection (SELECT clause pushdown)
+    select:
+      dialect: odata | custom    # "custom" is default; "odata" applies OData defaults
+      paramName: "$select"       # Not required for OData (default: "$select")
+      delimiter: ","             # Not required for OData (default: ",")
+      supportedColumns:          # Optional, omit or ["*"] for all columns
+        - "id"
+        - "name"
+        - "status"
+
+    # Row filtering (WHERE clause pushdown)
+    filter:
+      dialect: odata | custom    # "custom" is default; "odata" applies OData defaults
+      paramName: "$filter"       # Not required for OData (default: "$filter")
+      syntax: odata              # Not required for OData (default: "odata")
+      supportedOperators:        # Required - which operators can be pushed down
+        - "eq"
+        - "ne"
+        - "gt"
+        - "lt"
+        - "ge"
+        - "le"
+        - "contains"
+        - "startswith"
+      supportedColumns:          # Optional, omit or ["*"] for all columns
+        - "displayName"
+        - "status"
+        - "createdDate"
+
+    # Ordering (ORDER BY clause pushdown)
+    orderBy:
+      dialect: odata | custom    # "custom" is default; "odata" applies OData defaults
+      paramName: "$orderby"      # Not required for OData (default: "$orderby")
+      syntax: odata              # Not required for OData (default: "odata")
+      supportedColumns:          # Optional, omit or ["*"] for all columns
+        - "name"
+        - "createdDate"
+
+    # Row limit (LIMIT clause pushdown)
+    top:
+      dialect: odata | custom    # "custom" is default; "odata" applies OData defaults
+      paramName: "$top"          # Not required for OData (default: "$top")
+      maxValue: 1000             # Optional, cap on pushdown value
+
+    # Count (SELECT COUNT(*) pushdown)
+    count:
+      dialect: odata | custom    # "custom" is default; "odata" applies OData defaults
+      paramName: "$count"        # Not required for OData (default: "$count")
+      paramValue: "true"         # Not required for OData (default: "true")
+      responseKey: "@odata.count"# Not required for OData (default: "@odata.count")
+```
+
+**Minimal OData Configuration:**
+
+When using OData dialect, defaults are applied automatically:
+
+```yaml
+x-stackQL-config:
+  queryParamPushdown:
+    select: {}
+    filter:
+      dialect: odata
+      supportedOperators: ["eq", "ne", "gt", "lt", "contains"]
+    orderBy:
+      dialect: odata
+    top:
+      dialect: odata
+    count:
+      dialect: odata
+```
+
+**Custom API Configuration:**
+
+For APIs with custom query parameter names:
+
+```yaml
+x-stackQL-config:
+  queryParamPushdown:
+    select:
+      paramName: "fields"
+      delimiter: ","
+    filter:
+      paramName: "filter"
+      syntax: "key_value"        # filter[status]=active&filter[region]=us-east-1
+      supportedOperators:
+        - "eq"
+      supportedColumns:
+        - "status"
+        - "region"
+    orderBy:
+      paramName: "sort"
+      syntax: "prefix"           # sort=-createdAt (prefix - for desc)
+      supportedColumns:
+        - "createdAt"
+        - "name"
+    top:
+      paramName: "limit"
+      maxValue: 100
+    count:
+      paramName: "include_count"
+      paramValue: "1"
+      responseKey: "meta.total"
+```
+
+**Supported Filter Syntaxes:**
+
+| Syntax | Example Output | Use Case |
+|--------|---------------|----------|
+| `odata` | `$filter=status eq 'active' and region eq 'us-east-1'` | OData APIs |
+| `key_value` | `filter[status]=active&filter[region]=us-east-1` | Rails-style APIs |
+| `simple` | `status=active&region=us-east-1` | Basic query params |
+
+**Supported OrderBy Syntaxes:**
+
+| Syntax | Example | Notes |
+|--------|---------|-------|
+| `odata` | `$orderby=name desc,date asc` | Space-separated direction |
+| `prefix` | `sort=-name,+date` | `-` for desc, `+` or none for asc |
+| `suffix` | `sort=name:desc,date:asc` | Colon-separated direction |
+
+**Column/Operator Support Logic:**
+
+| Value | Behavior |
+|-------|----------|
+| omitted / `null` | All items allowed |
+| `["*"]` | Explicit "all items" (same as omitted) |
+| `["col1", "col2"]` | Only these items supported |
+| `[]` | No items supported (effectively disabled) |
+
+**OData Example (Azure Retail Prices API):**
+
+```yaml
+x-stackQL-resources:
+  prices:
+    id: azure.pricing.prices
+    name: prices
+    methods:
+      list:
+        operation:
+          $ref: '#/paths/~1prices/get'
+    config:
+      queryParamPushdown:
+        filter:
+          dialect: odata
+          supportedOperators:
+            - "eq"
+            - "contains"
+          supportedColumns:
+            - "serviceName"
+            - "serviceFamily"
+            - "armRegionName"
+            - "skuName"
+            - "priceType"
+        top:
+          dialect: odata
+```
+
 ---
 
 ## Method Definition
