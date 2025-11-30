@@ -62,6 +62,7 @@ type OperationStore interface {
 	GetGraphQL() GraphQL
 	GetInverse() (OperationInverse, bool)
 	GetStackQLConfig() StackQLConfig
+	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetParameters() map[string]Addressable
 	GetPathItem() *openapi3.PathItem
 	GetAPIMethod() string
@@ -403,6 +404,42 @@ func (op *standardOpenAPIOperationStore) GetStackQLConfig() StackQLConfig {
 func (op *standardOpenAPIOperationStore) getStackQLConfig() (StackQLConfig, bool) {
 	rv := op.StackQLConfig
 	return rv, rv != nil
+}
+
+// GetQueryParamPushdown returns the queryParamPushdown config with inheritance.
+// It walks up the hierarchy: Method -> Resource -> Service -> ProviderService -> Provider
+func (op *standardOpenAPIOperationStore) GetQueryParamPushdown() (QueryParamPushdown, bool) {
+	// Check method-level config first
+	if op.StackQLConfig != nil {
+		if qpp, ok := op.StackQLConfig.GetQueryParamPushdown(); ok {
+			return qpp, true
+		}
+	}
+	// Check resource-level config
+	if op.Resource != nil {
+		if qpp, ok := op.Resource.GetQueryParamPushdown(); ok {
+			return qpp, true
+		}
+	}
+	// Check service-level config
+	if op.OpenAPIService != nil {
+		if qpp, ok := op.OpenAPIService.getQueryParamPushdown(); ok {
+			return qpp, true
+		}
+	}
+	// Check providerService-level config
+	if op.ProviderService != nil {
+		if qpp, ok := op.ProviderService.GetQueryParamPushdown(); ok {
+			return qpp, true
+		}
+	}
+	// Check provider-level config
+	if op.Provider != nil {
+		if qpp, ok := op.Provider.GetQueryParamPushdown(); ok {
+			return qpp, true
+		}
+	}
+	return nil, false
 }
 
 func (op *standardOpenAPIOperationStore) GetAPIMethod() string {

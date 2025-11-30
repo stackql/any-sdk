@@ -27,6 +27,7 @@ type Resource interface {
 	GetRequestTranslateAlgorithm() string
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	FindMethod(key string) (StandardOperationStore, error)
 	GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool)
 	GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
@@ -197,6 +198,13 @@ func (r *standardResource) GetPaginationResponseTokenSemantic() (TokenSemantic, 
 		if pagExists && pag.GetResponseToken() != nil {
 			return pag.GetResponseToken(), true
 		}
+	}
+	return nil, false
+}
+
+func (r *standardResource) GetQueryParamPushdown() (QueryParamPushdown, bool) {
+	if r.StackQLConfig != nil {
+		return r.StackQLConfig.GetQueryParamPushdown()
 	}
 	return nil, false
 }

@@ -1,0 +1,16 @@
+id: odata_trippin
+name: odata_trippin
+title: OData TripPin Reference Service
+version: v00.00.00000
+description: OData TripPin reference service - demonstrates full OData query support
+openapi: 3.0.0
+providerServices:
+  main:
+    id: main:v00.00.00000
+    name: main
+    title: TripPin Service
+    version: v00.00.00000
+    description: OData TripPin reference service with full query parameter pushdown support
+    preferred: true
+    service:
+      $ref: odata_trippin/v00.00.00000/services/main.yaml

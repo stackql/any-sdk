@@ -49,6 +49,7 @@ func GetServicesHeader
 func GetSubObjFromNode
 func GetSubObjTyped
 func GetTabulation
+func GetTestingQueryParamPushdown
 func GetTestingView
 func GetTxnCoordinatorCfgCfg
 func InterfaceToBytes
@@ -183,9 +184,11 @@ func TestBasicAddressSpaceAWSCurrent
 func TestBasicAddressSpaceGoogleCurrent
 func TestBestEffortXMLStreamTransform
 func TestConfigDrivenAliasedAddressSpaceGoogleCurrent
+func TestCustomDialectConfig
 func TestDeepDiscoveryGoogleCurrent
 func TestDiscovery01
 func TestDiscoveryAWS
+func TestEmptySupportedColumns
 func TestFatConfigDrivenAliasedAddressSpaceGoogleCurrent
 func TestFragmentedResourcesFile
 func TestGet
@@ -210,10 +213,12 @@ func TestLocalTemplatedCompositeServiceFile
 func TestLocalValidateAndParseValidProviderFile
 func TestMeaningfulStreamTransform
 func TestMeaningfulXMLStreamTransform
+func TestMinimalODataConfig
 func TestMethodLevelVariableHostRoutingFutureProofed
 func TestMonolithicCompositeServiceFile
 func TestNewAddressSpace
 func TestNoFallbackViewApi
+func TestODataFullConfig
 func TestOpensslCertTextStreamTransform
 func TestPersistence01
 func TestPersistenceSetup
@@ -265,10 +270,12 @@ func TestValidateAndParseGoogleProviderFile
 func TestValidateAndParse_ValidJSON
 func TestVariableHostRouting
 func TestVariableHostRoutingFutureProofed
+func TestWildcardSupportedColumns
 func TestXMLMArshal
 func TestXMLRequestBody
 func TestXMLSchemaInterrogation
 func TestXPathHandle
+func TestQueryParamPushdownConfig
 func TranslateServiceKeyGenericProviderToIql
 func TrimSelectItemsKey
 func ValidateAndParse

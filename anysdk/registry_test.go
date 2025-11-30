@@ -647,3 +647,167 @@ func TestRegistryProviderLatestVersion(t *testing.T) {
 
 	t.Logf("TestRegistryProviderLatestVersion passed\n")
 }
+
+func TestQueryParamPushdownConfig(t *testing.T) {
+	execLocalRegistryTestOnly(t, unsignedProvidersRegistryCfgStr, execTestQueryParamPushdownConfig)
+}
+
+func execTestQueryParamPushdownConfig(t *testing.T, r RegistryAPI) {
+	// Test using OData TripPin reference service - supports full OData query capabilities
+	pr, err := r.LoadProviderByName("odata_trippin", "v00.00.00000")
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+
+	sh, err := pr.GetProviderService("main")
+	if err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+	assert.Assert(t, sh != nil)
+
+	// =====================================================
+	// Test RESOURCE-LEVEL inheritance: 'people' resource
+	// Config is at resource level, overrides service-level
+	// =====================================================
+	t.Log("Testing RESOURCE-level config inheritance (people)")
+	sv, err := r.GetServiceFragment(sh, "people")
+	assert.NilError(t, err)
+	assert.Assert(t, sv != nil)
+
+	rsc, err := sv.GetResource("people")
+	assert.NilError(t, err)
+
+	method, methodErr := rsc.GetMethods().FindMethod("list")
+	assert.NilError(t, methodErr)
+	assert.Assert(t, method != nil)
+
+	// Get queryParamPushdown config using the inheritance-aware method
+	// This walks up: Method -> Resource -> Service -> ProviderService -> Provider
+	qpp, qppExists := method.GetQueryParamPushdown()
+	assert.Assert(t, qppExists, "expected queryParamPushdown config to exist")
+
+	// Test filter config - full OData operator support (resource-level config)
+	filterPD, filterExists := qpp.GetFilter()
+	assert.Assert(t, filterExists, "expected filter pushdown config to exist")
+	assert.Equal(t, filterPD.GetDialect(), "odata")
+	assert.Equal(t, filterPD.GetParamName(), "$filter") // OData default
+	// Resource-level config has full operator support
+	assert.Assert(t, filterPD.IsOperatorSupported("eq"))
+	assert.Assert(t, filterPD.IsOperatorSupported("ne"))
+	assert.Assert(t, filterPD.IsOperatorSupported("gt"), "resource-level should have gt operator")
+	assert.Assert(t, filterPD.IsOperatorSupported("lt"), "resource-level should have lt operator")
+	assert.Assert(t, filterPD.IsOperatorSupported("contains"))
+	assert.Assert(t, filterPD.IsOperatorSupported("startswith"))
+	assert.Assert(t, filterPD.IsOperatorSupported("endswith"))
+	assert.Assert(t, filterPD.IsOperatorSupported("and"))
+	assert.Assert(t, filterPD.IsOperatorSupported("or"))
+	assert.Assert(t, !filterPD.IsOperatorSupported("like"), "OData doesn't support 'like'")
+	// No supportedColumns specified = all columns supported
+	assert.Assert(t, filterPD.IsColumnSupported("FirstName"))
+	assert.Assert(t, filterPD.IsColumnSupported("anyColumn"))
+
+	// Test select config
+	selectPD, selectExists := qpp.GetSelect()
+	assert.Assert(t, selectExists, "expected select pushdown config to exist")
+	assert.Equal(t, selectPD.GetDialect(), "odata")
+	assert.Equal(t, selectPD.GetParamName(), "$select") // OData default
+	assert.Equal(t, selectPD.GetDelimiter(), ",")       // OData default
+	// No supportedColumns = all columns supported
+	assert.Assert(t, selectPD.IsColumnSupported("FirstName"))
+	assert.Assert(t, selectPD.IsColumnSupported("anyColumn"))
+
+	// Test orderBy config
+	orderByPD, orderByExists := qpp.GetOrderBy()
+	assert.Assert(t, orderByExists, "expected orderBy pushdown config to exist")
+	assert.Equal(t, orderByPD.GetDialect(), "odata")
+	assert.Equal(t, orderByPD.GetParamName(), "$orderby") // OData default
+	assert.Equal(t, orderByPD.GetSyntax(), "odata")       // OData default
+
+	// Test top config
+	topPD, topExists := qpp.GetTop()
+	assert.Assert(t, topExists, "expected top pushdown config to exist")
+	assert.Equal(t, topPD.GetDialect(), "odata")
+	assert.Equal(t, topPD.GetParamName(), "$top") // OData default
+	assert.Equal(t, topPD.GetMaxValue(), 0)       // No maxValue set
+
+	// Test count config
+	countPD, countExists := qpp.GetCount()
+	assert.Assert(t, countExists, "expected count pushdown config to exist")
+	assert.Equal(t, countPD.GetDialect(), "odata")
+	assert.Equal(t, countPD.GetParamName(), "$count")         // OData default
+	assert.Equal(t, countPD.GetParamValue(), "true")          // OData default
+	assert.Equal(t, countPD.GetResponseKey(), "@odata.count") // OData default
+
+	// =====================================================
+	// Test SERVICE-LEVEL inheritance: 'airlines' resource
+	// NO config at resource or method level - inherits from service
+	// =====================================================
+	t.Log("Testing SERVICE-level config inheritance (airlines)")
+	svAirlines, err := r.GetServiceFragment(sh, "airlines")
+	assert.NilError(t, err)
+
+	rscAirlines, err := svAirlines.GetResource("airlines")
+	assert.NilError(t, err)
+
+	methodAirlines, methodAirlinesErr := rscAirlines.GetMethods().FindMethod("list")
+	assert.NilError(t, methodAirlinesErr)
+
+	// Use inheritance-aware method - should get service-level config
+	qppAirlines, qppAirlinesExists := methodAirlines.GetQueryParamPushdown()
+	assert.Assert(t, qppAirlinesExists, "expected service-level queryParamPushdown to be inherited")
+
+	// Service-level config only has eq and ne operators
+	filterAirlines, filterAirlinesExists := qppAirlines.GetFilter()
+	assert.Assert(t, filterAirlinesExists)
+	assert.Assert(t, filterAirlines.IsOperatorSupported("eq"), "service-level should have eq")
+	assert.Assert(t, filterAirlines.IsOperatorSupported("ne"), "service-level should have ne")
+	// Service-level does NOT have these operators (only resource-level people has them)
+	assert.Assert(t, !filterAirlines.IsOperatorSupported("gt"), "service-level should NOT have gt")
+	assert.Assert(t, !filterAirlines.IsOperatorSupported("contains"), "service-level should NOT have contains")
+
+	// Service-level has select, orderBy, top, count
+	selectAirlines, selectAirlinesExists := qppAirlines.GetSelect()
+	assert.Assert(t, selectAirlinesExists, "service-level should have select config")
+	assert.Equal(t, selectAirlines.GetDialect(), "odata")
+
+	// =====================================================
+	// Test METHOD-LEVEL inheritance: 'airports' resource
+	// Config at method level overrides service-level
+	// =====================================================
+	t.Log("Testing METHOD-level config inheritance (airports)")
+	svAirports, err := r.GetServiceFragment(sh, "airports")
+	assert.NilError(t, err)
+
+	rscAirports, err := svAirports.GetResource("airports")
+	assert.NilError(t, err)
+
+	methodAirports, methodAirportsErr := rscAirports.GetMethods().FindMethod("list")
+	assert.NilError(t, methodAirportsErr)
+
+	// Use inheritance-aware method
+	qppAirports, qppAirportsExists := methodAirports.GetQueryParamPushdown()
+	assert.Assert(t, qppAirportsExists)
+
+	// Method-level has restricted columns (not present in service-level)
+	filterAirports, filterAirportsExists := qppAirports.GetFilter()
+	assert.Assert(t, filterAirportsExists)
+	assert.Assert(t, filterAirports.IsColumnSupported("Name"))
+	assert.Assert(t, filterAirports.IsColumnSupported("IcaoCode"))
+	assert.Assert(t, !filterAirports.IsColumnSupported("Location"), "Location is not in supportedColumns")
+	// Method-level has contains operator (unlike service-level)
+	assert.Assert(t, filterAirports.IsOperatorSupported("contains"), "method-level should have contains")
+
+	// Test select with restricted columns
+	selectAirports, selectAirportsExists := qppAirports.GetSelect()
+	assert.Assert(t, selectAirportsExists)
+	assert.Assert(t, selectAirports.IsColumnSupported("Name"))
+	assert.Assert(t, selectAirports.IsColumnSupported("IataCode"))
+	assert.Assert(t, !selectAirports.IsColumnSupported("Location"))
+
+	// Test top with maxValue (method-level specific)
+	topAirports, topAirportsExists := qppAirports.GetTop()
+	assert.Assert(t, topAirportsExists)
+	assert.Equal(t, topAirports.GetMaxValue(), 100, "method-level should have maxValue=100")
+
+	t.Logf("TestQueryParamPushdownConfig passed - all inheritance levels tested")
+}
