@@ -53,7 +53,7 @@ func NewRouter(doc *openapi3.T) (routers.Router, error) {
 	r := &Router{}
 	for _, path := range orderedPaths(doc.Paths) {
 		pathItem := doc.Paths[path]
-		pathLevelServers, err := extractScopedSrvSlice(pathItem.Servers)
+		fineGrainedServers, err := extractScopedSrvSlice(pathItem.Servers)
 		if err != nil {
 			return nil, err
 		}
@@ -66,6 +66,9 @@ func NewRouter(doc *openapi3.T) (routers.Router, error) {
 				if err != nil {
 					return nil, err
 				}
+				if len(opServers) == 0 {
+					fineGrainedServers = opServers
+				}
 				err = r.addRoutes(muxRouter, doc, opServers, path, pathItem, method)
 				if err != nil {
 					return nil, err
@@ -77,8 +80,8 @@ func NewRouter(doc *openapi3.T) (routers.Router, error) {
 		sort.Strings(methods)
 
 		servers := docLevelServers
-		if len(pathLevelServers) > 0 {
-			servers = pathLevelServers
+		if len(fineGrainedServers) > 0 {
+			servers = fineGrainedServers
 		}
 
 		err = r.addRoutes(muxRouter, doc, servers, path, pathItem, methods...)
