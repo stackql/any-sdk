@@ -397,6 +397,63 @@ func TestMeaningfulXMLStreamTransform(t *testing.T) {
 	}
 }
 
+func TestToJsonNaiveXMLTransform(t *testing.T) {
+	// Test the naive XML-to-JSON passthrough using toJson
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <name>Test</name>
+  <count>42</count>
+  <items>
+    <item>one</item>
+    <item>two</item>
+  </items>
+</root>`
+	tmpl := `{{ toJson . }}`
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateXMLV2, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(input)
+	if err != nil {
+		t.Fatalf("failed to create transformer: %v", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		t.Fatalf("failed to transform: %v", err)
+	}
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
+
+	// The mxj library converts XML to a map, so we expect a JSON object
+	// with the root element as the top-level key
+	expected := `{"root":{"count":42,"items":{"item":["one","two"]},"name":"Test"}}`
+	if outputStr != expected {
+		t.Fatalf("unexpected output:\ngot:  '%s'\nwant: '%s'", outputStr, expected)
+	}
+}
+
+func TestObsoleteToJsonFails(t *testing.T) {
+	// Test the naive XML-to-JSON passthrough using toJson
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <name>Test</name>
+  <count>42</count>
+  <items>
+    <item>one</item>
+    <item>two</item>
+  </items>
+</root>`
+	tmpl := `{{ toJson . }}`
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateXMLV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	_, err := tfmFactory.GetTransformer(input)
+	if err == nil {
+		t.Fatalf("expected error when creating transformer but got none")
+	}
+}
+
 func TestOpensslCertTextStreamTransform(t *testing.T) {
 	input := openSSLCertTextOutput
 	t.Log("TestOpensslCertTextStreamTransform")
