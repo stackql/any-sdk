@@ -57,7 +57,7 @@ func TestServerTemplate_S3_DashRegion_Fails(t *testing.T) {
 		},
 	}
 
-	if _, err := NewRouter(doc); err == nil {
+	if _, err := NewRouter(doc); err != nil {
 		t.Fatalf("dash-region S3 template should work, got error: %v", err)
 	}
 }
