@@ -289,7 +289,7 @@ func (au *authUtil) GCloudOAuth(runtimeCtx dto.RuntimeCtx, authCtx *dto.AuthCtx,
 		return nil, err
 	}
 	au.ActivateAuth(authCtx, "", dto.AuthInteractiveStr)
-	client := netutils.GetHTTPClient(runtimeCtx, nil)
+	client := netutils.GetHTTPClient(runtimeCtx)
 	tr, err := NewTransport(tokenBytes, AuthTypeBearer, authCtx.ValuePrefix, LocationHeader, "", client.Transport)
 	if err != nil {
 		return nil, err
@@ -341,7 +341,7 @@ func (au *authUtil) GoogleOauthServiceAccount(
 		return nil, errToken
 	}
 	au.ActivateAuth(authCtx, "", dto.AuthServiceAccountStr)
-	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
+	httpClient := netutils.GetHTTPClient(httpContext)
 	return config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)), nil
 }
 
@@ -355,7 +355,7 @@ func (au *authUtil) GenericOauthClientCredentials(
 		return nil, errToken
 	}
 	au.ActivateAuth(authCtx, "", dto.ClientCredentialsStr)
-	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
+	httpClient := netutils.GetHTTPClient(httpContext)
 	return config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)), nil
 }
 
@@ -365,7 +365,7 @@ func (au *authUtil) ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTP
 		return nil, fmt.Errorf("credentials error: %w", err)
 	}
 	au.ActivateAuth(authCtx, "", "api_key")
-	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
+	httpClient := netutils.GetHTTPClient(httpContext)
 	valPrefix := authCtx.ValuePrefix
 	if enforceBearer {
 		valPrefix = "Bearer "
@@ -404,7 +404,7 @@ func (au *authUtil) AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HT
 	au.ActivateAuth(authCtx, "", dto.AuthAWSSigningv4Str)
 
 	// Get the HTTP client from the runtime context.
-	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
+	httpClient := netutils.GetHTTPClient(httpContext)
 
 	// Initialize the AWS signing transport with credentials and optional session token.
 	tr, err := awssign.NewAwsSignTransport(httpClient.Transport, keyID, keyStr, sessionToken)
@@ -424,7 +424,7 @@ func (au *authUtil) BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCon
 		return nil, fmt.Errorf("credentials error: %w", err)
 	}
 	au.ActivateAuth(authCtx, "", "basic")
-	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
+	httpClient := netutils.GetHTTPClient(httpContext)
 	tr, err := newTransport(b, AuthTypeBasic, authCtx.ValuePrefix, LocationHeader, "", httpClient.Transport)
 	if err != nil {
 		return nil, err
@@ -439,7 +439,7 @@ func (au *authUtil) CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCo
 		return nil, fmt.Errorf("credentials error: %w", err)
 	}
 	au.ActivateAuth(authCtx, "", "custom")
-	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
+	httpClient := netutils.GetHTTPClient(httpContext)
 	tr, err := newTransport(b, AuthTypeCustom, authCtx.ValuePrefix, authCtx.Location, authCtx.Name, httpClient.Transport)
 	if err != nil {
 		return nil, err
@@ -482,7 +482,7 @@ func (au *authUtil) AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.
 	}
 	tokenString := token.Token
 	au.ActivateAuth(authCtx, "", "azure_default")
-	httpClient := netutils.GetHTTPClient(httpContext, http.DefaultClient)
+	httpClient := netutils.GetHTTPClient(httpContext)
 	tr, err := newTransport([]byte(tokenString), AuthTypeBearer, "Bearer ", LocationHeader, "", httpClient.Transport)
 	if err != nil {
 		return nil, err

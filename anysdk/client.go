@@ -246,7 +246,7 @@ func (cc *anySdkHTTPClientConfigurator) Auth(
 		}
 		return newAnySdkHttpClient(httpClient), nil
 	case dto.AuthNullStr:
-		httpClient := netutils.GetHTTPClient(cc.runtimeCtx, http.DefaultClient)
+		httpClient := netutils.GetHTTPClient(cc.runtimeCtx)
 		return newAnySdkHttpClient(httpClient), nil
 	}
 	return nil, fmt.Errorf("could not infer auth type")

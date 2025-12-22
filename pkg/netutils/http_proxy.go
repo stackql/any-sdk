@@ -73,29 +73,35 @@ func getRoundTripper(httpCtx HTTPContext, existingTransport http.RoundTripper) h
 			tr.Proxy = http.ProxyURL(proxyURL)
 		}
 	}
-	if tr != nil {
-		if httpCtx.DisableKeepAlives() {
-			tr.DisableKeepAlives = true
-		}
-		if httpCtx.ForceHTTP1() {
-			tr.ForceAttemptHTTP2 = false
-		}
-	}
-	if tr != nil {
+	if rt == nil {
 		rt = tr
 	}
 	return rt
 }
 
-func GetHTTPClient(httpCtx HTTPContext, existingClient *http.Client) *http.Client {
-	return getHTTPClient(httpCtx, existingClient)
+func newBaseTransport() *http.Transport {
+	return &http.Transport{
+		DisableKeepAlives: true,
+		ForceAttemptHTTP2: false,
+	}
 }
 
-func getHTTPClient(httpCtx HTTPContext, existingClient *http.Client) *http.Client {
-	var rt http.RoundTripper
-	if existingClient != nil && existingClient.Transport != nil {
-		rt = existingClient.Transport
+func newBaseHTTPClient() *http.Client {
+	tr := newBaseTransport()
+
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: tr,
 	}
+}
+
+func GetHTTPClient(httpCtx HTTPContext) *http.Client {
+	return getHTTPClient(httpCtx)
+}
+
+func getHTTPClient(httpCtx HTTPContext) *http.Client {
+	existingClient := newBaseHTTPClient()
+	var rt http.RoundTripper = existingClient.Transport
 	return &http.Client{
 		Timeout:   time.Second * time.Duration(httpCtx.GetAPIRequestTimeout()),
 		Transport: getRoundTripper(httpCtx, rt),
