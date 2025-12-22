@@ -295,3 +295,11 @@ func (rc RuntimeCtx) GetAPIRequestTimeout() int {
 func (rc RuntimeCtx) GetTLSAllowInsecure() bool {
 	return rc.AllowInsecure
 }
+
+func (rc RuntimeCtx) DisableKeepAlives() bool {
+	return true
+}
+
+func (rc RuntimeCtx) ForceHTTP1() bool {
+	return true
+}

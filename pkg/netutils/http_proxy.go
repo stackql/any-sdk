@@ -19,6 +19,8 @@ type HTTPContext interface {
 	GetHTTPProxyScheme() string
 	GetAPIRequestTimeout() int
 	GetTLSAllowInsecure() bool
+	DisableKeepAlives() bool
+	ForceHTTP1() bool
 }
 
 func GetRoundTripper(httpCtx HTTPContext, existingTransport http.RoundTripper) http.RoundTripper {
@@ -69,6 +71,14 @@ func getRoundTripper(httpCtx HTTPContext, existingTransport http.RoundTripper) h
 		}
 		if tr != nil {
 			tr.Proxy = http.ProxyURL(proxyURL)
+		}
+	}
+	if tr != nil {
+		if httpCtx.DisableKeepAlives() {
+			tr.DisableKeepAlives = true
+		}
+		if httpCtx.ForceHTTP1() {
+			tr.ForceAttemptHTTP2 = false
 		}
 	}
 	if tr != nil {
