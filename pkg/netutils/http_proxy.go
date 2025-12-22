@@ -82,7 +82,7 @@ func getRoundTripper(httpCtx HTTPContext, existingTransport http.RoundTripper) h
 func newBaseTransport() *http.Transport {
 	return &http.Transport{
 		DisableKeepAlives: true,
-		ForceAttemptHTTP2: false,
+		// ForceAttemptHTTP2: false,
 	}
 }
 
