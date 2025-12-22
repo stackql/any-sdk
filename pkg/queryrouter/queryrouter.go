@@ -264,6 +264,22 @@ func extractSrv(server *openapi3.Server) (srv, error) {
 	}
 	serverURL := serverURLParameterised.String()
 	var schemes []string
+
+	// --- NEW: derive HOST from String(), not net/url ---
+	hostPort := serverURLParameterised.String()
+	if i := strings.Index(hostPort, "://"); i >= 0 {
+		hostPort = hostPort[i+3:]
+	}
+	if j := strings.Index(hostPort, "/"); j >= 0 {
+		hostPort = hostPort[:j]
+	}
+	urlHost, err := urltranslate.ParseURLHost(hostPort)
+	if err != nil {
+		return retVal, err
+	}
+	// --- END NEW ---
+
+	// --- KEEP net/url.Parse ONLY for PATH ---
 	var u *url.URL
 	if strings.Contains(serverURL, "://") {
 		scheme0 := strings.Split(serverURL, "://")[0]
@@ -279,11 +295,10 @@ func extractSrv(server *openapi3.Server) (srv, error) {
 	if len(path) > 0 && path[len(path)-1] == '/' {
 		path = path[:len(path)-1]
 	}
-	urlHost, err := urltranslate.ParseURLHost(bDecode(u.Host))
-	if err != nil {
-		return retVal, err
-	}
+	// --- END PATH ---
+
 	hostElem, ok := serverURLParameterised.GetElementByString(urlHost.GetHost())
+
 	if !ok {
 		return retVal, fmt.Errorf("element = '%s' unavailable in URL = '%s'", hostElem.FullString(), serverURLParameterised.Raw())
 	}
