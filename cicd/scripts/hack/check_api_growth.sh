@@ -14,13 +14,13 @@ echo "Changing to root dir: $ROOT_DIR"
 cd "$ROOT_DIR"
 
 # Regenerate current API snapshots
-grep -Rho 'func [A-Z][A-Za-z0-9_]*' --include='*.go' --exclude-dir={vendor,testdata} . \
+grep -Rho 'func [A-Z][A-Za-z0-9_]*' --include='*.go' --exclude='*_test.go' --exclude-dir={vendor,testdata} . \
   | sort -u > "$TMP_DIR/exported_funcs.txt"
 
-grep -Rnoh '^type [A-Z][A-Za-z0-9_]* interface' --include='*.go' --exclude-dir={vendor,testdata} . \
+grep -Rnoh '^type [A-Z][A-Za-z0-9_]* interface' --include='*.go' --exclude='*_test.go' --exclude-dir={vendor,testdata} . \
   | sed 's/^[^:]*://g' | sort -u > "$TMP_DIR/exported_interfaces.txt"
 
-grep -Rnoh '^type [A-Z][A-Za-z0-9_]* struct' --include='*.go' --exclude-dir={vendor,testdata} . \
+grep -Rnoh '^type [A-Z][A-Za-z0-9_]* struct' --include='*.go' --exclude='*_test.go' --exclude-dir={vendor,testdata} . \
   | sed 's/^[^:]*://g' | sort -u > "$TMP_DIR/exported_structs.txt"
 
 fail=0
