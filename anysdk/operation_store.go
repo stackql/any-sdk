@@ -127,6 +127,8 @@ type StandardOperationStore interface {
 	getRequiredNonBodyParameters() map[string]Addressable
 	getDefaultRequestBodyBytes() []byte
 	getBaseRequestBodyBytes() []byte
+	transformRequestBodyBytes(input []byte) ([]byte, error)
+	transformRequestBodyMap(input map[string]interface{}) ([]byte, error)
 	getName() string
 	getServerVariable(key string) (*openapi3.ServerVariable, bool)
 	setMethodKey(string)
@@ -223,9 +225,6 @@ func (op *standardOpenAPIOperationStore) getXMLDeclaration() string {
 	rv := ""
 	if op.Request != nil {
 		rv = op.Request.XMLDeclaration
-	}
-	if rv == "" {
-		rv = defaultXMLDeclaration
 	}
 	return rv
 }
@@ -1328,6 +1327,10 @@ func (op *standardOpenAPIOperationStore) MarshalBody(body interface{}, expectedR
 }
 
 func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
+	_, isTransform := expectedRequest.GetTransform()
+	if isTransform {
+		return op.transformRequestBodyMap(body.(map[string]interface{}))
+	}
 	mediaType := expectedRequest.GetBodyMediaType()
 	if expectedRequest.GetSchema() != nil {
 		mediaType = expectedRequest.GetSchema().ExtractMediaTypeSynonym(mediaType)
@@ -1338,7 +1341,7 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	case media.MediaTypeXML, media.MediaTypeTextXML:
 		return xmlmap.MarshalXMLUserInput(
 			body,
-			expectedRequest.GetSchema().GetXMLALiasOrName(),
+			expectedRequest.GetFinalSchema().GetXMLALiasOrName(),
 			op.getXMLTransform(),
 			op.getXMLDeclaration(),
 			op.getXMLRootAnnotation(),
@@ -1436,6 +1439,7 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	predOne := !util.IsNil(requestBody)
 	predTwo := !util.IsNil(op.Request)
 	if predOne && predTwo {
+		// TODO: transform
 		b, err := op.marshalBody(requestBody, op.Request)
 		if err != nil {
 			return nil, err
@@ -1469,7 +1473,7 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	httpReq.Header = prefilledHeader
 	route, checkedPathParams, err := router.FindRoute(httpReq)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("anysdk router.FindRoute() failure: %w", err)
 	}
 	options := &openapi3filter.Options{
 		AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
@@ -1628,6 +1632,45 @@ func (sor *standardOperationResponse) GetReversal() (HTTPPreparator, bool) {
 	return sor.reversal, sor.reversal != nil
 }
 
+func (op *standardOpenAPIOperationStore) transformRequestBodyMap(input map[string]interface{}) ([]byte, error) {
+	inputBytes, marshalErr := json.Marshal(input)
+	if marshalErr != nil {
+		return nil, marshalErr
+	}
+	return op.transformRequestBodyBytes(inputBytes)
+}
+
+func (op *standardOpenAPIOperationStore) transformRequestBodyBytes(input []byte) ([]byte, error) {
+	if op.Request != nil {
+		requestTransform, requestTransformExists := op.Request.GetTransform()
+		if requestTransformExists {
+			inputStr := string(input)
+			streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
+				requestTransform.GetType(),
+				requestTransform.GetBody(),
+			)
+			if !streamTransformerFactory.IsTransformable() {
+				return nil, fmt.Errorf("unsupported template type: %s", requestTransform.GetType())
+			}
+			tfm, err := streamTransformerFactory.GetTransformer(inputStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to transform: %v", err)
+			}
+			tfmErr := tfm.Transform()
+			if tfmErr != nil {
+				return nil, fmt.Errorf("failed to transform: %v", tfmErr)
+			}
+			outStream := tfm.GetOutStream()
+			transformedBytes, readErr := io.ReadAll(outStream)
+			if readErr != nil {
+				return nil, fmt.Errorf("failed to read transformed stream: %v", readErr)
+			}
+			return transformedBytes, nil
+		}
+	}
+	return input, nil
+}
+
 func (op *standardOpenAPIOperationStore) isOverridable(httpResponse *http.Response) bool {
 	expectedResponse, isExpectedResponse := op.GetResponse()
 	if isExpectedResponse {
@@ -1712,7 +1755,7 @@ func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Resp
 				retVal.setReversalError(err)
 				return retVal, nil
 			}
-			reversal = newHTTPPreparator(
+			reversal = NewHTTPPreparator(
 				inverseOpStore.GetProvider(),
 				inverseOpStore.GetService(),
 				inverseOpStore,

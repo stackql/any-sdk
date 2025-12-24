@@ -77,6 +77,25 @@
         {
             "type": "go",
             "request": "launch",
+            "name": "CLI aws xml: s3 abac put",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/interrogate",
+            "envFile": "${workspaceFolder}/.vscode/.env",
+            "args": [
+                "query",
+                "--svc-file-path=${workspaceFolder}/test/registry-simple/src/aws/v0.1.0/services/s3.yaml",
+                "--prov-file-path=${workspaceFolder}/test/registry-simple/src/aws/v0.1.0/provider.yaml",
+                "--resource",
+                "bucket_abac",
+                "--method",
+                "put_bucket_abac",
+                "--parameters",
+                "{ \"region\": \"ap-southeast-2\", \"Bucket\": \"stackql-trial-bucket-02\", \"Status\": \"Disabled\", \"line_items\": [ { \"attribute_name\": \"stackql:createdBy\", \"attribute_value\": \"stackql-user\", \"attribute_value_type\": \"string\" } ] }"
+            ]
+        },
+        {
+            "type": "go",
+            "request": "launch",
             "name": "CLI local: x509 openssl describe",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/interrogate",
