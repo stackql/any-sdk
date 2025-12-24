@@ -7,6 +7,7 @@ var (
 type ExpectedRequest interface {
 	GetBodyMediaType() string
 	GetSchema() Schema
+	GetFinalSchema() Schema
 	GetRequired() []string
 	GetDefault() string
 	GetBase() string
@@ -76,6 +77,10 @@ func (er *standardExpectedRequest) GetSchema() Schema {
 	if er.OverrideSchema != nil && er.OverrideSchema.Value != nil {
 		return er.OverrideSchema.Value
 	}
+	return er.Schema
+}
+
+func (er *standardExpectedRequest) GetFinalSchema() Schema {
 	return er.Schema
 }
 

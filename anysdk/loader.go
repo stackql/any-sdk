@@ -864,7 +864,6 @@ func (loader *standardLoader) resolveExpectedRequest(doc OpenAPIService, op *ope
 		component.setOverrideSchemaValue(newSchema(sr.Value, doc, "", ""))
 		s := newSchema(sr.Value, doc, "", "")
 		component.setSchema(s)
-		return nil
 	}
 	bmt := component.GetBodyMediaType()
 	if bmt != "" {
