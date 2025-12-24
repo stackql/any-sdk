@@ -854,16 +854,35 @@ func (loader *standardLoader) resolveExpectedRequest(doc OpenAPIService, op *ope
 	if component == nil {
 		return nil
 	}
+	overrideSchema, isOverrideSchema := component.getOverrideSchema()
+	if isOverrideSchema && overrideSchema != nil && overrideSchema.Ref != "" {
+		schemaKey := strings.TrimPrefix(overrideSchema.Ref, "#/components/schemas/")
+		sr := doc.getT().Components.Schemas[schemaKey]
+		if sr == nil || sr.Value == nil {
+			return fmt.Errorf("schema '%s' not found in components", schemaKey)
+		}
+		component.setOverrideSchemaValue(newSchema(sr.Value, doc, "", ""))
+		s := newSchema(sr.Value, doc, "", "")
+		component.setSchema(s)
+		return nil
+	}
 	bmt := component.GetBodyMediaType()
 	if bmt != "" {
-		if op.RequestBody == nil || op.RequestBody.Value == nil {
+		if op.RequestBody == nil || op.RequestBody.Value == nil || op.RequestBody.Value.Content == nil {
 			return nil
 		}
-		sRef := op.RequestBody.Value.Content[bmt].Schema
+		content, ok := op.RequestBody.Value.Content[bmt]
+		if !ok || content == nil || content.Schema == nil || content.Schema.Value == nil {
+			return nil
+		}
+		sRef := content.Schema
 		s := newSchema(sRef.Value, doc, sRef.Ref, sRef.Ref)
 		component.setSchema(s)
 		return nil
 	} else {
+		if op.RequestBody == nil || op.RequestBody.Value == nil || op.RequestBody.Value.Content == nil {
+			return nil
+		}
 		sc, mt, ok := loader.resolveContentDefault(op.RequestBody.Value.Content, doc)
 		if ok {
 			component.setBodyMediaType(mt)

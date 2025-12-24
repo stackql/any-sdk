@@ -1712,7 +1712,7 @@ func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Resp
 				retVal.setReversalError(err)
 				return retVal, nil
 			}
-			reversal = newHTTPPreparator(
+			reversal = NewHTTPPreparator(
 				inverseOpStore.GetProvider(),
 				inverseOpStore.GetService(),
 				inverseOpStore,
