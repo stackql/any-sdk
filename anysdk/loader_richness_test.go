@@ -8,7 +8,7 @@ import (
 	"github.com/stackql/any-sdk/anysdk"
 )
 
-func TestRichSimpleOktaApplicationServiceRead(t *testing.T) {
+func TestRichSimpleAwsS3BucketABACRequestBodyOverride(t *testing.T) {
 
 	vr := "v0.1.0"
 	svc, err := anysdk.LoadProviderAndServiceFromPaths(
@@ -37,6 +37,10 @@ func TestRichSimpleOktaApplicationServiceRead(t *testing.T) {
 	}
 	schema := expectedRequest.GetSchema()
 
+	schemaDescription := schema.GetDescription()
+
+	assert.Equal(t, schemaDescription, "A convenience for presentation")
+
 	assert.Assert(t, schema != nil, "expected schema to be non-nil")
 	props, _ := schema.GetProperties()
 	assert.Assert(t, props != nil, "expected schema properties to be non-nil")
@@ -44,6 +48,18 @@ func TestRichSimpleOktaApplicationServiceRead(t *testing.T) {
 	_, hasStatus := props["status"]
 	assert.Assert(t, hasLineItem, "expected schema to have 'line_items' property")
 	assert.Assert(t, hasStatus, "expected schema to have 'status' property")
+
+	finalSchema := expectedRequest.GetFinalSchema()
+	assert.Assert(t, finalSchema != nil, "expected final schema to be non-nil")
+	finalProps, _ := finalSchema.GetProperties()
+	assert.Assert(t, len(finalProps) != 0, "expected final schema properties to be non-empty")
+	_, finalHasStatus := finalProps["Status"]
+	assert.Assert(t, finalHasStatus, "expected final schema to have 'Status' property")
+
+	finalDescription := finalSchema.GetDescription()
+	assert.Equal(t, finalDescription, "The ABAC status of the general purpose bucket. When ABAC is enabled for the general purpose bucket, you can use tags to manage access to the general purpose buckets as well as for cost tracking purposes. When ABAC is disabled for the general purpose buckets, you can only use tags for cost tracking purposes. For more information, see [Using tags with S3 general purpose buckets](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging.html).")
+
+	// Body media type should inherit from final schema and not override schema
 	assert.Equal(t, expectedRequest.GetBodyMediaType(), "application/xml")
 
 	assert.Equal(t, svc.GetName(), "s3")

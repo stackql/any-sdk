@@ -38,6 +38,7 @@ type Schema interface {
 	GetItems() (Schema, error)
 	GetItemsSchema() (Schema, error)
 	GetName() string
+	GetDescription() string
 	GetPath() string
 	GetProperties() (Schemas, error)
 	GetProperty(propertyKey string) (Schema, bool)
@@ -244,6 +245,10 @@ func (s *standardSchema) getAllOf() openapi3.SchemaRefs {
 
 func (s *standardSchema) getOpenapiSchema() (*openapi3.Schema, bool) {
 	return s.Schema, s.Schema != nil
+}
+
+func (s *standardSchema) GetDescription() string {
+	return s.Description
 }
 
 type standardSchema struct {

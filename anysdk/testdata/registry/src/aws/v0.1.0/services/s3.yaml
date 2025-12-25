@@ -8605,6 +8605,7 @@ components:
   schemas:
     AbacInputOverride:
       type: object
+      description: A convenience for presentation
       properties:
         line_items:
           type: array
