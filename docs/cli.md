@@ -137,3 +137,17 @@ build/anysdk query \
   --parameters '{ "region": "ap-southeast-1", "Bucket": "stackql-trial-bucket-01" }' 
 
 ```
+
+### AOT analysis
+
+
+```bash
+
+build/anysdk aot \
+  ./test/registry \
+  ./test/registry/src/aws/v0.1.0/provider.yaml \
+  -v \
+  --schema-dir \
+  cicd/schema-definitions
+
+```

@@ -8603,6 +8603,25 @@ paths:
           description: Success
 components:
   schemas:
+    AbacInputOverride:
+      type: object
+      description: A convenience for presentation
+      properties:
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AbacInputOverrideJunk'
+        status:
+          type: string
+    AbacInputOverrideJunk:
+      type: object
+      properties:
+        comment:
+          type: string
+        source:
+          type: string
+        id:
+          type: number
     AbacStatus:
       type: object
       properties:
@@ -22131,6 +22150,12 @@ components:
             openAPIDocKey: '200'
           request:
             mediaType: application/xml
+            schema_override:
+              $ref: '#/components/schemas/AbacInputOverride'
+            transform:
+              type: golang_template_text_v0.1.0
+              body: |
+                placeholder nothing to see here
       sqlVerbs:
         select:
         - $ref: '#/components/x-stackQL-resources/bucket_abac/methods/get_bucket_abac'
