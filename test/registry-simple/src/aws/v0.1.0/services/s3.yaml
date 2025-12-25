@@ -22145,6 +22145,9 @@ components:
             mediaType: text/xml
             openAPIDocKey: '200'
         put_bucket_abac:
+          config:
+            requestBodyTranslate:
+              algorithm: naive
           operation:
             $ref: '#/paths/~1?abac/put'
           response:
