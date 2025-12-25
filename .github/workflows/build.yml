@@ -235,8 +235,6 @@ jobs:
     
     - name: Create mock routed services for local tests
       run: |
-        cp stackql-core/docker-compose-testing.yml .
-        cp stackql-core/testLib.Dockerfile .
         python3 stackql-core/test/python/stackql_test_tooling/registry_rewrite.py \
           --srcdir $(pwd)/test/registry-simple/src \
           --destdir $(pwd)/test/registry-mocked/src
