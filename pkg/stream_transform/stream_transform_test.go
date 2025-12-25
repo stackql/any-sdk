@@ -2,6 +2,7 @@ package stream_transform_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"testing"
@@ -414,6 +415,43 @@ func TestOpensslCertTextStreamTransform(t *testing.T) {
 	outputBytes, _ := io.ReadAll(tfmOut)
 	outputStr := string(outputBytes)
 	expected := `{ "type": "x509", "public_key_algorithm": "rsaEncryption", "not_before": "Mar 22 02:50:46 2025 GMT", "not_after": "Jun 20 02:50:46 2025 GMT"}`
+	if outputStr != expected {
+		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
+	}
+}
+
+func TestAliasedRequestBodyToXMLStreamTransform(t *testing.T) {
+	input := map[string]interface{}{
+		"Bucket": "my-bucket",
+		"Key":    "my-object",
+		"Status": "Enabled",
+	}
+	inputBytes, err := json.Marshal(input)
+	if err != nil {
+		t.Fatalf("failed to marshal input: %v", err)
+	}
+	// template transforms from input above to xml of the form
+	tmpl := `
+	{{- $s := separator ", " -}}
+	{{- $body := jsonMapFromString . -}}
+	{{- $status := index $body "Status" -}}
+	<AbacStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Status>{{ $status }}</Status></AbacStatus>`
+	t.Log("TestAliasedRequestBodyToXMLStreamTransform")
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(string(inputBytes))
+	if err != nil {
+		t.Fatalf("failed to create transformer: %v", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		t.Fatalf("failed to transform: %v", err)
+	}
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
+	expected := `<AbacStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Status>Enabled</Status></AbacStatus>`
 	if outputStr != expected {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
 	}
