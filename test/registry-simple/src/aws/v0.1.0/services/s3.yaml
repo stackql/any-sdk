@@ -8624,6 +8624,8 @@ components:
           type: number
     AbacStatus:
       type: object
+      xml:
+        name: AbacStatus
       properties:
         Status:
           $ref: '#/components/schemas/BucketAbacStatus'
@@ -22150,6 +22152,7 @@ components:
             openAPIDocKey: '200'
           request:
             mediaType: application/xml
+            xmlRootAnnotation: 'xmlns="http://s3.amazonaws.com/doc/2006-03-01/"'
             schema_override:
               $ref: '#/components/schemas/AbacInputOverride'
             transform:

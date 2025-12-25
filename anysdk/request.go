@@ -117,7 +117,9 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 			for j, v := range pr.execContext.GetExecPayload().GetHeader() {
 				pm.SetHeaderKV(j, v)
 			}
-			params.SetRequestBody(pr.execContext.GetExecPayload().GetPayloadMap())
+			if len(pr.execContext.GetExecPayload().GetPayloadMap()) > 0 {
+				params.SetRequestBody(pr.execContext.GetExecPayload().GetPayloadMap())
+			}
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
 			m := make(map[string]interface{})
 			baseRequestBytes := method.getBaseRequestBodyBytes()

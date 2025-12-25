@@ -224,9 +224,6 @@ func (op *standardOpenAPIOperationStore) getXMLDeclaration() string {
 	if op.Request != nil {
 		rv = op.Request.XMLDeclaration
 	}
-	if rv == "" {
-		rv = defaultXMLDeclaration
-	}
 	return rv
 }
 
@@ -1338,7 +1335,7 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	case media.MediaTypeXML, media.MediaTypeTextXML:
 		return xmlmap.MarshalXMLUserInput(
 			body,
-			expectedRequest.GetSchema().GetXMLALiasOrName(),
+			expectedRequest.GetFinalSchema().GetXMLALiasOrName(),
 			op.getXMLTransform(),
 			op.getXMLDeclaration(),
 			op.getXMLRootAnnotation(),
