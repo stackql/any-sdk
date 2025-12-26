@@ -532,3 +532,60 @@ func TestAliasedRequestBodyToComplexXMLStreamTransform(t *testing.T) {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
 	}
 }
+
+func TestFutureProofJSONTOFullyNamespacedTransform(t *testing.T) {
+	input := map[string]interface{}{
+		"Bucket": "my-bucket",
+		"Key":    "my-object",
+		"Status": "Enabled",
+		"NestedField": `{
+			"SubField1": "Value1",
+			"SubField2": "Value2",
+			"SubField3": ["ListValue1", "ListValue2"]
+		}`,
+	}
+	inputBytes, err := json.Marshal(input)
+	if err != nil {
+		t.Fatalf("failed to marshal input: %v", err)
+	}
+	// template transforms from input above to xml of the form
+	tmpl := `
+    {{- $s := separator ", " -}}
+    {{- $body := jsonMapFromString . -}}
+    {{- $status := index $body "Status" -}}
+	{{- $bucket := index $body "Bucket" -}}
+    {{- $nestedField := index $body "NestedField" -}}
+    { "headers.status": "{{ $status }}", "bucket": "{{ $bucket }}", "request.body.$config": {{ $nestedField }} }`
+	t.Log("TestAliasedRequestBodyToXMLStreamTransform")
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(string(inputBytes))
+	if err != nil {
+		t.Fatalf("failed to create transformer: %v", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		t.Fatalf("failed to transform: %v", err)
+	}
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
+	expected := `{
+	  "headers.status": "Enabled",
+	  "bucket": "my-bucket",
+	  "request.body.$config": {
+		"SubField1": "Value1",
+		"SubField2": "Value2",
+		"SubField3": [
+		  "ListValue1",
+		  "ListValue2"
+		]
+	  }
+	}`
+	lhs := removeAllWhitespace(outputStr)
+	rhs := removeAllWhitespace(expected)
+	if lhs != rhs {
+		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
+	}
+}
