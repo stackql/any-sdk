@@ -1327,6 +1327,10 @@ func (op *standardOpenAPIOperationStore) MarshalBody(body interface{}, expectedR
 }
 
 func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
+	_, isTransform := expectedRequest.GetTransform()
+	if isTransform {
+		return op.transformRequestBodyMap(body.(map[string]interface{}))
+	}
 	mediaType := expectedRequest.GetBodyMediaType()
 	if expectedRequest.GetSchema() != nil {
 		mediaType = expectedRequest.GetSchema().ExtractMediaTypeSynonym(mediaType)
@@ -1435,6 +1439,7 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	predOne := !util.IsNil(requestBody)
 	predTwo := !util.IsNil(op.Request)
 	if predOne && predTwo {
+		// TODO: transform
 		b, err := op.marshalBody(requestBody, op.Request)
 		if err != nil {
 			return nil, err

@@ -90,7 +90,7 @@
                 "--method",
                 "put_bucket_abac",
                 "--parameters",
-                "{ \"region\": \"ap-southeast-2\", \"Bucket\": \"stackql-trial-bucket-02\", \"Status\": \"Enabled\", \"line_items\": [ { \"attribute_name\": \"stackql:createdBy\", \"attribute_value\": \"stackql-user\", \"attribute_value_type\": \"string\" } ] }"
+                "{ \"region\": \"ap-southeast-2\", \"Bucket\": \"stackql-trial-bucket-02\", \"Status\": \"Disabled\", \"line_items\": [ { \"attribute_name\": \"stackql:createdBy\", \"attribute_value\": \"stackql-user\", \"attribute_value_type\": \"string\" } ] }"
             ]
         },
         {
