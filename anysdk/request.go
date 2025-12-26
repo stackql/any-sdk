@@ -125,11 +125,11 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 			}
 			if len(pr.execContext.GetExecPayload().GetPayloadMap()) > 0 {
 				bm := pr.execContext.GetExecPayload().GetPayloadMap()
-				transformedBody, transformErr := method.transformRequestBodyMap(bm)
-				if transformErr != nil {
-					return nil, transformErr
-				}
-				pm.SetBodyBytes(transformedBody)
+				// transformedBody, transformErr := method.transformRequestBodyMap(bm)
+				// if transformErr != nil {
+				// 	return nil, transformErr
+				// }
+				params.SetRequestBody(bm)
 			}
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
 			m := make(map[string]interface{})
