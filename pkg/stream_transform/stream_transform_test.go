@@ -5,10 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"testing"
 
 	. "github.com/stackql/any-sdk/pkg/stream_transform"
 )
+
+func removeAllWhitespace(s string) string {
+	// The regex "\\s+" matches one or more whitespace characters (space, tab, newline, carriage return, etc.)
+	re := regexp.MustCompile("\\s+")
+	return re.ReplaceAllString(s, "")
+}
 
 var (
 	_           io.Reader = &bytes.Buffer{}
@@ -453,6 +460,75 @@ func TestAliasedRequestBodyToXMLStreamTransform(t *testing.T) {
 	outputStr := string(outputBytes)
 	expected := `<AbacStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Status>Enabled</Status></AbacStatus>`
 	if outputStr != expected {
+		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
+	}
+}
+
+func TestAliasedRequestBodyToComplexXMLStreamTransform(t *testing.T) {
+	input := map[string]interface{}{
+		"Bucket": "my-bucket",
+		"Key":    "my-object",
+		"Status": "Enabled",
+		"NestedField": map[string]interface{}{
+			"SubField1": "Value1",
+			"SubField2": "Value2",
+			"SubField3": []string{"ListValue1", "ListValue2"},
+		},
+	}
+	inputBytes, err := json.Marshal(input)
+	if err != nil {
+		t.Fatalf("failed to marshal input: %v", err)
+	}
+	// template transforms from input above to xml of the form
+	tmpl := `
+    {{- $s := separator ", " -}}
+    {{- $body := jsonMapFromString . -}}
+    {{- $status := index $body "Status" -}}
+    {{- $nestedField := index $body "NestedField" -}}
+    {{- $renderedNestedFields := "" -}}
+    {{- range $k, $v := $nestedField -}}
+        {{- if eq (printf "%T" $v) "[]interface {}" -}}
+            {{- $renderedListItems := "" -}}
+            {{- range $i, $item := $v -}}
+                {{- /* Fix: Use '=' and 'print' instead of '+=' */ -}}
+                {{- $renderedListItems = print $renderedListItems (printf "<%s>%v</%s>" $k $item $k) -}}
+            {{- end -}}
+            {{- $renderedNestedFields = print $renderedNestedFields (printf "<%sList>%s</%sList>" $k $renderedListItems $k) -}}
+            {{- continue -}}
+        {{- end -}}
+        {{- /* Fix: Removed redundant variable reference in printf and changed += to = print */ -}}
+        {{- $renderedNestedFields = print $renderedNestedFields (printf "<%s>%v</%s>" $k $v $k) -}}
+    {{- end -}}
+    <AbacStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Status>{{ $status }}</Status><NestedField>{{ $renderedNestedFields }}</NestedField></AbacStatus>`
+	t.Log("TestAliasedRequestBodyToXMLStreamTransform")
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV1, tmpl)
+	if !tfmFactory.IsTransformable() {
+		t.Fatalf("failed to create transformer factory: is not transformable")
+	}
+	tfm, err := tfmFactory.GetTransformer(string(inputBytes))
+	if err != nil {
+		t.Fatalf("failed to create transformer: %v", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		t.Fatalf("failed to transform: %v", err)
+	}
+	tfmOut := tfm.GetOutStream()
+	outputBytes, _ := io.ReadAll(tfmOut)
+	outputStr := string(outputBytes)
+	expected := `<AbacStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+	  <Status>Enabled</Status>
+	  <NestedField>
+		<SubField1>Value1</SubField1>
+		<SubField2>Value2</SubField2>
+		<SubField3List>
+			<SubField3>ListValue1</SubField3>
+			<SubField3>ListValue2</SubField3>
+		</SubField3List>
+	  </NestedField>
+	</AbacStatus>`
+	lhs := removeAllWhitespace(outputStr)
+	rhs := removeAllWhitespace(expected)
+	if lhs != rhs {
 		t.Fatalf("unexpected output: '%s' != '%s'", outputStr, expected)
 	}
 }
