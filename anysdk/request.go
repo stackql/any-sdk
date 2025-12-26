@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stackql/any-sdk/pkg/client"
+	"github.com/stackql/any-sdk/pkg/stream_transform"
 	"github.com/stackql/any-sdk/pkg/streaming"
 )
 
@@ -37,13 +38,14 @@ type HTTPPreparator interface {
 }
 
 type standardHTTPPreparator struct {
-	prov        Provider
-	m           OperationStore
-	svc         Service
-	paramMap    map[int]map[string]interface{}
-	execContext ExecContext
-	logger      *logrus.Logger
-	parameters  streaming.MapStream
+	prov              Provider
+	m                 OperationStore
+	svc               Service
+	paramMap          map[int]map[string]interface{}
+	execContext       ExecContext
+	logger            *logrus.Logger
+	parameters        streaming.MapStream
+	streamTransformer stream_transform.StreamTransformer
 }
 
 func NewHTTPPreparator(
@@ -132,7 +134,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 			for k, v := range params.GetRequestBody() {
 				m[k] = v
 			}
-			b, bErr := json.Marshal(m)
+			b, bErr := method.transformRequestBodyMap(m) // TODO: adapt to rewrite
 			if bErr != nil {
 				return nil, bErr
 			}
@@ -274,7 +276,12 @@ func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation() (HTTPArmou
 		params := prms
 		pm := NewHTTPArmouryParameters()
 		if pr.execContext != nil && pr.execContext.GetExecPayload() != nil {
-			pm.SetBodyBytes(pr.execContext.GetExecPayload().GetPayload())
+			payloadBytes := pr.execContext.GetExecPayload().GetPayload()
+			transformedBytes, transformErr := httpMethod.transformRequestBodyBytes(payloadBytes)
+			if transformErr != nil {
+				return nil, transformErr
+			}
+			pm.SetBodyBytes(transformedBytes)
 			for j, v := range pr.execContext.GetExecPayload().GetHeader() {
 				pm.SetHeaderKV(j, v)
 			}

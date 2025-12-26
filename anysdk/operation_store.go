@@ -127,6 +127,8 @@ type StandardOperationStore interface {
 	getRequiredNonBodyParameters() map[string]Addressable
 	getDefaultRequestBodyBytes() []byte
 	getBaseRequestBodyBytes() []byte
+	transformRequestBodyBytes(input []byte) ([]byte, error)
+	transformRequestBodyMap(input map[string]interface{}) ([]byte, error)
 	getName() string
 	getServerVariable(key string) (*openapi3.ServerVariable, bool)
 	setMethodKey(string)
@@ -1623,6 +1625,45 @@ func (sor *standardOperationResponse) GetResponse() (response.Response, bool) {
 
 func (sor *standardOperationResponse) GetReversal() (HTTPPreparator, bool) {
 	return sor.reversal, sor.reversal != nil
+}
+
+func (op *standardOpenAPIOperationStore) transformRequestBodyMap(input map[string]interface{}) ([]byte, error) {
+	inputBytes, marshalErr := json.Marshal(input)
+	if marshalErr != nil {
+		return nil, marshalErr
+	}
+	return op.transformRequestBodyBytes(inputBytes)
+}
+
+func (op *standardOpenAPIOperationStore) transformRequestBodyBytes(input []byte) ([]byte, error) {
+	if op.Request != nil {
+		requestTransform, requestTransformExists := op.Request.GetTransform()
+		if requestTransformExists {
+			inputStr := string(input)
+			streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
+				requestTransform.GetType(),
+				requestTransform.GetBody(),
+			)
+			if !streamTransformerFactory.IsTransformable() {
+				return nil, fmt.Errorf("unsupported template type: %s", requestTransform.GetType())
+			}
+			tfm, err := streamTransformerFactory.GetTransformer(inputStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to transform: %v", err)
+			}
+			tfmErr := tfm.Transform()
+			if tfmErr != nil {
+				return nil, fmt.Errorf("failed to transform: %v", tfmErr)
+			}
+			outStream := tfm.GetOutStream()
+			transformedBytes, readErr := io.ReadAll(outStream)
+			if readErr != nil {
+				return nil, fmt.Errorf("failed to read transformed stream: %v", readErr)
+			}
+			return transformedBytes, nil
+		}
+	}
+	return input, nil
 }
 
 func (op *standardOpenAPIOperationStore) isOverridable(httpResponse *http.Response) bool {
