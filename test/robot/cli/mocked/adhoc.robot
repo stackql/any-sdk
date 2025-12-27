@@ -42,7 +42,7 @@ Update Google Cloud Storage Bucket ABAC with CLI Demonstrates Request Body Rewri
     ...    \-\-prov-file-path         test/registry\-mocked/src/aws/v0\.1\.0/provider\.yaml
     ...    \-\-resource               bucket_abac
     ...    \-\-method                 put_bucket_abac
-    ...    \-\-parameters             "{ "region": "ap\-southeast\-2", "Bucket": "stackql\-trial\-bucket\-02", "Status": "Enabled" }
+    ...    \-\-parameters             { "region": "ap-southeast-2", "Bucket": "stackql-trial-bucket-02", "Status": "Enabled" }
     ...    \-\-auth                   {"google": {"credentialsenvvar": "GCP_SERVICE_ACCOUNT_KEY"}}
     ...    cwd=${CWD_FOR_EXEC}
     ...    stdout=${CURDIR}${/}/tmp${/}Update-Google-Cloud-Storage-Bucket-ABAC-with-CLI-Demonstrates-Request-Body-Rewrite.txt
