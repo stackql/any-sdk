@@ -19,6 +19,7 @@ type ResponseKeys struct {
 }
 
 type Provider interface {
+	GetMinStackQLVersion() string
 	GetProtocolType() (client.ClientProtocolType, error)
 	GetProtocolTypeString() string
 	Debug() string
@@ -61,6 +62,13 @@ func (pr *standardProvider) GetAuth() (AuthDTO, bool) {
 		return pr.StackQLConfig.GetAuth()
 	}
 	return nil, false
+}
+
+func (pr *standardProvider) GetMinStackQLVersion() string {
+	if pr.StackQLConfig != nil {
+		return pr.StackQLConfig.GetMinStackQLVersion()
+	}
+	return ""
 }
 
 func (pr *standardProvider) GetProviderServices() map[string]ProviderService {
