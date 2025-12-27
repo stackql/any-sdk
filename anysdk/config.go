@@ -22,6 +22,7 @@ type StackQLConfig interface {
 	GetViews() map[string]View
 	GetExternalTables() map[string]SQLExternalTable
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
+	GetMinStackQLVersion() string
 	//
 	isObjectSchemaImplicitlyUnioned() bool
 	setResource(rsc Resource)
@@ -38,6 +39,7 @@ type standardStackQLConfig struct {
 	ExternalTables       map[string]standardSQLExternalTable `json:"sqlExternalTables" yaml:"sqlExternalTables"`
 	Auth                 *standardAuthDTO                    `json:"auth,omitempty" yaml:"auth,omitempty"`
 	QueryParamPushdown   *standardQueryParamPushdown         `json:"queryParamPushdown,omitempty" yaml:"queryParamPushdown,omitempty"`
+	MinStackQLVersion    string                              `json:"minStackQLVersion,omitempty" yaml:"minStackQLVersion,omitempty"`
 }
 
 func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
@@ -52,9 +54,15 @@ func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
 		return qt.Views, nil
 	case "queryParamPushdown":
 		return qt.QueryParamPushdown, nil
+	case "minStackQLVersion":
+		return qt.MinStackQLVersion, nil
 	default:
 		return nil, fmt.Errorf("could not resolve token '%s' from QueryTranspose doc object", token)
 	}
+}
+
+func (cfg *standardStackQLConfig) GetMinStackQLVersion() string {
+	return cfg.MinStackQLVersion
 }
 
 func (cfg *standardStackQLConfig) GetQueryTranspose() (Transform, bool) {
