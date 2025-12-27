@@ -153,7 +153,7 @@ func (r *Router) FindRoute(req *http.Request) (*routers.Route, map[string]string
 		switch match.MatchErr {
 		case nil:
 		case mux.ErrMethodMismatch:
-			return nil, nil, routers.ErrMethodNotAllowed
+			// return nil, nil, routers.ErrMethodNotAllowed
 		default: // What then?
 		}
 	}

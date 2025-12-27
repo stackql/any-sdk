@@ -1473,7 +1473,7 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	httpReq.Header = prefilledHeader
 	route, checkedPathParams, err := router.FindRoute(httpReq)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("anysdk router.FindRoute() failure: %w", err)
 	}
 	options := &openapi3filter.Options{
 		AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
