@@ -23,6 +23,11 @@ The `const` command is very much a trivial "Hello World":
 
 ```bash
 ./build/anysdk const
+```
+
+This returns:
+
+```
 {"ExtensionKeyAlwaysRequired":"x-alwaysRequired"}
 ```
 
@@ -115,5 +120,34 @@ build/anysdk query \
   --resource volumes_presented \
   --method describeVolumes \
   --parameters '{ "region": "ap-southeast-2" }' 
+
+```
+
+S3 one of the great challenges:
+
+
+```bash
+
+build/anysdk query \
+  --svc-file-path="test/registry-simple/src/aws/v0.1.0/services/s3.yaml" \
+  --tls.allowInsecure \
+  --prov-file-path="test/registry-simple/src/aws/v0.1.0/provider.yaml" \
+  --resource bucket_abac \
+  --method get_bucket_abac \
+  --parameters '{ "region": "ap-southeast-1", "Bucket": "stackql-trial-bucket-01" }' 
+
+```
+
+### AOT analysis
+
+
+```bash
+
+build/anysdk aot \
+  ./test/registry \
+  ./test/registry/src/aws/v0.1.0/provider.yaml \
+  -v \
+  --schema-dir \
+  cicd/schema-definitions
 
 ```

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stackql/any-sdk/pkg/client"
+	"github.com/stackql/any-sdk/pkg/stream_transform"
 	"github.com/stackql/any-sdk/pkg/streaming"
 )
 
@@ -33,17 +34,17 @@ func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
 
 type HTTPPreparator interface {
 	BuildHTTPRequestCtx(HTTPPreparatorConfig) (HTTPArmoury, error)
-	// BuildHTTPRequestCtxFromAnnotation() (HTTPArmoury, error)
 }
 
 type standardHTTPPreparator struct {
-	prov        Provider
-	m           OperationStore
-	svc         Service
-	paramMap    map[int]map[string]interface{}
-	execContext ExecContext
-	logger      *logrus.Logger
-	parameters  streaming.MapStream
+	prov              Provider
+	m                 OperationStore
+	svc               Service
+	paramMap          map[int]map[string]interface{}
+	execContext       ExecContext
+	logger            *logrus.Logger
+	parameters        streaming.MapStream
+	streamTransformer stream_transform.StreamTransformer
 }
 
 func NewHTTPPreparator(
@@ -113,11 +114,23 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 		params := prms
 		pm := NewHTTPArmouryParameters()
 		if pr.execContext != nil && pr.execContext.GetExecPayload() != nil {
-			pm.SetBodyBytes(pr.execContext.GetExecPayload().GetPayload())
+			payloadBytes := pr.execContext.GetExecPayload().GetPayload()
+			transformedBytes, transformErr := method.transformRequestBodyBytes(payloadBytes)
+			if transformErr != nil {
+				return nil, transformErr
+			}
+			pm.SetBodyBytes(transformedBytes)
 			for j, v := range pr.execContext.GetExecPayload().GetHeader() {
 				pm.SetHeaderKV(j, v)
 			}
-			params.SetRequestBody(pr.execContext.GetExecPayload().GetPayloadMap())
+			if len(pr.execContext.GetExecPayload().GetPayloadMap()) > 0 {
+				bm := pr.execContext.GetExecPayload().GetPayloadMap()
+				// transformedBody, transformErr := method.transformRequestBodyMap(bm)
+				// if transformErr != nil {
+				// 	return nil, transformErr
+				// }
+				params.SetRequestBody(bm)
+			}
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
 			m := make(map[string]interface{})
 			baseRequestBytes := method.getBaseRequestBodyBytes()
@@ -130,7 +143,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 			for k, v := range params.GetRequestBody() {
 				m[k] = v
 			}
-			b, bErr := json.Marshal(m)
+			b, bErr := method.transformRequestBodyMap(m) // TODO: adapt to rewrite
 			if bErr != nil {
 				return nil, bErr
 			}
@@ -272,7 +285,12 @@ func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation() (HTTPArmou
 		params := prms
 		pm := NewHTTPArmouryParameters()
 		if pr.execContext != nil && pr.execContext.GetExecPayload() != nil {
-			pm.SetBodyBytes(pr.execContext.GetExecPayload().GetPayload())
+			payloadBytes := pr.execContext.GetExecPayload().GetPayload()
+			transformedBytes, transformErr := httpMethod.transformRequestBodyBytes(payloadBytes)
+			if transformErr != nil {
+				return nil, transformErr
+			}
+			pm.SetBodyBytes(transformedBytes)
 			for j, v := range pr.execContext.GetExecPayload().GetHeader() {
 				pm.SetHeaderKV(j, v)
 			}

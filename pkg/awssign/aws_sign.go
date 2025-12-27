@@ -116,15 +116,16 @@ func (t *standardAwsSignTransport) RoundTrip(req *http.Request) (*http.Response,
 		return nil, err
 	}
 
-	// === THE ONLY CHANGE ===
-	// Request-local safety for path-style regional S3
-	if svcStr == "s3" &&
-		strings.HasPrefix(req.URL.Host, "s3.") &&
-		strings.Contains(req.URL.Host, "amazonaws.com") &&
-		len(req.URL.Path) > 1 {
+	if svcStr == "s3" {
+		req.Header.Set("x-amz-content-sha256", payloadHash)
 
-		req.Close = true
-		req.Header.Set("Connection", "close")
+		if strings.HasPrefix(req.URL.Host, "s3.") &&
+			strings.Contains(req.URL.Host, "amazonaws.com") &&
+			len(req.URL.Path) > 1 {
+
+			req.Close = true
+			req.Header.Set("Connection", "close")
+		}
 	}
 
 	return t.underlyingTransport.RoundTrip(req)
