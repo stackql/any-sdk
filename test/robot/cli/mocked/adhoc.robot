@@ -29,7 +29,7 @@ Select Google Cloud Storage Buckets with CLI
     Should Be Equal As Strings    ${result.rc}    0
     Should Be Equal               ${result.stderr}        ${EMPTY}
 
-Update Google Cloud Storage Bucket ABAC with CLI Demonstrates Request Body Rewrite
+Update AWS Bucket ABAC with CLI Demonstrates Request Body Rewrite
     [Documentation]    Test CLI Working
     [Tags]    cli
     ${google_credentials} =    Get File    ${REPOSITORY_ROOT}${/}test${/}assets${/}credentials${/}dummy${/}google${/}functional-test-dummy-sa-key.json
@@ -45,11 +45,36 @@ Update Google Cloud Storage Bucket ABAC with CLI Demonstrates Request Body Rewri
     ...    \-\-parameters             { "region": "ap-southeast-2", "Bucket": "stackql-trial-bucket-02", "Status": "Enabled" }
     ...    \-\-auth                   {"google": {"credentialsenvvar": "GCP_SERVICE_ACCOUNT_KEY"}}
     ...    cwd=${CWD_FOR_EXEC}
-    ...    stdout=${CURDIR}${/}/tmp${/}Update-Google-Cloud-Storage-Bucket-ABAC-with-CLI-Demonstrates-Request-Body-Rewrite.txt
-    ...    stderr=${CURDIR}${/}/tmp${/}Update-Google-Cloud-Storage-Bucket-ABAC-with-CLI-Demonstrates-Request-Body-Rewrite_stderr.txt
+    ...    stdout=${CURDIR}${/}/tmp${/}Update-AWS-Bucket-ABAC-with-CLI-Demonstrates-Request-Body-Rewrite.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}Update-AWS-Bucket-ABAC-with-CLI-Demonstrates-Request-Body-Rewrite_stderr.txt
     Log    Stderr = ${result.stderr}
     Log    Stdout = ${result.stdout}
     Log    RC = ${result.rc}
     Should Be Equal As Strings    ${result.rc}    0
     Should Be Equal               ${result.stdout}        ${EMPTY}
+    Should Be Equal               ${result.stderr}        ${EMPTY}
+
+AWS EC2 Describe Volumes Demonstrates No Request Body Parameters Still Expands Template
+    [Documentation]    Test CLI Working
+    [Tags]    cli
+    ${google_credentials} =    Get File    ${REPOSITORY_ROOT}${/}test${/}assets${/}credentials${/}dummy${/}google${/}functional-test-dummy-sa-key.json
+    Set Environment Variable    GCP_SERVICE_ACCOUNT_KEY    ${google_credentials}
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    query
+    ...    \-\-svc-file-path          test/registry\-mocked/src/aws/v0\.1\.0/services/ec2\.yaml
+    ...    \-\-tls.allowInsecure
+    ...    \-\-prov-file-path         test/registry\-mocked/src/aws/v0\.1\.0/provider\.yaml
+    ...    \-\-resource               volumes_post_naively_presented
+    ...    \-\-method                 describeVolumes
+    ...    \-\-parameters             { "region": "ap-southeast-2" }
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}AWS-EC2-Describe-Volumes-Demonstrates-No-Request-Body-Parameters-Still-Expands-Template.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}AWS-EC2-Describe-Volumes-Demonstrates-No-Request-Body-Parameters-Still-Expands-Template_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Log    RC = ${result.rc}
+    Should Be Equal As Strings    ${result.rc}    0
+    Should Contain                     ${result.stdout}    
+    ...                                vol\-00100000000000000
     Should Be Equal               ${result.stderr}        ${EMPTY}

@@ -464,7 +464,7 @@ func TestOpensslCertTextStreamTransform(t *testing.T) {
 	{{- $notBefore := getRegexpFirstMatch $root "Not Before: (.*)" -}}
 	{{- $notAfter := getRegexpFirstMatch $root "Not After(?:[ ]*): (.*)" -}}
 	{ "type": "x509", "public_key_algorithm": "{{ $pubKeyAlgo }}", "not_before": "{{ $notBefore }}", "not_after": "{{ $notAfter }}"}`
-	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV1, tmpl)
+	tfmFactory := NewStreamTransformerFactory(GolangTemplateTextV3, tmpl)
 	if !tfmFactory.IsTransformable() {
 		t.Fatalf("failed to create transformer factory: is not transformable")
 	}

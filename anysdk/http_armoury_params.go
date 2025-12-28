@@ -135,11 +135,17 @@ func (hap *standardHTTPArmouryParameters) SetNextPage(
 		tokenName := tokenKey.GetName()
 		bm[tokenName] = token
 		er, _ := ops.GetRequest()
-		b, err := ops.MarshalBody(bm, er)
-		if err != nil {
-			return nil, err
+		marshalledBody := ops.MarshalBody(bm, er)
+		b := marshalledBody.GetBytes()
+		marshallErr, hasMarshallErr := marshalledBody.GetError()
+
+		if hasMarshallErr {
+			return nil, marshallErr
 		}
-		rv.Body = io.NopCloser(bytes.NewBuffer(b))
+
+		if len(b) > 0 {
+			rv.Body = io.NopCloser(bytes.NewBuffer(b))
+		}
 		rv.ContentLength = int64(len(b))
 		return rv, nil
 	default:

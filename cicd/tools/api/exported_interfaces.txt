@@ -58,6 +58,7 @@ type MapReader interface
 type MapStream interface
 type MapStreamCollection interface
 type MapWriter interface
+type MarshalledBody interface
 type MethodAggregateStaticAnalyzer interface
 type MethodAnalysisInput interface
 type MethodAnalysisOutput interface
