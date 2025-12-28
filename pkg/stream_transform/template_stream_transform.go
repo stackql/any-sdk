@@ -5,13 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"text/template"
 
 	"github.com/clbanning/mxj/v2"
+	"golang.org/x/mod/semver"
+)
+
+var (
+	tmplSemVerRegexp = regexp.MustCompile(`^(.+)_(v\d+\.\d+\.\d+)$`)
 )
 
 const (
 	GolangTemplateXMLV1         = "golang_template_mxj_v0.1.0"
+	GolangTemplateXMLV2         = "golang_template_mxj_v0.2.0"
 	GolangTemplateJSONV1        = "golang_template_json_v0.1.0"
 	GolangTemplateTextV1        = "golang_template_text_v0.1.0"
 	GolangTemplateUnspecifiedV1 = "golang_template_v0.1.0"
@@ -36,7 +43,7 @@ func NewStreamTransformerFactory(tplType string, tplStr string) StreamTransforme
 
 func (stf *streamTransformerFactory) IsTransformable() bool {
 	switch stf.tplType {
-	case GolangTemplateXMLV1:
+	case GolangTemplateXMLV1, GolangTemplateXMLV2:
 		return true
 	case GolangTemplateJSONV1:
 		return true
@@ -51,20 +58,20 @@ func (stf *streamTransformerFactory) IsTransformable() bool {
 
 func (stf *streamTransformerFactory) GetTransformer(input string) (StreamTransformer, error) {
 	switch stf.tplType {
-	case GolangTemplateXMLV1:
+	case GolangTemplateXMLV1, GolangTemplateXMLV2:
 		inStream := newXMLBestEffortReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
-		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		tfm, err := newTemplateStreamTransformer(stf.tplType, stf.tplStr, inStream, outStream)
 		return tfm, err
 	case GolangTemplateJSONV1:
 		inStream := newJSONReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
-		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		tfm, err := newTemplateStreamTransformer(stf.tplType, stf.tplStr, inStream, outStream)
 		return tfm, err
 	case GolangTemplateTextV1, GolangTemplateUnspecifiedV1:
 		inStream := newTextReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
-		tfm, err := newTemplateStreamTransformer(stf.tplStr, inStream, outStream)
+		tfm, err := newTemplateStreamTransformer(stf.tplType, stf.tplStr, inStream, outStream)
 		return tfm, err
 	default:
 		return nil, fmt.Errorf("unsupported template type: %s", stf.tplType)
@@ -132,6 +139,16 @@ func getRegexpAllMatches(input string, pattern string) ([]string, error) {
 func getXPathAllOuter(xml string, path string) ([]string, error) {
 	ss := NewXMLStringShorthand()
 	return ss.GetAllFull(xml, path)
+}
+
+// toJson marshals any value to a JSON string.
+// This enables simple XML-to-JSON transforms like: {{ toJson . }}
+func toJson(v interface{}) (string, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 type ObjectReader interface {
@@ -224,11 +241,17 @@ type templateStreamTransfomer struct {
 // }
 
 func newTemplateStreamTransformer(
+	tmplType string,
 	tplStr string,
 	inStream ObjectReader,
 	outStream io.ReadWriter,
 ) (StreamTransformer, error) {
-	tpl, tplErr := template.New("__stream_tfm__").Funcs(template.FuncMap{
+	tmplSemVerMatches := tmplSemVerRegexp.FindStringSubmatch(tmplType)
+	if len(tmplSemVerMatches) != 3 {
+		return nil, fmt.Errorf("invalid template type format: %s", tmplType)
+	}
+	tmplSemVer := tmplSemVerMatches[2]
+	tmplFuncMap := template.FuncMap{
 		"separator":           separator,
 		"jsonMapFromString":   jsonMapFromString,
 		"getXPath":            getXPathInner,
@@ -238,7 +261,11 @@ func newTemplateStreamTransformer(
 		"safeIndex":           safeIndex,
 		"toBool":              toBool,
 		"toInt":               toInt,
-	}).Parse(tplStr)
+	}
+	if semver.Compare(tmplSemVer, "v0.2.0") >= 0 {
+		tmplFuncMap["toJson"] = toJson
+	}
+	tpl, tplErr := template.New("__stream_tfm__").Funcs(tmplFuncMap).Parse(tplStr)
 	if tplErr != nil {
 		return nil, tplErr
 	}
