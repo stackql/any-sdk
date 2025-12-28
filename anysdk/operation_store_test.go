@@ -563,10 +563,12 @@ func TestXMLRequestBody(t *testing.T) {
 		"ChangeBatch": sqlRequestString,
 	}
 
-	processed, err := ops.MarshalBody(requestBodyMap, expectedRequest)
+	marshalledBody := ops.MarshalBody(requestBodyMap, expectedRequest)
+	processed := marshalledBody.GetBytes()
+	marshallErr, hasMarshallErr := marshalledBody.GetError()
 
-	if err != nil {
-		t.Fatalf("Test failed: %v", err)
+	if hasMarshallErr {
+		t.Fatalf("Test failed: %v", marshallErr)
 	}
 
 	expectedMatureBody := "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ChangeResourceRecordSetsRequest xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><ChangeBatch><Changes><Change><Action>CREATE</Action><ResourceRecordSet><Name>my.domain.com</Name><Type>A</Type><TTL>900</TTL><ResourceRecords><ResourceRecord><Value>10.10.10.10</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change></Changes></ChangeBatch></ChangeResourceRecordSetsRequest>"
@@ -610,10 +612,12 @@ func TestJSONRequestBody(t *testing.T) {
 		"name": "my-test-bucket",
 	}
 
-	processed, err := ops.MarshalBody(requestBodyMap, expectedRequest)
+	marshalledBody := ops.MarshalBody(requestBodyMap, expectedRequest)
+	processed := marshalledBody.GetBytes()
+	marshallErr, hasMarshallErr := marshalledBody.GetError()
 
-	if err != nil {
-		t.Fatalf("Test failed: %v", err)
+	if hasMarshallErr {
+		t.Fatalf("Test failed: %v", marshallErr)
 	}
 
 	expectedMatureBody := `{"name":"my-test-bucket"}`
