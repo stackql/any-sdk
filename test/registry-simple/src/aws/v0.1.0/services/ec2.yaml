@@ -45916,10 +45916,10 @@ components:
               algorithm: drop_double_underscore_params
             pagination:
               requestToken:
-                key: NextToken
-                location: query
+                key: nextToken
+                location: body
               responseToken:
-                key: $.next_page_token
+                key: $.NextToken
                 location: body
           operation:
             $ref: '#/paths/~1?__Action=DescribeVolumes&__Version=2016-11-15/post'
@@ -45933,6 +45933,25 @@ components:
               body: >-
                 {{ toJson . }}
               type: 'golang_template_mxj_v0.2.0'
+          request:
+            mediaType: application/x-www-form-urlencoded
+            schema_override:
+              $ref: '#/components/schemas/DescribeVolumesRequest'
+            transform:
+              type: golang_template_text_v0.1.0
+              body: |-
+                {{- $ctx := . -}}
+                {{- if or (not $ctx) (eq (len $ctx) 0) -}}
+                  {{- $ctx = "{}" -}}
+                {{- end -}}
+                {{- $body := jsonMapFromString $ctx -}}
+                {{- $nextToken := index $body "NextToken" -}}
+                {{- $query := "Action=DescribeVolumes&Version=2016-11-15" -}}
+                {{- if and $nextToken (ne $nextToken "") -}}
+                  {{- $query = printf "%s&nextToken=%s" $query (urlquery $nextToken) -}}
+                {{- end -}}
+                {{- $query -}}
+
       sqlVerbs:
         select:
           - $ref: '#/components/x-stackQL-resources/volumes_post_naively_presented/methods/describeVolumes'

@@ -38,7 +38,7 @@ build/anysdk query \
   --svc-file-path="test/registry-simple/src/aws/v0.1.0/services/ec2.yaml" \
   --tls.allowInsecure \
   --prov-file-path="test/registry-simple/src/aws/v0.1.0/provider.yaml" \
-  --resource volumes_naively_presented \
+  --resource volumes_post_naively_presented \
   --method describeVolumes \
   --parameters '{ "region": "ap-southeast-2" }' 
 

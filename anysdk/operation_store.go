@@ -1436,16 +1436,19 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	}
 	contentTypeHeaderRequired := false
 	var bodyReader io.Reader
-	predOne := !util.IsNil(requestBody)
+	// predOne := !util.IsNil(requestBody)
 	predTwo := !util.IsNil(op.Request)
-	if predOne && predTwo {
+	if predTwo {
 		// TODO: transform
 		b, err := op.marshalBody(requestBody, op.Request)
 		if err != nil {
 			return nil, err
 		}
-		bodyReader = bytes.NewReader(b)
-		contentTypeHeaderRequired = true
+		if len(b) > 0 {
+			bodyReader = bytes.NewReader(b)
+			contentTypeHeaderRequired = true
+		}
+
 	}
 	// TODO: clean up
 	sv = strings.TrimSuffix(sv, "/")
@@ -1641,10 +1644,13 @@ func (op *standardOpenAPIOperationStore) transformRequestBodyMap(input map[strin
 }
 
 func (op *standardOpenAPIOperationStore) transformRequestBodyBytes(input []byte) ([]byte, error) {
+	var inputStr string = ""
+	if len(input) > 0 {
+		inputStr = string(input)
+	}
 	if op.Request != nil {
 		requestTransform, requestTransformExists := op.Request.GetTransform()
 		if requestTransformExists {
-			inputStr := string(input)
 			streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
 				requestTransform.GetType(),
 				requestTransform.GetBody(),
