@@ -43,3 +43,17 @@ build/anysdk query \
   --parameters '{ "region": "ap-southeast-2" }' 
 
 ```
+
+Regression tests:
+
+```bash
+
+build/anysdk query \
+    --svc-file-path="test/registry/src/aws/v0.1.0/services/ec2.yaml" \
+    --tls.allowInsecure \
+    --prov-file-path="test/registry/src/aws/v0.1.0/provider.yaml" \
+    --resource volumes_presented \
+    --method describeVolumes \
+    --parameters '{ "region": "ap-southeast-2" }' 
+
+```
