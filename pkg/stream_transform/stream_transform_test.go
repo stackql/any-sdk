@@ -400,7 +400,7 @@ func TestMeaningfulXMLStreamTransform(t *testing.T) {
 func TestToJsonNaiveXMLTransform(t *testing.T) {
 	// Test the naive XML-to-JSON passthrough using toJson
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<root>
+<root xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <name>Test</name>
   <count>42</count>
   <items>
@@ -426,7 +426,7 @@ func TestToJsonNaiveXMLTransform(t *testing.T) {
 
 	// The mxj library converts XML to a map, so we expect a JSON object
 	// with the root element as the top-level key
-	expected := `{"root":{"count":42,"items":{"item":["one","two"]},"name":"Test"}}`
+	expected := `{"root":{"-xmlns":"http://s3.amazonaws.com/doc/2006-03-01/","count":42,"items":{"item":["one","two"]},"name":"Test"}}`
 	if outputStr != expected {
 		t.Fatalf("unexpected output:\ngot:  '%s'\nwant: '%s'", outputStr, expected)
 	}
