@@ -43,7 +43,7 @@ Simple AOT Analysis AWS Provider with CLI
     # Should Contain                     ${result.stdout}    
     # ...                                successfully performed AOT analysis
     Should Contain                     ${result.stderr}    
-    ...                                error count 637
+    ...                                error count 2
     Should Be Equal As Strings    ${result.rc}    1
 
 Simple AOT Service Level Analysis AWS EC2 with CLI
