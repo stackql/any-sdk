@@ -54,6 +54,22 @@ build/anysdk query \
     --prov-file-path="test/registry/src/aws/v0.1.0/provider.yaml" \
     --resource volumes_presented \
     --method describeVolumes \
-    --parameters '{ "region": "ap-southeast-2" }' 
+    --parameters '{ "region": "ap-southeast-2" }' | jq -r '.line_items[].volume_id'
+
+build/anysdk query \
+  --svc-file-path="test/registry/src/aws/v0.1.0/services/ec2.yaml" \
+  --tls.allowInsecure \
+  --prov-file-path="test/registry/src/aws/v0.1.0/provider.yaml" \
+  --resource volumes_post_naively_presented \
+  --method describeVolumes \
+  --parameters '{ "region": "ap-southeast-2" }' 
+
+build/anysdk query \
+  --svc-file-path="test/registry-mocked/src/aws/v0.1.0/services/ec2.yaml" \
+  --tls.allowInsecure \
+  --prov-file-path="test/registry-mocked/src/aws/v0.1.0/provider.yaml" \
+  --resource volumes_post_naively_presented \
+  --method describeVolumes \
+  --parameters '{ "region": "ap-southeast-2" }' 
 
 ```

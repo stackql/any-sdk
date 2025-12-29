@@ -68,7 +68,6 @@ AWS EC2 Describe Volumes Demonstrates No Request Body Parameters Still Expands T
     ...    \-\-resource               volumes_post_naively_presented
     ...    \-\-method                 describeVolumes
     ...    \-\-parameters             { "region": "ap-southeast-2" }
-    ...    \-\-auth                   {"google": {"credentialsenvvar": "GCP_SERVICE_ACCOUNT_KEY"}}
     ...    cwd=${CWD_FOR_EXEC}
     ...    stdout=${CURDIR}${/}/tmp${/}AWS-EC2-Describe-Volumes-Demonstrates-No-Request-Body-Parameters-Still-Expands-Template.txt
     ...    stderr=${CURDIR}${/}/tmp${/}AWS-EC2-Describe-Volumes-Demonstrates-No-Request-Body-Parameters-Still-Expands-Template_stderr.txt
