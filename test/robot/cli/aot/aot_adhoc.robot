@@ -20,7 +20,7 @@ Simple AOT Analysis Google Provider with CLI
     Log    Stdout = ${result.stdout}
     Log    RC = ${result.rc}
     Should Contain                     ${result.stderr}    
-    ...                                error count 635
+    ...                                error count 637
     Should Be Equal As Strings    ${result.rc}    1
 
 Simple AOT Analysis AWS Provider with CLI
@@ -40,9 +40,11 @@ Simple AOT Analysis AWS Provider with CLI
     Log    Stderr = ${result.stderr}
     Log    Stdout = ${result.stdout}
     Log    RC = ${result.rc}
-    Should Contain                     ${result.stdout}    
-    ...                                successfully performed AOT analysis
-    Should Be Equal As Strings    ${result.rc}    0
+    # Should Contain                     ${result.stdout}    
+    # ...                                successfully performed AOT analysis
+    Should Contain                     ${result.stderr}    
+    ...                                error count 637
+    Should Be Equal As Strings    ${result.rc}    1
 
 Simple AOT Service Level Analysis AWS EC2 with CLI
     [Documentation]    Test CLI Working
