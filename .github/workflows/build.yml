@@ -336,6 +336,9 @@ jobs:
         openssl req -x509 -keyout ${{ github.workspace }}/test/credentials/pg_rubbish_key.pem -out ${{ github.workspace }}/test/credentials/pg_rubbish_cert.pem  -config ${{ github.workspace }}/stackql-core/test/server/mtls/openssl.cnf -days 365
 
     - name: Run mocked robot tests
+      env:
+        AWS_ACCESS_KEY_ID: dummy
+        AWS_SECRET_ACCESS_KEY: dummy
       run: |
         export PYTHONPATH="${PYTHONPATH}:${{ github.workspace }}/test/python"
         robot -d test/robot/reports/mocked test/robot/cli/mocked
