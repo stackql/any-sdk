@@ -115,6 +115,25 @@
         {
             "type": "go",
             "request": "launch",
+            "name": "CLI aws form out xml back: ec2 describe volumes",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/interrogate",
+            "envFile": "${workspaceFolder}/.vscode/.env",
+            "args": [
+                "query",
+                "--svc-file-path=${workspaceFolder}/../stackql-provider-registry/providers/src/aws/v00.00.00000/services/ec2_native_updated.yaml",
+                "--prov-file-path=${workspaceFolder}/../stackql-provider-registry/providers/src/aws/v00.00.00000/provider.yaml",
+                "--resource",
+                "vpcs",
+                "--method",
+                "DescribeVpcs",
+                "--parameters",
+                "{ \"region\": \"ap-southeast-2\" }"
+            ]
+        },
+        {
+            "type": "go",
+            "request": "launch",
             "name": "CLI local: x509 openssl describe",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/interrogate",

@@ -123,6 +123,20 @@ build/anysdk query \
 
 ```
 
+EC2 cod dev:
+
+```bash
+
+build/anysdk query \
+  --svc-file-path="test/registry-simple/src/aws/v0.1.0/services/ec2.yaml" \
+  --tls.allowInsecure \
+  --prov-file-path="test/registry-simple/src/aws/v0.1.0/provider.yaml" \
+  --resource volumes_presented \
+  --method describeVolumes \
+  --parameters '{ "region": "ap-southeast-2" }' 
+
+```
+
 S3 one of the great challenges:
 
 

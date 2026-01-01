@@ -22183,7 +22183,8 @@ components:
         select:
         - $ref: '#/components/x-stackQL-resources/bucket_abac/methods/get_bucket_abac'
         insert: []
-        update: []
+        update:
+        - $ref: '#/components/x-stackQL-resources/bucket_abac/methods/put_bucket_abac'
         delete: []
     bucket_accelerate_configurations:
       id: aws.s3.bucket_accelerate_configurations
