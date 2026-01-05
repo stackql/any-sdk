@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
 	"regexp"
 	"text/template"
 
@@ -19,9 +20,13 @@ var (
 const (
 	GolangTemplateXMLV1         = "golang_template_mxj_v0.1.0"
 	GolangTemplateXMLV2         = "golang_template_mxj_v0.2.0"
+	GolangTemplateXMLV3         = "golang_template_mxj_v0.3.0"
 	GolangTemplateJSONV1        = "golang_template_json_v0.1.0"
+	GolangTemplateJSONV3        = "golang_template_json_v0.3.0"
 	GolangTemplateTextV1        = "golang_template_text_v0.1.0"
+	GolangTemplateTextV3        = "golang_template_text_v0.3.0"
 	GolangTemplateUnspecifiedV1 = "golang_template_v0.1.0"
+	GolangTemplateUnspecifiedV3 = "golang_template_v0.3.0"
 )
 
 type StreamTransformerFactory interface {
@@ -43,13 +48,13 @@ func NewStreamTransformerFactory(tplType string, tplStr string) StreamTransforme
 
 func (stf *streamTransformerFactory) IsTransformable() bool {
 	switch stf.tplType {
-	case GolangTemplateXMLV1, GolangTemplateXMLV2:
+	case GolangTemplateXMLV1, GolangTemplateXMLV2, GolangTemplateXMLV3:
 		return true
-	case GolangTemplateJSONV1:
+	case GolangTemplateJSONV1, GolangTemplateJSONV3:
 		return true
-	case GolangTemplateTextV1:
+	case GolangTemplateTextV1, GolangTemplateTextV3:
 		return true
-	case GolangTemplateUnspecifiedV1:
+	case GolangTemplateUnspecifiedV1, GolangTemplateUnspecifiedV3:
 		return true
 	default:
 		return false
@@ -58,17 +63,17 @@ func (stf *streamTransformerFactory) IsTransformable() bool {
 
 func (stf *streamTransformerFactory) GetTransformer(input string) (StreamTransformer, error) {
 	switch stf.tplType {
-	case GolangTemplateXMLV1, GolangTemplateXMLV2:
+	case GolangTemplateXMLV1, GolangTemplateXMLV2, GolangTemplateXMLV3:
 		inStream := newXMLBestEffortReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
 		tfm, err := newTemplateStreamTransformer(stf.tplType, stf.tplStr, inStream, outStream)
 		return tfm, err
-	case GolangTemplateJSONV1:
+	case GolangTemplateJSONV1, GolangTemplateJSONV3:
 		inStream := newJSONReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
 		tfm, err := newTemplateStreamTransformer(stf.tplType, stf.tplStr, inStream, outStream)
 		return tfm, err
-	case GolangTemplateTextV1, GolangTemplateUnspecifiedV1:
+	case GolangTemplateTextV1, GolangTemplateTextV3, GolangTemplateUnspecifiedV1, GolangTemplateUnspecifiedV3:
 		inStream := newTextReader(bytes.NewBufferString(input))
 		outStream := bytes.NewBuffer(nil)
 		tfm, err := newTemplateStreamTransformer(stf.tplType, stf.tplStr, inStream, outStream)
@@ -265,6 +270,10 @@ func newTemplateStreamTransformer(
 	if semver.Compare(tmplSemVer, "v0.2.0") >= 0 {
 		tmplFuncMap["toJson"] = toJson
 	}
+	if semver.Compare(tmplSemVer, "v0.2.0") >= 0 {
+		tmplFuncMap["kindOf"] = kindOf
+		tmplFuncMap["plus1"] = plus1
+	}
 	tpl, tplErr := template.New("__stream_tfm__").Funcs(tmplFuncMap).Parse(tplStr)
 	if tplErr != nil {
 		return nil, tplErr
@@ -277,6 +286,14 @@ func newTemplateStreamTransformer(
 		inStream:  inStream,
 		outStream: outStream,
 	}, nil
+}
+
+func kindOf(x interface{}) string {
+	return reflect.ValueOf(x).Kind().String()
+}
+
+func plus1(x int) int {
+	return x + 1
 }
 
 func (tst *templateStreamTransfomer) GetOutStream() io.Reader {

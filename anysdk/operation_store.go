@@ -15,6 +15,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/fuzzymatch"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/parametertranslate"
@@ -95,7 +96,7 @@ type OperationStore interface {
 	GetParameter(paramKey string) (Addressable, bool)
 	GetUnionRequiredParameters() (map[string]Addressable, error)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
-	MarshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error)
+	MarshalBody(body interface{}, expectedRequest ExpectedRequest) dto.MarshalledBody
 	GetRequestBodySchema() (Schema, error)
 	GetNonBodyParameters() map[string]Addressable
 	GetRequestBodyAttributesNoRename() (map[string]Addressable, error)
@@ -1322,14 +1323,15 @@ func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) 
 
 func (op *standardOpenAPIOperationStore) acceptPathParam(mutableParamMap map[string]interface{}) {}
 
-func (op *standardOpenAPIOperationStore) MarshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
+func (op *standardOpenAPIOperationStore) MarshalBody(body interface{}, expectedRequest ExpectedRequest) dto.MarshalledBody {
 	return op.marshalBody(body, expectedRequest)
 }
 
-func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedRequest ExpectedRequest) ([]byte, error) {
+func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedRequest ExpectedRequest) dto.MarshalledBody {
 	_, isTransform := expectedRequest.GetTransform()
 	if isTransform {
-		return op.transformRequestBodyMap(body.(map[string]interface{}))
+		b, err := op.transformRequestBodyMap(body.(map[string]interface{}))
+		return dto.NewMarshalledBody(b, err)
 	}
 	mediaType := expectedRequest.GetBodyMediaType()
 	if expectedRequest.GetSchema() != nil {
@@ -1337,17 +1339,19 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	}
 	switch mediaType {
 	case media.MediaTypeJson:
-		return json.Marshal(body)
+		b, err := json.Marshal(body)
+		return dto.NewMarshalledBody(b, err)
 	case media.MediaTypeXML, media.MediaTypeTextXML:
-		return xmlmap.MarshalXMLUserInput(
+		b, err := xmlmap.MarshalXMLUserInput(
 			body,
 			expectedRequest.GetFinalSchema().GetXMLALiasOrName(),
 			op.getXMLTransform(),
 			op.getXMLDeclaration(),
 			op.getXMLRootAnnotation(),
 		)
+		return dto.NewMarshalledBody(b, err)
 	}
-	return nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType())
+	return dto.NewMarshalledBody(nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType()))
 }
 
 func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
@@ -1436,16 +1440,21 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	}
 	contentTypeHeaderRequired := false
 	var bodyReader io.Reader
-	predOne := !util.IsNil(requestBody)
+	// predOne := !util.IsNil(requestBody)
 	predTwo := !util.IsNil(op.Request)
-	if predOne && predTwo {
+	if predTwo {
 		// TODO: transform
-		b, err := op.marshalBody(requestBody, op.Request)
-		if err != nil {
-			return nil, err
+		marshalledBody := op.marshalBody(requestBody, op.Request)
+		b := marshalledBody.GetBytes()
+		marshalledBodyErr, hassError := marshalledBody.GetError()
+		if hassError {
+			return nil, marshalledBodyErr
 		}
-		bodyReader = bytes.NewReader(b)
-		contentTypeHeaderRequired = true
+		if len(b) > 0 {
+			bodyReader = bytes.NewReader(b)
+			contentTypeHeaderRequired = true
+		}
+
 	}
 	// TODO: clean up
 	sv = strings.TrimSuffix(sv, "/")
@@ -1641,10 +1650,13 @@ func (op *standardOpenAPIOperationStore) transformRequestBodyMap(input map[strin
 }
 
 func (op *standardOpenAPIOperationStore) transformRequestBodyBytes(input []byte) ([]byte, error) {
+	var inputStr string = ""
+	if len(input) > 0 {
+		inputStr = string(input)
+	}
 	if op.Request != nil {
 		requestTransform, requestTransformExists := op.Request.GetTransform()
 		if requestTransformExists {
-			inputStr := string(input)
 			streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
 				requestTransform.GetType(),
 				requestTransform.GetBody(),
