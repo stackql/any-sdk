@@ -21,6 +21,7 @@ const (
 	LocationHeader      string = "header"
 	LocationCookie      string = "cookie"
 	LocationServer      string = "server"
+	LocationContext     string = "context"
 )
 
 const (

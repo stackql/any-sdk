@@ -579,6 +579,36 @@ func TestXMLRequestBody(t *testing.T) {
 
 }
 
+// Test the new context parameter handling in requests
+// using s3 bucket object list as example
+func TestContextVar(t *testing.T) {
+
+	b, err := GetServiceDocBytes("./testdata/registry/src/aws/v0.1.0/services/s3.yaml", ".")
+	assert.NilError(t, err)
+
+	l := newLoader()
+
+	svc, err := l.loadFromBytes(b)
+
+	assert.NilError(t, err)
+	assert.Assert(t, svc != nil)
+
+	// assert.Equal(t, svc.GetName(), "ec2")
+
+	rsc, err := svc.GetResource("bucket_acls")
+	assert.NilError(t, err)
+	assert.Assert(t, rsc != nil)
+
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", map[string]any{
+		"created_date": "2023-01-01T00:00:00Z",
+		"Bucket":       "my-test-bucket",
+	})
+	assert.Assert(t, ok)
+	// assert.Assert(t, st != "")
+	assert.Assert(t, ops != nil)
+
+}
+
 func TestJSONRequestBody(t *testing.T) {
 
 	b, err := GetServiceDocBytes("./testdata/registry/src/googleapis.com/v0.1.2/services/storage-v1.yaml", ".")

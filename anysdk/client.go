@@ -13,6 +13,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/internaldto"
+	"github.com/stackql/any-sdk/pkg/latetranslator"
 	"github.com/stackql/any-sdk/pkg/netutils"
 	"github.com/stackql/any-sdk/pkg/requesttranslate"
 )
@@ -24,12 +25,14 @@ var (
 )
 
 type anySdkHttpClient struct {
-	client *http.Client
+	client         *http.Client
+	lateTranslator latetranslator.LateTranslator
 }
 
 func newAnySdkHttpClient(client *http.Client) client.AnySdkClient {
 	return &anySdkHttpClient{
-		client: client,
+		client:         client,
+		lateTranslator: latetranslator.NewNaiveLateTranslator(),
 	}
 }
 
@@ -120,7 +123,11 @@ func (hc *anySdkHttpClient) Do(designation client.AnySdkDesignation, argList cli
 	if !isHttpRequest {
 		return nil, fmt.Errorf("could not cast first argument to http.Request")
 	}
-	httpResponse, httpResponseErr := hc.client.Do(httpReq)
+	translatedRequest, translationErr := hc.lateTranslator.Translate(httpReq)
+	if translationErr != nil {
+		return nil, translationErr
+	}
+	httpResponse, httpResponseErr := hc.client.Do(translatedRequest)
 	if httpResponseErr != nil {
 		return nil, httpResponseErr
 	}
@@ -129,19 +136,25 @@ func (hc *anySdkHttpClient) Do(designation client.AnySdkDesignation, argList cli
 }
 
 type anySdkHTTPClientConfigurator struct {
-	runtimeCtx   dto.RuntimeCtx
-	authUtil     auth_util.AuthUtility
-	providerName string
+	runtimeCtx    dto.RuntimeCtx
+	authUtil      auth_util.AuthUtility
+	providerName  string
+	defaultClient *http.Client
 }
 
 func NewAnySdkClientConfigurator(
 	rtCtx dto.RuntimeCtx,
 	provName string,
+	defaultClient *http.Client,
 ) client.AnySdkClientConfigurator {
+	if defaultClient == nil {
+		defaultClient = http.DefaultClient
+	}
 	return &anySdkHTTPClientConfigurator{
-		runtimeCtx:   rtCtx,
-		authUtil:     auth_util.NewAuthUtility(),
-		providerName: provName,
+		runtimeCtx:    rtCtx,
+		authUtil:      auth_util.NewAuthUtility(defaultClient),
+		providerName:  provName,
+		defaultClient: defaultClient,
 	}
 }
 
@@ -246,7 +259,7 @@ func (cc *anySdkHTTPClientConfigurator) Auth(
 		}
 		return newAnySdkHttpClient(httpClient), nil
 	case dto.AuthNullStr:
-		httpClient := netutils.GetHTTPClient(cc.runtimeCtx, http.DefaultClient)
+		httpClient := netutils.GetHTTPClient(cc.runtimeCtx, cc.defaultClient)
 		return newAnySdkHttpClient(httpClient), nil
 	}
 	return nil, fmt.Errorf("could not infer auth type")
