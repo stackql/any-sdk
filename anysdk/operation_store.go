@@ -115,6 +115,7 @@ type OperationStore interface {
 	ShouldBeSelectable() bool
 	GetServiceNameForProvider() string
 	getServiceNameForProvider() string
+	getContextVariables() map[string]Addressable
 }
 
 type StandardOperationStore interface {
@@ -821,6 +822,17 @@ func (m *standardOpenAPIOperationStore) GetKeyAsSqlVal(lhs string) (sqltypes.Val
 // This method needs to incorporate request body parameters
 func (m *standardOpenAPIOperationStore) GetRequiredParameters() map[string]Addressable {
 	return m.getRequiredParameters()
+}
+
+func (m *standardOpenAPIOperationStore) getContextVariables() map[string]Addressable {
+	params := make(map[string]Addressable)
+	allParams := m.getNonBodyParameters()
+	for k, v := range allParams {
+		if v.GetLocation() == LocationContext {
+			params[k] = v
+		}
+	}
+	return params
 }
 
 func (m *standardOpenAPIOperationStore) getRequestBodyAttributes() (map[string]Addressable, error) {

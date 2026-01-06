@@ -4607,6 +4607,11 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/BucketName'
+      - name: created_date
+        in: context
+        required: false
+        schema:
+          type: string
       - name: x-amz-expected-bucket-owner
         in: header
         required: false
