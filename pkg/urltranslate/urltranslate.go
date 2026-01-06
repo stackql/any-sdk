@@ -33,6 +33,11 @@ func newStringFragment(s string) QueryElement {
 	}
 }
 
+type compositeFragment struct {
+	_   struct{}
+	raw string
+}
+
 func (sf *stringFragment) isQueryElement() {}
 
 func (sf *stringFragment) String() string {
@@ -55,6 +60,22 @@ func (vwr *varWithRegexp) GetName() string {
 
 func (vwr *varWithRegexp) FullString() string {
 	return fmt.Sprintf("{%s}", vwr.raw)
+}
+
+func newCompositeFragment(s string) QueryElement {
+	return &compositeFragment{
+		raw: s,
+	}
+}
+
+func (sf *compositeFragment) isQueryElement() {}
+
+func (sf *compositeFragment) String() string {
+	return sf.raw
+}
+
+func (sf *compositeFragment) FullString() string {
+	return sf.raw
 }
 
 type ParameterisedURL interface {
@@ -93,6 +114,20 @@ func (uwp *urlWithParams) GetVarByName(name string) (QueryVar, bool) {
 	return nil, false
 }
 
+func extractTemplatedHost(raw string) string {
+	// 1. Remove the scheme (everything before and including "//")
+	_, hostAndPath, found := strings.Cut(raw, "//")
+	if !found {
+		// If no scheme is present, assume the string starts with the host
+		hostAndPath = raw
+	}
+
+	// 2. Remove the path (everything starting from the first "/")
+	host, _, _ := strings.Cut(hostAndPath, "/")
+
+	return host
+}
+
 func (uwp *urlWithParams) GetElementByString(s string) (QueryElement, bool) {
 	isVar := strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}")
 	if isVar {
@@ -100,7 +135,17 @@ func (uwp *urlWithParams) GetElementByString(s string) (QueryElement, bool) {
 		varVal, ok := uwp.GetVarByName(varName)
 		return varVal, ok
 	}
-	return newStringFragment(s), strings.Contains(uwp.raw, s)
+	isContained := strings.Contains(uwp.String(), s)
+	isComposite := false
+	hostPart := extractTemplatedHost(uwp.raw)
+	if strings.Contains(hostPart, "{") {
+		isContained = true
+		isComposite = true
+	}
+	if isComposite {
+		return newCompositeFragment(hostPart), isContained
+	}
+	return newStringFragment(s), isContained
 }
 
 func extractRegexpVariable(v string) (QueryVar, error) {
