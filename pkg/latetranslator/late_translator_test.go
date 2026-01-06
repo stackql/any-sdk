@@ -85,7 +85,7 @@ func TestTranslate(t *testing.T) {
 			}
 			if tt.date != "" {
 				ctx := req.Context()
-				ctx = context.WithValue(ctx, dto.ContextKeyDate, tt.date)
+				ctx = context.WithValue(ctx, dto.ContextKeyCreationDate, tt.date)
 				req = req.WithContext(ctx)
 			}
 

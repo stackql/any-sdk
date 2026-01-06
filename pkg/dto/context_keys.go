@@ -3,5 +3,5 @@ package dto
 type ContextKey string
 
 var (
-	ContextKeyDate = ContextKey("stackql/request/date")
+	ContextKeyCreationDate = ContextKey("stackql/request/creation_date")
 )

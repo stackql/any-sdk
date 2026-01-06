@@ -14,9 +14,13 @@ var (
 	s3VHostRegexp  *regexp.Regexp = regexp.MustCompile(s3VHostPattern)
 )
 
+type LateTranslator interface {
+	Translate(req *http.Request) (*http.Request, error)
+}
+
 type naiveLateTranslator struct{}
 
-func NewNaiveLateTranslator() *naiveLateTranslator {
+func NewNaiveLateTranslator() LateTranslator {
 	return &naiveLateTranslator{}
 }
 
@@ -28,7 +32,7 @@ func (nlt *naiveLateTranslator) requestDate(req *http.Request) time.Time {
 	if ctx == nil {
 		return time.Now()
 	}
-	raw := ctx.Value(dto.ContextKeyDate)
+	raw := ctx.Value(dto.ContextKeyCreationDate)
 	dateStr, ok := raw.(string)
 	if !ok || dateStr == "" {
 		return time.Now()

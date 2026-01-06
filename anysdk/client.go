@@ -13,6 +13,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/internaldto"
+	"github.com/stackql/any-sdk/pkg/latetranslator"
 	"github.com/stackql/any-sdk/pkg/netutils"
 	"github.com/stackql/any-sdk/pkg/requesttranslate"
 )
@@ -24,12 +25,14 @@ var (
 )
 
 type anySdkHttpClient struct {
-	client *http.Client
+	client         *http.Client
+	lateTranslator latetranslator.LateTranslator
 }
 
 func newAnySdkHttpClient(client *http.Client) client.AnySdkClient {
 	return &anySdkHttpClient{
-		client: client,
+		client:         client,
+		lateTranslator: latetranslator.NewNaiveLateTranslator(),
 	}
 }
 
@@ -120,7 +123,11 @@ func (hc *anySdkHttpClient) Do(designation client.AnySdkDesignation, argList cli
 	if !isHttpRequest {
 		return nil, fmt.Errorf("could not cast first argument to http.Request")
 	}
-	httpResponse, httpResponseErr := hc.client.Do(httpReq)
+	translatedRequest, translationErr := hc.lateTranslator.Translate(httpReq)
+	if translationErr != nil {
+		return nil, translationErr
+	}
+	httpResponse, httpResponseErr := hc.client.Do(translatedRequest)
 	if httpResponseErr != nil {
 		return nil, httpResponseErr
 	}
