@@ -136,9 +136,10 @@ func (hc *anySdkHttpClient) Do(designation client.AnySdkDesignation, argList cli
 }
 
 type anySdkHTTPClientConfigurator struct {
-	runtimeCtx   dto.RuntimeCtx
-	authUtil     auth_util.AuthUtility
-	providerName string
+	runtimeCtx    dto.RuntimeCtx
+	authUtil      auth_util.AuthUtility
+	providerName  string
+	defaultClient *http.Client
 }
 
 func NewAnySdkClientConfigurator(
@@ -146,10 +147,14 @@ func NewAnySdkClientConfigurator(
 	provName string,
 	defaultClient *http.Client,
 ) client.AnySdkClientConfigurator {
+	if defaultClient == nil {
+		defaultClient = http.DefaultClient
+	}
 	return &anySdkHTTPClientConfigurator{
-		runtimeCtx:   rtCtx,
-		authUtil:     auth_util.NewAuthUtility(defaultClient),
-		providerName: provName,
+		runtimeCtx:    rtCtx,
+		authUtil:      auth_util.NewAuthUtility(defaultClient),
+		providerName:  provName,
+		defaultClient: defaultClient,
 	}
 }
 
@@ -254,7 +259,7 @@ func (cc *anySdkHTTPClientConfigurator) Auth(
 		}
 		return newAnySdkHttpClient(httpClient), nil
 	case dto.AuthNullStr:
-		httpClient := netutils.GetHTTPClient(cc.runtimeCtx, http.DefaultClient)
+		httpClient := netutils.GetHTTPClient(cc.runtimeCtx, cc.defaultClient)
 		return newAnySdkHttpClient(httpClient), nil
 	}
 	return nil, fmt.Errorf("could not infer auth type")
