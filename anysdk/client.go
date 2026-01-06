@@ -144,10 +144,11 @@ type anySdkHTTPClientConfigurator struct {
 func NewAnySdkClientConfigurator(
 	rtCtx dto.RuntimeCtx,
 	provName string,
+	defaultClient *http.Client,
 ) client.AnySdkClientConfigurator {
 	return &anySdkHTTPClientConfigurator{
 		runtimeCtx:   rtCtx,
-		authUtil:     auth_util.NewAuthUtility(),
+		authUtil:     auth_util.NewAuthUtility(defaultClient),
 		providerName: provName,
 	}
 }
