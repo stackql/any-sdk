@@ -317,6 +317,7 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 		map[string]string{
 			"amalgam": "response.body.$.items",
 			"name":    "response.body.$.items[*].instanceGroups[*].name",
+			"ctx_nop": "request.context.nop_ctx_var",
 		},
 		false,
 	)
@@ -341,6 +342,13 @@ func TestAliasedAddressSpaceGoogleCurrent(t *testing.T) {
 	}
 	if responseBody == nil {
 		t.Fatalf("Address space analysis failed: expected non-nil 'response.body'")
+	}
+	requestCtxVar, requestCtxVarOk := addressSpace.DereferenceAddress("request.context.nop_ctx_var")
+	if !requestCtxVarOk {
+		t.Fatalf("Address space analysis failed: expected to dereference 'request.context.nop_ctx_var'")
+	}
+	if requestCtxVar == nil {
+		t.Fatalf("Address space analysis failed: expected non-nil 'request.context.nop_ctx_var'")
 	}
 	projectParam, projectParamOk := addressSpace.DereferenceAddress(".project")
 	if !projectParamOk {
