@@ -584,6 +584,8 @@ func (asa *standardAddressSpaceFormulator) expandParameterPaths() (map[string]st
 			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardCookiesName, k)
 		case anysdk.LocationServer:
 			rv[k] = fmt.Sprintf("%s.%s", "server", k)
+		case anysdk.LocationContext:
+			rv[k] = fmt.Sprintf("%s.%s", "context", k)
 		// case anysdk.LocationRequestBody:
 		// 	rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardBodyName, k)
 		default:
