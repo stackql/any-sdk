@@ -29422,6 +29422,11 @@ paths:
         required: true
         schema:
           type: string
+      - in: context
+        name: nop_ctx_var
+        required: false
+        schema:
+          type: string
       - description: 'A filter expression that filters resources listed in the response.
           The expression must specify the field name, a comparison operator, and the
           value that you want to use for filtering. The value must be a string, a
