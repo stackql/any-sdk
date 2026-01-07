@@ -1,12 +1,14 @@
 func CallFromSignature
 func CartesianProduct
 func ClientProtocolTypeFromString
+func DecideAddressing
 func DecompressToPath
 func DefaultLinkHeaderTransformer
 func Execute
 func ExtractHTTPElement
 func ExtractParameterisedURL
 func ExtractProviderDesignation
+func ExtractStackqlRequestContextValue
 func FilePathJoin
 func FindLatest
 func FindLatestStable
@@ -109,6 +111,7 @@ func NewMarshalledBody
 func NewMethodAnalysisInput
 func NewMethodAnalyzer
 func NewNaiveBodyTranslator
+func NewNaiveLateTranslator
 func NewNilTranslator
 func NewNopMapStream
 func NewOperationSelector

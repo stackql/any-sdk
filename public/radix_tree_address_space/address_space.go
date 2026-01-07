@@ -11,6 +11,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/client"
+	"github.com/stackql/any-sdk/pkg/latetranslator"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/urltranslate"
 )
@@ -219,6 +220,7 @@ type standardNamespace struct {
 	explicitAliasMap        AliasMap
 	globalAliasMap          AliasMap
 	shadowQuery             RadixTree
+	lateTranslator          latetranslator.LateTranslator
 }
 
 func selectServer(servers openapi3.Servers, inputParams map[string]interface{}) (string, error) {
@@ -367,8 +369,11 @@ func (ns *standardNamespace) Invoke(argList ...any) error {
 			httpReq.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 		ns.request = copiedRequest
-
-		resp, respErr := v.Do(httpReq)
+		translatedReq, translateErr := ns.lateTranslator.Translate(copiedRequest)
+		if translateErr != nil {
+			return translateErr
+		}
+		resp, respErr := v.Do(translatedReq)
 		if respErr != nil {
 			return respErr
 		}
@@ -766,6 +771,7 @@ func (asa *standardAddressSpaceFormulator) Formulate() error {
 		svc:                     asa.service,
 		method:                  asa.method,
 		shadowQuery:             NewRadixTree(),
+		lateTranslator:          latetranslator.NewNaiveLateTranslator(),
 	}
 	if addressSpace == nil {
 		return fmt.Errorf("failed to create address space for operation %s", asa.method.GetName())

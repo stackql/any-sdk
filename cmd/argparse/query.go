@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"runtime/pprof"
 
@@ -54,15 +55,16 @@ func parseExecPayload(
 }
 
 type queryCmdPayload struct {
-	rtCtx        dto.RuntimeCtx
-	provFilePath string
-	svcFilePath  string
-	resourceStr  string
-	methodName   string
-	payload      string
-	payloadType  string
-	parameters   map[string]interface{}
-	auth         map[string]*dto.AuthCtx
+	rtCtx             dto.RuntimeCtx
+	provFilePath      string
+	svcFilePath       string
+	resourceStr       string
+	methodName        string
+	payload           string
+	payloadType       string
+	parameters        map[string]interface{}
+	auth              map[string]*dto.AuthCtx
+	defaultHttpClient *http.Client // for testing purposes
 }
 
 func (qcp *queryCmdPayload) getService() (anysdk.Service, error) {
@@ -217,6 +219,7 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 			cc := anysdk.NewAnySdkClientConfigurator(
 				payload.rtCtx,
 				prov.GetName(),
+				payload.defaultHttpClient,
 			)
 			response, apiErr := anysdk.CallFromSignature(
 				cc, payload.rtCtx, authCtx, authCtx.Type, false, os.Stderr, prov, anysdk.NewAnySdkOpStoreDesignation(opStore), argList)
