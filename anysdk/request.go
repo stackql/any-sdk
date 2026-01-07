@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stackql/any-sdk/pkg/client"
+	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/stream_transform"
 	"github.com/stackql/any-sdk/pkg/streaming"
 )
@@ -210,6 +211,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 func awsContextHousekeeping(
 	ctx context.Context,
 	method OperationStore,
+	contextParams map[string]interface{},
 	parameters map[string]interface{},
 ) context.Context {
 	svcName := method.getServiceNameForProvider()
@@ -218,6 +220,10 @@ func awsContextHousekeeping(
 		if regionStr, rOk := region.(string); rOk {
 			ctx = context.WithValue(ctx, "region", regionStr) //nolint:revive,staticcheck // TODO: add custom context type
 		}
+	}
+	for k, v := range contextParams {
+		contextKey := dto.ContextKey(fmt.Sprintf("%s%s", dto.ContextPrefixStackqlRequest, k))
+		ctx = context.WithValue(ctx, contextKey, v) //nolint:revive,staticcheck // TODO: add custom context type
 	}
 	return ctx
 }
@@ -237,7 +243,11 @@ func getRequest(
 		return nil, err
 	}
 	request := validationParams.Request
-	ctx := awsContextHousekeeping(request.Context(), method, params)
+	contextParams, err := httpParams.GetContextParameterFlatMap()
+	if err != nil {
+		return nil, err
+	}
+	ctx := awsContextHousekeeping(request.Context(), method, contextParams, params)
 	request = request.WithContext(ctx)
 	return request, nil
 }

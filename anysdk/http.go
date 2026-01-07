@@ -153,6 +153,7 @@ type HttpParameters interface {
 	GetParameter(paramName, paramIn string) (ParameterBinding, bool)
 	GetRemainingQueryParamsFlatMap(keysRemaining map[string]interface{}) (map[string]interface{}, error)
 	GetServerParameterFlatMap() (map[string]interface{}, error)
+	GetContextParameterFlatMap() (map[string]interface{}, error)
 	SetResponseBodyParam(key string, val interface{})
 	SetServerParam(key string, svc OpenAPIService, val interface{})
 	SetRequestBodyParam(key string, val interface{})
@@ -429,6 +430,18 @@ func (hp *standardHttpParameters) GetServerParameterFlatMap() (map[string]interf
 	rv := make(map[string]interface{})
 	visited := make(map[string]struct{})
 	for k, v := range hp.ServerParams {
+		err := hp.updateStuff(k, v, rv, visited)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rv, nil
+}
+
+func (hp *standardHttpParameters) GetContextParameterFlatMap() (map[string]interface{}, error) {
+	rv := make(map[string]interface{})
+	visited := make(map[string]struct{})
+	for k, v := range hp.ContextParams {
 		err := hp.updateStuff(k, v, rv, visited)
 		if err != nil {
 			return nil, err

@@ -101,5 +101,8 @@ func (p parameters) GetParameter(key string) (Addressable, bool) {
 	if param, ok := p.getParameterFromInSubset(key, openapi3.ParameterInCookie); ok {
 		return param, true
 	}
+	if param, ok := p.getParameterFromInSubset(key, "context"); ok {
+		return param, true
+	}
 	return nil, false
 }
