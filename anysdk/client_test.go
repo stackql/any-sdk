@@ -266,40 +266,6 @@ func TestAwsS3BucketAclsGet(t *testing.T) {
 	if methodErr != nil {
 		t.Fatalf("Test failed: could not locate method get_bucket_acl, error: %v", methodErr)
 	}
-	// expectedRequest, hasRequest := method.GetRequest()
-	// if !hasRequest || expectedRequest == nil {
-	// 	t.Fatalf("Test failed: expected request is nil")
-	// }
-
-	// transform, hasTransform := expectedRequest.GetTransform()
-	// if !hasTransform || transform == nil {
-	// 	t.Fatalf("Test failed: expected transform is nil")
-	// }
-	// schema := expectedRequest.GetSchema()
-
-	// schemaDescription := schema.GetDescription()
-
-	// assert.Equal(t, schemaDescription, "A convenience for presentation")
-
-	// assert.Assert(t, schema != nil, "expected schema to be non-nil")
-	// props, _ := schema.GetProperties()
-	// assert.Assert(t, props != nil, "expected schema properties to be non-nil")
-	// _, hasLineItem := props["line_items"]
-	// _, hasStatus := props["status"]
-	// assert.Assert(t, hasLineItem, "expected schema to have 'line_items' property")
-	// assert.Assert(t, hasStatus, "expected schema to have 'status' property")
-
-	// finalSchema := expectedRequest.GetFinalSchema()
-	// assert.Assert(t, finalSchema != nil, "expected final schema to be non-nil")
-	// finalProps, _ := finalSchema.GetProperties()
-	// assert.Assert(t, len(finalProps) != 0, "expected final schema properties to be non-empty")
-	// _, finalHasStatus := finalProps["Status"]
-	// assert.Assert(t, finalHasStatus, "expected final schema to have 'Status' property")
-
-	// finalDescription := finalSchema.GetDescription()
-	// assert.Equal(t, finalDescription, "The ABAC status of the general purpose bucket. When ABAC is enabled for the general purpose bucket, you can use tags to manage access to the general purpose buckets as well as for cost tracking purposes. When ABAC is disabled for the general purpose buckets, you can only use tags for cost tracking purposes. For more information, see [Using tags with S3 general purpose buckets](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging.html).")
-
-	// assert.Equal(t, expectedRequest.GetBodyMediaType(), "application/xml")
 
 	assert.Equal(t, svc.GetName(), "s3")
 
@@ -333,17 +299,6 @@ func TestAwsS3BucketAclsGet(t *testing.T) {
 		"aws",
 		dummyClient,
 	)
-	// client, clientErr := configurator.Auth(
-	// 	authCtx,
-	// 	dto.AuthNullStr,
-	// 	false,
-	// )
-	// if clientErr != nil {
-	// 	t.Fatalf("Test failed: could not create client, error: %v", clientErr)
-	// }
-	// if client == nil {
-	// 	t.Fatalf("Test failed: client is nil")
-	// }
 	httpPreparator := NewHTTPPreparator(
 		prov,
 		svc,
@@ -370,9 +325,6 @@ func TestAwsS3BucketAclsGet(t *testing.T) {
 	for _, v := range reqParams {
 
 		argList := v.GetArgList()
-
-		// response, apiErr := CallFromSignature(
-		// 		cc, payload.rtCtx, authCtx, authCtx.Type, false, os.Stderr, prov, anysdk.NewAnySdkOpStoreDesignation(opStore), argList)
 
 		response, apiErr := CallFromSignature(
 			configurator,
