@@ -24,6 +24,7 @@ const (
 	standardURLName             = "url"
 	standardHeadersName         = "headers"
 	standardBodyName            = "body"
+	standardContextName         = "context"
 	standardQueryName           = "query"
 	standardPathName            = "path"
 	standardCookiesName         = "cookies"
@@ -32,6 +33,7 @@ const (
 	// path types
 	pathTypeRequestBody    pathType = "request_body"
 	pathTypeResponseBody   pathType = "response_body"
+	pathTypeRequestContext pathType = "request_context"
 	pathTypeURLQuery       pathType = "url_query"
 	pathTypeURLPath        pathType = "url_path"
 	pathTypeRequestHeader  pathType = "request_header"
@@ -88,6 +90,7 @@ type standardAddressSpaceGrammar struct {
 	responseBodyPrefix   string
 	urlQueryPrefix       string
 	requestHeaderPrefix  string
+	requestContextPrefix string
 	responseHeaderPrefix string
 	urlPathPrefix        string
 }
@@ -104,6 +107,7 @@ func newStandardAddressSpaceGrammar() AddressSpaceGrammar {
 		cookiesName:          standardCookiesName,
 		postTransformPrefix:  standardPostTransformPrefix,
 		serverName:           standardServerName,
+		requestContextPrefix: fmt.Sprintf("%s.%s.", standardRequestName, standardContextName),
 		requestBodyPrefix:    fmt.Sprintf("%s.%s.", standardRequestName, standardBodyName),
 		responseBodyPrefix:   fmt.Sprintf("%s.%s.", standardResponseName, standardBodyName),
 		urlQueryPrefix:       fmt.Sprintf("%s.%s.", standardRequestName, standardQueryName),
@@ -118,6 +122,11 @@ func (sg *standardAddressSpaceGrammar) extractRequestBodySubPath(fullPath string
 		return strings.TrimPrefix(fullPath, sg.requestBodyPrefix), true
 	}
 	return "", false
+}
+
+func (sg *standardAddressSpaceGrammar) extractRequestContextSubPath(fullPath string) (string, bool) {
+	rv := strings.TrimPrefix(fullPath, sg.requestContextPrefix)
+	return rv, rv != fullPath
 }
 
 func (sg *standardAddressSpaceGrammar) extractResponseBodySubPath(fullPath string) (string, bool) {
@@ -144,6 +153,8 @@ func (sg *standardAddressSpaceGrammar) ExtractSubPath(fullPath string, pathType 
 	switch pathType {
 	case pathTypeRequestBody:
 		return sg.extractRequestBodySubPath(fullPath)
+	case pathTypeRequestContext:
+		return sg.extractRequestContextSubPath(fullPath)
 	case pathTypeResponseBody:
 		return sg.extractResponseBodySubPath(fullPath)
 	case pathTypeURLQuery:
@@ -527,6 +538,18 @@ func (ns *standardNamespace) DereferenceAddress(address string) (any, bool) {
 			return ns.requestBodySchema, true
 		case standardHeadersName:
 			return ns.request.Header, true
+		case standardContextName:
+			if len(parts) < 3 {
+				return nil, false
+			}
+			if ns.method == nil {
+				return nil, false
+			}
+			rv, ok := ns.method.GetParameter(parts[2])
+			if !ok || rv.GetLocation() != anysdk.LocationContext {
+				return nil, false
+			}
+			return rv, true
 		default:
 			return nil, false
 		}
@@ -584,6 +607,8 @@ func (asa *standardAddressSpaceFormulator) expandParameterPaths() (map[string]st
 			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardCookiesName, k)
 		case anysdk.LocationServer:
 			rv[k] = fmt.Sprintf("%s.%s", "server", k)
+		case anysdk.LocationContext:
+			rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardContextName, k)
 		// case anysdk.LocationRequestBody:
 		// 	rv[k] = fmt.Sprintf("%s.%s.%s", standardRequestName, standardBodyName, k)
 		default:
@@ -627,6 +652,16 @@ func (asa *standardAddressSpaceFormulator) resolvePathsToSchemas(aliasToPathMap 
 				nil,
 				queryKey,
 				queryKey,
+			)
+			rv[path] = schema
+			continue
+		}
+		contextKey, isContextAttribute := asa.grammar.ExtractSubPath(path, pathTypeRequestContext)
+		if isContextAttribute {
+			schema := anysdk.NewStringSchema(
+				nil,
+				contextKey,
+				contextKey,
 			)
 			rv[path] = schema
 			continue
