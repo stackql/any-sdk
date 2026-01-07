@@ -4425,7 +4425,7 @@ paths:
           description: Success
   /?abac:
     servers:
-    - url: 'https://{Bucket}.s3-{region}.amazonaws.com'
+    - url: 'https://{Bucket}.s3.{region}.amazonaws.com'
       variables:
         Bucket:
           default: stackql-trial-bucket-02
