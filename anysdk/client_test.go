@@ -380,12 +380,15 @@ func TestLegacyPathAwsS3BucketAclsGet(t *testing.T) {
 
 	assert.Equal(t, svc.GetName(), "s3")
 
-	expectedHost := "s3-us-east-1.amazonaws.com"
+	expectedHost := "s3.ap-northeast-1.amazonaws.com"
+
+	expectedPath := "/my.test-bucket"
 
 	tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		io.Copy(io.Discard, r.Body)
 		assert.Equal(t, r.Host, expectedHost, "expected host does not match actual host")
+		assert.Equal(t, r.URL.Path, expectedPath, "expected path does not match actual path")
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(tlsServer.Close)
@@ -418,6 +421,7 @@ func TestLegacyPathAwsS3BucketAclsGet(t *testing.T) {
 			0: {
 				"Bucket":       "my.test-bucket",
 				"created_date": "2016-01-01T00:00:00Z",
+				"region":       "ap-northeast-1",
 			},
 		},
 		nil,

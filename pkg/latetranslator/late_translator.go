@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	s3VHostPattern string         = `^(.+)\.(s3[.-](?:dualstack\.)?(?:fips-)?(?:[a-z0-9-]+))\.amazonaws\.com$`
+	s3VHostPattern string         = `^(.+)\.s3[.-]((?:dualstack\.)?(?:fips-)?(?:[a-z0-9-]+))\.amazonaws\.com$`
 	s3VHostRegexp  *regexp.Regexp = regexp.MustCompile(s3VHostPattern)
 )
 
@@ -64,7 +64,7 @@ func (nlt *naiveLateTranslator) mutateS3BucketRequest(req *http.Request) (*http.
 
 		if routeStyle == s3balancer.PathStyle {
 			// 1. Change Host to regional base (e.g., s3.us-west-2.amazonaws.com)
-			req.URL.Host = s3Segment + ".amazonaws.com"
+			req.URL.Host = "s3." + s3Segment + ".amazonaws.com"
 			req.Host = req.URL.Host
 
 			// 2. Prepend bucket to path
