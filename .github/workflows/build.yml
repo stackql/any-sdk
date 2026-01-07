@@ -147,6 +147,7 @@ jobs:
           echo "API sprawl check passed"
         else
           echo "API sprawl check failed - please review for details"
+          exit 1
         fi
     
     - name: Setup system dependencies

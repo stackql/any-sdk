@@ -53,6 +53,7 @@ type IDiscoveryAdapter interface
 type IDiscoveryStore interface
 type ITable interface
 type Interrogator interface
+type LateTranslator interface
 type Manager interface
 type MapReader interface
 type MapStream interface
