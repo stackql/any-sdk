@@ -42,6 +42,11 @@ type ColumnDescriptor interface {
 	setName(string)
 }
 
+func NewColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema anysdk.Schema, val *sqlparser.SQLVal) ColumnDescriptor {
+	rv := anysdk.NewColumnDescriptor(alias, name, qualifier, decoratedCol, node, schema, val)
+	return rv.(ColumnDescriptor)
+}
+
 type SQLExternalColumn interface {
 	GetName() string
 	GetType() string
