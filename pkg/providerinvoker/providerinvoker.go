@@ -1,6 +1,8 @@
 package providerinvoker
 
-import "context"
+import (
+	"context"
+)
 
 // Request carries an invoker-specific payload. Step 1 keeps this opaque so we can
 // stabilise call-shapes in StackQL before lift/shift into any-sdk.

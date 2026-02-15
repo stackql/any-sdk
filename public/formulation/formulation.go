@@ -5,5 +5,5 @@ import (
 )
 
 type ArmouryGenerator interface {
-	GetHTTPArmoury() anysdk.HTTPArmoury
+	GetHTTPArmoury() (anysdk.HTTPArmoury, error)
 }
