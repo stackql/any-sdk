@@ -55,6 +55,26 @@ type SQLExternalColumn interface {
 	GetPrecision() int
 }
 
+func NewMethodAnalysisInput(
+	method anysdk.OperationStore,
+	service anysdk.Service,
+	isNilResponseAllowed bool,
+	columns []ColumnDescriptor,
+	isAwait bool,
+) anysdk.MethodAnalysisInput {
+	cols := make([]anysdk.ColumnDescriptor, len(columns))
+	for i, c := range columns {
+		cols[i] = c.(anysdk.ColumnDescriptor)
+	}
+	return anysdk.NewMethodAnalysisInput(
+		method,
+		service,
+		isNilResponseAllowed,
+		cols,
+		isAwait,
+	)
+}
+
 type SQLExternalTable interface {
 	GetCatalogName() string
 	GetSchemaName() string
