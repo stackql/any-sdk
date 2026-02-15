@@ -8,6 +8,7 @@ type DropDoubleUnderscoreParamsTranslator struct
 type GCCfg struct
 type GetQueryToPostFormEncodedTranslator struct
 type IHTTPElement struct
+type Invoker struct
 type JSONPathResolver struct
 type KStoreCfg struct
 type KeyVal struct
@@ -29,8 +30,10 @@ type ProviderInfo struct
 type ProvidersList struct
 type Registry struct
 type RegistryConfig struct
+type Request struct
 type ResourcesRef struct
 type ResponseKeys struct
+type Result struct
 type Router struct
 type RuntimeCtx struct
 type SQLBackendCfg struct

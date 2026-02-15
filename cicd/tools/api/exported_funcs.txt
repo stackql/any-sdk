@@ -72,6 +72,7 @@ func LoadServiceDocFromFile
 func LoadServiceSubsetDocFromBytes
 func MakeSuffixMapFromParameterMap
 func MarshalXMLUserInput
+func New
 func NewAddressSpaceAnalysisPassManager
 func NewAddressSpaceFormulator
 func NewAddressSpaceGrammar
@@ -121,7 +122,10 @@ func NewParameterBinding
 func NewParameterSuffixMap
 func NewParameterTranslator
 func NewParameters
+func NewPayload
 func NewPrefixedTranslator
+func NewProcessor
+func NewProcessorPayload
 func NewProvider
 func NewProviderServiceResourceAnalyzer
 func NewProvidersList
@@ -150,6 +154,7 @@ func NewStandardMapStream
 func NewStandardMapStreamCollection
 func NewStandardOutputPacket
 func NewStandardParamInputStrem
+func NewStandardPolyHandler
 func NewStandardStaticAnalyzerFactoryFactory
 func NewStandardTransformerLocator
 func NewStaticAnalyzer
@@ -217,8 +222,8 @@ func TestLocalTemplatedCompositeServiceFile
 func TestLocalValidateAndParseValidProviderFile
 func TestMeaningfulStreamTransform
 func TestMeaningfulXMLStreamTransform
-func TestMinimalODataConfig
 func TestMethodLevelVariableHostRoutingFutureProofed
+func TestMinimalODataConfig
 func TestMonolithicCompositeServiceFile
 func TestNewAddressSpace
 func TestNoFallbackViewApi
@@ -229,6 +234,7 @@ func TestPersistenceSetup
 func TestPlaceholder
 func TestProviderPull
 func TestProviderPullAndPersist
+func TestQueryParamPushdownConfig
 func TestRegistryArrayTopLevelResponse
 func TestRegistryCanHandlePolymorphismAllOf
 func TestRegistryCanHandleUnspecifiedResponseWithDefaults
@@ -279,7 +285,6 @@ func TestXMLMArshal
 func TestXMLRequestBody
 func TestXMLSchemaInterrogation
 func TestXPathHandle
-func TestQueryParamPushdownConfig
 func TranslateServiceKeyGenericProviderToIql
 func TrimSelectItemsKey
 func ValidateAndParse
