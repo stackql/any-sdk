@@ -1,3 +1,5 @@
+type ActionInsertPayload interface
+type ActionInsertResult interface
 type AddressSpace interface
 type AddressSpaceAnalysisPassManager interface
 type AddressSpaceExpander interface
@@ -5,6 +7,7 @@ type AddressSpaceExpansionConfig interface
 type AddressSpaceFormulator interface
 type AddressSpaceGrammar interface
 type Addressable interface
+type AgnosticatePayload interface
 type AliasMap interface
 type AnalyzedFullHierarchy interface
 type AnalyzedInput interface
@@ -17,6 +20,7 @@ type AnySdkClientConfigurator interface
 type AnySdkDesignation interface
 type AnySdkInvocation interface
 type AnySdkResponse interface
+type ArmouryGenerator interface
 type AssistedTransport interface
 type AuthDTO interface
 type AuthUtility interface
@@ -52,7 +56,10 @@ type HttpPreparatorStream interface
 type IDiscoveryAdapter interface
 type IDiscoveryStore interface
 type ITable interface
+type InsertPreparator interface
 type Interrogator interface
+type Invoker interface
+type ItemisationResult interface
 type LateTranslator interface
 type Manager interface
 type MapReader interface
@@ -60,6 +67,7 @@ type MapStream interface
 type MapStreamCollection interface
 type MapWriter interface
 type MarshalledBody interface
+type MessageHandler interface
 type MethodAggregateStaticAnalyzer interface
 type MethodAnalysisInput interface
 type MethodAnalysisOutput interface
@@ -71,14 +79,15 @@ type ObjectWithLineage interface
 type ObjectWithLineageCollection interface
 type ObjectWithLineageCollectionConfig interface
 type ObjectWithoutLineage interface
-type OrderByPushdown interface
 type OpenAPIService interface
 type OperationInverse interface
 type OperationSelector interface
 type OperationStore interface
 type OperationTokens interface
+type OrderByPushdown interface
 type OutputPacket interface
 type Pagination interface
+type PagingState interface
 type ParamInputStrem interface
 type ParamPair interface
 type ParameterBinding interface
@@ -87,7 +96,11 @@ type ParameterisedURL interface
 type Params interface
 type PathResolver interface
 type PersistenceSystem interface
+type PolyHandler interface
 type ProcessedOperationResponse interface
+type Processor interface
+type ProcessorPayload interface
+type ProcessorResponse interface
 type Provider interface
 type ProviderService interface
 type ProviderServiceResourceAnalyzer interface
@@ -109,8 +122,8 @@ type SQLEngine interface
 type SQLExternalColumn interface
 type SQLExternalConnection interface
 type SQLExternalTable interface
-type SelectPushdown interface
 type Schema interface
+type SelectPushdown interface
 type Service interface
 type SessionContext interface
 type StackQLConfig interface
