@@ -39,7 +39,6 @@ type ColumnDescriptor interface {
 	GetRepresentativeSchema() anysdk.Schema
 	GetSchema() anysdk.Schema
 	GetVal() *sqlparser.SQLVal
-	setName(string)
 }
 
 func NewColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema anysdk.Schema, val *sqlparser.SQLVal) ColumnDescriptor {
