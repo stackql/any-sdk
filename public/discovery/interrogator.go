@@ -3,7 +3,7 @@ package discovery
 import (
 	"sort"
 
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 )
 
 type Interrogator interface {

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/httpelement"
@@ -16,7 +16,6 @@ import (
 
 	sdk_internal_dto "github.com/stackql/any-sdk/pkg/internaldto"
 	"github.com/stackql/any-sdk/pkg/providerinvoker"
-	"github.com/stackql/any-sdk/public/formulation"
 )
 
 type itemsDTO struct {
@@ -68,8 +67,12 @@ type actionInsertResult struct {
 	isHousekeepingDone bool
 }
 
+type ArmouryGenerator interface {
+	GetHTTPArmoury() (anysdk.HTTPArmoury, error)
+}
+
 func NewPayload(
-	armouryGenerator formulation.ArmouryGenerator,
+	armouryGenerator ArmouryGenerator,
 	provider anysdk.Provider,
 	method anysdk.OperationStore,
 	tableName string,
@@ -113,7 +116,7 @@ func NewPayload(
 // standardPayload is the (still-internal) call-shape for the any-sdk HTTP invoker.
 // It mirrors the data StackQL currently passes to newHTTPAgnosticatePayload()/agnosticate().
 type standardPayload struct {
-	ArmouryGenerator  formulation.ArmouryGenerator
+	ArmouryGenerator  ArmouryGenerator
 	Provider          anysdk.Provider
 	Method            anysdk.OperationStore
 	TableName         string
@@ -210,7 +213,7 @@ type AgnosticatePayload interface {
 }
 
 type httpAgnosticatePayload struct {
-	armouryGenerator        formulation.ArmouryGenerator
+	armouryGenerator        ArmouryGenerator
 	provider                anysdk.Provider
 	method                  anysdk.OperationStore
 	tableName               string
@@ -230,7 +233,7 @@ type httpAgnosticatePayload struct {
 }
 
 func newHTTPAgnosticatePayload(
-	armouryGenerator formulation.ArmouryGenerator,
+	armouryGenerator ArmouryGenerator,
 	provider anysdk.Provider,
 	method anysdk.OperationStore,
 	tableName string,

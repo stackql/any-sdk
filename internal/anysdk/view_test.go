@@ -3,7 +3,7 @@ package anysdk_test
 import (
 	"testing"
 
-	. "github.com/stackql/any-sdk/anysdk"
+	. "github.com/stackql/any-sdk/internal/anysdk"
 	"gopkg.in/yaml.v3"
 
 	"gotest.tools/assert"

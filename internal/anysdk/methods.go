@@ -6,6 +6,15 @@ import (
 
 type Methods map[string]standardOpenAPIOperationStore
 
+func (ms Methods) Put(k string, v StandardOperationStore) error {
+	val, ok := v.(*standardOpenAPIOperationStore)
+	if ok {
+		ms[k] = *val
+		return nil
+	}
+	return fmt.Errorf("cannot emplace method of type %T", v)
+}
+
 func (ms Methods) FindMethod(key string) (StandardOperationStore, error) {
 	if m, ok := ms[key]; ok {
 		return &m, nil
