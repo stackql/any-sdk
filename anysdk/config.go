@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/surface"
 )
 
 var (
@@ -12,7 +13,7 @@ var (
 )
 
 type StackQLConfig interface {
-	GetAuth() (AuthDTO, bool)
+	GetAuth() (surface.AuthDTO, bool)
 	GetViewsForSqlDialect(sqlDialect string, viewName string) ([]View, bool)
 	GetQueryTranspose() (Transform, bool)
 	GetRequestTranslate() (Transform, bool)
@@ -134,7 +135,7 @@ func (cfg *standardStackQLConfig) GetView(viewName string) (View, bool) {
 	return nil, false
 }
 
-func (cfg *standardStackQLConfig) GetAuth() (AuthDTO, bool) {
+func (cfg *standardStackQLConfig) GetAuth() (surface.AuthDTO, bool) {
 	return cfg.Auth, cfg.Auth != nil
 }
 

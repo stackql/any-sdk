@@ -46,7 +46,6 @@ type Tabulation interface {
 
 type Schema interface {
 	SetDefaultColName(string)
-	getDefaultColName() string
 	ConditionIsValid(lhs string, rhs interface{}) bool
 	DeprecatedProcessHttpResponse(response *http.Response, path string) (map[string]interface{}, error)
 	FindByPath(path string, visited map[string]bool) Schema

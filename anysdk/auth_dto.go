@@ -6,11 +6,12 @@ import (
 	"net/url"
 
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/surface"
 )
 
 var (
-	_ jsonpointer.JSONPointable = (AuthDTO)(standardAuthDTO{})
-	_ AuthDTO                   = standardAuthDTO{}
+	_ jsonpointer.JSONPointable = (surface.AuthDTO)(standardAuthDTO{})
+	_ surface.AuthDTO           = standardAuthDTO{}
 )
 
 type AuthDTO interface {
@@ -129,7 +130,7 @@ func (qt standardAuthDTO) GetLocation() string {
 	return qt.Location
 }
 
-func (qt standardAuthDTO) GetSuccessor() (AuthDTO, bool) {
+func (qt standardAuthDTO) GetSuccessor() (surface.AuthDTO, bool) {
 	return qt.Successor, qt.Successor != nil
 }
 

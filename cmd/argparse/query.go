@@ -19,6 +19,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/internaldto"
 	"github.com/stackql/any-sdk/pkg/local_template_executor"
 	"github.com/stackql/any-sdk/pkg/stream_transform"
+	"github.com/stackql/any-sdk/pkg/surface"
 )
 
 func getLogger() *logrus.Logger {
@@ -268,7 +269,7 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 	}
 }
 
-func transformOpenapiStackqlAuthToLocal(authDTO anysdk.AuthDTO) *dto.AuthCtx {
+func transformOpenapiStackqlAuthToLocal(authDTO surface.AuthDTO) *dto.AuthCtx {
 	rv := &dto.AuthCtx{
 		Scopes:                  authDTO.GetScopes(),
 		Subject:                 authDTO.GetSubject(),
