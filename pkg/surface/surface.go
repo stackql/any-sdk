@@ -33,7 +33,6 @@ type ColumnDescriptor interface {
 	GetRepresentativeSchema() Schema
 	GetSchema() Schema
 	GetVal() *sqlparser.SQLVal
-	setName(string)
 }
 
 type Tabulation interface {
@@ -472,7 +471,6 @@ type Provider interface {
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetProviderService(key string) (ProviderService, error)
-	getQueryTransposeAlgorithm() string
 	GetRequestTranslateAlgorithm() string
 	GetResourcesShallow(serviceKey string) (ResourceRegister, error)
 	GetStackQLConfig() (StackQLConfig, bool)
@@ -529,7 +527,6 @@ type StandardOperationStore interface {
 	//
 	GetRequestBodyMediaType() string
 	GetRequestBodyMediaTypeNormalised() string
-	getRequestBodyMediaTypeNormalised() string
 	GetXMLDeclaration() string
 	GetXMLRootAnnotation() string
 	GetXMLTransform() string
