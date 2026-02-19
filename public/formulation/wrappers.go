@@ -303,6 +303,10 @@ func (w AddressSpace) ToRelation(p0 anysdk.AddressSpaceExpansionConfig) (Relatio
 	return Relation{inner: r0}, r1
 }
 
+func DeprecatedNewAddressable(inner anysdk.Addressable) Addressable {
+	return Addressable{inner: inner}
+}
+
 type Addressable struct {
 	inner anysdk.Addressable
 }
