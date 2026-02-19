@@ -1666,9 +1666,28 @@ func (w Response) Error() string {
 	return r0
 }
 
+// type HTTPElement interface {
+// 	GetName() string
+// 	GetLocation() HTTPElementLocation
+// }
+
+type HTTPHTTPElement struct {
+	inner httpelement.HTTPElement
+}
+
+func (w HTTPHTTPElement) GetName() string {
+	r0 := w.inner.GetName()
+	return r0
+}
+
+func (w HTTPHTTPElement) GetLocation() httpelement.HTTPElementLocation {
+	r0 := w.inner.GetLocation()
+	return r0
+}
+
 // TODO: fix this crap
-func (w Response) ExtractElement(e httpelement.HTTPElement) (interface{}, error) {
-	r0, r1 := w.inner.ExtractElement(e)
+func (w Response) ExtractElement(e HTTPHTTPElement) (interface{}, error) {
+	r0, r1 := w.inner.ExtractElement(e.inner)
 	return r0, r1
 }
 
