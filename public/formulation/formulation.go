@@ -2,7 +2,6 @@ package formulation
 
 import (
 	"github.com/stackql/any-sdk/anysdk"
-	"github.com/stackql/stackql-parser/go/sqltypes"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
@@ -10,24 +9,24 @@ type ArmouryGenerator interface {
 	GetHTTPArmoury() (anysdk.HTTPArmoury, error)
 }
 
-type Addressable interface {
-	ConditionIsValid(lhs string, rhs interface{}) bool
-	GetLocation() string
-	GetName() string
-	GetAlias() string
-	GetSchema() (anysdk.Schema, bool)
-	GetType() string
-	IsRequired() bool
-}
+// type Addressable interface {
+// 	ConditionIsValid(lhs string, rhs interface{}) bool
+// 	GetLocation() string
+// 	GetName() string
+// 	GetAlias() string
+// 	GetSchema() (anysdk.Schema, bool)
+// 	GetType() string
+// 	IsRequired() bool
+// }
 
-type ITable interface {
-	GetName() string
-	KeyExists(string) bool
-	GetKey(string) (interface{}, error)
-	GetKeyAsSqlVal(string) (sqltypes.Value, error)
-	GetRequiredParameters() map[string]Addressable
-	FilterBy(func(interface{}) (ITable, error)) (ITable, error)
-}
+// type ITable interface {
+// 	GetName() string
+// 	KeyExists(string) bool
+// 	GetKey(string) (interface{}, error)
+// 	GetKeyAsSqlVal(string) (sqltypes.Value, error)
+// 	GetRequiredParameters() map[string]Addressable
+// 	FilterBy(func(interface{}) (ITable, error)) (ITable, error)
+// }
 
 type ColumnDescriptor interface {
 	GetAlias() string
@@ -46,13 +45,13 @@ func NewColumnDescriptor(alias string, name string, qualifier string, decoratedC
 	return rv.(ColumnDescriptor)
 }
 
-type SQLExternalColumn interface {
-	GetName() string
-	GetType() string
-	GetOid() uint32
-	GetWidth() int
-	GetPrecision() int
-}
+// type SQLExternalColumn interface {
+// 	GetName() string
+// 	GetType() string
+// 	GetOid() uint32
+// 	GetWidth() int
+// 	GetPrecision() int
+// }
 
 func NewMethodAnalysisInput(
 	method anysdk.OperationStore,
@@ -74,9 +73,9 @@ func NewMethodAnalysisInput(
 	)
 }
 
-type SQLExternalTable interface {
-	GetCatalogName() string
-	GetSchemaName() string
-	GetName() string
-	GetColumns() []SQLExternalColumn
-}
+// type SQLExternalTable interface {
+// 	GetCatalogName() string
+// 	GetSchemaName() string
+// 	GetName() string
+// 	GetColumns() []SQLExternalColumn
+// }
