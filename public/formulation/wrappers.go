@@ -43,12 +43,12 @@ func wrapMapString_Addressable(in map[string]anysdk.Addressable) map[string]Addr
 	}
 	out := make(map[string]Addressable, len(in))
 	for k, v := range in {
-		out[k] = Addressable{inner: v}
+		out[k] = &wrappedAddressable{inner: v}
 	}
 	return out
 }
 
-func unwrapMapString_Addressable(in map[string]Addressable) map[string]anysdk.Addressable {
+func unwrapMapString_Addressable(in map[string]*wrappedAddressable) map[string]anysdk.Addressable {
 	if in == nil {
 		return nil
 	}
@@ -65,12 +65,12 @@ func wrapMapString_ProviderDescription(in map[string]anysdk.ProviderDescription)
 	}
 	out := make(map[string]ProviderDescription, len(in))
 	for k, v := range in {
-		out[k] = ProviderDescription{inner: v}
+		out[k] = &wrappedProviderDescription{inner: v}
 	}
 	return out
 }
 
-func unwrapMapString_ProviderDescription(in map[string]ProviderDescription) map[string]anysdk.ProviderDescription {
+func unwrapMapString_ProviderDescription(in map[string]*wrappedProviderDescription) map[string]anysdk.ProviderDescription {
 	if in == nil {
 		return nil
 	}
@@ -87,12 +87,12 @@ func wrapMapString_ProviderService(in map[string]anysdk.ProviderService) map[str
 	}
 	out := make(map[string]ProviderService, len(in))
 	for k, v := range in {
-		out[k] = ProviderService{inner: v}
+		out[k] = &wrappedProviderService{inner: v}
 	}
 	return out
 }
 
-func unwrapMapString_ProviderService(in map[string]ProviderService) map[string]anysdk.ProviderService {
+func unwrapMapString_ProviderService(in map[string]*wrappedProviderService) map[string]anysdk.ProviderService {
 	if in == nil {
 		return nil
 	}
@@ -109,12 +109,12 @@ func wrapMapString_Resource(in map[string]anysdk.Resource) map[string]Resource {
 	}
 	out := make(map[string]Resource, len(in))
 	for k, v := range in {
-		out[k] = Resource{inner: v}
+		out[k] = &wrappedResource{inner: v}
 	}
 	return out
 }
 
-func unwrapMapString_Resource(in map[string]Resource) map[string]anysdk.Resource {
+func unwrapMapString_Resource(in map[string]*wrappedResource) map[string]anysdk.Resource {
 	if in == nil {
 		return nil
 	}
@@ -138,12 +138,12 @@ func wrapSlice_Column(in []anysdk.Column) []Column {
 	}
 	out := make([]Column, 0, len(in))
 	for _, v := range in {
-		out = append(out, Column{inner: v})
+		out = append(out, &wrappedColumn{inner: v})
 	}
 	return out
 }
 
-func unwrapSlice_Column(in []Column) []anysdk.Column {
+func unwrapSlice_Column(in []*wrappedColumn) []anysdk.Column {
 	if in == nil {
 		return nil
 	}
@@ -160,12 +160,12 @@ func wrapSlice_HTTPArmouryParameters(in []anysdk.HTTPArmouryParameters) []HTTPAr
 	}
 	out := make([]HTTPArmouryParameters, 0, len(in))
 	for _, v := range in {
-		out = append(out, HTTPArmouryParameters{inner: v})
+		out = append(out, &wrappedHTTPArmouryParameters{inner: v})
 	}
 	return out
 }
 
-func unwrapSlice_HTTPArmouryParameters(in []HTTPArmouryParameters) []anysdk.HTTPArmouryParameters {
+func unwrapSlice_HTTPArmouryParameters(in []*wrappedHTTPArmouryParameters) []anysdk.HTTPArmouryParameters {
 	if in == nil {
 		return nil
 	}
@@ -182,12 +182,12 @@ func wrapSlice_SQLExternalColumn(in []anysdk.SQLExternalColumn) []SQLExternalCol
 	}
 	out := make([]SQLExternalColumn, 0, len(in))
 	for _, v := range in {
-		out = append(out, SQLExternalColumn{inner: v})
+		out = append(out, &wrappedSQLExternalColumn{inner: v})
 	}
 	return out
 }
 
-func unwrapSlice_SQLExternalColumn(in []SQLExternalColumn) []anysdk.SQLExternalColumn {
+func unwrapSlice_SQLExternalColumn(in []*wrappedSQLExternalColumn) []anysdk.SQLExternalColumn {
 	if in == nil {
 		return nil
 	}
@@ -204,12 +204,12 @@ func wrapSlice_StandardOperationStore(in []anysdk.StandardOperationStore) []Stan
 	}
 	out := make([]StandardOperationStore, 0, len(in))
 	for _, v := range in {
-		out = append(out, StandardOperationStore{inner: v})
+		out = append(out, &wrappedStandardOperationStore{inner: v})
 	}
 	return out
 }
 
-func unwrapSlice_StandardOperationStore(in []StandardOperationStore) []anysdk.StandardOperationStore {
+func unwrapSlice_StandardOperationStore(in []*wrappedStandardOperationStore) []anysdk.StandardOperationStore {
 	if in == nil {
 		return nil
 	}
@@ -226,12 +226,12 @@ func wrapSlice_View(in []anysdk.View) []View {
 	}
 	out := make([]View, 0, len(in))
 	for _, v := range in {
-		out = append(out, View{inner: v})
+		out = append(out, &wrappedView{inner: v})
 	}
 	return out
 }
 
-func unwrapSlice_View(in []View) []anysdk.View {
+func unwrapSlice_View(in []*wrappedView) []anysdk.View {
 	if in == nil {
 		return nil
 	}
@@ -242,16 +242,16 @@ func unwrapSlice_View(in []View) []anysdk.View {
 	return out
 }
 
-type AuthMetadata struct {
+type wrappedAuthMetadata struct {
 	inner *anysdk.AuthMetadata
 }
 
-func (w *AuthMetadata) GetHeaders() []string {
+func (w *wrappedAuthMetadata) GetHeaders() []string {
 	r0 := w.inner.GetHeaders()
 	return r0
 }
 
-func (w *AuthMetadata) ToMap() map[string]interface{} {
+func (w *wrappedAuthMetadata) ToMap() map[string]interface{} {
 	r0 := w.inner.ToMap()
 	return r0
 }
@@ -262,7 +262,7 @@ type AuthCtx struct {
 
 func (w *AuthCtx) Clone() *AuthCtx {
 	r0 := w.inner.Clone()
-	return wrapPtr_AuthCtx(r0)
+	return &AuthCtx{inner: r0}
 }
 
 func (w *AuthCtx) GetCredentialsBytes() ([]byte, error) {
@@ -277,7 +277,7 @@ func (w *AuthCtx) GetCredentialsSourceDescriptorString() string {
 
 func (w *AuthCtx) GetSQLCfg() (SQLBackendCfg, bool) {
 	r0, r1 := w.inner.GetSQLCfg()
-	return SQLBackendCfg{inner: r0}, r1
+	return &wrappedSQLBackendCfg{inner: r0}, r1
 }
 
 func (w *AuthCtx) HasKey() bool {
@@ -285,359 +285,376 @@ func (w *AuthCtx) HasKey() bool {
 	return r0
 }
 
-type RuntimeCtx struct {
+type wrappedRuntimeCtx struct {
 	inner dto.RuntimeCtx
 }
 
-func (w RuntimeCtx) Copy() RuntimeCtx {
+func (w *wrappedRuntimeCtx) Copy() RuntimeCtx {
 	r0 := w.inner.Copy()
-	return RuntimeCtx{inner: r0}
+	return &wrappedRuntimeCtx{inner: r0}
 }
 
-type AddressSpace struct {
+type wrappedAddressSpace struct {
 	inner anysdk.AddressSpace
 }
 
-func (w AddressSpace) ToRelation(p0 anysdk.AddressSpaceExpansionConfig) (Relation, error) {
+func (w *wrappedAddressSpace) ToRelation(p0 anysdk.AddressSpaceExpansionConfig) (Relation, error) {
 	r0, r1 := w.inner.ToRelation(p0)
-	return Relation{inner: r0}, r1
+	return &wrappedRelation{inner: r0}, r1
 }
 
 func DeprecatedNewAddressable(inner anysdk.Addressable) Addressable {
-	return Addressable{inner: inner}
+	return newAddressable(inner)
 }
 
-type Addressable struct {
+func newAddressable(inner anysdk.Addressable) Addressable {
+	return &wrappedAddressable{inner: inner}
+}
+
+type Addressable interface {
+	ConditionIsValid(lhs string, rhs interface{}) bool
+	GetName() string
+	GetType() string
+}
+
+type wrappedAddressable struct {
 	inner anysdk.Addressable
 }
 
-func (w Addressable) ConditionIsValid(lhs string, rhs interface{}) bool {
+func (w *wrappedAddressable) ConditionIsValid(lhs string, rhs interface{}) bool {
 	r0 := w.inner.ConditionIsValid(lhs, rhs)
 	return r0
 }
 
-func (w Addressable) GetName() string {
+func (w *wrappedAddressable) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w Addressable) GetType() string {
+func (w *wrappedAddressable) GetType() string {
 	r0 := w.inner.GetType()
 	return r0
 }
 
-type Column struct {
+type wrappedColumn struct {
 	inner anysdk.Column
 }
 
-func (w Column) GetName() string {
+func (w *wrappedColumn) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w Column) GetSchema() Schema {
+func (w *wrappedColumn) GetSchema() Schema {
 	r0 := w.inner.GetSchema()
-	return Schema{inner: r0}
+	return &wrappedSchema{inner: r0}
 }
 
-func (w Column) GetWidth() int {
+func (w *wrappedColumn) GetWidth() int {
 	r0 := w.inner.GetWidth()
 	return r0
 }
 
-type ExpectedRequest struct {
+type wrappedExpectedRequest struct {
 	inner anysdk.ExpectedRequest
 }
 
-func (w ExpectedRequest) GetBodyMediaType() string {
+func (w *wrappedExpectedRequest) GetBodyMediaType() string {
 	r0 := w.inner.GetBodyMediaType()
 	return r0
 }
 
-type ExpectedResponse struct {
+type wrappedExpectedResponse struct {
 	inner anysdk.ExpectedResponse
 }
 
-func (w ExpectedResponse) GetObjectKey() string {
+func (w *wrappedExpectedResponse) GetObjectKey() string {
 	r0 := w.inner.GetObjectKey()
 	return r0
 }
 
-func (w ExpectedResponse) GetTransform() (Transform, bool) {
+func (w *wrappedExpectedResponse) GetTransform() (Transform, bool) {
 	r0, r1 := w.inner.GetTransform()
-	return Transform{inner: r0}, r1
+	return &wrappedTransform{inner: r0}, r1
 }
 
-type GraphQL struct {
+type wrappedGraphQL struct {
 	inner anysdk.GraphQL
 }
 
-func (w GraphQL) GetCursorJSONPath() (string, bool) {
+func (w *wrappedGraphQL) GetCursorJSONPath() (string, bool) {
 	r0, r1 := w.inner.GetCursorJSONPath()
 	return r0, r1
 }
 
-func (w GraphQL) GetQuery() string {
+func (w *wrappedGraphQL) GetQuery() string {
 	r0 := w.inner.GetQuery()
 	return r0
 }
 
-func (w GraphQL) GetResponseJSONPath() (string, bool) {
+func (w *wrappedGraphQL) GetResponseJSONPath() (string, bool) {
 	r0, r1 := w.inner.GetResponseJSONPath()
 	return r0, r1
 }
 
-type HTTPArmoury struct {
+type wrappedHTTPArmoury struct {
 	inner anysdk.HTTPArmoury
 }
 
-func (w HTTPArmoury) GetRequestParams() []HTTPArmouryParameters {
+func (w *wrappedHTTPArmoury) GetRequestParams() []HTTPArmouryParameters {
 	r0 := w.inner.GetRequestParams()
 	return wrapSlice_HTTPArmouryParameters(r0)
 }
 
-func (w HTTPArmoury) SetRequestParams(p0 []HTTPArmouryParameters) {
+func (w *wrappedHTTPArmoury) SetRequestParams(p0 []HTTPArmouryParameters) {
 	inner_p0 := unwrapSlice_HTTPArmouryParameters(p0)
 	w.inner.SetRequestParams(inner_p0)
 	return
 }
 
-type HTTPArmouryParameters struct {
+type wrappedHTTPArmouryParameters struct {
 	inner anysdk.HTTPArmouryParameters
 }
 
-func (w HTTPArmouryParameters) Encode() string {
+func (w *wrappedHTTPArmouryParameters) Encode() string {
 	r0 := w.inner.Encode()
 	return r0
 }
 
-func (w HTTPArmouryParameters) GetArgList() client.AnySdkArgList {
+func (w *wrappedHTTPArmouryParameters) GetArgList() client.AnySdkArgList {
 	r0 := w.inner.GetArgList()
 	return r0
 }
 
-func (w HTTPArmouryParameters) GetParameters() HttpParameters {
+func (w *wrappedHTTPArmouryParameters) GetParameters() HttpParameters {
 	r0 := w.inner.GetParameters()
-	return HttpParameters{inner: r0}
+	return &wrappedHttpParameters{inner: r0}
 }
 
-func (w HTTPArmouryParameters) GetQuery() url.Values {
+func (w *wrappedHTTPArmouryParameters) GetQuery() url.Values {
 	r0 := w.inner.GetQuery()
 	return r0
 }
 
-func (w HTTPArmouryParameters) GetRequest() *http.Request {
+func (w *wrappedHTTPArmouryParameters) GetRequest() *http.Request {
 	r0 := w.inner.GetRequest()
 	return r0
 }
 
-func (w HTTPArmouryParameters) SetNextPage(ops OperationStore, token string, tokenKey HTTPElement) (*http.Request, error) {
-	r0, r1 := w.inner.SetNextPage(ops.inner, token, tokenKey.inner)
-	return r0, r1
+func (w *wrappedHTTPArmouryParameters) SetNextPage(ops OperationStore, token string, tokenKey HTTPElement) (*http.Request, error) {
+	op, isWrapped := ops.(*wrappedOperationStore)
+	if isWrapped {
+		r0, r1 := w.inner.SetNextPage(op.inner, token, tokenKey)
+		return r0, r1
+	}
+	key, isWrapped := tokenKey.(*wrappedHTTPElement)
+	if isWrapped {
+		tokenKey = key.inner
+	}
 }
 
-func (w HTTPArmouryParameters) SetRawQuery(p0 string) {
+func (w *wrappedHTTPArmouryParameters) SetRawQuery(p0 string) {
 	w.inner.SetRawQuery(p0)
 	return
 }
 
-func (w HTTPArmouryParameters) ToFlatMap() (map[string]interface{}, error) {
+func (w *wrappedHTTPArmouryParameters) ToFlatMap() (map[string]interface{}, error) {
 	r0, r1 := w.inner.ToFlatMap()
 	return r0, r1
 }
 
-type HTTPPreparator struct {
+type wrappedHTTPPreparator struct {
 	inner anysdk.HTTPPreparator
 }
 
-func (w HTTPPreparator) BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error) {
+func (w *wrappedHTTPPreparator) BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error) {
 	r0, r1 := w.inner.BuildHTTPRequestCtx(p0)
-	return HTTPArmoury{inner: r0}, r1
+	return &wrappedHTTPArmoury{inner: r0}, r1
 }
 
-type HttpParameters struct {
+type wrappedHttpParameters struct {
 	inner anysdk.HttpParameters
 }
 
-func (w HttpParameters) GetInlineParameterFlatMap() (map[string]interface{}, error) {
+func (w *wrappedHttpParameters) GetInlineParameterFlatMap() (map[string]interface{}, error) {
 	r0, r1 := w.inner.GetInlineParameterFlatMap()
 	return r0, r1
 }
 
-func (w HttpParameters) ToFlatMap() (map[string]interface{}, error) {
+func (w *wrappedHttpParameters) ToFlatMap() (map[string]interface{}, error) {
 	r0, r1 := w.inner.ToFlatMap()
 	return r0, r1
 }
 
-type HttpPreparatorStream struct {
+type wrappedHttpPreparatorStream struct {
 	inner anysdk.HttpPreparatorStream
 }
 
-func (w HttpPreparatorStream) Next() (HTTPPreparator, bool) {
+func (w *wrappedHttpPreparatorStream) Next() (HTTPPreparator, bool) {
 	r0, r1 := w.inner.Next()
 	return HTTPPreparator{inner: r0}, r1
 }
 
-func (w HttpPreparatorStream) Write(p0 HTTPPreparator) error {
+func (w *wrappedHttpPreparatorStream) Write(p0 *wrappedHTTPPreparator) error {
 	r0 := w.inner.Write(p0.inner)
 	return r0
 }
 
-type ITable struct {
+type wrappedITable struct {
 	inner anysdk.ITable
 }
 
-func (w ITable) GetKey(p0 string) (interface{}, error) {
+func (w *wrappedITable) GetKey(p0 string) (interface{}, error) {
 	r0, r1 := w.inner.GetKey(p0)
 	return r0, r1
 }
 
-func (w ITable) GetKeyAsSqlVal(p0 string) (sqltypes.Value, error) {
+func (w *wrappedITable) GetKeyAsSqlVal(p0 string) (sqltypes.Value, error) {
 	r0, r1 := w.inner.GetKeyAsSqlVal(p0)
 	return r0, r1
 }
 
-func (w ITable) GetName() string {
+func (w *wrappedITable) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w ITable) KeyExists(p0 string) bool {
+func (w *wrappedITable) KeyExists(p0 string) bool {
 	r0 := w.inner.KeyExists(p0)
 	return r0
 }
 
-type MethodAnalysisOutput struct {
+type wrappedMethodAnalysisOutput struct {
 	inner anysdk.MethodAnalysisOutput
 }
 
-func (w MethodAnalysisOutput) GetInsertTabulation() Tabulation {
+func (w *wrappedMethodAnalysisOutput) GetInsertTabulation() *wrappedTabulation {
 	r0 := w.inner.GetInsertTabulation()
 	return Tabulation{inner: r0}
 }
 
-func (w MethodAnalysisOutput) GetItemSchema() (Schema, bool) {
+func (w *wrappedMethodAnalysisOutput) GetItemSchema() (Schema, bool) {
 	r0, r1 := w.inner.GetItemSchema()
 	return Schema{inner: r0}, r1
 }
 
-func (w MethodAnalysisOutput) GetOrderedStarColumnsNames() ([]string, error) {
+func (w *wrappedMethodAnalysisOutput) GetOrderedStarColumnsNames() ([]string, error) {
 	r0, r1 := w.inner.GetOrderedStarColumnsNames()
 	return r0, r1
 }
 
-func (w MethodAnalysisOutput) GetSelectTabulation() Tabulation {
+func (w *wrappedMethodAnalysisOutput) GetSelectTabulation() *wrappedTabulation {
 	r0 := w.inner.GetSelectTabulation()
 	return Tabulation{inner: r0}
 }
 
-func (w MethodAnalysisOutput) IsAwait() bool {
+func (w *wrappedMethodAnalysisOutput) IsAwait() bool {
 	r0 := w.inner.IsAwait()
 	return r0
 }
 
-func (w MethodAnalysisOutput) IsNilResponseAllowed() bool {
+func (w *wrappedMethodAnalysisOutput) IsNilResponseAllowed() bool {
 	r0 := w.inner.IsNilResponseAllowed()
 	return r0
 }
 
-type MethodAnalyzer struct {
+type wrappedMethodAnalyzer struct {
 	inner anysdk.MethodAnalyzer
 }
 
-func (w MethodAnalyzer) AnalyzeUnaryAction(p0 anysdk.MethodAnalysisInput) (MethodAnalysisOutput, error) {
+func (w *wrappedMethodAnalyzer) AnalyzeUnaryAction(p0 anysdk.MethodAnalysisInput) (MethodAnalysisOutput, error) {
 	r0, r1 := w.inner.AnalyzeUnaryAction(p0)
 	return MethodAnalysisOutput{inner: r0}, r1
 }
 
-type Methods struct {
+type wrappedMethods struct {
 	inner anysdk.Methods
 }
 
-func (w Methods) OrderMethods() ([]StandardOperationStore, error) {
+func (w *wrappedMethods) OrderMethods() ([]*wrappedStandardOperationStore, error) {
 	r0, r1 := w.inner.OrderMethods()
 	return wrapSlice_StandardOperationStore(r0), r1
 }
 
-type OperationInverse struct {
+type wrappedOperationInverse struct {
 	inner anysdk.OperationInverse
 }
 
-func (w OperationInverse) GetOperationStore() (StandardOperationStore, bool) {
+func (w *wrappedOperationInverse) GetOperationStore() (StandardOperationStore, bool) {
 	r0, r1 := w.inner.GetOperationStore()
 	return StandardOperationStore{inner: r0}, r1
 }
 
-type OperationStore struct {
+type wrappedOperationStore struct {
 	inner anysdk.OperationStore
 }
 
-func (w OperationStore) DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error) {
+func (w *wrappedOperationStore) DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error) {
 	r0, r1 := w.inner.DeprecatedProcessResponse(response)
 	return r0, r1
 }
 
-func (w OperationStore) GetName() string {
+func (w *wrappedOperationStore) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w OperationStore) GetNonBodyParameters() map[string]Addressable {
+func (w *wrappedOperationStore) GetNonBodyParameters() map[string]Addressable {
 	r0 := w.inner.GetNonBodyParameters()
 	return wrapMapString_Addressable(r0)
 }
 
-func (w OperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
+func (w *wrappedOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationRequestTokenSemantic()
 	return TokenSemantic{inner: r0}, r1
 }
 
-func (w OperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
+func (w *wrappedOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationResponseTokenSemantic()
 	return TokenSemantic{inner: r0}, r1
 }
 
-func (w OperationStore) GetParameter(paramKey string) (Addressable, bool) {
+func (w *wrappedOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	r0, r1 := w.inner.GetParameter(paramKey)
 	return Addressable{inner: r0}, r1
 }
 
-func (w OperationStore) GetRequestBodySchema() (Schema, error) {
+func (w *wrappedOperationStore) GetRequestBodySchema() (Schema, error) {
 	r0, r1 := w.inner.GetRequestBodySchema()
 	return Schema{inner: r0}, r1
 }
 
-func (w OperationStore) GetRequiredNonBodyParameters() map[string]Addressable {
+func (w *wrappedOperationStore) GetRequiredNonBodyParameters() map[string]*wrappedAddressable {
 	r0 := w.inner.GetRequiredNonBodyParameters()
 	return wrapMapString_Addressable(r0)
 }
 
-func (w OperationStore) GetRequiredParameters() map[string]Addressable {
+func (w *wrappedOperationStore) GetRequiredParameters() map[string]*wrappedAddressable {
 	r0 := w.inner.GetRequiredParameters()
 	return wrapMapString_Addressable(r0)
 }
 
-func (w OperationStore) GetResource() Resource {
+func (w *wrappedOperationStore) GetResource() Resource {
 	r0 := w.inner.GetResource()
 	return Resource{inner: r0}
 }
 
-func (w OperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
+func (w *wrappedOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetResponseBodySchemaAndMediaType()
 	return Schema{inner: r0}, r1, r2
 }
 
-func (w OperationStore) GetSelectItemsKey() string {
+func (w *wrappedOperationStore) GetSelectItemsKey() string {
 	r0 := w.inner.GetSelectItemsKey()
 	return r0
 }
 
-func (w OperationStore) GetService() anysdk.OpenAPIService {
+func (w *wrappedOperationStore) GetService() anysdk.OpenAPIService {
 	r0 := w.inner.GetService()
 	return r0
 }
 
-func (w OperationStore) IsRequestBodyAttributeRenamed(p0 string) bool {
+func (w *wrappedOperationStore) IsRequestBodyAttributeRenamed(p0 string) bool {
 	r0 := w.inner.IsRequestBodyAttributeRenamed(p0)
 	return r0
 }
@@ -662,560 +679,560 @@ func (w OperationStore) RevertRequestBodyAttributeRename(p0 string) (string, err
 	return r0, r1
 }
 
-type ProcessedOperationResponse struct {
+type wrappedProcessedOperationResponse struct {
 	inner anysdk.ProcessedOperationResponse
 }
 
-func (w ProcessedOperationResponse) GetResponse() (Response, bool) {
+func (w *wrappedProcessedOperationResponse) GetResponse() (Response, bool) {
 	r0, r1 := w.inner.GetResponse()
-	return Response{inner: r0}, r1
+	return &wrappedResponse{inner: r0}, r1
 }
 
-func (w ProcessedOperationResponse) GetReversal() (HTTPPreparator, bool) {
+func (w *wrappedProcessedOperationResponse) GetReversal() (HTTPPreparator, bool) {
 	r0, r1 := w.inner.GetReversal()
-	return HTTPPreparator{inner: r0}, r1
+	return &wrappedHTTPPreparator{inner: r0}, r1
 }
 
-type Provider struct {
+type wrappedProvider struct {
 	inner anysdk.Provider
 }
 
-func (w Provider) GetAuth() (AuthDTO, bool) {
+func (w *wrappedProvider) GetAuth() (AuthDTO, bool) {
 	r0, r1 := w.inner.GetAuth()
-	return AuthDTO{inner: r0}, r1
+	return &wrappedAuthDTO{inner: r0}, r1
 }
 
-func (w Provider) GetDeleteItemsKey() string {
+func (w *wrappedProvider) GetDeleteItemsKey() string {
 	r0 := w.inner.GetDeleteItemsKey()
 	return r0
 }
 
-func (w Provider) GetMinStackQLVersion() string {
+func (w *wrappedProvider) GetMinStackQLVersion() string {
 	r0 := w.inner.GetMinStackQLVersion()
 	return r0
 }
 
-func (w Provider) GetName() string {
+func (w *wrappedProvider) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w Provider) GetProtocolType() (client.ClientProtocolType, error) {
+func (w *wrappedProvider) GetProtocolType() (client.ClientProtocolType, error) {
 	r0, r1 := w.inner.GetProtocolType()
 	return r0, r1
 }
 
-type ProviderDescription struct {
+type wrappedProviderDescription struct {
 	inner anysdk.ProviderDescription
 }
 
-func (w ProviderDescription) GetLatestVersion() (string, error) {
+func (w *wrappedProviderDescription) GetLatestVersion() (string, error) {
 	r0, r1 := w.inner.GetLatestVersion()
 	return r0, r1
 }
 
-type ProviderService struct {
+type wrappedProviderService struct {
 	inner anysdk.ProviderService
 }
 
-func (w ProviderService) GetDescription() string {
+func (w *wrappedProviderService) GetDescription() string {
 	r0 := w.inner.GetDescription()
 	return r0
 }
 
-func (w ProviderService) GetID() string {
+func (w *wrappedProviderService) GetID() string {
 	r0 := w.inner.GetID()
 	return r0
 }
 
-func (w ProviderService) GetName() string {
+func (w *wrappedProviderService) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w ProviderService) GetTitle() string {
+func (w *wrappedProviderService) GetTitle() string {
 	r0 := w.inner.GetTitle()
 	return r0
 }
 
-func (w ProviderService) GetVersion() string {
+func (w *wrappedProviderService) GetVersion() string {
 	r0 := w.inner.GetVersion()
 	return r0
 }
 
-func (w ProviderService) IsPreferred() bool {
+func (w *wrappedProviderService) IsPreferred() bool {
 	r0 := w.inner.IsPreferred()
 	return r0
 }
 
-type RegistryAPI struct {
+type wrappedRegistryAPI struct {
 	inner anysdk.RegistryAPI
 }
 
-func (w RegistryAPI) ClearProviderCache(p0 string) error {
+func (w *wrappedRegistryAPI) ClearProviderCache(p0 string) error {
 	r0 := w.inner.ClearProviderCache(p0)
 	return r0
 }
 
-func (w RegistryAPI) GetLatestPublishedVersion(p0 string) (string, error) {
+func (w *wrappedRegistryAPI) GetLatestPublishedVersion(p0 string) (string, error) {
 	r0, r1 := w.inner.GetLatestPublishedVersion(p0)
 	return r0, r1
 }
 
-func (w RegistryAPI) ListAllAvailableProviders() (map[string]ProviderDescription, error) {
+func (w *wrappedRegistryAPI) ListAllAvailableProviders() (map[string]ProviderDescription, error) {
 	r0, r1 := w.inner.ListAllAvailableProviders()
 	return wrapMapString_ProviderDescription(r0), r1
 }
 
-func (w RegistryAPI) ListAllProviderVersions(p0 string) (map[string]ProviderDescription, error) {
+func (w *wrappedRegistryAPI) ListAllProviderVersions(p0 string) (map[string]ProviderDescription, error) {
 	r0, r1 := w.inner.ListAllProviderVersions(p0)
 	return wrapMapString_ProviderDescription(r0), r1
 }
 
-func (w RegistryAPI) ListLocallyAvailableProviders() map[string]ProviderDescription {
+func (w *wrappedRegistryAPI) ListLocallyAvailableProviders() map[string]ProviderDescription {
 	r0 := w.inner.ListLocallyAvailableProviders()
 	return wrapMapString_ProviderDescription(r0)
 }
 
-func (w RegistryAPI) LoadProviderByName(p0 string, p1 string) (Provider, error) {
+func (w *wrappedRegistryAPI) LoadProviderByName(p0 string, p1 string) (Provider, error) {
 	r0, r1 := w.inner.LoadProviderByName(p0, p1)
-	return Provider{inner: r0}, r1
+	return &wrappedProvider{inner: r0}, r1
 }
 
-func (w RegistryAPI) PullAndPersistProviderArchive(p0 string, p1 string) error {
+func (w *wrappedRegistryAPI) PullAndPersistProviderArchive(p0 string, p1 string) error {
 	r0 := w.inner.PullAndPersistProviderArchive(p0, p1)
 	return r0
 }
 
-func (w RegistryAPI) RemoveProviderVersion(p0 string, p1 string) error {
+func (w *wrappedRegistryAPI) RemoveProviderVersion(p0 string, p1 string) error {
 	r0 := w.inner.RemoveProviderVersion(p0, p1)
 	return r0
 }
 
-type Relation struct {
+type wrappedRelation struct {
 	inner anysdk.Relation
 }
 
-func (w Relation) GetColumnDescriptors() []anysdk.ColumnDescriptor {
+func (w *wrappedRelation) GetColumnDescriptors() []anysdk.ColumnDescriptor {
 	r0 := w.inner.GetColumnDescriptors()
 	return r0
 }
 
-func (w Relation) GetColumns() []Column {
+func (w *wrappedRelation) GetColumns() []Column {
 	r0 := w.inner.GetColumns()
 	return wrapSlice_Column(r0)
 }
 
-type Resource struct {
+type wrappedResource struct {
 	inner anysdk.Resource
 }
 
-func (w Resource) FindMethod(key string) (StandardOperationStore, error) {
+func (w *wrappedResource) FindMethod(key string) (StandardOperationStore, error) {
 	r0, r1 := w.inner.FindMethod(key)
-	return StandardOperationStore{inner: r0}, r1
+	return &wrappedStandardOperationStore{inner: r0}, r1
 }
 
-func (w Resource) GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool) {
+func (w *wrappedResource) GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool) {
 	r0, r1, r2 := w.inner.GetFirstMethodFromSQLVerb(sqlVerb)
-	return StandardOperationStore{inner: r0}, r1, r2
+	return &wrappedStandardOperationStore{inner: r0}, r1, r2
 }
 
-func (w Resource) GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
+func (w *wrappedResource) GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
 	r0, r1, r2 := w.inner.GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb, parameters)
-	return StandardOperationStore{inner: r0}, r1, r2
+	return &wrappedStandardOperationStore{inner: r0}, r1, r2
 }
 
-func (w Resource) GetID() string {
+func (w *wrappedResource) GetID() string {
 	r0 := w.inner.GetID()
 	return r0
 }
 
-func (w Resource) GetMethodsMatched() Methods {
+func (w *wrappedResource) GetMethodsMatched() Methods {
 	r0 := w.inner.GetMethodsMatched()
-	return Methods{inner: r0}
+	return &wrappedMethods{inner: r0}
 }
 
-func (w Resource) GetName() string {
+func (w *wrappedResource) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w Resource) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
+func (w *wrappedResource) GetViewsForSqlDialect(sqlDialect string) ([]View, bool) {
 	r0, r1 := w.inner.GetViewsForSqlDialect(sqlDialect)
 	return wrapSlice_View(r0), r1
 }
 
-func (w Resource) ToMap(extended bool) map[string]interface{} {
+func (w *wrappedResource) ToMap(extended bool) map[string]interface{} {
 	r0 := w.inner.ToMap(extended)
 	return r0
 }
 
-type SQLExternalColumn struct {
+type wrappedSQLExternalColumn struct {
 	inner anysdk.SQLExternalColumn
 }
 
-func (w SQLExternalColumn) GetName() string {
+func (w *wrappedSQLExternalColumn) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w SQLExternalColumn) GetOid() uint32 {
+func (w *wrappedSQLExternalColumn) GetOid() uint32 {
 	r0 := w.inner.GetOid()
 	return r0
 }
 
-func (w SQLExternalColumn) GetPrecision() int {
+func (w *wrappedSQLExternalColumn) GetPrecision() int {
 	r0 := w.inner.GetPrecision()
 	return r0
 }
 
-func (w SQLExternalColumn) GetType() string {
+func (w *wrappedSQLExternalColumn) GetType() string {
 	r0 := w.inner.GetType()
 	return r0
 }
 
-func (w SQLExternalColumn) GetWidth() int {
+func (w *wrappedSQLExternalColumn) GetWidth() int {
 	r0 := w.inner.GetWidth()
 	return r0
 }
 
-type SQLExternalTable struct {
+type wrappedSQLExternalTable struct {
 	inner anysdk.SQLExternalTable
 }
 
-func (w SQLExternalTable) GetCatalogName() string {
+func (w *wrappedSQLExternalTable) GetCatalogName() string {
 	r0 := w.inner.GetCatalogName()
 	return r0
 }
 
-func (w SQLExternalTable) GetColumns() []SQLExternalColumn {
+func (w *wrappedSQLExternalTable) GetColumns() []SQLExternalColumn {
 	r0 := w.inner.GetColumns()
 	return wrapSlice_SQLExternalColumn(r0)
 }
 
-func (w SQLExternalTable) GetName() string {
+func (w *wrappedSQLExternalTable) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w SQLExternalTable) GetSchemaName() string {
+func (w *wrappedSQLExternalTable) GetSchemaName() string {
 	r0 := w.inner.GetSchemaName()
 	return r0
 }
 
-type Schema struct {
+type wrappedSchema struct {
 	inner anysdk.Schema
 }
 
-func (w Schema) FindByPath(path string, visited map[string]bool) Schema {
+func (w *wrappedSchema) FindByPath(path string, visited map[string]bool) Schema {
 	r0 := w.inner.FindByPath(path, visited)
-	return Schema{inner: r0}
+	return &wrappedSchema{inner: r0}
 }
 
-func (w Schema) GetAdditionalProperties() (Schema, bool) {
+func (w *wrappedSchema) GetAdditionalProperties() (Schema, bool) {
 	r0, r1 := w.inner.GetAdditionalProperties()
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
-func (w Schema) GetAllColumns(p0 string) []string {
+func (w *wrappedSchema) GetAllColumns(p0 string) []string {
 	r0 := w.inner.GetAllColumns(p0)
 	return r0
 }
 
-func (w Schema) GetItemsSchema() (Schema, error) {
+func (w *wrappedSchema) GetItemsSchema() (Schema, error) {
 	r0, r1 := w.inner.GetItemsSchema()
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
-func (w Schema) GetName() string {
+func (w *wrappedSchema) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w Schema) GetProperties() (anysdk.Schemas, error) {
+func (w *wrappedSchema) GetProperties() (anysdk.Schemas, error) {
 	r0, r1 := w.inner.GetProperties()
 	return r0, r1
 }
 
-func (w Schema) GetProperty(propertyKey string) (Schema, bool) {
+func (w *wrappedSchema) GetProperty(propertyKey string) (Schema, bool) {
 	r0, r1 := w.inner.GetProperty(propertyKey)
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
-func (w Schema) GetPropertySchema(key string) (Schema, error) {
+func (w *wrappedSchema) GetPropertySchema(key string) (Schema, error) {
 	r0, r1 := w.inner.GetPropertySchema(key)
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
-func (w Schema) GetSelectSchema(itemsKey string, mediaType string) (Schema, string, error) {
+func (w *wrappedSchema) GetSelectSchema(itemsKey string, mediaType string) (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetSelectSchema(itemsKey, mediaType)
-	return Schema{inner: r0}, r1, r2
+	return &wrappedSchema{inner: r0}, r1, r2
 }
 
-func (w Schema) GetSelectionName() string {
+func (w *wrappedSchema) GetSelectionName() string {
 	r0 := w.inner.GetSelectionName()
 	return r0
 }
 
-func (w Schema) GetTitle() string {
+func (w *wrappedSchema) GetTitle() string {
 	r0 := w.inner.GetTitle()
 	return r0
 }
 
-func (w Schema) GetType() string {
+func (w *wrappedSchema) GetType() string {
 	r0 := w.inner.GetType()
 	return r0
 }
 
-func (w Schema) IsBoolean() bool {
+func (w *wrappedSchema) IsBoolean() bool {
 	r0 := w.inner.IsBoolean()
 	return r0
 }
 
-func (w Schema) IsFloat() bool {
+func (w *wrappedSchema) IsFloat() bool {
 	r0 := w.inner.IsFloat()
 	return r0
 }
 
-func (w Schema) IsIntegral() bool {
+func (w *wrappedSchema) IsIntegral() bool {
 	r0 := w.inner.IsIntegral()
 	return r0
 }
 
-func (w Schema) IsReadOnly() bool {
+func (w *wrappedSchema) IsReadOnly() bool {
 	r0 := w.inner.IsReadOnly()
 	return r0
 }
 
-func (w Schema) IsRequired(key string) bool {
+func (w *wrappedSchema) IsRequired(key string) bool {
 	r0 := w.inner.IsRequired(key)
 	return r0
 }
 
-func (w Schema) SetKey(p0 string) {
+func (w *wrappedSchema) SetKey(p0 string) {
 	w.inner.SetKey(p0)
 	return
 }
 
-func (w Schema) Tabulate(p0 bool, p1 string) Tabulation {
+func (w *wrappedSchema) Tabulate(p0 bool, p1 string) Tabulation {
 	r0 := w.inner.Tabulate(p0, p1)
-	return Tabulation{inner: r0}
+	return &wrappedTabulation{inner: r0}
 }
 
-func (w Schema) ToDescriptionMap(extended bool) map[string]interface{} {
+func (w *wrappedSchema) ToDescriptionMap(extended bool) map[string]interface{} {
 	r0 := w.inner.ToDescriptionMap(extended)
 	return r0
 }
 
-type Service struct {
+type wrappedService struct {
 	inner anysdk.Service
 }
 
-func (w Service) GetResource(resourceName string) (Resource, error) {
+func (w *wrappedService) GetResource(resourceName string) (Resource, error) {
 	r0, r1 := w.inner.GetResource(resourceName)
-	return Resource{inner: r0}, r1
+	return &wrappedResource{inner: r0}, r1
 }
 
-func (w Service) GetSchema(key string) (Schema, error) {
+func (w *wrappedService) GetSchema(key string) (Schema, error) {
 	r0, r1 := w.inner.GetSchema(key)
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
-func (w Service) GetServers() (openapi3.Servers, bool) {
+func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 	r0, r1 := w.inner.GetServers()
 	return r0, r1
 }
 
-type StandardOperationStore struct {
+type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
 }
 
-func (w StandardOperationStore) GetAddressSpace() (AddressSpace, bool) {
+func (w *wrappedStandardOperationStore) GetAddressSpace() (AddressSpace, bool) {
 	r0, r1 := w.inner.GetAddressSpace()
-	return AddressSpace{inner: r0}, r1
+	return &wrappedAddressSpace{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetColumnOrder(extended bool) []string {
+func (w *wrappedStandardOperationStore) GetColumnOrder(extended bool) []string {
 	r0 := w.inner.GetColumnOrder(extended)
 	return r0
 }
 
-func (w StandardOperationStore) GetGraphQL() GraphQL {
+func (w *wrappedStandardOperationStore) GetGraphQL() GraphQL {
 	r0 := w.inner.GetGraphQL()
-	return GraphQL{inner: r0}
+	return &wrappedGraphQL{inner: r0}
 }
 
-func (w StandardOperationStore) GetInline() []string {
+func (w *wrappedStandardOperationStore) GetInline() []string {
 	r0 := w.inner.GetInline()
 	return r0
 }
 
-func (w StandardOperationStore) GetInverse() (OperationInverse, bool) {
+func (w *wrappedStandardOperationStore) GetInverse() (OperationInverse, bool) {
 	r0, r1 := w.inner.GetInverse()
-	return OperationInverse{inner: r0}, r1
+	return &wrappedOperationInverse{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetName() string {
+func (w *wrappedStandardOperationStore) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w StandardOperationStore) GetOptionalParameters() map[string]Addressable {
+func (w *wrappedStandardOperationStore) GetOptionalParameters() map[string]Addressable {
 	r0 := w.inner.GetOptionalParameters()
 	return wrapMapString_Addressable(r0)
 }
 
-func (w StandardOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
+func (w *wrappedStandardOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationRequestTokenSemantic()
 	return TokenSemantic{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
+func (w *wrappedStandardOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationResponseTokenSemantic()
 	return TokenSemantic{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetParameter(paramKey string) (Addressable, bool) {
+func (w *wrappedStandardOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	r0, r1 := w.inner.GetParameter(paramKey)
 	return Addressable{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetProjections() map[string]string {
+func (w *wrappedStandardOperationStore) GetProjections() map[string]string {
 	r0 := w.inner.GetProjections()
 	return r0
 }
 
-func (w StandardOperationStore) GetRequest() (ExpectedRequest, bool) {
+func (w *wrappedStandardOperationStore) GetRequest() (ExpectedRequest, bool) {
 	r0, r1 := w.inner.GetRequest()
 	return ExpectedRequest{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetRequestBodySchema() (Schema, error) {
+func (w *wrappedStandardOperationStore) GetRequestBodySchema() (Schema, error) {
 	r0, r1 := w.inner.GetRequestBodySchema()
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetRequiredParameters() map[string]Addressable {
+func (w *wrappedStandardOperationStore) GetRequiredParameters() map[string]Addressable {
 	r0 := w.inner.GetRequiredParameters()
 	return wrapMapString_Addressable(r0)
 }
 
-func (w StandardOperationStore) GetResponse() (ExpectedResponse, bool) {
+func (w *wrappedStandardOperationStore) GetResponse() (ExpectedResponse, bool) {
 	r0, r1 := w.inner.GetResponse()
 	return ExpectedResponse{inner: r0}, r1
 }
 
-func (w StandardOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
+func (w *wrappedStandardOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetResponseBodySchemaAndMediaType()
-	return Schema{inner: r0}, r1, r2
+	return &wrappedSchema{inner: r0}, r1, r2
 }
 
-func (w StandardOperationStore) GetSelectItemsKey() string {
+func (w *wrappedStandardOperationStore) GetSelectItemsKey() string {
 	r0 := w.inner.GetSelectItemsKey()
 	return r0
 }
 
-func (w StandardOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
+func (w *wrappedStandardOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetSelectSchemaAndObjectPath()
-	return Schema{inner: r0}, r1, r2
+	return &wrappedSchema{inner: r0}, r1, r2
 }
 
-func (w StandardOperationStore) GetServers() (openapi3.Servers, bool) {
+func (w *wrappedStandardOperationStore) GetServers() (openapi3.Servers, bool) {
 	r0, r1 := w.inner.GetServers()
 	return r0, r1
 }
 
-func (w StandardOperationStore) IsAwaitable() bool {
+func (w *wrappedStandardOperationStore) IsAwaitable() bool {
 	r0 := w.inner.IsAwaitable()
 	return r0
 }
 
-func (w StandardOperationStore) IsNullary() bool {
+func (w *wrappedStandardOperationStore) IsNullary() bool {
 	r0 := w.inner.IsNullary()
 	return r0
 }
 
-func (w StandardOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
+func (w *wrappedStandardOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
 	r0 := w.inner.ToPresentationMap(extended)
 	return r0
 }
 
-type Tabulation struct {
+type wrappedTabulation struct {
 	inner anysdk.Tabulation
 }
 
-func (w Tabulation) GetColumns() []anysdk.ColumnDescriptor {
+func (w *wrappedTabulation) GetColumns() []anysdk.ColumnDescriptor {
 	r0 := w.inner.GetColumns()
 	return r0
 }
 
-func (w Tabulation) PushBackColumn(col anysdk.ColumnDescriptor) {
+func (w *wrappedTabulation) PushBackColumn(col anysdk.ColumnDescriptor) {
 	w.inner.PushBackColumn(col)
 	return
 }
 
-func (w Tabulation) RenameColumnsToXml() Tabulation {
+func (w *wrappedTabulation) RenameColumnsToXml() Tabulation {
 	r0 := w.inner.RenameColumnsToXml()
-	return Tabulation{inner: r0}
+	return &wrappedTabulation{inner: r0}
 }
 
-type TokenSemantic struct {
+type wrappedTokenSemantic struct {
 	inner anysdk.TokenSemantic
 }
 
-func (w TokenSemantic) GetKey() string {
+func (w *wrappedTokenSemantic) GetKey() string {
 	r0 := w.inner.GetKey()
 	return r0
 }
 
-func (w TokenSemantic) GetLocation() string {
+func (w *wrappedTokenSemantic) GetLocation() string {
 	r0 := w.inner.GetLocation()
 	return r0
 }
 
-func (w TokenSemantic) GetTransformer() (anysdk.TokenTransformer, error) {
+func (w *wrappedTokenSemantic) GetTransformer() (anysdk.TokenTransformer, error) {
 	r0, r1 := w.inner.GetTransformer()
 	return r0, r1
 }
 
-type Transform struct {
+type wrappedTransform struct {
 	inner anysdk.Transform
 }
 
-func (w Transform) GetBody() string {
+func (w *wrappedTransform) GetBody() string {
 	r0 := w.inner.GetBody()
 	return r0
 }
 
-func (w Transform) GetType() string {
+func (w *wrappedTransform) GetType() string {
 	r0 := w.inner.GetType()
 	return r0
 }
 
-type View struct {
+type wrappedView struct {
 	inner anysdk.View
 }
 
-func (w View) GetDDL() string {
+func (w *wrappedView) GetDDL() string {
 	r0 := w.inner.GetDDL()
 	return r0
 }
 
-func (w View) GetNameNaive() string {
+func (w *wrappedView) GetNameNaive() string {
 	r0 := w.inner.GetNameNaive()
 	return r0
 }
 
-func (w View) GetRequiredParamNames() []string {
+func (w *wrappedView) GetRequiredParamNames() []string {
 	r0 := w.inner.GetRequiredParamNames()
 	return r0
 }
 
-type AuthUtility struct {
+type wrappedAuthUtility struct {
 	inner auth_util.AuthUtility
 }
 
-func (w AuthUtility) ActivateAuth(authCtx *AuthCtx, principal string, authType string) {
+func (w *wrappedAuthUtility) ActivateAuth(authCtx *wrappedAuthCtx, principal string, authType string) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1224,7 +1241,7 @@ func (w AuthUtility) ActivateAuth(authCtx *AuthCtx, principal string, authType s
 	return
 }
 
-func (w AuthUtility) ApiTokenAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error) {
+func (w *wrappedAuthUtility) ApiTokenAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1233,7 +1250,7 @@ func (w AuthUtility) ApiTokenAuth(authCtx *AuthCtx, httpContext netutils.HTTPCon
 	return r0, r1
 }
 
-func (w AuthUtility) AuthRevoke(authCtx *AuthCtx) error {
+func (w *wrappedAuthUtility) AuthRevoke(authCtx *wrappedAuthCtx) error {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1242,7 +1259,7 @@ func (w AuthUtility) AuthRevoke(authCtx *AuthCtx) error {
 	return r0
 }
 
-func (w AuthUtility) AwsSigningAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) AwsSigningAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1251,7 +1268,7 @@ func (w AuthUtility) AwsSigningAuth(authCtx *AuthCtx, httpContext netutils.HTTPC
 	return r0, r1
 }
 
-func (w AuthUtility) AzureDefaultAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) AzureDefaultAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1260,7 +1277,7 @@ func (w AuthUtility) AzureDefaultAuth(authCtx *AuthCtx, httpContext netutils.HTT
 	return r0, r1
 }
 
-func (w AuthUtility) BasicAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) BasicAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1269,7 +1286,7 @@ func (w AuthUtility) BasicAuth(authCtx *AuthCtx, httpContext netutils.HTTPContex
 	return r0, r1
 }
 
-func (w AuthUtility) CustomAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) CustomAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1278,7 +1295,7 @@ func (w AuthUtility) CustomAuth(authCtx *AuthCtx, httpContext netutils.HTTPConte
 	return r0, r1
 }
 
-func (w AuthUtility) GCloudOAuth(runtimeCtx RuntimeCtx, authCtx *AuthCtx, enforceRevokeFirst bool) (*http.Client, error) {
+func (w *wrappedAuthUtility) GCloudOAuth(runtimeCtx RuntimeCtx, authCtx *wrappedAuthCtx, enforceRevokeFirst bool) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1287,7 +1304,7 @@ func (w AuthUtility) GCloudOAuth(runtimeCtx RuntimeCtx, authCtx *AuthCtx, enforc
 	return r0, r1
 }
 
-func (w AuthUtility) GenericOauthClientCredentials(authCtx *AuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) GenericOauthClientCredentials(authCtx *wrappedAuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1296,12 +1313,12 @@ func (w AuthUtility) GenericOauthClientCredentials(authCtx *AuthCtx, scopes []st
 	return r0, r1
 }
 
-func (w AuthUtility) GetCurrentGCloudOauthUser() ([]byte, error) {
+func (w *wrappedAuthUtility) GetCurrentGCloudOauthUser() ([]byte, error) {
 	r0, r1 := w.inner.GetCurrentGCloudOauthUser()
 	return r0, r1
 }
 
-func (w AuthUtility) GoogleOauthServiceAccount(provider string, authCtx *AuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) GoogleOauthServiceAccount(provider string, authCtx *wrappedAuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1310,7 +1327,7 @@ func (w AuthUtility) GoogleOauthServiceAccount(provider string, authCtx *AuthCtx
 	return r0, r1
 }
 
-func (w AuthUtility) ParseServiceAccountFile(ac *AuthCtx) (any, error) {
+func (w *wrappedAuthUtility) ParseServiceAccountFile(ac *wrappedAuthCtx) (any, error) {
 	var inner_ac *dto.AuthCtx
 	if ac != nil {
 		inner_ac = ac.inner
@@ -1319,11 +1336,11 @@ func (w AuthUtility) ParseServiceAccountFile(ac *AuthCtx) (any, error) {
 	return r0, r1
 }
 
-type AnySdkClientConfigurator struct {
+type wrappedAnySdkClientConfigurator struct {
 	inner client.AnySdkClientConfigurator
 }
 
-func (w AnySdkClientConfigurator) Auth(authCtx *AuthCtx, authTypeRequested string, enforceRevokeFirst bool) (client.AnySdkClient, error) {
+func (w *wrappedAnySdkClientConfigurator) Auth(authCtx *wrappedAuthCtx, authTypeRequested string, enforceRevokeFirst bool) (client.AnySdkClient, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1332,340 +1349,340 @@ func (w AnySdkClientConfigurator) Auth(authCtx *AuthCtx, authTypeRequested strin
 	return r0, r1
 }
 
-type AnySdkResponse struct {
+type wrappedAnySdkResponse struct {
 	inner client.AnySdkResponse
 }
 
-func (w AnySdkResponse) GetHttpResponse() (*http.Response, error) {
+func (w *wrappedAnySdkResponse) GetHttpResponse() (*http.Response, error) {
 	r0, r1 := w.inner.GetHttpResponse()
 	return r0, r1
 }
 
-type ControlAttributes struct {
+type wrappedControlAttributes struct {
 	inner sqlcontrol.ControlAttributes
 }
 
-func (w ControlAttributes) GetControlGCStatusColumnName() string {
+func (w *wrappedControlAttributes) GetControlGCStatusColumnName() string {
 	r0 := w.inner.GetControlGCStatusColumnName()
 	return r0
 }
 
-func (w ControlAttributes) GetControlGenIDColumnName() string {
+func (w *wrappedControlAttributes) GetControlGenIDColumnName() string {
 	r0 := w.inner.GetControlGenIDColumnName()
 	return r0
 }
 
-func (w ControlAttributes) GetControlInsIDColumnName() string {
+func (w *wrappedControlAttributes) GetControlInsIDColumnName() string {
 	r0 := w.inner.GetControlInsIDColumnName()
 	return r0
 }
 
-func (w ControlAttributes) GetControlInsertEncodedIDColumnName() string {
+func (w *wrappedControlAttributes) GetControlInsertEncodedIDColumnName() string {
 	r0 := w.inner.GetControlInsertEncodedIDColumnName()
 	return r0
 }
 
-func (w ControlAttributes) GetControlLatestUpdateColumnName() string {
+func (w *wrappedControlAttributes) GetControlLatestUpdateColumnName() string {
 	r0 := w.inner.GetControlLatestUpdateColumnName()
 	return r0
 }
 
-func (w ControlAttributes) GetControlMaxTxnColumnName() string {
+func (w *wrappedControlAttributes) GetControlMaxTxnColumnName() string {
 	r0 := w.inner.GetControlMaxTxnColumnName()
 	return r0
 }
 
-func (w ControlAttributes) GetControlSsnIDColumnName() string {
+func (w *wrappedControlAttributes) GetControlSsnIDColumnName() string {
 	r0 := w.inner.GetControlSsnIDColumnName()
 	return r0
 }
 
-func (w ControlAttributes) GetControlTxnIDColumnName() string {
+func (w *wrappedControlAttributes) GetControlTxnIDColumnName() string {
 	r0 := w.inner.GetControlTxnIDColumnName()
 	return r0
 }
 
-type AuthContexts struct {
+type wrappedAuthContexts struct {
 	inner dto.AuthContexts
 }
 
-func (w AuthContexts) Clone() AuthContexts {
+func (w *wrappedAuthContexts) Clone() AuthContexts {
 	r0 := w.inner.Clone()
-	return AuthContexts{inner: r0}
+	return &wrappedAuthContexts{inner: r0}
 }
 
-type DataFlowCfg struct {
+type wrappedDataFlowCfg struct {
 	inner dto.DataFlowCfg
 }
 
-func (w DataFlowCfg) GetMaxDependencies() int {
+func (w *wrappedDataFlowCfg) GetMaxDependencies() int {
 	r0 := w.inner.GetMaxDependencies()
 	return r0
 }
 
-type NamespaceCfg struct {
+type wrappedNamespaceCfg struct {
 	inner dto.NamespaceCfg
 }
 
-func (w NamespaceCfg) GetRegex() (*regexp.Regexp, error) {
+func (w *wrappedNamespaceCfg) GetRegex() (*regexp.Regexp, error) {
 	r0, r1 := w.inner.GetRegex()
 	return r0, r1
 }
 
-func (w NamespaceCfg) GetTemplate() (*template.Template, error) {
+func (w *wrappedNamespaceCfg) GetTemplate() (*template.Template, error) {
 	r0, r1 := w.inner.GetTemplate()
 	return r0, r1
 }
 
-type OutputPacket struct {
+type wrappedOutputPacket struct {
 	inner dto.OutputPacket
 }
 
-func (w OutputPacket) GetColumnNames() []string {
+func (w *wrappedOutputPacket) GetColumnNames() []string {
 	r0 := w.inner.GetColumnNames()
 	return r0
 }
 
-func (w OutputPacket) GetColumnOIDs() []oid.Oid {
+func (w *wrappedOutputPacket) GetColumnOIDs() []oid.Oid {
 	r0 := w.inner.GetColumnOIDs()
 	return r0
 }
 
-func (w OutputPacket) GetRawRows() map[int]map[int]interface{} {
+func (w *wrappedOutputPacket) GetRawRows() map[int]map[int]interface{} {
 	r0 := w.inner.GetRawRows()
 	return r0
 }
 
-func (w OutputPacket) GetRows() map[string]map[string]interface{} {
+func (w *wrappedOutputPacket) GetRows() map[string]map[string]interface{} {
 	r0 := w.inner.GetRows()
 	return r0
 }
 
-type PgTLSCfg struct {
+type wrappedPgTLSCfg struct {
 	inner dto.PgTLSCfg
 }
 
-func (w PgTLSCfg) GetKeyPair() (tls.Certificate, error) {
+func (w *wrappedPgTLSCfg) GetKeyPair() (tls.Certificate, error) {
 	r0, r1 := w.inner.GetKeyPair()
 	return r0, r1
 }
 
-type SQLBackendCfg struct {
+type wrappedSQLBackendCfg struct {
 	inner dto.SQLBackendCfg
 }
 
-func (w SQLBackendCfg) GetDatabaseName() (string, error) {
+func (w *wrappedSQLBackendCfg) GetDatabaseName() (string, error) {
 	r0, r1 := w.inner.GetDatabaseName()
 	return r0, r1
 }
 
-func (w SQLBackendCfg) GetIntelViewSchemaName() string {
+func (w *wrappedSQLBackendCfg) GetIntelViewSchemaName() string {
 	r0 := w.inner.GetIntelViewSchemaName()
 	return r0
 }
 
-func (w SQLBackendCfg) GetOpsViewSchemaName() string {
+func (w *wrappedSQLBackendCfg) GetOpsViewSchemaName() string {
 	r0 := w.inner.GetOpsViewSchemaName()
 	return r0
 }
 
-func (w SQLBackendCfg) GetSQLDialect() string {
+func (w *wrappedSQLBackendCfg) GetSQLDialect() string {
 	r0 := w.inner.GetSQLDialect()
 	return r0
 }
 
-func (w SQLBackendCfg) GetSchemaType() string {
+func (w *wrappedSQLBackendCfg) GetSchemaType() string {
 	r0 := w.inner.GetSchemaType()
 	return r0
 }
 
-func (w SQLBackendCfg) GetTableSchemaName() string {
+func (w *wrappedSQLBackendCfg) GetTableSchemaName() string {
 	r0 := w.inner.GetTableSchemaName()
 	return r0
 }
 
-type SessionContext struct {
+type wrappedSessionContext struct {
 	inner dto.SessionContext
 }
 
-func (w SessionContext) GetIsolationLevel() constants.IsolationLevel {
+func (w *wrappedSessionContext) GetIsolationLevel() constants.IsolationLevel {
 	r0 := w.inner.GetIsolationLevel()
 	return r0
 }
 
-func (w SessionContext) GetRollbackType() constants.RollbackType {
+func (w *wrappedSessionContext) GetRollbackType() constants.RollbackType {
 	r0 := w.inner.GetRollbackType()
 	return r0
 }
 
-func (w SessionContext) UpdateIsolationLevel(p0 string) error {
+func (w *wrappedSessionContext) UpdateIsolationLevel(p0 string) error {
 	r0 := w.inner.UpdateIsolationLevel(p0)
 	return r0
 }
 
-type TxnCoordinatorCfg struct {
+type wrappedTxnCoordinatorCfg struct {
 	inner dto.TxnCoordinatorCfg
 }
 
-func (w TxnCoordinatorCfg) GetMaxTxnDepth() int {
+func (w *wrappedTxnCoordinatorCfg) GetMaxTxnDepth() int {
 	r0 := w.inner.GetMaxTxnDepth()
 	return r0
 }
 
-type GQLReader struct {
+type wrappedGQLReader struct {
 	inner graphql.GQLReader
 }
 
-func (w GQLReader) Read() ([]map[string]interface{}, error) {
+func (w *wrappedGQLReader) Read() ([]map[string]interface{}, error) {
 	r0, r1 := w.inner.Read()
 	return r0, r1
 }
 
-type ExecPayload struct {
+type wrappedExecPayload struct {
 	inner internaldto.ExecPayload
 }
 
-func (w ExecPayload) GetPayloadMap() map[string]interface{} {
+func (w *wrappedExecPayload) GetPayloadMap() map[string]interface{} {
 	r0 := w.inner.GetPayloadMap()
 	return r0
 }
 
-type HTTPElement struct {
+type wrappedHTTPElement struct {
 	inner internaldto.HTTPElement
 }
 
-func (w HTTPElement) GetName() string {
+func (w *wrappedHTTPElement) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w HTTPElement) GetType() internaldto.HTTPElementType {
+func (w *wrappedHTTPElement) GetType() internaldto.HTTPElementType {
 	r0 := w.inner.GetType()
 	return r0
 }
 
-func (w HTTPElement) SetTransformer(transformer func(interface{}) (interface{}, error)) {
+func (w *wrappedHTTPElement) SetTransformer(transformer func(interface{}) (interface{}, error)) {
 	w.inner.SetTransformer(transformer)
 	return
 }
 
-func (w HTTPElement) IsTransformerPresent() bool {
+func (w *wrappedHTTPElement) IsTransformerPresent() bool {
 	r0 := w.inner.IsTransformerPresent()
 	return r0
 }
 
-func (w HTTPElement) Transformer(t interface{}) (interface{}, error) {
+func (w *wrappedHTTPElement) Transformer(t interface{}) (interface{}, error) {
 	r0, r1 := w.inner.Transformer(t)
 	return r0, r1
 }
 
-type ExecutionResponse struct {
+type wrappedExecutionResponse struct {
 	inner local_template_executor.ExecutionResponse
 }
 
-func (w ExecutionResponse) GetStdErr() (*bytes.Buffer, bool) {
+func (w *wrappedExecutionResponse) GetStdErr() (*bytes.Buffer, bool) {
 	r0, r1 := w.inner.GetStdErr()
 	return r0, r1
 }
 
-func (w ExecutionResponse) GetStdOut() (*bytes.Buffer, bool) {
+func (w *wrappedExecutionResponse) GetStdOut() (*bytes.Buffer, bool) {
 	r0, r1 := w.inner.GetStdOut()
 	return r0, r1
 }
 
-type Executor struct {
+type wrappedExecutor struct {
 	inner local_template_executor.Executor
 }
 
-func (w Executor) Execute(p0 map[string]any) (ExecutionResponse, error) {
+func (w *wrappedExecutor) Execute(p0 map[string]any) (ExecutionResponse, error) {
 	r0, r1 := w.inner.Execute(p0)
-	return ExecutionResponse{inner: r0}, r1
+	return &wrappedExecutionResponse{inner: r0}, r1
 }
 
-type NameMangler struct {
+type wrappedNameMangler struct {
 	inner name_mangle.NameMangler
 }
 
-func (w NameMangler) MangleName(p0 string, p1 ...any) string {
+func (w *wrappedNameMangler) MangleName(p0 string, p1 ...any) string {
 	r0 := w.inner.MangleName(p0, p1)
 	return r0
 }
 
-type ActionInsertPayload struct {
+type wrappedActionInsertPayload struct {
 	inner providerinvoker.ActionInsertPayload
 }
 
-func (w ActionInsertPayload) GetItemisationResult() ItemisationResult {
+func (w *wrappedActionInsertPayload) GetItemisationResult() ItemisationResult {
 	r0 := w.inner.GetItemisationResult()
-	return ItemisationResult{inner: r0}
+	return &wrappedItemisationResult{inner: r0}
 }
 
-func (w ActionInsertPayload) GetParamsUsed() map[string]interface{} {
+func (w *wrappedActionInsertPayload) GetParamsUsed() map[string]interface{} {
 	r0 := w.inner.GetParamsUsed()
 	return r0
 }
 
-func (w ActionInsertPayload) GetReqEncoding() string {
+func (w *wrappedActionInsertPayload) GetReqEncoding() string {
 	r0 := w.inner.GetReqEncoding()
 	return r0
 }
 
-func (w ActionInsertPayload) GetTableName() string {
+func (w *wrappedActionInsertPayload) GetTableName() string {
 	r0 := w.inner.GetTableName()
 	return r0
 }
 
-func (w ActionInsertPayload) IsHousekeepingDone() bool {
+func (w *wrappedActionInsertPayload) IsHousekeepingDone() bool {
 	r0 := w.inner.IsHousekeepingDone()
 	return r0
 }
 
-type ActionInsertResult struct {
+type wrappedActionInsertResult struct {
 	inner providerinvoker.ActionInsertResult
 }
 
-func (w ActionInsertResult) GetError() (error, bool) {
+func (w *wrappedActionInsertResult) GetError() (error, bool) {
 	r0, r1 := w.inner.GetError()
 	return r0, r1
 }
 
-func (w ActionInsertResult) IsHousekeepingDone() bool {
+func (w *wrappedActionInsertResult) IsHousekeepingDone() bool {
 	r0 := w.inner.IsHousekeepingDone()
 	return r0
 }
 
-type InsertPreparator struct {
+type wrappedInsertPreparator struct {
 	inner providerinvoker.InsertPreparator
 }
 
-func (w InsertPreparator) ActionInsertPreparation(payload ActionInsertPayload) ActionInsertResult {
+func (w *wrappedInsertPreparator) ActionInsertPreparation(payload *wrappedActionInsertPayload) ActionInsertResult {
 	r0 := w.inner.ActionInsertPreparation(payload.inner)
-	return ActionInsertResult{inner: r0}
+	return &wrappedActionInsertResult{inner: r0}
 }
 
-type Invoker struct {
+type wrappedInvoker struct {
 	inner providerinvoker.Invoker
 }
 
-func (w Invoker) Invoke(ctx context.Context, req providerinvoker.Request) (providerinvoker.Result, error) {
+func (w *wrappedInvoker) Invoke(ctx context.Context, req providerinvoker.Request) (providerinvoker.Result, error) {
 	r0, r1 := w.inner.Invoke(ctx, req)
 	return r0, r1
 }
 
-type ItemisationResult struct {
+type wrappedItemisationResult struct {
 	inner providerinvoker.ItemisationResult
 }
 
-func (w ItemisationResult) GetItems() (interface{}, bool) {
+func (w *wrappedItemisationResult) GetItems() (interface{}, bool) {
 	r0, r1 := w.inner.GetItems()
 	return r0, r1
 }
 
-type Response struct {
+type wrappedResponse struct {
 	inner response.Response
 }
 
-func (w Response) Error() string {
+func (w *wrappedResponse) Error() string {
 	r0 := w.inner.Error()
 	return r0
 }
@@ -1675,348 +1692,348 @@ func (w Response) Error() string {
 // 	GetLocation() HTTPElementLocation
 // }
 
-type HTTPHTTPElement struct {
+type wrappedHTTPHTTPElement struct {
 	inner httpelement.HTTPElement
 }
 
-func (w HTTPHTTPElement) GetName() string {
+func (w *wrappedHTTPHTTPElement) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w HTTPHTTPElement) GetLocation() httpelement.HTTPElementLocation {
+func (w *wrappedHTTPHTTPElement) GetLocation() httpelement.HTTPElementLocation {
 	r0 := w.inner.GetLocation()
 	return r0
 }
 
 // TODO: fix this crap
-func (w Response) ExtractElement(e HTTPHTTPElement) (interface{}, error) {
+func (w *wrappedResponse) ExtractElement(e *wrappedHTTPHTTPElement) (interface{}, error) {
 	r0, r1 := w.inner.ExtractElement(e.inner)
 	return r0, r1
 }
 
-func (w Response) GetHttpResponse() *http.Response {
+func (w *wrappedResponse) GetHttpResponse() *http.Response {
 	r0 := w.inner.GetHttpResponse()
 	return r0
 }
 
-func (w Response) GetProcessedBody() interface{} {
+func (w *wrappedResponse) GetProcessedBody() interface{} {
 	r0 := w.inner.GetProcessedBody()
 	return r0
 }
 
-func (w Response) HasError() bool {
+func (w *wrappedResponse) HasError() bool {
 	r0 := w.inner.HasError()
 	return r0
 }
 
-type StreamTransformer struct {
+type wrappedStreamTransformer struct {
 	inner stream_transform.StreamTransformer
 }
 
-func (w StreamTransformer) GetOutStream() io.Reader {
+func (w *wrappedStreamTransformer) GetOutStream() io.Reader {
 	r0 := w.inner.GetOutStream()
 	return r0
 }
 
-func (w StreamTransformer) Transform() error {
+func (w *wrappedStreamTransformer) Transform() error {
 	r0 := w.inner.Transform()
 	return r0
 }
 
-type StreamTransformerFactory struct {
+type wrappedStreamTransformerFactory struct {
 	inner stream_transform.StreamTransformerFactory
 }
 
-func (w StreamTransformerFactory) GetTransformer(input string) (StreamTransformer, error) {
+func (w *wrappedStreamTransformerFactory) GetTransformer(input string) (StreamTransformer, error) {
 	r0, r1 := w.inner.GetTransformer(input)
-	return StreamTransformer{inner: r0}, r1
+	return &wrappedStreamTransformer{inner: r0}, r1
 }
 
-func (w StreamTransformerFactory) IsTransformable() bool {
+func (w *wrappedStreamTransformerFactory) IsTransformable() bool {
 	r0 := w.inner.IsTransformable()
 	return r0
 }
 
-type MapReader struct {
+type wrappedMapReader struct {
 	inner streaming.MapReader
 }
 
-func (w MapReader) Read() ([]map[string]interface{}, error) {
+func (w *wrappedMapReader) Read() ([]map[string]interface{}, error) {
 	r0, r1 := w.inner.Read()
 	return r0, r1
 }
 
-type MapStream struct {
+type wrappedMapStream struct {
 	inner streaming.MapStream
 }
 
-func (w MapStream) Write(p0 []map[string]interface{}) error {
+func (w *wrappedMapStream) Write(p0 []map[string]interface{}) error {
 	r0 := w.inner.Write(p0)
 	return r0
 }
 
-type MapStreamCollection struct {
+type wrappedMapStreamCollection struct {
 	inner streaming.MapStreamCollection
 }
 
-func (w MapStreamCollection) Len() int {
+func (w *wrappedMapStreamCollection) Len() int {
 	r0 := w.inner.Len()
 	return r0
 }
 
-func (w MapStreamCollection) Push(p0 MapStream) {
+func (w *wrappedMapStreamCollection) Push(p0 *wrappedMapStream) {
 	w.inner.Push(p0.inner)
 	return
 }
 
-type AuthDTO struct {
+type wrappedAuthDTO struct {
 	inner surface.AuthDTO
 }
 
-func (w AuthDTO) GetAccountID() string {
+func (w *wrappedAuthDTO) GetAccountID() string {
 	r0 := w.inner.GetAccountID()
 	return r0
 }
 
-func (w AuthDTO) GetAccountIDEnvVar() string {
+func (w *wrappedAuthDTO) GetAccountIDEnvVar() string {
 	r0 := w.inner.GetAccountIDEnvVar()
 	return r0
 }
 
-func (w AuthDTO) GetAuthStyle() int {
+func (w *wrappedAuthDTO) GetAuthStyle() int {
 	r0 := w.inner.GetAuthStyle()
 	return r0
 }
 
-func (w AuthDTO) GetClientID() string {
+func (w *wrappedAuthDTO) GetClientID() string {
 	r0 := w.inner.GetClientID()
 	return r0
 }
 
-func (w AuthDTO) GetClientIDEnvVar() string {
+func (w *wrappedAuthDTO) GetClientIDEnvVar() string {
 	r0 := w.inner.GetClientIDEnvVar()
 	return r0
 }
 
-func (w AuthDTO) GetClientSecret() string {
+func (w *wrappedAuthDTO) GetClientSecret() string {
 	r0 := w.inner.GetClientSecret()
 	return r0
 }
 
-func (w AuthDTO) GetClientSecretEnvVar() string {
+func (w *wrappedAuthDTO) GetClientSecretEnvVar() string {
 	r0 := w.inner.GetClientSecretEnvVar()
 	return r0
 }
 
-func (w AuthDTO) GetEnvVarAPIKeyStr() string {
+func (w *wrappedAuthDTO) GetEnvVarAPIKeyStr() string {
 	r0 := w.inner.GetEnvVarAPIKeyStr()
 	return r0
 }
 
-func (w AuthDTO) GetEnvVarAPISecretStr() string {
+func (w *wrappedAuthDTO) GetEnvVarAPISecretStr() string {
 	r0 := w.inner.GetEnvVarAPISecretStr()
 	return r0
 }
 
-func (w AuthDTO) GetEnvVarPassword() string {
+func (w *wrappedAuthDTO) GetEnvVarPassword() string {
 	r0 := w.inner.GetEnvVarPassword()
 	return r0
 }
 
-func (w AuthDTO) GetEnvVarUsername() string {
+func (w *wrappedAuthDTO) GetEnvVarUsername() string {
 	r0 := w.inner.GetEnvVarUsername()
 	return r0
 }
 
-func (w AuthDTO) GetGrantType() string {
+func (w *wrappedAuthDTO) GetGrantType() string {
 	r0 := w.inner.GetGrantType()
 	return r0
 }
 
-func (w AuthDTO) GetInlineBasicCredentials() string {
+func (w *wrappedAuthDTO) GetInlineBasicCredentials() string {
 	r0 := w.inner.GetInlineBasicCredentials()
 	return r0
 }
 
-func (w AuthDTO) GetKeyEnvVar() string {
+func (w *wrappedAuthDTO) GetKeyEnvVar() string {
 	r0 := w.inner.GetKeyEnvVar()
 	return r0
 }
 
-func (w AuthDTO) GetKeyFilePath() string {
+func (w *wrappedAuthDTO) GetKeyFilePath() string {
 	r0 := w.inner.GetKeyFilePath()
 	return r0
 }
 
-func (w AuthDTO) GetKeyFilePathEnvVar() string {
+func (w *wrappedAuthDTO) GetKeyFilePathEnvVar() string {
 	r0 := w.inner.GetKeyFilePathEnvVar()
 	return r0
 }
 
-func (w AuthDTO) GetKeyID() string {
+func (w *wrappedAuthDTO) GetKeyID() string {
 	r0 := w.inner.GetKeyID()
 	return r0
 }
 
-func (w AuthDTO) GetKeyIDEnvVar() string {
+func (w *wrappedAuthDTO) GetKeyIDEnvVar() string {
 	r0 := w.inner.GetKeyIDEnvVar()
 	return r0
 }
 
-func (w AuthDTO) GetLocation() string {
+func (w *wrappedAuthDTO) GetLocation() string {
 	r0 := w.inner.GetLocation()
 	return r0
 }
 
-func (w AuthDTO) GetName() string {
+func (w *wrappedAuthDTO) GetName() string {
 	r0 := w.inner.GetName()
 	return r0
 }
 
-func (w AuthDTO) GetScopes() []string {
+func (w *wrappedAuthDTO) GetScopes() []string {
 	r0 := w.inner.GetScopes()
 	return r0
 }
 
-func (w AuthDTO) GetSubject() string {
+func (w *wrappedAuthDTO) GetSubject() string {
 	r0 := w.inner.GetSubject()
 	return r0
 }
 
-func (w AuthDTO) GetSuccessor() (AuthDTO, bool) {
+func (w *wrappedAuthDTO) GetSuccessor() (AuthDTO, bool) {
 	r0, r1 := w.inner.GetSuccessor()
 	return AuthDTO{inner: r0}, r1
 }
 
-func (w AuthDTO) GetTokenURL() string {
+func (w *wrappedAuthDTO) GetTokenURL() string {
 	r0 := w.inner.GetTokenURL()
 	return r0
 }
 
-func (w AuthDTO) GetType() string {
+func (w *wrappedAuthDTO) GetType() string {
 	r0 := w.inner.GetType()
 	return r0
 }
 
-func (w AuthDTO) GetValuePrefix() string {
+func (w *wrappedAuthDTO) GetValuePrefix() string {
 	r0 := w.inner.GetValuePrefix()
 	return r0
 }
 
-func (w AuthDTO) GetValues() url.Values {
+func (w *wrappedAuthDTO) GetValues() url.Values {
 	r0 := w.inner.GetValues()
 	return r0
 }
 
-type IDiscoveryAdapter struct {
+type wrappedIDiscoveryAdapter struct {
 	inner discovery.IDiscoveryAdapter
 }
 
-func (w IDiscoveryAdapter) GetProvider(providerKey string) (Provider, error) {
+func (w *wrappedIDiscoveryAdapter) GetProvider(providerKey string) (Provider, error) {
 	r0, r1 := w.inner.GetProvider(providerKey)
-	return Provider{inner: r0}, r1
+	return &wrappedProvider{inner: r0}, r1
 }
 
-func (w IDiscoveryAdapter) GetResourcesMap(prov Provider, serviceKey string) (map[string]Resource, error) {
+func (w *wrappedIDiscoveryAdapter) GetResourcesMap(prov *wrappedProvider, serviceKey string) (map[string]Resource, error) {
 	r0, r1 := w.inner.GetResourcesMap(prov.inner, serviceKey)
 	return wrapMapString_Resource(r0), r1
 }
 
-func (w IDiscoveryAdapter) GetServiceHandlesMap(prov Provider) (map[string]ProviderService, error) {
+func (w *wrappedIDiscoveryAdapter) GetServiceHandlesMap(prov *wrappedProvider) (map[string]ProviderService, error) {
 	r0, r1 := w.inner.GetServiceHandlesMap(prov.inner)
 	return wrapMapString_ProviderService(r0), r1
 }
 
-func (w IDiscoveryAdapter) GetServiceShard(prov Provider, serviceKey string, resourceKey string) (Service, error) {
+func (w *wrappedIDiscoveryAdapter) GetServiceShard(prov *wrappedProvider, serviceKey string, resourceKey string) (Service, error) {
 	r0, r1 := w.inner.GetServiceShard(prov.inner, serviceKey, resourceKey)
-	return Service{inner: r0}, r1
+	return &wrappedService{inner: r0}, r1
 }
 
-func (w IDiscoveryAdapter) PersistStaticExternalSQLDataSource(prov Provider) error {
+func (w *wrappedIDiscoveryAdapter) PersistStaticExternalSQLDataSource(prov *wrappedProvider) error {
 	r0 := w.inner.PersistStaticExternalSQLDataSource(prov.inner)
 	return r0
 }
 
-type AddressSpaceFormulator struct {
+type wrappedAddressSpaceFormulator struct {
 	inner radix_tree_address_space.AddressSpaceFormulator
 }
 
-func (w AddressSpaceFormulator) Formulate() error {
+func (w *wrappedAddressSpaceFormulator) Formulate() error {
 	r0 := w.inner.Formulate()
 	return r0
 }
 
-func (w AddressSpaceFormulator) GetAddressSpace() AddressSpace {
+func (w *wrappedAddressSpaceFormulator) GetAddressSpace() AddressSpace {
 	r0 := w.inner.GetAddressSpace()
-	return AddressSpace{inner: r0}
+	return &wrappedAddressSpace{inner: r0}
 }
 
-type SQLEngine struct {
+type wrappedSQLEngine struct {
 	inner sqlengine.SQLEngine
 }
 
-func (w SQLEngine) CacheStoreGet(p0 string) ([]byte, error) {
+func (w *wrappedSQLEngine) CacheStoreGet(p0 string) ([]byte, error) {
 	r0, r1 := w.inner.CacheStoreGet(p0)
 	return r0, r1
 }
 
-func (w SQLEngine) CacheStorePut(p0 string, p1 []byte, p2 string, p3 int) error {
+func (w *wrappedSQLEngine) CacheStorePut(p0 string, p1 []byte, p2 string, p3 int) error {
 	r0 := w.inner.CacheStorePut(p0, p1, p2, p3)
 	return r0
 }
 
-func (w SQLEngine) Exec(p0 string, p1 ...interface{}) (sql.Result, error) {
+func (w *wrappedSQLEngine) Exec(p0 string, p1 ...interface{}) (sql.Result, error) {
 	r0, r1 := w.inner.Exec(p0, p1)
 	return r0, r1
 }
 
-func (w SQLEngine) ExecInTxn(queries []string) error {
+func (w *wrappedSQLEngine) ExecInTxn(queries []string) error {
 	r0 := w.inner.ExecInTxn(queries)
 	return r0
 }
 
-func (w SQLEngine) GetCurrentDiscoveryGenerationID(discoveryID string) (int, error) {
+func (w *wrappedSQLEngine) GetCurrentDiscoveryGenerationID(discoveryID string) (int, error) {
 	r0, r1 := w.inner.GetCurrentDiscoveryGenerationID(discoveryID)
 	return r0, r1
 }
 
-func (w SQLEngine) GetCurrentGenerationID() (int, error) {
+func (w *wrappedSQLEngine) GetCurrentGenerationID() (int, error) {
 	r0, r1 := w.inner.GetCurrentGenerationID()
 	return r0, r1
 }
 
-func (w SQLEngine) GetDB() (*sql.DB, error) {
+func (w *wrappedSQLEngine) GetDB() (*sql.DB, error) {
 	r0, r1 := w.inner.GetDB()
 	return r0, r1
 }
 
-func (w SQLEngine) GetNextDiscoveryGenerationID(discoveryID string) (int, error) {
+func (w *wrappedSQLEngine) GetNextDiscoveryGenerationID(discoveryID string) (int, error) {
 	r0, r1 := w.inner.GetNextDiscoveryGenerationID(discoveryID)
 	return r0, r1
 }
 
-func (w SQLEngine) GetNextGenerationID() (int, error) {
+func (w *wrappedSQLEngine) GetNextGenerationID() (int, error) {
 	r0, r1 := w.inner.GetNextGenerationID()
 	return r0, r1
 }
 
-func (w SQLEngine) GetNextSessionID(p0 int) (int, error) {
+func (w *wrappedSQLEngine) GetNextSessionID(p0 int) (int, error) {
 	r0, r1 := w.inner.GetNextSessionID(p0)
 	return r0, r1
 }
 
-func (w SQLEngine) GetTx() (*sql.Tx, error) {
+func (w *wrappedSQLEngine) GetTx() (*sql.Tx, error) {
 	r0, r1 := w.inner.GetTx()
 	return r0, r1
 }
 
-func (w SQLEngine) Query(p0 string, p1 ...interface{}) (*sql.Rows, error) {
+func (w *wrappedSQLEngine) Query(p0 string, p1 ...interface{}) (*sql.Rows, error) {
 	r0, r1 := w.inner.Query(p0, p1)
 	return r0, r1
 }
 
-func (w SQLEngine) QueryRow(query string, args ...any) *sql.Row {
+func (w *wrappedSQLEngine) QueryRow(query string, args ...any) *sql.Row {
 	r0 := w.inner.QueryRow(query, args)
 	return r0
 }
