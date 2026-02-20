@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -165,12 +166,13 @@ func wrapSlice_HTTPArmouryParameters(in []anysdk.HTTPArmouryParameters) []HTTPAr
 	return out
 }
 
-func unwrapSlice_HTTPArmouryParameters(in []*wrappedHTTPArmouryParameters) []anysdk.HTTPArmouryParameters {
+func unwrapSlice_HTTPArmouryParameters(in []HTTPArmouryParameters) []anysdk.HTTPArmouryParameters {
 	if in == nil {
 		return nil
 	}
 	out := make([]anysdk.HTTPArmouryParameters, 0, len(in))
 	for _, v := range in {
+		v := v.(*wrappedHTTPArmouryParameters)
 		out = append(out, v.inner)
 	}
 	return out
@@ -447,10 +449,7 @@ func (w *wrappedHTTPArmouryParameters) SetNextPage(ops OperationStore, token str
 		r0, r1 := w.inner.SetNextPage(op.inner, token, tokenKey)
 		return r0, r1
 	}
-	key, isWrapped := tokenKey.(*wrappedHTTPElement)
-	if isWrapped {
-		tokenKey = key.inner
-	}
+	return nil, fmt.Errorf("invalid OperationStore type: expected *wrappedOperationStore, got %T", ops)
 }
 
 func (w *wrappedHTTPArmouryParameters) SetRawQuery(p0 string) {
@@ -492,7 +491,7 @@ type wrappedHttpPreparatorStream struct {
 
 func (w *wrappedHttpPreparatorStream) Next() (HTTPPreparator, bool) {
 	r0, r1 := w.inner.Next()
-	return HTTPPreparator{inner: r0}, r1
+	return &wrappedHTTPPreparator{inner: r0}, r1
 }
 
 func (w *wrappedHttpPreparatorStream) Write(p0 *wrappedHTTPPreparator) error {
@@ -528,14 +527,14 @@ type wrappedMethodAnalysisOutput struct {
 	inner anysdk.MethodAnalysisOutput
 }
 
-func (w *wrappedMethodAnalysisOutput) GetInsertTabulation() *wrappedTabulation {
+func (w *wrappedMethodAnalysisOutput) GetInsertTabulation() Tabulation {
 	r0 := w.inner.GetInsertTabulation()
-	return Tabulation{inner: r0}
+	return &wrappedTabulation{inner: r0}
 }
 
 func (w *wrappedMethodAnalysisOutput) GetItemSchema() (Schema, bool) {
 	r0, r1 := w.inner.GetItemSchema()
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
 func (w *wrappedMethodAnalysisOutput) GetOrderedStarColumnsNames() ([]string, error) {
@@ -543,9 +542,9 @@ func (w *wrappedMethodAnalysisOutput) GetOrderedStarColumnsNames() ([]string, er
 	return r0, r1
 }
 
-func (w *wrappedMethodAnalysisOutput) GetSelectTabulation() *wrappedTabulation {
+func (w *wrappedMethodAnalysisOutput) GetSelectTabulation() Tabulation {
 	r0 := w.inner.GetSelectTabulation()
-	return Tabulation{inner: r0}
+	return &wrappedTabulation{inner: r0}
 }
 
 func (w *wrappedMethodAnalysisOutput) IsAwait() bool {
@@ -564,14 +563,14 @@ type wrappedMethodAnalyzer struct {
 
 func (w *wrappedMethodAnalyzer) AnalyzeUnaryAction(p0 anysdk.MethodAnalysisInput) (MethodAnalysisOutput, error) {
 	r0, r1 := w.inner.AnalyzeUnaryAction(p0)
-	return MethodAnalysisOutput{inner: r0}, r1
+	return &wrappedMethodAnalysisOutput{inner: r0}, r1
 }
 
 type wrappedMethods struct {
 	inner anysdk.Methods
 }
 
-func (w *wrappedMethods) OrderMethods() ([]*wrappedStandardOperationStore, error) {
+func (w *wrappedMethods) OrderMethods() ([]StandardOperationStore, error) {
 	r0, r1 := w.inner.OrderMethods()
 	return wrapSlice_StandardOperationStore(r0), r1
 }
@@ -582,7 +581,7 @@ type wrappedOperationInverse struct {
 
 func (w *wrappedOperationInverse) GetOperationStore() (StandardOperationStore, bool) {
 	r0, r1 := w.inner.GetOperationStore()
-	return StandardOperationStore{inner: r0}, r1
+	return &wrappedStandardOperationStore{inner: r0}, r1
 }
 
 type wrappedOperationStore struct {
@@ -606,42 +605,42 @@ func (w *wrappedOperationStore) GetNonBodyParameters() map[string]Addressable {
 
 func (w *wrappedOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationRequestTokenSemantic()
-	return TokenSemantic{inner: r0}, r1
+	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
 func (w *wrappedOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationResponseTokenSemantic()
-	return TokenSemantic{inner: r0}, r1
+	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
 func (w *wrappedOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	r0, r1 := w.inner.GetParameter(paramKey)
-	return Addressable{inner: r0}, r1
+	return &wrappedAddressable{inner: r0}, r1
 }
 
 func (w *wrappedOperationStore) GetRequestBodySchema() (Schema, error) {
 	r0, r1 := w.inner.GetRequestBodySchema()
-	return Schema{inner: r0}, r1
+	return &wrappedSchema{inner: r0}, r1
 }
 
-func (w *wrappedOperationStore) GetRequiredNonBodyParameters() map[string]*wrappedAddressable {
+func (w *wrappedOperationStore) GetRequiredNonBodyParameters() map[string]Addressable {
 	r0 := w.inner.GetRequiredNonBodyParameters()
 	return wrapMapString_Addressable(r0)
 }
 
-func (w *wrappedOperationStore) GetRequiredParameters() map[string]*wrappedAddressable {
+func (w *wrappedOperationStore) GetRequiredParameters() map[string]Addressable {
 	r0 := w.inner.GetRequiredParameters()
 	return wrapMapString_Addressable(r0)
 }
 
 func (w *wrappedOperationStore) GetResource() Resource {
 	r0 := w.inner.GetResource()
-	return Resource{inner: r0}
+	return &wrappedResource{inner: r0}
 }
 
 func (w *wrappedOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetResponseBodySchemaAndMediaType()
-	return Schema{inner: r0}, r1, r2
+	return &wrappedSchema{inner: r0}, r1, r2
 }
 
 func (w *wrappedOperationStore) GetSelectItemsKey() string {
@@ -659,22 +658,22 @@ func (w *wrappedOperationStore) IsRequestBodyAttributeRenamed(p0 string) bool {
 	return r0
 }
 
-func (w OperationStore) IsRequiredRequestBodyProperty(key string) bool {
+func (w *wrappedOperationStore) IsRequiredRequestBodyProperty(key string) bool {
 	r0 := w.inner.IsRequiredRequestBodyProperty(key)
 	return r0
 }
 
-func (w OperationStore) ProcessResponse(p0 *http.Response) (ProcessedOperationResponse, error) {
+func (w *wrappedOperationStore) ProcessResponse(p0 *http.Response) (ProcessedOperationResponse, error) {
 	r0, r1 := w.inner.ProcessResponse(p0)
-	return ProcessedOperationResponse{inner: r0}, r1
+	return &wrappedProcessedOperationResponse{inner: r0}, r1
 }
 
-func (w OperationStore) RenameRequestBodyAttribute(p0 string) (string, error) {
+func (w *wrappedOperationStore) RenameRequestBodyAttribute(p0 string) (string, error) {
 	r0, r1 := w.inner.RenameRequestBodyAttribute(p0)
 	return r0, r1
 }
 
-func (w OperationStore) RevertRequestBodyAttributeRename(p0 string) (string, error) {
+func (w *wrappedOperationStore) RevertRequestBodyAttributeRename(p0 string) (string, error) {
 	r0, r1 := w.inner.RevertRequestBodyAttributeRename(p0)
 	return r0, r1
 }
@@ -1084,17 +1083,17 @@ func (w *wrappedStandardOperationStore) GetOptionalParameters() map[string]Addre
 
 func (w *wrappedStandardOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationRequestTokenSemantic()
-	return TokenSemantic{inner: r0}, r1
+	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
 func (w *wrappedStandardOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationResponseTokenSemantic()
-	return TokenSemantic{inner: r0}, r1
+	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
 func (w *wrappedStandardOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	r0, r1 := w.inner.GetParameter(paramKey)
-	return Addressable{inner: r0}, r1
+	return &wrappedAddressable{inner: r0}, r1
 }
 
 func (w *wrappedStandardOperationStore) GetProjections() map[string]string {
@@ -1104,7 +1103,7 @@ func (w *wrappedStandardOperationStore) GetProjections() map[string]string {
 
 func (w *wrappedStandardOperationStore) GetRequest() (ExpectedRequest, bool) {
 	r0, r1 := w.inner.GetRequest()
-	return ExpectedRequest{inner: r0}, r1
+	return &wrappedExpectedRequest{inner: r0}, r1
 }
 
 func (w *wrappedStandardOperationStore) GetRequestBodySchema() (Schema, error) {
@@ -1119,7 +1118,7 @@ func (w *wrappedStandardOperationStore) GetRequiredParameters() map[string]Addre
 
 func (w *wrappedStandardOperationStore) GetResponse() (ExpectedResponse, bool) {
 	r0, r1 := w.inner.GetResponse()
-	return ExpectedResponse{inner: r0}, r1
+	return &wrappedExpectedResponse{inner: r0}, r1
 }
 
 func (w *wrappedStandardOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
@@ -1232,7 +1231,7 @@ type wrappedAuthUtility struct {
 	inner auth_util.AuthUtility
 }
 
-func (w *wrappedAuthUtility) ActivateAuth(authCtx *wrappedAuthCtx, principal string, authType string) {
+func (w *wrappedAuthUtility) ActivateAuth(authCtx *AuthCtx, principal string, authType string) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1241,7 +1240,7 @@ func (w *wrappedAuthUtility) ActivateAuth(authCtx *wrappedAuthCtx, principal str
 	return
 }
 
-func (w *wrappedAuthUtility) ApiTokenAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error) {
+func (w *wrappedAuthUtility) ApiTokenAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1250,7 +1249,7 @@ func (w *wrappedAuthUtility) ApiTokenAuth(authCtx *wrappedAuthCtx, httpContext n
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) AuthRevoke(authCtx *wrappedAuthCtx) error {
+func (w *wrappedAuthUtility) AuthRevoke(authCtx *AuthCtx) error {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1259,7 +1258,7 @@ func (w *wrappedAuthUtility) AuthRevoke(authCtx *wrappedAuthCtx) error {
 	return r0
 }
 
-func (w *wrappedAuthUtility) AwsSigningAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) AwsSigningAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1268,7 +1267,7 @@ func (w *wrappedAuthUtility) AwsSigningAuth(authCtx *wrappedAuthCtx, httpContext
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) AzureDefaultAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) AzureDefaultAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1277,7 +1276,7 @@ func (w *wrappedAuthUtility) AzureDefaultAuth(authCtx *wrappedAuthCtx, httpConte
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) BasicAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) BasicAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1286,7 +1285,7 @@ func (w *wrappedAuthUtility) BasicAuth(authCtx *wrappedAuthCtx, httpContext netu
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) CustomAuth(authCtx *wrappedAuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) CustomAuth(authCtx *AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1295,16 +1294,20 @@ func (w *wrappedAuthUtility) CustomAuth(authCtx *wrappedAuthCtx, httpContext net
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) GCloudOAuth(runtimeCtx RuntimeCtx, authCtx *wrappedAuthCtx, enforceRevokeFirst bool) (*http.Client, error) {
+func (w *wrappedAuthUtility) GCloudOAuth(runtimeCtx RuntimeCtx, authCtx *AuthCtx, enforceRevokeFirst bool) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
 	}
-	r0, r1 := w.inner.GCloudOAuth(runtimeCtx.inner, inner_authCtx, enforceRevokeFirst)
+	wrappedRuntimeCtx, isWrapped := runtimeCtx.(*wrappedRuntimeCtx)
+	if !isWrapped {
+		return nil, fmt.Errorf("invalid RuntimeCtx type: expected *wrappedRuntimeCtx, got %T", runtimeCtx)
+	}
+	r0, r1 := w.inner.GCloudOAuth(wrappedRuntimeCtx.inner, inner_authCtx, enforceRevokeFirst)
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) GenericOauthClientCredentials(authCtx *wrappedAuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) GenericOauthClientCredentials(authCtx *AuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1318,7 +1321,7 @@ func (w *wrappedAuthUtility) GetCurrentGCloudOauthUser() ([]byte, error) {
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) GoogleOauthServiceAccount(provider string, authCtx *wrappedAuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
+func (w *wrappedAuthUtility) GoogleOauthServiceAccount(provider string, authCtx *AuthCtx, scopes []string, httpContext netutils.HTTPContext) (*http.Client, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1327,7 +1330,7 @@ func (w *wrappedAuthUtility) GoogleOauthServiceAccount(provider string, authCtx 
 	return r0, r1
 }
 
-func (w *wrappedAuthUtility) ParseServiceAccountFile(ac *wrappedAuthCtx) (any, error) {
+func (w *wrappedAuthUtility) ParseServiceAccountFile(ac *AuthCtx) (any, error) {
 	var inner_ac *dto.AuthCtx
 	if ac != nil {
 		inner_ac = ac.inner
@@ -1340,7 +1343,7 @@ type wrappedAnySdkClientConfigurator struct {
 	inner client.AnySdkClientConfigurator
 }
 
-func (w *wrappedAnySdkClientConfigurator) Auth(authCtx *wrappedAuthCtx, authTypeRequested string, enforceRevokeFirst bool) (client.AnySdkClient, error) {
+func (w *wrappedAnySdkClientConfigurator) Auth(authCtx *AuthCtx, authTypeRequested string, enforceRevokeFirst bool) (client.AnySdkClient, error) {
 	var inner_authCtx *dto.AuthCtx
 	if authCtx != nil {
 		inner_authCtx = authCtx.inner
@@ -1707,9 +1710,11 @@ func (w *wrappedHTTPHTTPElement) GetLocation() httpelement.HTTPElementLocation {
 }
 
 // TODO: fix this crap
-func (w *wrappedResponse) ExtractElement(e *wrappedHTTPHTTPElement) (interface{}, error) {
-	r0, r1 := w.inner.ExtractElement(e.inner)
-	return r0, r1
+func (w *wrappedResponse) ExtractElement(e HTTPHTTPElement) (interface{}, error) {
+	if innerElement, ok := e.(*wrappedHTTPHTTPElement); ok {
+		return w.inner.ExtractElement(innerElement.inner)
+	}
+	return nil, fmt.Errorf("invalid HTTP element type: expected *wrappedHTTPHTTPElement, got %T", e)
 }
 
 func (w *wrappedResponse) GetHttpResponse() *http.Response {
@@ -1903,7 +1908,7 @@ func (w *wrappedAuthDTO) GetSubject() string {
 
 func (w *wrappedAuthDTO) GetSuccessor() (AuthDTO, bool) {
 	r0, r1 := w.inner.GetSuccessor()
-	return AuthDTO{inner: r0}, r1
+	return &wrappedAuthDTO{inner: r0}, r1
 }
 
 func (w *wrappedAuthDTO) GetTokenURL() string {
