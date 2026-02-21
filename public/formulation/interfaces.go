@@ -251,7 +251,7 @@ type RegistryAPI interface {
 
 // Relation mirrors methods on Relation
 type Relation interface {
-	GetColumnDescriptors() []anysdk.ColumnDescriptor
+	GetColumnDescriptors() []ColumnDescriptor
 	GetColumns() []Column
 }
 

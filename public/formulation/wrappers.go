@@ -838,9 +838,13 @@ type wrappedRelation struct {
 	inner anysdk.Relation
 }
 
-func (w *wrappedRelation) GetColumnDescriptors() []anysdk.ColumnDescriptor {
+func (w *wrappedRelation) GetColumnDescriptors() []ColumnDescriptor {
 	r0 := w.inner.GetColumnDescriptors()
-	return r0
+	rv := make([]ColumnDescriptor, len(r0))
+	for i, v := range r0 {
+		rv[i] = &wrappedColumnDescriptor{inner: v}
+	}
+	return rv
 }
 
 func (w *wrappedRelation) GetColumns() []Column {

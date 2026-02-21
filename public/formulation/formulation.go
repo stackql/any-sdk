@@ -42,8 +42,8 @@ type ColumnDescriptor interface {
 	GetName() string
 	GetNode() sqlparser.SQLNode
 	GetQualifier() string
-	GetRepresentativeSchema() anysdk.Schema
-	GetSchema() anysdk.Schema
+	GetRepresentativeSchema() Schema
+	GetSchema() Schema
 	GetVal() *sqlparser.SQLVal
 	unwrap() anysdk.ColumnDescriptor
 }
@@ -72,12 +72,12 @@ func (w *wrappedColumnDescriptor) GetQualifier() string {
 	return w.inner.GetQualifier()
 }
 
-func (w *wrappedColumnDescriptor) GetRepresentativeSchema() anysdk.Schema {
-	return w.inner.GetRepresentativeSchema()
+func (w *wrappedColumnDescriptor) GetRepresentativeSchema() Schema {
+	return newWrappedSchemaFromAnySdkSchema(w.inner.GetRepresentativeSchema())
 }
 
-func (w *wrappedColumnDescriptor) GetSchema() anysdk.Schema {
-	return w.inner.GetSchema()
+func (w *wrappedColumnDescriptor) GetSchema() Schema {
+	return newWrappedSchemaFromAnySdkSchema(w.inner.GetSchema())
 }
 
 func (w *wrappedColumnDescriptor) GetAlias() string {
