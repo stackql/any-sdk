@@ -1148,9 +1148,9 @@ func (w *wrappedStandardOperationStore) GetSelectItemsKey() string {
 	return r0
 }
 
-func (w *wrappedStandardOperationStore) GetService() anysdk.OpenAPIService {
+func (w *wrappedStandardOperationStore) GetService() OpenAPIService {
 	r0 := w.inner.GetService()
-	return r0
+	return &wrappedOpenAPIService{inner: r0}
 }
 
 func (w *wrappedStandardOperationStore) IsRequestBodyAttributeRenamed(p0 string) bool {

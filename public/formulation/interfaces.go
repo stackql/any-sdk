@@ -165,7 +165,7 @@ type OperationStore interface {
 	GetResource() Resource
 	GetResponseBodySchemaAndMediaType() (Schema, string, error)
 	GetSelectItemsKey() string
-	GetService() anysdk.OpenAPIService
+	GetService() OpenAPIService
 	IsRequestBodyAttributeRenamed(p0 string) bool
 	IsRequiredRequestBodyProperty(key string) bool
 	ProcessResponse(p0 *http.Response) (ProcessedOperationResponse, error)
