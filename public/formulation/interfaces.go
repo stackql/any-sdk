@@ -22,6 +22,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/netutils"
 	"github.com/stackql/any-sdk/pkg/providerinvoker"
 	"github.com/stackql/stackql-parser/go/sqltypes"
+	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
 
 // NOTE: Addressable is already defined as an interface in wrappers.go.
@@ -99,6 +100,12 @@ type HTTPPreparator interface {
 	BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error)
 }
 
+func newHTTPPreparatorFromAnySdkHTTPPreparator(inner anysdk.HTTPPreparator) HTTPPreparator {
+	return &wrappedHTTPPreparator{
+		inner: inner,
+	}
+}
+
 // HttpParameters mirrors methods on HttpParameters
 type HttpParameters interface {
 	GetInlineParameterFlatMap() (map[string]interface{}, error)
@@ -164,6 +171,7 @@ type OperationStore interface {
 	ProcessResponse(p0 *http.Response) (ProcessedOperationResponse, error)
 	RenameRequestBodyAttribute(p0 string) (string, error)
 	RevertRequestBodyAttributeRename(p0 string) (string, error)
+	unwrap() anysdk.OperationStore
 }
 
 // ProcessedOperationResponse mirrors methods on ProcessedOperationResponse
@@ -179,6 +187,33 @@ type Provider interface {
 	GetMinStackQLVersion() string
 	GetName() string
 	GetProtocolType() (client.ClientProtocolType, error)
+	unwrap() anysdk.Provider
+}
+
+type ExecContext interface {
+	GetExecPayload() internaldto.ExecPayload
+	GetResource() Resource
+	unwrap() anysdk.ExecContext
+}
+
+type RegistryConfig struct {
+	RegistryURL      string                   `json:"url" yaml:"url"`
+	SrcPrefix        *string                  `json:"srcPrefix" yaml:"srcPrefix"`
+	DistPrefix       *string                  `json:"distPrefix" yaml:"distPrefix"`
+	AllowSrcDownload bool                     `json:"allowSrcDownload" yaml:"allowSrcDownload"`
+	LocalDocRoot     string                   `json:"localDocRoot" yaml:"localDocRoot"`
+	VerifyConfig     *edcrypto.VerifierConfig `json:"verifyConfig" yaml:"verifyConfig"`
+}
+
+func (rc RegistryConfig) toAnySdkRegistryConfig() anysdk.RegistryConfig {
+	return anysdk.RegistryConfig{
+		RegistryURL:      rc.RegistryURL,
+		SrcPrefix:        rc.SrcPrefix,
+		DistPrefix:       rc.DistPrefix,
+		AllowSrcDownload: rc.AllowSrcDownload,
+		LocalDocRoot:     rc.LocalDocRoot,
+		VerifyConfig:     rc.VerifyConfig,
+	}
 }
 
 // ProviderDescription mirrors methods on ProviderDescription
@@ -194,6 +229,12 @@ type ProviderService interface {
 	GetTitle() string
 	GetVersion() string
 	IsPreferred() bool
+}
+
+type MethodSet interface {
+	GetFirstMatch(params map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
+	GetFirstNamespaceMatch(params map[string]any) (StandardOperationStore, map[string]any, bool)
+	GetFirst() (StandardOperationStore, string, bool)
 }
 
 // RegistryAPI mirrors methods on RegistryAPI
@@ -265,6 +306,7 @@ type Schema interface {
 	SetKey(p0 string)
 	Tabulate(p0 bool, p1 string) Tabulation
 	ToDescriptionMap(extended bool) map[string]interface{}
+	unwrap() anysdk.Schema
 }
 
 // Service mirrors methods on Service
@@ -272,6 +314,7 @@ type Service interface {
 	GetResource(resourceName string) (Resource, error)
 	GetSchema(key string) (Schema, error)
 	GetServers() (openapi3.Servers, bool)
+	unwrap() anysdk.Service
 }
 
 // StandardOperationStore mirrors methods on StandardOperationStore
@@ -298,6 +341,7 @@ type StandardOperationStore interface {
 	IsAwaitable() bool
 	IsNullary() bool
 	ToPresentationMap(extended bool) map[string]interface{}
+	unwrap() anysdk.StandardOperationStore
 }
 
 // Tabulation mirrors methods on Tabulation

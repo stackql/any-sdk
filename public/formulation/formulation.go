@@ -1,7 +1,14 @@
 package formulation
 
 import (
+	"io"
+	"net/http"
+
+	"github.com/sirupsen/logrus"
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/client"
+	"github.com/stackql/any-sdk/pkg/dto"
+	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
@@ -38,44 +45,136 @@ type ColumnDescriptor interface {
 	GetRepresentativeSchema() anysdk.Schema
 	GetSchema() anysdk.Schema
 	GetVal() *sqlparser.SQLVal
+	unwrap() anysdk.ColumnDescriptor
 }
 
-func NewColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema anysdk.Schema, val *sqlparser.SQLVal) ColumnDescriptor {
-	rv := anysdk.NewColumnDescriptor(alias, name, qualifier, decoratedCol, node, schema, val)
-	return rv.(ColumnDescriptor)
+type wrappedColumnDescriptor struct {
+	inner anysdk.ColumnDescriptor
 }
 
-// type SQLExternalColumn interface {
-// 	GetName() string
-// 	GetType() string
-// 	GetOid() uint32
-// 	GetWidth() int
-// 	GetPrecision() int
-// }
+func (w *wrappedColumnDescriptor) unwrap() anysdk.ColumnDescriptor {
+	return w.inner
+}
+
+func (w *wrappedColumnDescriptor) GetVal() *sqlparser.SQLVal {
+	return w.inner.GetVal()
+}
+
+func (w *wrappedColumnDescriptor) GetNode() sqlparser.SQLNode {
+	return w.inner.GetNode()
+}
+
+func (w *wrappedColumnDescriptor) GetDecoratedCol() string {
+	return w.inner.GetDecoratedCol()
+}
+
+func (w *wrappedColumnDescriptor) GetQualifier() string {
+	return w.inner.GetQualifier()
+}
+
+func (w *wrappedColumnDescriptor) GetRepresentativeSchema() anysdk.Schema {
+	return w.inner.GetRepresentativeSchema()
+}
+
+func (w *wrappedColumnDescriptor) GetSchema() anysdk.Schema {
+	return w.inner.GetSchema()
+}
+
+func (w *wrappedColumnDescriptor) GetAlias() string {
+	return w.inner.GetAlias()
+}
+
+func (w *wrappedColumnDescriptor) GetName() string {
+	return w.inner.GetName()
+}
+
+func (w *wrappedColumnDescriptor) GetIdentifier() string {
+	return w.inner.GetIdentifier()
+}
+
+func newColDescriptorFromAnySdkColumnDescriptor(c anysdk.ColumnDescriptor) ColumnDescriptor {
+	return &wrappedColumnDescriptor{inner: c}
+}
+
+func NewColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema Schema, val *sqlparser.SQLVal) ColumnDescriptor {
+	rv := anysdk.NewColumnDescriptor(alias, name, qualifier, decoratedCol, node, schema.unwrap(), val)
+	return newColDescriptorFromAnySdkColumnDescriptor(rv)
+}
 
 func NewMethodAnalysisInput(
-	method anysdk.OperationStore,
-	service anysdk.Service,
+	method OperationStore,
+	service Service,
 	isNilResponseAllowed bool,
 	columns []ColumnDescriptor,
 	isAwait bool,
 ) anysdk.MethodAnalysisInput {
 	cols := make([]anysdk.ColumnDescriptor, len(columns))
 	for i, c := range columns {
-		cols[i] = c.(anysdk.ColumnDescriptor)
+		cols[i] = c.unwrap()
 	}
 	return anysdk.NewMethodAnalysisInput(
-		method,
-		service,
+		method.unwrap(),
+		service.unwrap(),
 		isNilResponseAllowed,
 		cols,
 		isAwait,
 	)
 }
 
-// type SQLExternalTable interface {
-// 	GetCatalogName() string
-// 	GetSchemaName() string
-// 	GetName() string
-// 	GetColumns() []SQLExternalColumn
-// }
+func NewHTTPPreparator(
+	prov Provider,
+	svc Service,
+	m OperationStore,
+	paramMap map[int]map[string]interface{},
+	parameters streaming.MapStream,
+	execContext ExecContext,
+	logger *logrus.Logger,
+) HTTPPreparator {
+	return newHTTPPreparatorFromAnySdkHTTPPreparator(
+		anysdk.NewHTTPPreparator(
+			prov.unwrap(),
+			svc.unwrap(),
+			m.unwrap(),
+			paramMap,
+			parameters,
+			execContext.unwrap(),
+			logger,
+		),
+	)
+}
+
+func CallFromSignature(
+	cc client.AnySdkClientConfigurator,
+	runtimeCtx dto.RuntimeCtx,
+	authCtx *dto.AuthCtx,
+	authTypeRequested string,
+	enforceRevokeFirst bool,
+	outErrFile io.Writer,
+	prov Provider,
+	designation client.AnySdkDesignation,
+	argList client.AnySdkArgList,
+) (client.AnySdkResponse, error) {
+	return anysdk.CallFromSignature(
+		cc,
+		runtimeCtx,
+		authCtx,
+		authTypeRequested,
+		enforceRevokeFirst,
+		outErrFile,
+		prov.unwrap(),
+		designation,
+		argList,
+	)
+}
+
+func NewAnySdkOpStoreDesignation(method OperationStore) client.AnySdkDesignation {
+	return anysdk.NewAnySdkOpStoreDesignation(method.unwrap())
+}
+
+func NewRegistry(registryCfg RegistryConfig, transport http.RoundTripper) (RegistryAPI, error) {
+	rv, err := anysdk.NewRegistry(registryCfg.toAnySdkRegistryConfig(), transport)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedRegistryAPI{inner: rv}, nil
+}

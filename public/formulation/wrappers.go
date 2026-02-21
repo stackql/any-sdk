@@ -444,12 +444,8 @@ func (w *wrappedHTTPArmouryParameters) GetRequest() *http.Request {
 }
 
 func (w *wrappedHTTPArmouryParameters) SetNextPage(ops OperationStore, token string, tokenKey HTTPElement) (*http.Request, error) {
-	op, isWrapped := ops.(*wrappedOperationStore)
-	if isWrapped {
-		r0, r1 := w.inner.SetNextPage(op.inner, token, tokenKey)
-		return r0, r1
-	}
-	return nil, fmt.Errorf("invalid OperationStore type: expected *wrappedOperationStore, got %T", ops)
+	r0, r1 := w.inner.SetNextPage(ops.unwrap(), token, tokenKey)
+	return r0, r1
 }
 
 func (w *wrappedHTTPArmouryParameters) SetRawQuery(p0 string) {
@@ -588,6 +584,10 @@ type wrappedOperationStore struct {
 	inner anysdk.OperationStore
 }
 
+func (w *wrappedOperationStore) unwrap() anysdk.OperationStore {
+	return w.inner
+}
+
 func (w *wrappedOperationStore) DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error) {
 	r0, r1 := w.inner.DeprecatedProcessResponse(response)
 	return r0, r1
@@ -692,8 +692,30 @@ func (w *wrappedProcessedOperationResponse) GetReversal() (HTTPPreparator, bool)
 	return &wrappedHTTPPreparator{inner: r0}, r1
 }
 
+type wrappedExecContext struct {
+	inner anysdk.ExecContext
+}
+
+func (w *wrappedExecContext) GetExecPayload() internaldto.ExecPayload {
+	r0 := w.inner.GetExecPayload()
+	return r0
+}
+
+func (w *wrappedExecContext) GetResource() Resource {
+	r0 := w.inner.GetResource()
+	return &wrappedResource{inner: r0}
+}
+
+func (w *wrappedExecContext) unwrap() anysdk.ExecContext {
+	return w.inner
+}
+
 type wrappedProvider struct {
 	inner anysdk.Provider
+}
+
+func (w *wrappedProvider) unwrap() anysdk.Provider {
+	return w.inner
 }
 
 func (w *wrappedProvider) GetAuth() (AuthDTO, bool) {
@@ -923,6 +945,10 @@ type wrappedSchema struct {
 	inner anysdk.Schema
 }
 
+func (w *wrappedSchema) unwrap() anysdk.Schema {
+	return w.inner
+}
+
 func (w *wrappedSchema) FindByPath(path string, visited map[string]bool) Schema {
 	r0 := w.inner.FindByPath(path, visited)
 	return &wrappedSchema{inner: r0}
@@ -1027,6 +1053,10 @@ type wrappedService struct {
 	inner anysdk.Service
 }
 
+func (w *wrappedService) unwrap() anysdk.Service {
+	return w.inner
+}
+
 func (w *wrappedService) GetResource(resourceName string) (Resource, error) {
 	r0, r1 := w.inner.GetResource(resourceName)
 	return &wrappedResource{inner: r0}, r1
@@ -1044,6 +1074,10 @@ func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) unwrap() anysdk.StandardOperationStore {
+	return w.inner
 }
 
 func (w *wrappedStandardOperationStore) GetAddressSpace() (AddressSpace, bool) {
@@ -2041,4 +2075,23 @@ func (w *wrappedSQLEngine) Query(p0 string, p1 ...interface{}) (*sql.Rows, error
 func (w *wrappedSQLEngine) QueryRow(query string, args ...any) *sql.Row {
 	r0 := w.inner.QueryRow(query, args)
 	return r0
+}
+
+type wrappedMethodSet struct {
+	inner anysdk.MethodSet
+}
+
+func (w *wrappedMethodSet) GetFirstMatch(params map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
+	r0, r1, r2 := w.inner.GetFirstMatch(params)
+	return &wrappedStandardOperationStore{inner: r0}, r1, r2
+}
+
+func (w *wrappedMethodSet) GetFirstNamespaceMatch(params map[string]any) (StandardOperationStore, map[string]any, bool) {
+	r0, r1, r2 := w.inner.GetFirstNamespaceMatch(params)
+	return &wrappedStandardOperationStore{inner: r0}, r1, r2
+}
+
+func (w *wrappedMethodSet) GetFirst() (StandardOperationStore, string, bool) {
+	r0, r1, r2 := w.inner.GetFirst()
+	return &wrappedStandardOperationStore{inner: r0}, r1, r2
 }
