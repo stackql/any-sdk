@@ -9,7 +9,6 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/streaming"
-	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
@@ -55,7 +54,7 @@ type PersistenceSystem interface {
 	HandleViewCollection([]View) error
 	CacheStoreGet(key string) ([]byte, error)
 	CacheStorePut(key string, value []byte, expiration string, ttl int) error
-	unwrap() persistence.PersistenceSystem
+	// unwrap() persistence.PersistenceSystem
 }
 
 type wrappedColumnDescriptor struct {
