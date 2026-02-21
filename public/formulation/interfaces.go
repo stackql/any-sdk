@@ -219,6 +219,7 @@ func (rc RegistryConfig) toAnySdkRegistryConfig() anysdk.RegistryConfig {
 // ProviderDescription mirrors methods on ProviderDescription
 type ProviderDescription interface {
 	GetLatestVersion() (string, error)
+	Versions() []string
 }
 
 // ProviderService mirrors methods on ProviderService
@@ -282,6 +283,7 @@ type SQLExternalTable interface {
 	GetColumns() []SQLExternalColumn
 	GetName() string
 	GetSchemaName() string
+	unwrap() anysdk.SQLExternalTable
 }
 
 type OpenAPIService interface {

@@ -33,6 +33,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/any-sdk/pkg/surface"
 	"github.com/stackql/any-sdk/public/discovery"
+	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-parser/go/sqltypes"
@@ -242,6 +243,24 @@ func unwrapSlice_View(in []*wrappedView) []anysdk.View {
 		out = append(out, v.inner)
 	}
 	return out
+}
+
+type wrappedPersistenceSystem struct {
+	inner persistence.PersistenceSystem
+}
+
+func (w *wrappedPersistenceSystem) GetSystemName() string {
+	r0 := w.inner.GetSystemName()
+	return r0
+}
+
+func (w *wrappedPersistenceSystem) HandleExternalTables(providerName string, externalTables map[string]SQLExternalTable) error {
+	inner_externalTables := make(map[string]anysdk.SQLExternalTable, len(externalTables))
+	for k, v := range externalTables {
+		inner_externalTables[k] = v.unwrap()
+	}
+	r0 := w.inner.HandleExternalTables(providerName, inner_externalTables)
+	return r0
 }
 
 type wrappedAuthMetadata struct {
@@ -756,6 +775,11 @@ func (w *wrappedProviderDescription) GetLatestVersion() (string, error) {
 	return r0, r1
 }
 
+func (w *wrappedProviderDescription) Versions() []string {
+	r0 := w.inner.Versions
+	return r0
+}
+
 type wrappedProviderService struct {
 	inner anysdk.ProviderService
 }
@@ -947,6 +971,10 @@ func (w *wrappedSQLExternalTable) GetName() string {
 func (w *wrappedSQLExternalTable) GetSchemaName() string {
 	r0 := w.inner.GetSchemaName()
 	return r0
+}
+
+func (w *wrappedSQLExternalTable) unwrap() anysdk.SQLExternalTable {
+	return w.inner
 }
 
 type wrappedSchema struct {

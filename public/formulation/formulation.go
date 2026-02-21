@@ -9,6 +9,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/streaming"
+	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
@@ -46,6 +47,15 @@ type ColumnDescriptor interface {
 	GetSchema() Schema
 	GetVal() *sqlparser.SQLVal
 	unwrap() anysdk.ColumnDescriptor
+}
+
+type PersistenceSystem interface {
+	GetSystemName() string
+	HandleExternalTables(providerName string, externalTables map[string]SQLExternalTable) error
+	HandleViewCollection([]View) error
+	CacheStoreGet(key string) ([]byte, error)
+	CacheStorePut(key string, value []byte, expiration string, ttl int) error
+	unwrap() persistence.PersistenceSystem
 }
 
 type wrappedColumnDescriptor struct {
