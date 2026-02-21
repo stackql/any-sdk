@@ -339,9 +339,52 @@ type wrappedAddressSpace struct {
 	inner anysdk.AddressSpace
 }
 
-func (w *wrappedAddressSpace) ToRelation(p0 anysdk.AddressSpaceExpansionConfig) (Relation, error) {
-	r0, r1 := w.inner.ToRelation(p0)
+func (w *wrappedAddressSpace) ToRelation(p0 AddressSpaceExpansionConfig) (Relation, error) {
+	r0, r1 := w.inner.ToRelation(p0.unwrap())
 	return &wrappedRelation{inner: r0}, r1
+}
+
+func (w *wrappedAddressSpace) GetGlobalSelectSchemas() map[string]Schema {
+	r0 := w.inner.GetGlobalSelectSchemas()
+	rv := make(map[string]Schema, len(r0))
+	for k, v := range r0 {
+		rv[k] = newWrappedSchemaFromAnySdkSchema(v)
+	}
+	return rv
+}
+
+func (w *wrappedAddressSpace) DereferenceAddress(address string) (any, bool) {
+	r0, r1 := w.inner.DereferenceAddress(address)
+	return r0, r1
+}
+
+func (w *wrappedAddressSpace) WriteToAddress(address string, val any) error {
+	r0 := w.inner.WriteToAddress(address, val)
+	return r0
+}
+
+func (w *wrappedAddressSpace) ReadFromAddress(address string) (any, bool) {
+	r0, r1 := w.inner.ReadFromAddress(address)
+	return r0, r1
+}
+
+func (w *wrappedAddressSpace) ResolveSignature(signature map[string]any) (bool, map[string]any) {
+	r0, r1 := w.inner.ResolveSignature(signature)
+	return r0, r1
+}
+
+func (w *wrappedAddressSpace) Invoke(args ...any) error {
+	r0 := w.inner.Invoke(args...)
+	return r0
+}
+
+func (w *wrappedAddressSpace) ToMap(config AddressSpaceExpansionConfig) (map[string]any, error) {
+	r0, r1 := w.inner.ToMap(config)
+	return r0, r1
+}
+
+func (w *wrappedAddressSpace) unwrap() anysdk.AddressSpace {
+	return w.inner
 }
 
 func DeprecatedNewAddressable(inner anysdk.Addressable) Addressable {
@@ -627,6 +670,11 @@ type wrappedOperationStore struct {
 	inner anysdk.OperationStore
 }
 
+func (w *wrappedOperationStore) GetProjections() map[string]string {
+	r0 := w.inner.GetProjections()
+	return r0
+}
+
 func (w *wrappedOperationStore) unwrap() anysdk.OperationStore {
 	return w.inner
 }
@@ -900,6 +948,10 @@ type wrappedResource struct {
 	inner anysdk.Resource
 }
 
+func (w *wrappedResource) unwrap() anysdk.Resource {
+	return w.inner
+}
+
 func (w *wrappedResource) FindMethod(key string) (StandardOperationStore, error) {
 	r0, r1 := w.inner.FindMethod(key)
 	return &wrappedStandardOperationStore{inner: r0}, r1
@@ -1137,6 +1189,11 @@ func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) GetProjections() map[string]string {
+	r0 := w.inner.GetProjections()
+	return r0
 }
 
 func (w *wrappedStandardOperationStore) GetServers() (openapi3.Servers, bool) {

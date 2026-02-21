@@ -10,6 +10,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
@@ -198,6 +199,10 @@ func NewRegistry(registryCfg RegistryConfig, transport http.RoundTripper) (Regis
 	return &wrappedRegistryAPI{inner: rv}, nil
 }
 
+var DefaultLinkHeaderTransformer = anysdk.DefaultLinkHeaderTransformer
+
+var NewAnySdkClientConfigurator = anysdk.NewAnySdkClientConfigurator
+
 func NewStringSchema(svc OpenAPIService, key string, path string) Schema {
 	raw := anysdk.NewStringSchema(svc.unwrapOpenapi3Service(), key, path)
 	return newWrappedSchemaFromAnySdkSchema(raw)
@@ -212,4 +217,26 @@ func LoadProviderAndServiceFromPaths(
 		return nil, err
 	}
 	return &wrappedService{inner: svc}, nil
+}
+
+func NewAddressSpaceFormulator(
+	grammar AddressSpaceGrammar,
+	provider Provider,
+	service Service,
+	resource Resource,
+	method StandardOperationStore,
+	aliasedUnionSelectKeys map[string]string,
+	isAwait bool,
+) AddressSpaceFormulator {
+	return &wrappedAddressSpaceFormulator{
+		inner: radix_tree_address_space.NewAddressSpaceFormulator(
+			grammar,
+			provider.unwrap(),
+			service.unwrap(),
+			resource.unwrap(),
+			method.unwrapStandardOperationStore(),
+			aliasedUnionSelectKeys,
+			isAwait,
+		),
+	}
 }

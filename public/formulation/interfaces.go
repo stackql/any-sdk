@@ -21,6 +21,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/internaldto"
 	"github.com/stackql/any-sdk/pkg/netutils"
 	"github.com/stackql/any-sdk/pkg/providerinvoker"
+	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/stackql-parser/go/sqltypes"
 	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
@@ -48,8 +49,26 @@ type RuntimeCtx interface {
 }
 
 // AddressSpace mirrors methods on AddressSpace
+type AddressSpaceExpansionConfig interface {
+	IsAsync() bool
+	IsLegacy() bool
+	IsAllowNilResponse() bool
+	unwrap() anysdk.AddressSpaceExpansionConfig
+}
+
+// AddressSpaceGrammar defines the search DSL
+type AddressSpaceGrammar radix_tree_address_space.AddressSpaceGrammar
+
 type AddressSpace interface {
-	ToRelation(p0 anysdk.AddressSpaceExpansionConfig) (Relation, error)
+	GetGlobalSelectSchemas() map[string]Schema
+	DereferenceAddress(address string) (any, bool)
+	WriteToAddress(address string, val any) error
+	ReadFromAddress(address string) (any, bool)
+	ResolveSignature(map[string]any) (bool, map[string]any)
+	Invoke(...any) error
+	ToMap(AddressSpaceExpansionConfig) (map[string]any, error)
+	ToRelation(AddressSpaceExpansionConfig) (Relation, error)
+	unwrap() anysdk.AddressSpace
 }
 
 // Column mirrors methods on Column
@@ -171,6 +190,7 @@ type OperationStore interface {
 	ProcessResponse(p0 *http.Response) (ProcessedOperationResponse, error)
 	RenameRequestBodyAttribute(p0 string) (string, error)
 	RevertRequestBodyAttributeRename(p0 string) (string, error)
+	GetProjections() map[string]string
 	unwrap() anysdk.OperationStore
 }
 
@@ -266,6 +286,7 @@ type Resource interface {
 	GetName() string
 	GetViewsForSqlDialect(sqlDialect string) ([]View, bool)
 	ToMap(extended bool) map[string]interface{}
+	unwrap() anysdk.Resource
 }
 
 // SQLExternalColumn mirrors methods on SQLExternalColumn
