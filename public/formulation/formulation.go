@@ -183,3 +183,14 @@ func NewStringSchema(svc OpenAPIService, key string, path string) Schema {
 	raw := anysdk.NewStringSchema(svc.unwrapOpenapi3Service(), key, path)
 	return newWrappedSchemaFromAnySdkSchema(raw)
 }
+
+func LoadProviderAndServiceFromPaths(
+	provFilePath string,
+	svcFilePath string,
+) (Service, error) {
+	svc, err := anysdk.LoadProviderAndServiceFromPaths(provFilePath, svcFilePath)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedService{inner: svc}, nil
+}

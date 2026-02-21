@@ -1080,6 +1080,11 @@ type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
 }
 
+func (w *wrappedStandardOperationStore) GetServers() (openapi3.Servers, bool) {
+	r0, r1 := w.inner.GetServers()
+	return r0, r1
+}
+
 func (w *wrappedStandardOperationStore) unwrap() anysdk.OperationStore {
 	return w.inner
 }
