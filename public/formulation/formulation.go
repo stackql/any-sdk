@@ -178,3 +178,8 @@ func NewRegistry(registryCfg RegistryConfig, transport http.RoundTripper) (Regis
 	}
 	return &wrappedRegistryAPI{inner: rv}, nil
 }
+
+func NewStringSchema(svc OpenAPIService, key string, path string) Schema {
+	raw := anysdk.NewStringSchema(svc.unwrapOpenapi3Service(), key, path)
+	return newWrappedSchemaFromAnySdkSchema(raw)
+}

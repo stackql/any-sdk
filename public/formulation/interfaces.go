@@ -284,6 +284,11 @@ type SQLExternalTable interface {
 	GetSchemaName() string
 }
 
+type OpenAPIService interface {
+	Service
+	unwrapOpenapi3Service() anysdk.OpenAPIService
+}
+
 // Schema mirrors methods on Schema
 type Schema interface {
 	FindByPath(path string, visited map[string]bool) Schema
@@ -319,29 +324,8 @@ type Service interface {
 
 // StandardOperationStore mirrors methods on StandardOperationStore
 type StandardOperationStore interface {
-	GetAddressSpace() (AddressSpace, bool)
-	GetColumnOrder(extended bool) []string
-	GetGraphQL() GraphQL
-	GetInline() []string
-	GetInverse() (OperationInverse, bool)
-	GetName() string
-	GetOptionalParameters() map[string]Addressable
-	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
-	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
-	GetParameter(paramKey string) (Addressable, bool)
-	GetProjections() map[string]string
-	GetRequest() (ExpectedRequest, bool)
-	GetRequestBodySchema() (Schema, error)
-	GetRequiredParameters() map[string]Addressable
-	GetResponse() (ExpectedResponse, bool)
-	GetResponseBodySchemaAndMediaType() (Schema, string, error)
-	GetSelectItemsKey() string
-	GetSelectSchemaAndObjectPath() (Schema, string, error)
-	GetServers() (openapi3.Servers, bool)
-	IsAwaitable() bool
-	IsNullary() bool
-	ToPresentationMap(extended bool) map[string]interface{}
-	unwrap() anysdk.StandardOperationStore
+	OperationStore
+	unwrapStandardOperationStore() anysdk.StandardOperationStore
 }
 
 // Tabulation mirrors methods on Tabulation

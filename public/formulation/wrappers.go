@@ -349,7 +349,7 @@ func (w *wrappedColumn) GetName() string {
 
 func (w *wrappedColumn) GetSchema() Schema {
 	r0 := w.inner.GetSchema()
-	return &wrappedSchema{inner: r0}
+	return newWrappedSchemaFromAnySdkSchema(r0)
 }
 
 func (w *wrappedColumn) GetWidth() int {
@@ -528,9 +528,13 @@ func (w *wrappedMethodAnalysisOutput) GetInsertTabulation() Tabulation {
 	return &wrappedTabulation{inner: r0}
 }
 
+func newWrappedSchemaFromAnySdkSchema(inner anysdk.Schema) Schema {
+	return &wrappedSchema{inner: inner}
+}
+
 func (w *wrappedMethodAnalysisOutput) GetItemSchema() (Schema, bool) {
 	r0, r1 := w.inner.GetItemSchema()
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
 }
 
 func (w *wrappedMethodAnalysisOutput) GetOrderedStarColumnsNames() ([]string, error) {
@@ -620,7 +624,7 @@ func (w *wrappedOperationStore) GetParameter(paramKey string) (Addressable, bool
 
 func (w *wrappedOperationStore) GetRequestBodySchema() (Schema, error) {
 	r0, r1 := w.inner.GetRequestBodySchema()
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
 }
 
 func (w *wrappedOperationStore) GetRequiredNonBodyParameters() map[string]Addressable {
@@ -640,7 +644,7 @@ func (w *wrappedOperationStore) GetResource() Resource {
 
 func (w *wrappedOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetResponseBodySchemaAndMediaType()
-	return &wrappedSchema{inner: r0}, r1, r2
+	return newWrappedSchemaFromAnySdkSchema(r0), r1, r2
 }
 
 func (w *wrappedOperationStore) GetSelectItemsKey() string {
@@ -951,12 +955,12 @@ func (w *wrappedSchema) unwrap() anysdk.Schema {
 
 func (w *wrappedSchema) FindByPath(path string, visited map[string]bool) Schema {
 	r0 := w.inner.FindByPath(path, visited)
-	return &wrappedSchema{inner: r0}
+	return newWrappedSchemaFromAnySdkSchema(r0)
 }
 
 func (w *wrappedSchema) GetAdditionalProperties() (Schema, bool) {
 	r0, r1 := w.inner.GetAdditionalProperties()
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
 }
 
 func (w *wrappedSchema) GetAllColumns(p0 string) []string {
@@ -966,7 +970,7 @@ func (w *wrappedSchema) GetAllColumns(p0 string) []string {
 
 func (w *wrappedSchema) GetItemsSchema() (Schema, error) {
 	r0, r1 := w.inner.GetItemsSchema()
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
 }
 
 func (w *wrappedSchema) GetName() string {
@@ -981,17 +985,17 @@ func (w *wrappedSchema) GetProperties() (anysdk.Schemas, error) {
 
 func (w *wrappedSchema) GetProperty(propertyKey string) (Schema, bool) {
 	r0, r1 := w.inner.GetProperty(propertyKey)
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
 }
 
 func (w *wrappedSchema) GetPropertySchema(key string) (Schema, error) {
 	r0, r1 := w.inner.GetPropertySchema(key)
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
 }
 
 func (w *wrappedSchema) GetSelectSchema(itemsKey string, mediaType string) (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetSelectSchema(itemsKey, mediaType)
-	return &wrappedSchema{inner: r0}, r1, r2
+	return newWrappedSchemaFromAnySdkSchema(r0), r1, r2
 }
 
 func (w *wrappedSchema) GetSelectionName() string {
@@ -1064,7 +1068,7 @@ func (w *wrappedService) GetResource(resourceName string) (Resource, error) {
 
 func (w *wrappedService) GetSchema(key string) (Schema, error) {
 	r0, r1 := w.inner.GetSchema(key)
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
 }
 
 func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
@@ -1076,33 +1080,17 @@ type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
 }
 
-func (w *wrappedStandardOperationStore) unwrap() anysdk.StandardOperationStore {
+func (w *wrappedStandardOperationStore) unwrap() anysdk.OperationStore {
 	return w.inner
 }
 
-func (w *wrappedStandardOperationStore) GetAddressSpace() (AddressSpace, bool) {
-	r0, r1 := w.inner.GetAddressSpace()
-	return &wrappedAddressSpace{inner: r0}, r1
+func (w *wrappedStandardOperationStore) unwrapStandardOperationStore() anysdk.StandardOperationStore {
+	return w.inner
 }
 
-func (w *wrappedStandardOperationStore) GetColumnOrder(extended bool) []string {
-	r0 := w.inner.GetColumnOrder(extended)
-	return r0
-}
-
-func (w *wrappedStandardOperationStore) GetGraphQL() GraphQL {
-	r0 := w.inner.GetGraphQL()
-	return &wrappedGraphQL{inner: r0}
-}
-
-func (w *wrappedStandardOperationStore) GetInline() []string {
-	r0 := w.inner.GetInline()
-	return r0
-}
-
-func (w *wrappedStandardOperationStore) GetInverse() (OperationInverse, bool) {
-	r0, r1 := w.inner.GetInverse()
-	return &wrappedOperationInverse{inner: r0}, r1
+func (w *wrappedStandardOperationStore) DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error) {
+	r0, r1 := w.inner.DeprecatedProcessResponse(response)
+	return r0, r1
 }
 
 func (w *wrappedStandardOperationStore) GetName() string {
@@ -1110,8 +1098,8 @@ func (w *wrappedStandardOperationStore) GetName() string {
 	return r0
 }
 
-func (w *wrappedStandardOperationStore) GetOptionalParameters() map[string]Addressable {
-	r0 := w.inner.GetOptionalParameters()
+func (w *wrappedStandardOperationStore) GetNonBodyParameters() map[string]Addressable {
+	r0 := w.inner.GetNonBodyParameters()
 	return wrapMapString_Addressable(r0)
 }
 
@@ -1130,19 +1118,14 @@ func (w *wrappedStandardOperationStore) GetParameter(paramKey string) (Addressab
 	return &wrappedAddressable{inner: r0}, r1
 }
 
-func (w *wrappedStandardOperationStore) GetProjections() map[string]string {
-	r0 := w.inner.GetProjections()
-	return r0
-}
-
-func (w *wrappedStandardOperationStore) GetRequest() (ExpectedRequest, bool) {
-	r0, r1 := w.inner.GetRequest()
-	return &wrappedExpectedRequest{inner: r0}, r1
-}
-
 func (w *wrappedStandardOperationStore) GetRequestBodySchema() (Schema, error) {
 	r0, r1 := w.inner.GetRequestBodySchema()
-	return &wrappedSchema{inner: r0}, r1
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
+}
+
+func (w *wrappedStandardOperationStore) GetRequiredNonBodyParameters() map[string]Addressable {
+	r0 := w.inner.GetRequiredNonBodyParameters()
+	return wrapMapString_Addressable(r0)
 }
 
 func (w *wrappedStandardOperationStore) GetRequiredParameters() map[string]Addressable {
@@ -1150,14 +1133,14 @@ func (w *wrappedStandardOperationStore) GetRequiredParameters() map[string]Addre
 	return wrapMapString_Addressable(r0)
 }
 
-func (w *wrappedStandardOperationStore) GetResponse() (ExpectedResponse, bool) {
-	r0, r1 := w.inner.GetResponse()
-	return &wrappedExpectedResponse{inner: r0}, r1
+func (w *wrappedStandardOperationStore) GetResource() Resource {
+	r0 := w.inner.GetResource()
+	return &wrappedResource{inner: r0}
 }
 
 func (w *wrappedStandardOperationStore) GetResponseBodySchemaAndMediaType() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetResponseBodySchemaAndMediaType()
-	return &wrappedSchema{inner: r0}, r1, r2
+	return newWrappedSchemaFromAnySdkSchema(r0), r1, r2
 }
 
 func (w *wrappedStandardOperationStore) GetSelectItemsKey() string {
@@ -1165,29 +1148,34 @@ func (w *wrappedStandardOperationStore) GetSelectItemsKey() string {
 	return r0
 }
 
-func (w *wrappedStandardOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
-	r0, r1, r2 := w.inner.GetSelectSchemaAndObjectPath()
-	return &wrappedSchema{inner: r0}, r1, r2
+func (w *wrappedStandardOperationStore) GetService() anysdk.OpenAPIService {
+	r0 := w.inner.GetService()
+	return r0
 }
 
-func (w *wrappedStandardOperationStore) GetServers() (openapi3.Servers, bool) {
-	r0, r1 := w.inner.GetServers()
+func (w *wrappedStandardOperationStore) IsRequestBodyAttributeRenamed(p0 string) bool {
+	r0 := w.inner.IsRequestBodyAttributeRenamed(p0)
+	return r0
+}
+
+func (w *wrappedStandardOperationStore) IsRequiredRequestBodyProperty(key string) bool {
+	r0 := w.inner.IsRequiredRequestBodyProperty(key)
+	return r0
+}
+
+func (w *wrappedStandardOperationStore) ProcessResponse(p0 *http.Response) (ProcessedOperationResponse, error) {
+	r0, r1 := w.inner.ProcessResponse(p0)
+	return &wrappedProcessedOperationResponse{inner: r0}, r1
+}
+
+func (w *wrappedStandardOperationStore) RenameRequestBodyAttribute(p0 string) (string, error) {
+	r0, r1 := w.inner.RenameRequestBodyAttribute(p0)
 	return r0, r1
 }
 
-func (w *wrappedStandardOperationStore) IsAwaitable() bool {
-	r0 := w.inner.IsAwaitable()
-	return r0
-}
-
-func (w *wrappedStandardOperationStore) IsNullary() bool {
-	r0 := w.inner.IsNullary()
-	return r0
-}
-
-func (w *wrappedStandardOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
-	r0 := w.inner.ToPresentationMap(extended)
-	return r0
+func (w *wrappedStandardOperationStore) RevertRequestBodyAttributeRename(p0 string) (string, error) {
+	r0, r1 := w.inner.RevertRequestBodyAttributeRename(p0)
+	return r0, r1
 }
 
 type wrappedTabulation struct {
@@ -2094,4 +2082,31 @@ func (w *wrappedMethodSet) GetFirstNamespaceMatch(params map[string]any) (Standa
 func (w *wrappedMethodSet) GetFirst() (StandardOperationStore, string, bool) {
 	r0, r1, r2 := w.inner.GetFirst()
 	return &wrappedStandardOperationStore{inner: r0}, r1, r2
+}
+
+type wrappedOpenAPIService struct {
+	inner anysdk.OpenAPIService
+}
+
+func (w *wrappedOpenAPIService) unwrapOpenapi3Service() anysdk.OpenAPIService {
+	return w.inner
+}
+
+func (w *wrappedOpenAPIService) unwrap() anysdk.Service {
+	return w.inner
+}
+
+func (w *wrappedOpenAPIService) GetResource(resourceName string) (Resource, error) {
+	r0, r1 := w.inner.GetResource(resourceName)
+	return &wrappedResource{inner: r0}, r1
+}
+
+func (w *wrappedOpenAPIService) GetSchema(key string) (Schema, error) {
+	r0, r1 := w.inner.GetSchema(key)
+	return newWrappedSchemaFromAnySdkSchema(r0), r1
+}
+
+func (w *wrappedOpenAPIService) GetServers() (openapi3.Servers, bool) {
+	r0, r1 := w.inner.GetServers()
+	return r0, r1
 }
