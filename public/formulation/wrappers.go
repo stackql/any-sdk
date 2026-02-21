@@ -234,19 +234,35 @@ func wrapSlice_View(in []anysdk.View) []View {
 	return out
 }
 
-func unwrapSlice_View(in []*wrappedView) []anysdk.View {
+func unwrapSlice_View(in []View) []anysdk.View {
 	if in == nil {
 		return nil
 	}
 	out := make([]anysdk.View, 0, len(in))
 	for _, v := range in {
-		out = append(out, v.inner)
+		out = append(out, v.unwrap())
 	}
 	return out
 }
 
 type wrappedPersistenceSystem struct {
 	inner persistence.PersistenceSystem
+}
+
+func (w *wrappedPersistenceSystem) CacheStoreGet(key string) ([]byte, error) {
+	r0, r1 := w.inner.CacheStoreGet(key)
+	return r0, r1
+}
+
+func (w *wrappedPersistenceSystem) CacheStorePut(key string, value []byte, expiration string, ttl int) error {
+	r0 := w.inner.CacheStorePut(key, value, expiration, ttl)
+	return r0
+}
+
+func (w *wrappedPersistenceSystem) HandleViewCollection(p0 []View) error {
+	inner_p0 := unwrapSlice_View(p0)
+	r0 := w.inner.HandleViewCollection(inner_p0)
+	return r0
 }
 
 func (w *wrappedPersistenceSystem) GetSystemName() string {
@@ -1299,6 +1315,10 @@ func (w *wrappedView) GetNameNaive() string {
 func (w *wrappedView) GetRequiredParamNames() []string {
 	r0 := w.inner.GetRequiredParamNames()
 	return r0
+}
+
+func (w *wrappedView) unwrap() anysdk.View {
+	return w.inner
 }
 
 type wrappedAuthUtility struct {

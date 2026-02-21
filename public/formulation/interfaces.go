@@ -360,6 +360,7 @@ type View interface {
 	GetDDL() string
 	GetNameNaive() string
 	GetRequiredParamNames() []string
+	unwrap() anysdk.View
 }
 
 // AuthUtility mirrors methods on AuthUtility

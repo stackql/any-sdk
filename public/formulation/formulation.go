@@ -9,8 +9,18 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/streaming"
+	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
+
+func NewSQLPersistenceSystem(systemType string, sqlEngine sqlengine.SQLEngine) (PersistenceSystem, error) {
+	anySdkPersistenceSystem, err := persistence.NewSQLPersistenceSystem(systemType, sqlEngine)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedPersistenceSystem{inner: anySdkPersistenceSystem}, nil
+}
 
 type ArmouryGenerator interface {
 	GetHTTPArmoury() (anysdk.HTTPArmoury, error)
