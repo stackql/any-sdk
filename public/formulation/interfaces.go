@@ -296,7 +296,7 @@ type Schema interface {
 	GetAllColumns(p0 string) []string
 	GetItemsSchema() (Schema, error)
 	GetName() string
-	GetProperties() (anysdk.Schemas, error)
+	GetProperties() (Schemas, error)
 	GetProperty(propertyKey string) (Schema, bool)
 	GetPropertySchema(key string) (Schema, error)
 	GetSelectSchema(itemsKey string, mediaType string) (Schema, string, error)
@@ -313,6 +313,8 @@ type Schema interface {
 	ToDescriptionMap(extended bool) map[string]interface{}
 	unwrap() anysdk.Schema
 }
+
+type Schemas map[string]Schema
 
 // Service mirrors methods on Service
 type Service interface {
@@ -331,16 +333,18 @@ type StandardOperationStore interface {
 
 // Tabulation mirrors methods on Tabulation
 type Tabulation interface {
-	GetColumns() []anysdk.ColumnDescriptor
-	PushBackColumn(col anysdk.ColumnDescriptor)
+	GetColumns() []ColumnDescriptor
+	PushBackColumn(col ColumnDescriptor)
 	RenameColumnsToXml() Tabulation
 }
+
+type TokenTransformer func(interface{}) (interface{}, error)
 
 // TokenSemantic mirrors methods on TokenSemantic
 type TokenSemantic interface {
 	GetKey() string
 	GetLocation() string
-	GetTransformer() (anysdk.TokenTransformer, error)
+	GetTransformer() (TokenTransformer, error)
 }
 
 // Transform mirrors methods on Transform

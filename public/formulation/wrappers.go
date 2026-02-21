@@ -978,9 +978,16 @@ func (w *wrappedSchema) GetName() string {
 	return r0
 }
 
-func (w *wrappedSchema) GetProperties() (anysdk.Schemas, error) {
+func (w *wrappedSchema) GetProperties() (Schemas, error) {
 	r0, r1 := w.inner.GetProperties()
-	return r0, r1
+	if r1 != nil {
+		return nil, r1
+	}
+	rv := make(Schemas, len(r0))
+	for k, v := range r0 {
+		rv[k] = newWrappedSchemaFromAnySdkSchema(v)
+	}
+	return rv, nil
 }
 
 func (w *wrappedSchema) GetProperty(propertyKey string) (Schema, bool) {
@@ -1187,13 +1194,17 @@ type wrappedTabulation struct {
 	inner anysdk.Tabulation
 }
 
-func (w *wrappedTabulation) GetColumns() []anysdk.ColumnDescriptor {
+func (w *wrappedTabulation) GetColumns() []ColumnDescriptor {
 	r0 := w.inner.GetColumns()
-	return r0
+	rv := make([]ColumnDescriptor, len(r0))
+	for i, v := range r0 {
+		rv[i] = &wrappedColumnDescriptor{inner: v}
+	}
+	return rv
 }
 
-func (w *wrappedTabulation) PushBackColumn(col anysdk.ColumnDescriptor) {
-	w.inner.PushBackColumn(col)
+func (w *wrappedTabulation) PushBackColumn(col ColumnDescriptor) {
+	w.inner.PushBackColumn(col.unwrap())
 	return
 }
 
@@ -1216,9 +1227,9 @@ func (w *wrappedTokenSemantic) GetLocation() string {
 	return r0
 }
 
-func (w *wrappedTokenSemantic) GetTransformer() (anysdk.TokenTransformer, error) {
+func (w *wrappedTokenSemantic) GetTransformer() (TokenTransformer, error) {
 	r0, r1 := w.inner.GetTransformer()
-	return r0, r1
+	return TokenTransformer(r0), r1
 }
 
 type wrappedTransform struct {
