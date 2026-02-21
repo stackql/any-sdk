@@ -263,6 +263,10 @@ func (w *wrappedPersistenceSystem) HandleExternalTables(providerName string, ext
 	return r0
 }
 
+func (w *wrappedPersistenceSystem) unwrap() persistence.PersistenceSystem {
+	return w.inner
+}
+
 type wrappedAuthMetadata struct {
 	inner *anysdk.AuthMetadata
 }
