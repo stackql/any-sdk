@@ -551,9 +551,13 @@ type ActionInsertResult interface {
 	IsHousekeepingDone() bool
 }
 
+type BaseInsertPreparator interface {
+	ActionInsertPreparation(payload ActionInsertPayload) ActionInsertResult
+}
+
 // InsertPreparator mirrors methods on InsertPreparator
 type InsertPreparator interface {
-	ActionInsertPreparation(payload ActionInsertPayload) ActionInsertResult
+	BaseInsertPreparator
 	unwrap() providerinvoker.InsertPreparator
 }
 

@@ -424,7 +424,7 @@ func NewPayload(
 	nilOK bool,
 	polyHandler PolyHandler,
 	selectItemsKey string,
-	insertPreparator InsertPreparator,
+	insertPreparator BaseInsertPreparator,
 	skipResponse bool,
 	isMutation bool,
 	isAwait bool,
@@ -444,7 +444,7 @@ func NewPayload(
 		nilOK,
 		polyHandler,
 		selectItemsKey,
-		insertPreparator.unwrap(),
+		nil, // placeholder for insert preparator, as the public formulation layer should not be aware of providerinvoker
 		skipResponse,
 		isMutation,
 		isAwait,
