@@ -1242,6 +1242,11 @@ type wrappedSchema struct {
 	inner anysdk.Schema
 }
 
+func (w *wrappedSchema) IsEmpty() bool {
+	r0 := w.inner == nil
+	return r0
+}
+
 func (w *wrappedSchema) unwrap() anysdk.Schema {
 	return w.inner
 }

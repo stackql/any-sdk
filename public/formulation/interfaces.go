@@ -364,6 +364,7 @@ type Schema interface {
 	SetKey(p0 string)
 	Tabulate(p0 bool, p1 string) Tabulation
 	ToDescriptionMap(extended bool) map[string]interface{}
+	IsEmpty() bool
 	unwrap() anysdk.Schema
 }
 
