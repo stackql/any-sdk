@@ -2010,6 +2010,10 @@ type wrappedInsertPreparator struct {
 	inner providerinvoker.InsertPreparator
 }
 
+func (w *wrappedInsertPreparator) unwrap() providerinvoker.InsertPreparator {
+	return w.inner
+}
+
 func (w *wrappedInsertPreparator) ActionInsertPreparation(payload *wrappedActionInsertPayload) ActionInsertResult {
 	r0 := w.inner.ActionInsertPreparation(payload.inner)
 	return &wrappedActionInsertResult{inner: r0}

@@ -9,9 +9,11 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/internaldto"
+	"github.com/stackql/any-sdk/pkg/providerinvoker"
 	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/providerinvokers/anysdkhttp"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-parser/go/vt/sqlparser"
@@ -23,10 +25,6 @@ func NewSQLPersistenceSystem(systemType string, sqlEngine sqlengine.SQLEngine) (
 		return nil, err
 	}
 	return &wrappedPersistenceSystem{inner: anySdkPersistenceSystem}, nil
-}
-
-type ArmouryGenerator interface {
-	GetHTTPArmoury() (anysdk.HTTPArmoury, error)
 }
 
 // type Addressable interface {
@@ -374,4 +372,58 @@ func NewHttpPreparatorStream() HttpPreparatorStream {
 
 func GetMonitorRequest(urlStr string) (client.AnySdkArgList, error) {
 	return anysdk.GetMonitorRequest(urlStr)
+}
+
+type methodElider interface {
+	IsElide(string, ...any) bool
+}
+
+type PolyHandler interface {
+	LogHTTPResponseMap(target interface{})
+	MessageHandler([]string)
+	GetMessages() []string
+}
+
+type ArmouryGenerator anysdkhttp.ArmouryGenerator
+
+func NewPayload(
+	armouryGenerator ArmouryGenerator,
+	provider Provider,
+	method OperationStore,
+	tableName string,
+	authCtx *dto.AuthCtx,
+	runtimeCtx dto.RuntimeCtx,
+	outErrFile io.Writer,
+	maxResultsElement internaldto.HTTPElement,
+	elider methodElider,
+	nilOK bool,
+	polyHandler PolyHandler,
+	selectItemsKey string,
+	insertPreparator InsertPreparator,
+	skipResponse bool,
+	isMutation bool,
+	isAwait bool,
+	defaultHTTPClient *http.Client,
+	messageHandler providerinvoker.MessageHandler,
+) any {
+	return anysdkhttp.NewPayload(
+		armouryGenerator,
+		provider.unwrap(),
+		method.unwrap(),
+		tableName,
+		authCtx,
+		runtimeCtx,
+		outErrFile,
+		maxResultsElement,
+		elider,
+		nilOK,
+		polyHandler,
+		selectItemsKey,
+		insertPreparator.unwrap(),
+		skipResponse,
+		isMutation,
+		isAwait,
+		defaultHTTPClient,
+		messageHandler,
+	)
 }

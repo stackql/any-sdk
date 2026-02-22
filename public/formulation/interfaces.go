@@ -551,6 +551,7 @@ type ActionInsertResult interface {
 // InsertPreparator mirrors methods on InsertPreparator
 type InsertPreparator interface {
 	ActionInsertPreparation(payload ActionInsertPayload) ActionInsertResult
+	unwrap() providerinvoker.InsertPreparator
 }
 
 // Invoker mirrors methods on Invoker
@@ -576,6 +577,7 @@ type Response interface {
 type HTTPHTTPElement interface {
 	GetName() string
 	GetLocation() httpelement.HTTPElementLocation
+	// unwrap() anysdk.HTTPHTTPElement
 }
 
 // StreamTransformer mirrors methods on StreamTransformer
