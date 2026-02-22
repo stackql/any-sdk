@@ -1300,6 +1300,11 @@ type wrappedService struct {
 	inner anysdk.Service
 }
 
+func (w *wrappedService) GetName() string {
+	r0 := w.inner.GetName()
+	return r0
+}
+
 func (w *wrappedService) unwrap() anysdk.Service {
 	return w.inner
 }
@@ -2491,6 +2496,11 @@ type wrappedOpenAPIService struct {
 	inner anysdk.OpenAPIService
 }
 
+func (w *wrappedOpenAPIService) GetName() string {
+	r0 := w.inner.GetName()
+	return r0
+}
+
 func (w *wrappedOpenAPIService) unwrapOpenapi3Service() anysdk.OpenAPIService {
 	return w.inner
 }
@@ -2593,10 +2603,6 @@ func (w *wrappedDiscoveryAdapter) PersistStaticExternalSQLDataSource(prov Provid
 	return r0
 }
 
-var (
-	_ anysdk.HTTPArmoury = &reverseWrappedHTTPArmoury{}
-)
-
 /*
 
 type HTTPArmoury interface {
@@ -2611,23 +2617,27 @@ type HTTPArmoury interface {
 
 */
 
-type reverseWrappedHTTPArmoury struct {
-	inner HTTPArmoury
-}
+// var (
+// 	_ anysdk.HTTPArmoury = &reverseWrappedHTTPArmoury{}
+// )
 
-func (w *reverseWrappedHTTPArmoury) AddRequestParams(params anysdk.HTTPArmouryParameters) {
-	w.inner.AddRequestParams(params)
-	return
-}
+// type reverseWrappedHTTPArmoury struct {
+// 	inner HTTPArmoury
+// }
 
-func (w *reverseWrappedHTTPArmoury) GetRequestParams() []anysdk.HTTPArmouryParameters {
-	r0 := w.inner.GetRequestParams()
-	rv := make([]anysdk.HTTPArmouryParameters, len(r0))
-	for i, p := range r0 {
-		rv[i] = &wrappedHTTPArmouryParameters{inner: p}
-	}
-	return rv
-}
+// func (w *reverseWrappedHTTPArmoury) AddRequestParams(params anysdk.HTTPArmouryParameters) {
+// 	w.inner.AddRequestParams(params)
+// 	return
+// }
+
+// func (w *reverseWrappedHTTPArmoury) GetRequestParams() []anysdk.HTTPArmouryParameters {
+// 	r0 := w.inner.GetRequestParams()
+// 	rv := make([]anysdk.HTTPArmouryParameters, len(r0))
+// 	for i, p := range r0 {
+// 		rv[i] = &wrappedHTTPArmouryParameters{inner: p}
+// 	}
+// 	return rv
+// }
 
 var (
 	_ persistence.PersistenceSystem = &reverseWrappedPersistenceSystem{}

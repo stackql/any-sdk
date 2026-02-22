@@ -466,3 +466,11 @@ func NewActionInsertPayload(
 		},
 	}
 }
+
+func LoadProviderDocFromBytes(bytes []byte) (Provider, error) {
+	prov, err := anysdk.LoadProviderDocFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedProvider{inner: prov}, nil
+}

@@ -365,6 +365,7 @@ type Service interface {
 	GetResource(resourceName string) (Resource, error)
 	GetSchema(key string) (Schema, error)
 	GetServers() (openapi3.Servers, bool)
+	GetName() string
 	unwrap() anysdk.Service
 }
 
