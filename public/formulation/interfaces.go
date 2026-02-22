@@ -376,6 +376,7 @@ type StandardOperationStore interface {
 	ToPresentationMap(extended bool) map[string]interface{}
 	GetColumnOrder(extended bool) []string
 	GetRequest() (ExpectedRequest, bool)
+	GetInline() []string
 	unwrapStandardOperationStore() anysdk.StandardOperationStore
 }
 

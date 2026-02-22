@@ -1327,6 +1327,11 @@ type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
 }
 
+func (w *wrappedStandardOperationStore) GetInline() []string {
+	r0 := w.inner.GetInline()
+	return r0
+}
+
 func (w *wrappedStandardOperationStore) GetRequest() (ExpectedRequest, bool) {
 	r0, r1 := w.inner.GetRequest()
 	return &wrappedExpectedRequest{inner: r0}, r1
@@ -2586,6 +2591,42 @@ func (w *wrappedDiscoveryAdapter) GetServiceShard(prov Provider, serviceKey stri
 func (w *wrappedDiscoveryAdapter) PersistStaticExternalSQLDataSource(prov Provider) error {
 	r0 := w.inner.PersistStaticExternalSQLDataSource(prov.unwrap())
 	return r0
+}
+
+var (
+	_ anysdk.HTTPArmoury = &reverseWrappedHTTPArmoury{}
+)
+
+/*
+
+type HTTPArmoury interface {
+	AddRequestParams(HTTPArmouryParameters)
+	GetRequestParams() []HTTPArmouryParameters
+	GetRequestSchema() Schema
+	GetResponseSchema() Schema
+	SetRequestParams([]HTTPArmouryParameters)
+	SetRequestSchema(Schema)
+	SetResponseSchema(Schema)
+}
+
+*/
+
+type reverseWrappedHTTPArmoury struct {
+	inner HTTPArmoury
+}
+
+func (w *reverseWrappedHTTPArmoury) AddRequestParams(params anysdk.HTTPArmouryParameters) {
+	w.inner.AddRequestParams(params)
+	return
+}
+
+func (w *reverseWrappedHTTPArmoury) GetRequestParams() []anysdk.HTTPArmouryParameters {
+	r0 := w.inner.GetRequestParams()
+	rv := make([]anysdk.HTTPArmouryParameters, len(r0))
+	for i, p := range r0 {
+		rv[i] = &wrappedHTTPArmouryParameters{inner: p}
+	}
+	return rv
 }
 
 var (
