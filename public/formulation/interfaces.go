@@ -94,6 +94,7 @@ type GraphQL interface {
 	GetCursorJSONPath() (string, bool)
 	GetQuery() string
 	GetResponseJSONPath() (string, bool)
+	unwrap() anysdk.GraphQL
 }
 
 // HTTPArmoury mirrors methods on HTTPArmoury
@@ -192,6 +193,7 @@ type OperationStore interface {
 	RevertRequestBodyAttributeRename(p0 string) (string, error)
 	GetProjections() map[string]string
 	GetAddressSpace() (AddressSpace, bool)
+	GetGraphQL() GraphQL
 	unwrap() anysdk.OperationStore
 }
 
@@ -257,6 +259,7 @@ type MethodSet interface {
 	GetFirstMatch(params map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
 	GetFirstNamespaceMatch(params map[string]any) (StandardOperationStore, map[string]any, bool)
 	GetFirst() (StandardOperationStore, string, bool)
+	Size() int
 }
 
 // RegistryAPI mirrors methods on RegistryAPI

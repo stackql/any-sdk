@@ -504,6 +504,10 @@ func (w *wrappedGraphQL) GetResponseJSONPath() (string, bool) {
 	return r0, r1
 }
 
+func (w *wrappedGraphQL) unwrap() anysdk.GraphQL {
+	return w.inner
+}
+
 type wrappedHTTPArmoury struct {
 	inner anysdk.HTTPArmoury
 }
@@ -691,6 +695,11 @@ func (w *wrappedOperationInverse) GetOperationStore() (StandardOperationStore, b
 
 type wrappedOperationStore struct {
 	inner anysdk.OperationStore
+}
+
+func (w *wrappedOperationStore) GetGraphQL() GraphQL {
+	r0 := w.inner.GetGraphQL()
+	return &wrappedGraphQL{inner: r0}
 }
 
 func (w *wrappedOperationStore) GetAddressSpace() (AddressSpace, bool) {
@@ -1217,6 +1226,11 @@ func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) GetGraphQL() GraphQL {
+	r0 := w.inner.GetGraphQL()
+	return &wrappedGraphQL{inner: r0}
 }
 
 func (w *wrappedStandardOperationStore) GetAddressSpace() (AddressSpace, bool) {
@@ -2227,8 +2241,23 @@ func (w *wrappedSQLEngine) QueryRow(query string, args ...any) *sql.Row {
 	return r0
 }
 
+/*
+type GraphQL interface {
+	GetCursorJSONPath() (string, bool)
+	GetQuery() string
+	GetResponseJSONPath() (string, bool)
+	unwrap() anysdk.GraphQL
+}
+
+*/
+
 type wrappedMethodSet struct {
 	inner anysdk.MethodSet
+}
+
+func (w *wrappedMethodSet) Size() int {
+	r0 := len(w.inner)
+	return r0
 }
 
 func (w *wrappedMethodSet) GetFirstMatch(params map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool) {
