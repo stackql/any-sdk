@@ -2674,27 +2674,57 @@ type HTTPArmoury interface {
 
 */
 
-// var (
-// 	_ anysdk.HTTPArmoury = &reverseWrappedHTTPArmoury{}
-// )
+var (
+	_ anysdk.HTTPArmoury = &reverseWrappedHTTPArmoury{}
+)
 
-// type reverseWrappedHTTPArmoury struct {
-// 	inner HTTPArmoury
-// }
+type reverseWrappedHTTPArmoury struct {
+	inner HTTPArmoury
+}
 
-// func (w *reverseWrappedHTTPArmoury) AddRequestParams(params anysdk.HTTPArmouryParameters) {
-// 	w.inner.AddRequestParams(params)
-// 	return
-// }
+func (w *reverseWrappedHTTPArmoury) AddRequestParams(params anysdk.HTTPArmouryParameters) {
+	p := &wrappedHTTPArmouryParameters{inner: params}
+	w.inner.AddRequestParams(p)
+	return
+}
 
-// func (w *reverseWrappedHTTPArmoury) GetRequestParams() []anysdk.HTTPArmouryParameters {
-// 	r0 := w.inner.GetRequestParams()
-// 	rv := make([]anysdk.HTTPArmouryParameters, len(r0))
-// 	for i, p := range r0 {
-// 		rv[i] = &wrappedHTTPArmouryParameters{inner: p}
-// 	}
-// 	return rv
-// }
+func (w *reverseWrappedHTTPArmoury) GetRequestParams() []anysdk.HTTPArmouryParameters {
+	r0 := w.inner.GetRequestParams()
+	rv := make([]anysdk.HTTPArmouryParameters, len(r0))
+	for i, p := range r0 {
+		rv[i] = p.unwrap()
+	}
+	return rv
+}
+
+func (w *reverseWrappedHTTPArmoury) GetRequestSchema() anysdk.Schema {
+	r0 := w.inner.GetRequestSchema()
+	return r0.unwrap()
+}
+
+func (w *reverseWrappedHTTPArmoury) GetResponseSchema() anysdk.Schema {
+	r0 := w.inner.GetResponseSchema()
+	return r0.unwrap()
+}
+
+func (w *reverseWrappedHTTPArmoury) SetRequestParams(params []anysdk.HTTPArmouryParameters) {
+	wrappedParams := make([]HTTPArmouryParameters, len(params))
+	for i, p := range params {
+		wrappedParams[i] = &wrappedHTTPArmouryParameters{inner: p}
+	}
+	w.inner.SetRequestParams(wrappedParams)
+	return
+}
+
+func (w *reverseWrappedHTTPArmoury) SetRequestSchema(s anysdk.Schema) {
+	w.inner.SetRequestSchema(newWrappedSchemaFromAnySdkSchema(s))
+	return
+}
+
+func (w *reverseWrappedHTTPArmoury) SetResponseSchema(s anysdk.Schema) {
+	w.inner.SetResponseSchema(newWrappedSchemaFromAnySdkSchema(s))
+	return
+}
 
 var (
 	_ anysdkhttp.ArmouryGenerator = &reverseWrappedArmouryGenerator{}
@@ -2705,11 +2735,11 @@ type reverseWrappedArmouryGenerator struct {
 }
 
 func (w *reverseWrappedArmouryGenerator) GetHTTPArmoury() (anysdk.HTTPArmoury, error) {
-	_, r1 := w.inner.GetHTTPArmoury()
+	r0, r1 := w.inner.GetHTTPArmoury()
 	if r1 != nil {
 		return nil, r1
 	}
-	return nil, nil
+	return &reverseWrappedHTTPArmoury{inner: r0}, nil
 }
 
 var (
