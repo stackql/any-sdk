@@ -671,6 +671,10 @@ type wrappedMethodAnalyzer struct {
 	inner anysdk.MethodAnalyzer
 }
 
+func (w *wrappedMethodAnalyzer) unwrap() anysdk.MethodAnalyzer {
+	return w.inner
+}
+
 func (w *wrappedMethodAnalyzer) AnalyzeUnaryAction(p0 anysdk.MethodAnalysisInput) (MethodAnalysisOutput, error) {
 	r0, r1 := w.inner.AnalyzeUnaryAction(p0)
 	return &wrappedMethodAnalysisOutput{inner: r0}, r1

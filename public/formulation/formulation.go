@@ -246,3 +246,7 @@ func (am *AuthMetadata) GetHeaders() []string {
 		"source",
 	}
 }
+
+func NewMethodAnalyzer() MethodAnalyzer {
+	return &wrappedMethodAnalyzer{}
+}

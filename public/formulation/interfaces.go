@@ -143,6 +143,7 @@ type MethodAnalysisOutput interface {
 // MethodAnalyzer mirrors methods on MethodAnalyzer
 type MethodAnalyzer interface {
 	AnalyzeUnaryAction(p0 anysdk.MethodAnalysisInput) (MethodAnalysisOutput, error)
+	unwrap() anysdk.MethodAnalyzer
 }
 
 // Methods mirrors methods on Methods
