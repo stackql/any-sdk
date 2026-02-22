@@ -1963,6 +1963,34 @@ func (w *wrappedNameMangler) MangleName(p0 string, p1 ...any) string {
 	return r0
 }
 
+type httpActionInsertPayload struct {
+	itemisationResult providerinvoker.ItemisationResult
+	housekeepingDone  bool
+	tableName         string
+	paramsUsed        map[string]interface{}
+	reqEncoding       string
+}
+
+func (ap *httpActionInsertPayload) GetItemisationResult() providerinvoker.ItemisationResult {
+	return ap.itemisationResult
+}
+
+func (ap *httpActionInsertPayload) IsHousekeepingDone() bool {
+	return ap.housekeepingDone
+}
+
+func (ap *httpActionInsertPayload) GetTableName() string {
+	return ap.tableName
+}
+
+func (ap *httpActionInsertPayload) GetParamsUsed() map[string]interface{} {
+	return ap.paramsUsed
+}
+
+func (ap *httpActionInsertPayload) GetReqEncoding() string {
+	return ap.reqEncoding
+}
+
 type wrappedActionInsertPayload struct {
 	inner providerinvoker.ActionInsertPayload
 }
@@ -2035,6 +2063,27 @@ type wrappedItemisationResult struct {
 func (w *wrappedItemisationResult) GetItems() (interface{}, bool) {
 	r0, r1 := w.inner.GetItems()
 	return r0, r1
+}
+
+/*
+GetSingltetonResponse() (map[string]interface{}, bool)
+	IsOk() bool
+	IsNilPayload() bool
+*/
+
+func (w *wrappedItemisationResult) GetSingltetonResponse() (map[string]interface{}, bool) {
+	r0, r1 := w.inner.GetSingltetonResponse()
+	return r0, r1
+}
+
+func (w *wrappedItemisationResult) IsOk() bool {
+	r0 := w.inner.IsOk()
+	return r0
+}
+
+func (w *wrappedItemisationResult) IsNilPayload() bool {
+	r0 := w.inner.IsNilPayload()
+	return r0
 }
 
 type wrappedResponse struct {

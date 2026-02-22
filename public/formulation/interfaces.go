@@ -562,6 +562,9 @@ type Invoker interface {
 // ItemisationResult mirrors methods on ItemisationResult
 type ItemisationResult interface {
 	GetItems() (interface{}, bool)
+	GetSingltetonResponse() (map[string]interface{}, bool)
+	IsOk() bool
+	IsNilPayload() bool
 }
 
 // Response mirrors methods on Response

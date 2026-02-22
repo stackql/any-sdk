@@ -448,3 +448,21 @@ func NewPayload(
 		messageHandler,
 	)
 }
+
+func NewActionInsertPayload(
+	itemisationResult ItemisationResult,
+	housekeepingDone bool,
+	tableName string,
+	paramsUsed map[string]interface{},
+	reqEncoding string,
+) ActionInsertPayload {
+	return &wrappedActionInsertPayload{
+		inner: &httpActionInsertPayload{
+			itemisationResult: itemisationResult,
+			housekeepingDone:  housekeepingDone,
+			tableName:         tableName,
+			paramsUsed:        paramsUsed,
+			reqEncoding:       reqEncoding,
+		},
+	}
+}
