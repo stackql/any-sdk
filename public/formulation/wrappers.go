@@ -514,13 +514,42 @@ func (w *wrappedGraphQL) unwrap() anysdk.GraphQL {
 	return w.inner
 }
 
+/*
+
+type HTTPArmoury interface {
+	AddRequestParams(HTTPArmouryParameters)
+	GetRequestParams() []HTTPArmouryParameters
+	GetRequestSchema() Schema
+	GetResponseSchema() Schema
+	SetRequestParams([]HTTPArmouryParameters)
+	SetRequestSchema(Schema)
+	SetResponseSchema(Schema)
+	unwrap() anysdk.HTTPArmoury
+}
+
+*/
+
 type wrappedHTTPArmoury struct {
 	inner anysdk.HTTPArmoury
+}
+
+func (w *wrappedHTTPArmoury) AddRequestParams(p HTTPArmouryParameters) {
+	w.inner.AddRequestParams(p.unwrap())
 }
 
 func (w *wrappedHTTPArmoury) GetRequestParams() []HTTPArmouryParameters {
 	r0 := w.inner.GetRequestParams()
 	return wrapSlice_HTTPArmouryParameters(r0)
+}
+
+func (w *wrappedHTTPArmoury) GetRequestSchema() Schema {
+	r0 := w.inner.GetRequestSchema()
+	return newWrappedSchemaFromAnySdkSchema(r0)
+}
+
+func (w *wrappedHTTPArmoury) GetResponseSchema() Schema {
+	r0 := w.inner.GetResponseSchema()
+	return newWrappedSchemaFromAnySdkSchema(r0)
 }
 
 func (w *wrappedHTTPArmoury) SetRequestParams(p0 []HTTPArmouryParameters) {
@@ -529,8 +558,26 @@ func (w *wrappedHTTPArmoury) SetRequestParams(p0 []HTTPArmouryParameters) {
 	return
 }
 
+func (w *wrappedHTTPArmoury) SetRequestSchema(p0 Schema) {
+	w.inner.SetRequestSchema(p0.unwrap())
+	return
+}
+
+func (w *wrappedHTTPArmoury) SetResponseSchema(p0 Schema) {
+	w.inner.SetResponseSchema(p0.unwrap())
+	return
+}
+
+func (w *wrappedHTTPArmoury) unwrap() anysdk.HTTPArmoury {
+	return w.inner
+}
+
 type wrappedHTTPArmouryParameters struct {
 	inner anysdk.HTTPArmouryParameters
+}
+
+func (w *wrappedHTTPArmouryParameters) unwrap() anysdk.HTTPArmouryParameters {
+	return w.inner
 }
 
 func (w *wrappedHTTPArmouryParameters) Encode() string {
@@ -588,6 +635,10 @@ func (w *wrappedHTTPPreparator) BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConf
 
 type wrappedHttpParameters struct {
 	inner anysdk.HttpParameters
+}
+
+func (w *wrappedHttpParameters) unwrap() anysdk.HttpParameters {
+	return w.inner
 }
 
 func (w *wrappedHttpParameters) GetInlineParameterFlatMap() (map[string]interface{}, error) {

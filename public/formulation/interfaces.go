@@ -84,8 +84,14 @@ type GraphQL interface {
 
 // HTTPArmoury mirrors methods on HTTPArmoury
 type HTTPArmoury interface {
+	AddRequestParams(HTTPArmouryParameters)
 	GetRequestParams() []HTTPArmouryParameters
-	SetRequestParams(p0 []HTTPArmouryParameters)
+	GetRequestSchema() Schema
+	GetResponseSchema() Schema
+	SetRequestParams([]HTTPArmouryParameters)
+	SetRequestSchema(Schema)
+	SetResponseSchema(Schema)
+	unwrap() anysdk.HTTPArmoury
 }
 
 // HTTPArmouryParameters mirrors methods on HTTPArmouryParameters
@@ -98,6 +104,7 @@ type HTTPArmouryParameters interface {
 	SetNextPage(ops OperationStore, token string, tokenKey HTTPElement) (*http.Request, error)
 	SetRawQuery(p0 string)
 	ToFlatMap() (map[string]interface{}, error)
+	unwrap() anysdk.HTTPArmouryParameters
 }
 
 // HTTPPreparator mirrors methods on HTTPPreparator
@@ -116,6 +123,7 @@ func newHTTPPreparatorFromAnySdkHTTPPreparator(inner anysdk.HTTPPreparator) HTTP
 type HttpParameters interface {
 	GetInlineParameterFlatMap() (map[string]interface{}, error)
 	ToFlatMap() (map[string]interface{}, error)
+	unwrap() anysdk.HttpParameters
 }
 
 // HttpPreparatorStream mirrors methods on HttpPreparatorStream
