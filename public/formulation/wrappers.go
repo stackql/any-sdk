@@ -1056,6 +1056,21 @@ type wrappedResource struct {
 	inner anysdk.Resource
 }
 
+func (w *wrappedResource) GetKey(p0 string) (interface{}, error) {
+	r0, r1 := w.inner.GetKey(p0)
+	return r0, r1
+}
+
+func (w *wrappedResource) GetKeyAsSqlVal(p0 string) (sqltypes.Value, error) {
+	r0, r1 := w.inner.GetKeyAsSqlVal(p0)
+	return r0, r1
+}
+
+func (w *wrappedResource) KeyExists(p0 string) bool {
+	r0 := w.inner.KeyExists(p0)
+	return r0
+}
+
 func (w *wrappedResource) unwrap() anysdk.Resource {
 	return w.inner
 }

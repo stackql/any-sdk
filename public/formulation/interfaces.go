@@ -296,6 +296,7 @@ type Relation interface {
 
 // Resource mirrors methods on Resource
 type Resource interface {
+	ITable
 	FindMethod(key string) (StandardOperationStore, error)
 	GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool)
 	GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)

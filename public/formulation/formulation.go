@@ -298,3 +298,20 @@ func GetDescribeHeader(extended bool) []string {
 	}
 	return retVal
 }
+
+func GetResourcesHeader(extended bool) []string {
+	var retVal []string
+	if extended {
+		retVal = []string{
+			"name",
+			"id",
+			"description",
+		}
+	} else {
+		retVal = []string{
+			"name",
+			"id",
+		}
+	}
+	return retVal
+}
