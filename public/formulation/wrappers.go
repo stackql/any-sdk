@@ -1280,8 +1280,32 @@ func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 	return r0, r1
 }
 
+var (
+	_ ITable = (*wrappedStandardOperationStore)(nil)
+)
+
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) GetKey(s string) (interface{}, error) {
+	r0, r1 := w.inner.GetKey(s)
+	return r0, r1
+}
+
+func (w *wrappedStandardOperationStore) GetKeyAsSqlVal(p0 string) (sqltypes.Value, error) {
+	r0, r1 := w.inner.GetKeyAsSqlVal(p0)
+	return r0, r1
+}
+
+func (w *wrappedStandardOperationStore) GetName() string {
+	r0 := w.inner.GetName()
+	return r0
+}
+
+func (w *wrappedStandardOperationStore) KeyExists(p0 string) bool {
+	r0 := w.inner.KeyExists(p0)
+	return r0
 }
 
 func (w *wrappedStandardOperationStore) GetOptionalParameters() map[string]Addressable {
@@ -1335,11 +1359,6 @@ func (w *wrappedStandardOperationStore) unwrapStandardOperationStore() anysdk.St
 func (w *wrappedStandardOperationStore) DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error) {
 	r0, r1 := w.inner.DeprecatedProcessResponse(response)
 	return r0, r1
-}
-
-func (w *wrappedStandardOperationStore) GetName() string {
-	r0 := w.inner.GetName()
-	return r0
 }
 
 func (w *wrappedStandardOperationStore) GetNonBodyParameters() map[string]Addressable {
