@@ -330,3 +330,7 @@ func NewTTLDiscoveryStore(
 		),
 	}
 }
+
+func NewAddressSpaceGrammar() AddressSpaceGrammar {
+	return radix_tree_address_space.NewAddressSpaceGrammar()
+}
