@@ -256,3 +256,7 @@ func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
 		inner: anysdk.NewHTTPPreparatorConfig(isFromAnnotation),
 	}
 }
+
+func EmptyMethods() Methods {
+	return &wrappedMethods{inner: anysdk.Methods{}}
+}
