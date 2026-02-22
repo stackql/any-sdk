@@ -495,6 +495,11 @@ type wrappedGraphQL struct {
 	inner anysdk.GraphQL
 }
 
+func (w *wrappedGraphQL) IsEmpty() bool {
+	r0 := w.inner == nil
+	return r0
+}
+
 func (w *wrappedGraphQL) GetCursorJSONPath() (string, bool) {
 	r0, r1 := w.inner.GetCursorJSONPath()
 	return r0, r1

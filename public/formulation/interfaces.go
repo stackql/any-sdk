@@ -79,6 +79,7 @@ type GraphQL interface {
 	GetCursorJSONPath() (string, bool)
 	GetQuery() string
 	GetResponseJSONPath() (string, bool)
+	IsEmpty() bool
 	unwrap() anysdk.GraphQL
 }
 
