@@ -1323,6 +1323,11 @@ type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
 }
 
+func (w *wrappedStandardOperationStore) GetRequest() (ExpectedRequest, bool) {
+	r0, r1 := w.inner.GetRequest()
+	return &wrappedExpectedRequest{inner: r0}, r1
+}
+
 func (w *wrappedStandardOperationStore) IsNullary() bool {
 	r0 := w.inner.IsNullary()
 	return r0

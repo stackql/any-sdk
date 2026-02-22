@@ -374,6 +374,7 @@ type StandardOperationStore interface {
 	GetServers() (openapi3.Servers, bool)
 	ToPresentationMap(extended bool) map[string]interface{}
 	GetColumnOrder(extended bool) []string
+	GetRequest() (ExpectedRequest, bool)
 	unwrapStandardOperationStore() anysdk.StandardOperationStore
 }
 
