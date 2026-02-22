@@ -102,6 +102,10 @@ func NewHTTPPreparator(
 	execContext ExecContext,
 	logger *logrus.Logger,
 ) HTTPPreparator {
+	var unwrappedExecCtx anysdk.ExecContext
+	if execContext != nil {
+		unwrappedExecCtx = execContext.unwrap()
+	}
 	return newHTTPPreparatorFromAnySdkHTTPPreparator(
 		anysdk.NewHTTPPreparator(
 			prov.unwrap(),
@@ -109,7 +113,7 @@ func NewHTTPPreparator(
 			m.unwrap(),
 			paramMap,
 			parameters,
-			execContext.unwrap(),
+			unwrappedExecCtx,
 			logger,
 		),
 	)
