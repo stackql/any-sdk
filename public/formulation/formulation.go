@@ -384,8 +384,12 @@ type PolyHandler interface {
 	GetMessages() []string
 }
 
-type ArmouryGenerator interface {
+type BaseArmouryGenerator interface {
 	GetHTTPArmoury() (HTTPArmoury, error)
+}
+
+type ArmouryGenerator interface {
+	BaseArmouryGenerator
 	unwrap() anysdkhttp.ArmouryGenerator
 }
 
@@ -408,7 +412,7 @@ func (wag *wrappedArmouryGenerator) unwrap() anysdkhttp.ArmouryGenerator {
 // anysdkhttp.ArmouryGenerator
 
 func NewPayload(
-	armouryGenerator ArmouryGenerator,
+	armouryGenerator BaseArmouryGenerator,
 	provider Provider,
 	method OperationStore,
 	tableName string,
@@ -428,7 +432,7 @@ func NewPayload(
 	messageHandler providerinvoker.MessageHandler,
 ) any {
 	return anysdkhttp.NewPayload(
-		armouryGenerator.unwrap(),
+		nil, // placeholder for armoury generator, as the public formulation layer should not be aware of anysdkhttp
 		provider.unwrap(),
 		method.unwrap(),
 		tableName,
