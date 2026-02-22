@@ -8,6 +8,7 @@ import (
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
+	"github.com/stackql/any-sdk/pkg/internaldto"
 	"github.com/stackql/any-sdk/pkg/streaming"
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/persistence"
@@ -333,4 +334,22 @@ func NewTTLDiscoveryStore(
 
 func NewAddressSpaceGrammar() AddressSpaceGrammar {
 	return radix_tree_address_space.NewAddressSpaceGrammar()
+}
+
+func ResourceKeyExists(key string) bool {
+	return anysdk.ResourceKeyExists(key)
+}
+
+func NewEmptyResource() Resource {
+	return &wrappedResource{inner: anysdk.NewEmptyResource()}
+}
+
+func NewEmptyOperationStore() StandardOperationStore {
+	return &wrappedStandardOperationStore{inner: anysdk.NewEmptyOperationStore()}
+}
+
+func NewExecContext(payload internaldto.ExecPayload, rsc Resource) ExecContext {
+	return &wrappedExecContext{
+		inner: anysdk.NewExecContext(payload, rsc.unwrap()),
+	}
 }

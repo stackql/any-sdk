@@ -725,6 +725,11 @@ type wrappedOperationStore struct {
 	inner anysdk.OperationStore
 }
 
+func (w *wrappedOperationStore) IsNullary() bool {
+	r0 := w.inner.IsNullary()
+	return r0
+}
+
 func (w *wrappedOperationStore) GetOptionalParameters() map[string]Addressable {
 	r0 := w.inner.GetOptionalParameters()
 	return wrapMapString_Addressable(r0)
@@ -1316,6 +1321,11 @@ var (
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) IsNullary() bool {
+	r0 := w.inner.IsNullary()
+	return r0
 }
 
 func (w *wrappedStandardOperationStore) GetColumnOrder(extended bool) []string {

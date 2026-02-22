@@ -205,6 +205,7 @@ type OperationStore interface {
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
 	GetResponse() (ExpectedResponse, bool)
 	GetOptionalParameters() map[string]Addressable
+	IsNullary() bool
 	unwrap() anysdk.OperationStore
 }
 
