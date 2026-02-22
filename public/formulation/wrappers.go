@@ -1367,6 +1367,11 @@ func (w *wrappedService) GetName() string {
 	return r0
 }
 
+func (w *wrappedService) IsOpenapi() bool {
+	r0 := w.inner.IsOpenapi()
+	return r0
+}
+
 func (w *wrappedService) unwrap() anysdk.Service {
 	return w.inner
 }
@@ -2561,6 +2566,11 @@ func (w *wrappedMethodSet) GetFirst() (StandardOperationStore, string, bool) {
 
 type wrappedOpenAPIService struct {
 	inner anysdk.OpenAPIService
+}
+
+func (w *wrappedOpenAPIService) IsOpenapi() bool {
+	r0 := w.inner.IsOpenapi()
+	return r0
 }
 
 func (w *wrappedOpenAPIService) GetName() string {

@@ -376,6 +376,7 @@ type Service interface {
 	GetSchema(key string) (Schema, error)
 	GetServers() (openapi3.Servers, bool)
 	GetName() string
+	IsOpenapi() bool
 	unwrap() anysdk.Service
 }
 
