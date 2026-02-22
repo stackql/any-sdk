@@ -147,10 +147,28 @@ type MethodAnalyzer interface {
 	unwrap() anysdk.MethodAnalyzer
 }
 
+type MethodsKV interface {
+	GetKey() string
+	GetValue() StandardOperationStore
+}
+
+type methodsKv struct {
+	Key   string
+	Value StandardOperationStore
+}
+
+func (kv *methodsKv) GetKey() string {
+	return kv.Key
+}
+
+func (kv *methodsKv) GetValue() StandardOperationStore {
+	return kv.Value
+}
+
 // Methods mirrors methods on Methods
 type Methods interface {
 	OrderMethods() ([]StandardOperationStore, error)
-	List() []StandardOperationStore
+	List() []MethodsKV
 	Put(k string, v StandardOperationStore) error
 	unwrap() anysdk.Methods
 }

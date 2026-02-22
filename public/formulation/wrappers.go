@@ -697,9 +697,15 @@ func (w *wrappedMethods) OrderMethods() ([]StandardOperationStore, error) {
 	return wrapSlice_StandardOperationStore(r0), r1
 }
 
-func (w *wrappedMethods) List() []StandardOperationStore {
+func (w *wrappedMethods) List() []MethodsKV {
 	r0, _ := w.inner.OrderMethods()
-	return wrapSlice_StandardOperationStore(r0)
+	result := make([]MethodsKV, len(r0))
+	i := 0
+	for k, v := range w.inner {
+		result[i] = &methodsKv{Key: k, Value: &wrappedStandardOperationStore{inner: &v}}
+		i++
+	}
+	return result
 }
 
 func (w *wrappedMethods) Put(k string, v StandardOperationStore) error {
