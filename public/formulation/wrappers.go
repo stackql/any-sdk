@@ -335,6 +335,29 @@ func (w *wrappedRuntimeCtx) Copy() RuntimeCtx {
 	return &wrappedRuntimeCtx{inner: r0}
 }
 
+type wrappedAddressSpaceExpansionConfig struct {
+	inner anysdk.AddressSpaceExpansionConfig
+}
+
+func (w *wrappedAddressSpaceExpansionConfig) unwrap() anysdk.AddressSpaceExpansionConfig {
+	return w.inner
+}
+
+func (w *wrappedAddressSpaceExpansionConfig) IsAsync() bool {
+	r0 := w.inner.IsAsync()
+	return r0
+}
+
+func (w *wrappedAddressSpaceExpansionConfig) IsLegacy() bool {
+	r0 := w.inner.IsLegacy()
+	return r0
+}
+
+func (w *wrappedAddressSpaceExpansionConfig) IsAllowNilResponse() bool {
+	r0 := w.inner.IsAllowNilResponse()
+	return r0
+}
+
 type wrappedAddressSpace struct {
 	inner anysdk.AddressSpace
 }

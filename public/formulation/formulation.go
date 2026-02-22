@@ -208,6 +208,16 @@ func NewStringSchema(svc OpenAPIService, key string, path string) Schema {
 	return newWrappedSchemaFromAnySdkSchema(raw)
 }
 
+func NewStandardAddressSpaceExpansionConfig(
+	isAsync bool,
+	isLegacy bool,
+	isAllowNilResponse bool,
+) AddressSpaceExpansionConfig {
+	return &wrappedAddressSpaceExpansionConfig{
+		inner: radix_tree_address_space.NewStandardAddressSpaceExpansionConfig(isAsync, isLegacy, isAllowNilResponse),
+	}
+}
+
 func LoadProviderAndServiceFromPaths(
 	provFilePath string,
 	svcFilePath string,
