@@ -2697,6 +2697,22 @@ type HTTPArmoury interface {
 // }
 
 var (
+	_ anysdkhttp.ArmouryGenerator = &reverseWrappedArmouryGenerator{}
+)
+
+type reverseWrappedArmouryGenerator struct {
+	inner BaseArmouryGenerator
+}
+
+func (w *reverseWrappedArmouryGenerator) GetHTTPArmoury() (anysdk.HTTPArmoury, error) {
+	_, r1 := w.inner.GetHTTPArmoury()
+	if r1 != nil {
+		return nil, r1
+	}
+	return nil, nil
+}
+
+var (
 	_ anysdkhttp.InsertPreparator = &reverseWrappedInsertPreparator{}
 )
 

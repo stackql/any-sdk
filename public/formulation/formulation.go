@@ -432,7 +432,7 @@ func NewPayload(
 	messageHandler providerinvoker.MessageHandler,
 ) any {
 	return anysdkhttp.NewPayload(
-		nil, // placeholder for armoury generator, as the public formulation layer should not be aware of anysdkhttp
+		&reverseWrappedArmouryGenerator{inner: armouryGenerator},
 		provider.unwrap(),
 		method.unwrap(),
 		tableName,
