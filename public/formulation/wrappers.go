@@ -34,6 +34,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/surface"
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/persistence"
+	"github.com/stackql/any-sdk/public/providerinvokers/anysdkhttp"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-parser/go/sqltypes"
@@ -2643,6 +2644,23 @@ type HTTPArmoury interface {
 // 	}
 // 	return rv
 // }
+
+var (
+	_ anysdkhttp.InsertPreparator = &reverseWrappedInsertPreparator{}
+)
+
+type reverseWrappedInsertPreparator struct {
+	inner BaseInsertPreparator
+}
+
+func (w *reverseWrappedInsertPreparator) ActionInsertPreparation(payload providerinvoker.ActionInsertPayload) providerinvoker.ActionInsertResult {
+	var inner_payload *wrappedActionInsertPayload
+	if payload != nil {
+		inner_payload = &wrappedActionInsertPayload{inner: payload}
+	}
+	r0 := w.inner.ActionInsertPreparation(inner_payload)
+	return r0
+}
 
 var (
 	_ persistence.PersistenceSystem = &reverseWrappedPersistenceSystem{}

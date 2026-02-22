@@ -444,7 +444,7 @@ func NewPayload(
 		nilOK,
 		polyHandler,
 		selectItemsKey,
-		nil, // placeholder for insert preparator, as the public formulation layer should not be aware of providerinvoker
+		&reverseWrappedInsertPreparator{inner: insertPreparator},
 		skipResponse,
 		isMutation,
 		isAwait,
