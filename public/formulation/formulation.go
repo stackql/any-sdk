@@ -69,7 +69,11 @@ type PersistenceSystem interface {
 }
 
 func NewColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema Schema, val *sqlparser.SQLVal) ColumnDescriptor {
-	rv := anysdk.NewColumnDescriptor(alias, name, qualifier, decoratedCol, node, schema.unwrap(), val)
+	var unwrappedSchema anysdk.Schema
+	if schema != nil {
+		unwrappedSchema = schema.unwrap()
+	}
+	rv := anysdk.NewColumnDescriptor(alias, name, qualifier, decoratedCol, node, unwrappedSchema, val)
 	return newColDescriptorFromAnySdkColumnDescriptor(rv)
 }
 
