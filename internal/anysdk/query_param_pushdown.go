@@ -8,18 +8,18 @@ import (
 
 // OData default values
 const (
-	ODataDialect             = "odata"
-	CustomDialect            = "custom"
-	DefaultSelectParamName   = "$select"
-	DefaultSelectDelimiter   = ","
-	DefaultFilterParamName   = "$filter"
-	DefaultFilterSyntax      = "odata"
-	DefaultOrderByParamName  = "$orderby"
-	DefaultOrderBySyntax     = "odata"
-	DefaultTopParamName      = "$top"
-	DefaultCountParamName    = "$count"
-	DefaultCountParamValue   = "true"
-	DefaultCountResponseKey  = "@odata.count"
+	ODataDialect            = "odata"
+	CustomDialect           = "custom"
+	DefaultSelectParamName  = "$select"
+	DefaultSelectDelimiter  = ","
+	DefaultFilterParamName  = "$filter"
+	DefaultFilterSyntax     = "odata"
+	DefaultOrderByParamName = "$orderby"
+	DefaultOrderBySyntax    = "odata"
+	DefaultTopParamName     = "$top"
+	DefaultCountParamName   = "$count"
+	DefaultCountParamValue  = "true"
+	DefaultCountResponseKey = "@odata.count"
 )
 
 var (

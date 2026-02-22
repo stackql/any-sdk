@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/latetranslator"
 	"github.com/stackql/any-sdk/pkg/media"

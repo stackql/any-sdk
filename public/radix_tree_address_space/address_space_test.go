@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"

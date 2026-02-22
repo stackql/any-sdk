@@ -1,7 +1,7 @@
 package persistence
 
 import (
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/name_mangle"
 	"github.com/stackql/any-sdk/public/sqlengine"

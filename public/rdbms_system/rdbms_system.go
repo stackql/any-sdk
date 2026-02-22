@@ -1,7 +1,7 @@
 package rdbms_system
 
 import (
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 )
 
 type RDBMSSystem interface {

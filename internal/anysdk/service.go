@@ -23,6 +23,7 @@ type Service interface {
 	GetName() string
 	GetResource(resourceName string) (Resource, error)
 	GetSchema(key string) (Schema, error)
+	IsOpenapi() bool
 	getT() *openapi3.T
 }
 
@@ -56,6 +57,10 @@ type localTemplatedService struct {
 	StackQLConfig   StackQLConfig                `json:"-" yaml:"-"`
 	ProviderService ProviderService              `json:"-" yaml:"-"` // upwards traversal
 	Provider        Provider                     `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (sv *localTemplatedService) IsOpenapi() bool {
+	return false
 }
 
 func (sv *localTemplatedService) GetT() *openapi3.T {
@@ -127,6 +132,10 @@ type standardService struct {
 	StackQLConfig   StackQLConfig   `json:"-" yaml:"-"`
 	ProviderService ProviderService `json:"-" yaml:"-"` // upwards traversal
 	Provider        Provider        `json:"-" yaml:"-"` // upwards traversal
+}
+
+func (sv *standardService) IsOpenapi() bool {
+	return true
 }
 
 func (sv *standardService) getPath(k string) (*openapi3.PathItem, bool) {
