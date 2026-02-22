@@ -688,9 +688,22 @@ type wrappedMethods struct {
 	inner anysdk.Methods
 }
 
+func (w *wrappedMethods) unwrap() anysdk.Methods {
+	return w.inner
+}
+
 func (w *wrappedMethods) OrderMethods() ([]StandardOperationStore, error) {
 	r0, r1 := w.inner.OrderMethods()
 	return wrapSlice_StandardOperationStore(r0), r1
+}
+
+func (w *wrappedMethods) List() []StandardOperationStore {
+	r0, _ := w.inner.OrderMethods()
+	return wrapSlice_StandardOperationStore(r0)
+}
+
+func (w *wrappedMethods) Put(k string, v StandardOperationStore) error {
+	return w.inner.Put(k, v.unwrapStandardOperationStore())
 }
 
 type wrappedOperationInverse struct {

@@ -150,6 +150,9 @@ type MethodAnalyzer interface {
 // Methods mirrors methods on Methods
 type Methods interface {
 	OrderMethods() ([]StandardOperationStore, error)
+	List() []StandardOperationStore
+	Put(k string, v StandardOperationStore) error
+	unwrap() anysdk.Methods
 }
 
 // OperationInverse mirrors methods on OperationInverse
