@@ -260,3 +260,41 @@ func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
 func EmptyMethods() Methods {
 	return &wrappedMethods{inner: anysdk.Methods{}}
 }
+
+func GetServicesHeader(extended bool) []string {
+	var retVal []string
+	if extended {
+		retVal = []string{
+			"id",
+			"name",
+			"title",
+			"description",
+			"version",
+			"preferred",
+		}
+	} else {
+		retVal = []string{
+			"id",
+			"name",
+			"title",
+		}
+	}
+	return retVal
+}
+
+func GetDescribeHeader(extended bool) []string {
+	var retVal []string
+	if extended {
+		retVal = []string{
+			"name",
+			"type",
+			"description",
+		}
+	} else {
+		retVal = []string{
+			"name",
+			"type",
+		}
+	}
+	return retVal
+}

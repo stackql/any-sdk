@@ -258,6 +258,7 @@ type ProviderDescription interface {
 
 // ProviderService mirrors methods on ProviderService
 type ProviderService interface {
+	ITable
 	GetDescription() string
 	GetID() string
 	GetName() string
@@ -369,6 +370,8 @@ type StandardOperationStore interface {
 	OperationStore
 	ITable
 	GetServers() (openapi3.Servers, bool)
+	ToPresentationMap(extended bool) map[string]interface{}
+	GetColumnOrder(extended bool) []string
 	unwrapStandardOperationStore() anysdk.StandardOperationStore
 }
 

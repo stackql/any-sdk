@@ -937,6 +937,21 @@ type wrappedProviderService struct {
 	inner anysdk.ProviderService
 }
 
+func (w *wrappedProviderService) GetKey(p0 string) (interface{}, error) {
+	r0, r1 := w.inner.GetKey(p0)
+	return r0, r1
+}
+
+func (w *wrappedProviderService) GetKeyAsSqlVal(p0 string) (sqltypes.Value, error) {
+	r0, r1 := w.inner.GetKeyAsSqlVal(p0)
+	return r0, r1
+}
+
+func (w *wrappedProviderService) KeyExists(p0 string) bool {
+	r0 := w.inner.KeyExists(p0)
+	return r0
+}
+
 func (w *wrappedProviderService) unwrap() anysdk.ProviderService {
 	return w.inner
 }
@@ -1286,6 +1301,16 @@ var (
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) GetColumnOrder(extended bool) []string {
+	r0 := w.inner.GetColumnOrder(extended)
+	return r0
+}
+
+func (w *wrappedStandardOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
+	r0 := w.inner.ToPresentationMap(extended)
+	return r0
 }
 
 func (w *wrappedStandardOperationStore) GetKey(s string) (interface{}, error) {
