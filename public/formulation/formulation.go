@@ -321,9 +321,10 @@ func NewTTLDiscoveryStore(
 	registry RegistryAPI,
 	runtimeCtx dto.RuntimeCtx,
 ) IDiscoveryStore {
+	reverseWrappedSystem := &reverseWrappedPersistenceSystem{inner: persistenceSystem}
 	return &wrappedTTLDiscoveryStore{
 		inner: discovery.NewTTLDiscoveryStore(
-			persistenceSystem.unwrap(),
+			reverseWrappedSystem,
 			registry.unwrap(),
 			runtimeCtx,
 		),
