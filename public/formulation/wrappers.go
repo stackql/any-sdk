@@ -1332,6 +1332,11 @@ type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
 }
 
+func (w *wrappedStandardOperationStore) GetInverse() (OperationInverse, bool) {
+	r0, r1 := w.inner.GetInverse()
+	return &wrappedOperationInverse{inner: r0}, r1
+}
+
 func (w *wrappedStandardOperationStore) GetInline() []string {
 	r0 := w.inner.GetInline()
 	return r0

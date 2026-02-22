@@ -378,6 +378,7 @@ type StandardOperationStore interface {
 	GetColumnOrder(extended bool) []string
 	GetRequest() (ExpectedRequest, bool)
 	GetInline() []string
+	GetInverse() (OperationInverse, bool)
 	unwrapStandardOperationStore() anysdk.StandardOperationStore
 }
 
