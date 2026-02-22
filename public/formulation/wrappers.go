@@ -693,6 +693,11 @@ type wrappedOperationStore struct {
 	inner anysdk.OperationStore
 }
 
+func (w *wrappedOperationStore) GetAddressSpace() (AddressSpace, bool) {
+	r0, r1 := w.inner.GetAddressSpace()
+	return &wrappedAddressSpace{inner: r0}, r1
+}
+
 func (w *wrappedOperationStore) GetProjections() map[string]string {
 	r0 := w.inner.GetProjections()
 	return r0
@@ -1212,6 +1217,11 @@ func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) GetAddressSpace() (AddressSpace, bool) {
+	r0, r1 := w.inner.GetAddressSpace()
+	return &wrappedAddressSpace{inner: r0}, r1
 }
 
 func (w *wrappedStandardOperationStore) GetProjections() map[string]string {

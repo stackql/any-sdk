@@ -191,6 +191,7 @@ type OperationStore interface {
 	RenameRequestBodyAttribute(p0 string) (string, error)
 	RevertRequestBodyAttributeRename(p0 string) (string, error)
 	GetProjections() map[string]string
+	GetAddressSpace() (AddressSpace, bool)
 	unwrap() anysdk.OperationStore
 }
 
