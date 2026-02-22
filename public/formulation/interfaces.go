@@ -27,23 +27,6 @@ import (
 	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
 )
 
-// NOTE: Addressable is already defined as an interface in wrappers.go.
-
-// AuthMetadata mirrors methods on *AuthMetadata
-type AuthMetadata interface {
-	GetHeaders() []string
-	ToMap() map[string]interface{}
-}
-
-// AuthCtx mirrors methods on *AuthCtx
-// type AuthCtx interface {
-// 	Clone() *AuthCtx
-// 	GetCredentialsBytes() ([]byte, error)
-// 	GetCredentialsSourceDescriptorString() string
-// 	GetSQLCfg() (SQLBackendCfg, bool)
-// 	HasKey() bool
-// }
-
 // RuntimeCtx mirrors methods on RuntimeCtx
 type RuntimeCtx interface {
 	Copy() RuntimeCtx

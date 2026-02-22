@@ -224,3 +224,25 @@ func NewBasicDiscoveryAdapter(
 		),
 	}
 }
+
+type AuthMetadata struct {
+	Principal string `json:"principal"`
+	Type      string `json:"type"`
+	Source    string `json:"source"`
+}
+
+func (am *AuthMetadata) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"principal": am.Principal,
+		"type":      am.Type,
+		"source":    am.Source,
+	}
+}
+
+func (am *AuthMetadata) GetHeaders() []string {
+	return []string{
+		"principal",
+		"type",
+		"source",
+	}
+}
