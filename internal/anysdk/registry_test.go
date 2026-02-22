@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	. "github.com/stackql/any-sdk/anysdk"
+	. "github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/fileutil"
 
 	"gotest.tools/assert"

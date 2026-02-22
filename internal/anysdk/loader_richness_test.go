@@ -5,7 +5,7 @@ import (
 
 	"gotest.tools/assert"
 
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 )
 
 func TestRichSimpleAwsS3BucketABACRequestBodyOverride(t *testing.T) {

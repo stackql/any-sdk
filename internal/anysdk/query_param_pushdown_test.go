@@ -3,7 +3,7 @@ package anysdk_test
 import (
 	"testing"
 
-	. "github.com/stackql/any-sdk/anysdk"
+	. "github.com/stackql/any-sdk/internal/anysdk"
 	"gopkg.in/yaml.v3"
 
 	"gotest.tools/assert"
@@ -137,9 +137,9 @@ func TestODataFullConfig(t *testing.T) {
 		t.Fatalf("TestODataFullConfig failed: expected count pushdown to exist")
 	}
 	assert.Equal(t, countPD.GetDialect(), "odata")
-	assert.Equal(t, countPD.GetParamName(), "$count")           // OData default
-	assert.Equal(t, countPD.GetParamValue(), "true")            // OData default
-	assert.Equal(t, countPD.GetResponseKey(), "@odata.count")   // OData default
+	assert.Equal(t, countPD.GetParamName(), "$count")         // OData default
+	assert.Equal(t, countPD.GetParamValue(), "true")          // OData default
+	assert.Equal(t, countPD.GetResponseKey(), "@odata.count") // OData default
 
 	t.Logf("TestODataFullConfig passed")
 }

@@ -15,7 +15,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/lib/pq/oid"
-	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/auth_util"
 	"github.com/stackql/any-sdk/pkg/authsurface"
 	"github.com/stackql/any-sdk/pkg/client"
