@@ -476,6 +476,10 @@ type wrappedExpectedResponse struct {
 	inner anysdk.ExpectedResponse
 }
 
+func (w *wrappedExpectedResponse) unwrap() anysdk.ExpectedResponse {
+	return w.inner
+}
+
 func (w *wrappedExpectedResponse) GetObjectKey() string {
 	r0 := w.inner.GetObjectKey()
 	return r0
@@ -700,6 +704,16 @@ func (w *wrappedOperationInverse) GetOperationStore() (StandardOperationStore, b
 
 type wrappedOperationStore struct {
 	inner anysdk.OperationStore
+}
+
+func (w *wrappedOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
+	r0, r1, r2 := w.inner.GetSelectSchemaAndObjectPath()
+	return newWrappedSchemaFromAnySdkSchema(r0), r1, r2
+}
+
+func (w *wrappedOperationStore) GetResponse() (ExpectedResponse, bool) {
+	r0, r1 := w.inner.GetResponse()
+	return &wrappedExpectedResponse{inner: r0}, r1
 }
 
 func (w *wrappedOperationStore) IsAwaitable() bool {
@@ -1244,6 +1258,21 @@ func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+/*
+GetSelectSchemaAndObjectPath() (Schema, string, error)
+	GetResponse() (ExpectedResponse, bool)
+*/
+
+func (w *wrappedStandardOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
+	r0, r1, r2 := w.inner.GetSelectSchemaAndObjectPath()
+	return newWrappedSchemaFromAnySdkSchema(r0), r1, r2
+}
+
+func (w *wrappedStandardOperationStore) GetResponse() (ExpectedResponse, bool) {
+	r0, r1 := w.inner.GetResponse()
+	return &wrappedExpectedResponse{inner: r0}, r1
 }
 
 func (w *wrappedStandardOperationStore) IsAwaitable() bool {
@@ -2486,4 +2515,17 @@ func (w *wrappedColumnDescriptor) GetIdentifier() string {
 
 func newColDescriptorFromAnySdkColumnDescriptor(c anysdk.ColumnDescriptor) ColumnDescriptor {
 	return &wrappedColumnDescriptor{inner: c}
+}
+
+type wrappedHTTPPreparatorConfig struct {
+	inner anysdk.HTTPPreparatorConfig
+}
+
+func (w *wrappedHTTPPreparatorConfig) IsFromAnnotation() bool {
+	r0 := w.inner.IsFromAnnotation()
+	return r0
+}
+
+func (w *wrappedHTTPPreparatorConfig) unwrap() anysdk.HTTPPreparatorConfig {
+	return w.inner
 }

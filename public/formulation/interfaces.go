@@ -71,6 +71,7 @@ type ExpectedRequest interface {
 type ExpectedResponse interface {
 	GetObjectKey() string
 	GetTransform() (Transform, bool)
+	unwrap() anysdk.ExpectedResponse
 }
 
 // GraphQL mirrors methods on GraphQL
@@ -180,6 +181,8 @@ type OperationStore interface {
 	GetAddressSpace() (AddressSpace, bool)
 	GetGraphQL() GraphQL
 	IsAwaitable() bool
+	GetSelectSchemaAndObjectPath() (Schema, string, error)
+	GetResponse() (ExpectedResponse, bool)
 	unwrap() anysdk.OperationStore
 }
 
@@ -657,3 +660,10 @@ type IDiscoveryStore interface {
 	PersistServiceShard(Provider, ProviderService, string) (Service, error)
 	unwrap() discovery.IDiscoveryStore
 }
+
+type HTTPPreparatorConfig interface {
+	IsFromAnnotation() bool
+	unwrap() anysdk.HTTPPreparatorConfig
+}
+
+var AnonymousColumnName = anysdk.AnonymousColumnName

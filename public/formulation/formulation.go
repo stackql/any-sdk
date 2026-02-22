@@ -250,3 +250,9 @@ func (am *AuthMetadata) GetHeaders() []string {
 func NewMethodAnalyzer() MethodAnalyzer {
 	return &wrappedMethodAnalyzer{}
 }
+
+func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
+	return &wrappedHTTPPreparatorConfig{
+		inner: anysdk.NewHTTPPreparatorConfig(isFromAnnotation),
+	}
+}
