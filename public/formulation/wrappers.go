@@ -37,6 +37,7 @@ import (
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
 	"github.com/stackql/stackql-parser/go/sqltypes"
+	"github.com/stackql/stackql-parser/go/vt/sqlparser"
 )
 
 func wrapMapString_Addressable(in map[string]anysdk.Addressable) map[string]Addressable {
@@ -889,6 +890,10 @@ type wrappedProviderService struct {
 	inner anysdk.ProviderService
 }
 
+func (w *wrappedProviderService) unwrap() anysdk.ProviderService {
+	return w.inner
+}
+
 func (w *wrappedProviderService) GetDescription() string {
 	r0 := w.inner.GetDescription()
 	return r0
@@ -921,6 +926,10 @@ func (w *wrappedProviderService) IsPreferred() bool {
 
 type wrappedRegistryAPI struct {
 	inner anysdk.RegistryAPI
+}
+
+func (w *wrappedRegistryAPI) unwrap() anysdk.RegistryAPI {
+	return w.inner
 }
 
 func (w *wrappedRegistryAPI) ClearProviderCache(p0 string) error {
@@ -2300,4 +2309,167 @@ func (w *wrappedOpenAPIService) GetSchema(key string) (Schema, error) {
 func (w *wrappedOpenAPIService) GetServers() (openapi3.Servers, bool) {
 	r0, r1 := w.inner.GetServers()
 	return r0, r1
+}
+
+/*
+type ResourceRegister interface {
+	//
+	// GetServiceDocPath() *ServiceRef
+	ObtainServiceDocUrl(resourceKey string) string
+	SetProviderService(ps ProviderService)
+	SetProvider(p Provider)
+	GetResources() map[string]Resource
+	GetResource(string) (Resource, bool)
+	unwrap() anysdk.ResourceRegister
+}
+*/
+
+type wrappedResourceRegister struct {
+	inner anysdk.ResourceRegister
+}
+
+func (w *wrappedResourceRegister) ObtainServiceDocUrl(resourceKey string) string {
+	r0 := w.inner.ObtainServiceDocUrl(resourceKey)
+	return r0
+}
+
+func (w *wrappedResourceRegister) SetProviderService(ps ProviderService) {
+	w.inner.SetProviderService(ps.unwrap())
+	return
+}
+
+func (w *wrappedResourceRegister) SetProvider(p Provider) {
+	w.inner.SetProvider(p.unwrap())
+	return
+}
+
+func (w *wrappedResourceRegister) GetResources() map[string]Resource {
+	r0 := w.inner.GetResources()
+	return wrapMapString_Resource(r0)
+}
+
+func (w *wrappedResourceRegister) GetResource(resourceKey string) (Resource, bool) {
+	r0, r1 := w.inner.GetResource(resourceKey)
+	return &wrappedResource{inner: r0}, r1
+}
+
+func (w *wrappedResourceRegister) unwrap() anysdk.ResourceRegister {
+	return w.inner
+}
+
+type wrappedDiscoveryAdapter struct {
+	inner discovery.IDiscoveryAdapter
+}
+
+func (w *wrappedDiscoveryAdapter) unwrap() discovery.IDiscoveryAdapter {
+	return w.inner
+}
+
+func (w *wrappedDiscoveryAdapter) GetProvider(providerKey string) (Provider, error) {
+	r0, r1 := w.inner.GetProvider(providerKey)
+	return &wrappedProvider{inner: r0}, r1
+}
+
+func (w *wrappedDiscoveryAdapter) GetResourcesMap(prov Provider, serviceKey string) (map[string]Resource, error) {
+	r0, r1 := w.inner.GetResourcesMap(prov.unwrap(), serviceKey)
+	return wrapMapString_Resource(r0), r1
+}
+
+func (w *wrappedDiscoveryAdapter) GetServiceHandlesMap(prov Provider) (map[string]ProviderService, error) {
+	r0, r1 := w.inner.GetServiceHandlesMap(prov.unwrap())
+	return wrapMapString_ProviderService(r0), r1
+}
+
+func (w *wrappedDiscoveryAdapter) GetServiceShard(prov Provider, serviceKey string, resourceKey string) (Service, error) {
+	r0, r1 := w.inner.GetServiceShard(prov.unwrap(), serviceKey, resourceKey)
+	return &wrappedService{inner: r0}, r1
+}
+
+func (w *wrappedDiscoveryAdapter) PersistStaticExternalSQLDataSource(prov Provider) error {
+	r0 := w.inner.PersistStaticExternalSQLDataSource(prov.unwrap())
+	return r0
+}
+
+var (
+	_ persistence.PersistenceSystem = &reverseWrappedPersistenceSystem{}
+)
+
+type reverseWrappedPersistenceSystem struct {
+	inner PersistenceSystem
+}
+
+func (w *reverseWrappedPersistenceSystem) GetSystemName() string {
+	return w.inner.GetSystemName()
+}
+
+func (w *reverseWrappedPersistenceSystem) HandleExternalTables(providerName string, externalTables map[string]anysdk.SQLExternalTable) error {
+	internalTables := make(map[string]SQLExternalTable, len(externalTables))
+	for k, v := range externalTables {
+		internalTables[k] = &wrappedSQLExternalTable{inner: v}
+	}
+	return w.inner.HandleExternalTables(providerName, internalTables)
+}
+
+func (w *reverseWrappedPersistenceSystem) HandleViewCollection(views []anysdk.View) error {
+	localViews := make([]View, len(views))
+	for i, v := range views {
+		localViews[i] = &wrappedView{inner: v}
+	}
+	return w.inner.HandleViewCollection(localViews)
+}
+
+func (w *reverseWrappedPersistenceSystem) CacheStoreGet(key string) ([]byte, error) {
+	return w.inner.CacheStoreGet(key)
+}
+
+func (w *reverseWrappedPersistenceSystem) CacheStorePut(key string, value []byte, expiration string, ttl int) error {
+	return w.inner.CacheStorePut(key, value, expiration, ttl)
+}
+
+type wrappedColumnDescriptor struct {
+	inner anysdk.ColumnDescriptor
+}
+
+func (w *wrappedColumnDescriptor) unwrap() anysdk.ColumnDescriptor {
+	return w.inner
+}
+
+func (w *wrappedColumnDescriptor) GetVal() *sqlparser.SQLVal {
+	return w.inner.GetVal()
+}
+
+func (w *wrappedColumnDescriptor) GetNode() sqlparser.SQLNode {
+	return w.inner.GetNode()
+}
+
+func (w *wrappedColumnDescriptor) GetDecoratedCol() string {
+	return w.inner.GetDecoratedCol()
+}
+
+func (w *wrappedColumnDescriptor) GetQualifier() string {
+	return w.inner.GetQualifier()
+}
+
+func (w *wrappedColumnDescriptor) GetRepresentativeSchema() Schema {
+	return newWrappedSchemaFromAnySdkSchema(w.inner.GetRepresentativeSchema())
+}
+
+func (w *wrappedColumnDescriptor) GetSchema() Schema {
+	return newWrappedSchemaFromAnySdkSchema(w.inner.GetSchema())
+}
+
+func (w *wrappedColumnDescriptor) GetAlias() string {
+	return w.inner.GetAlias()
+}
+
+func (w *wrappedColumnDescriptor) GetName() string {
+	return w.inner.GetName()
+}
+
+func (w *wrappedColumnDescriptor) GetIdentifier() string {
+	return w.inner.GetIdentifier()
+}
+
+func newColDescriptorFromAnySdkColumnDescriptor(c anysdk.ColumnDescriptor) ColumnDescriptor {
+	return &wrappedColumnDescriptor{inner: c}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/streaming"
+	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
@@ -66,54 +67,6 @@ type PersistenceSystem interface {
 	CacheStoreGet(key string) ([]byte, error)
 	CacheStorePut(key string, value []byte, expiration string, ttl int) error
 	// unwrap() persistence.PersistenceSystem
-}
-
-type wrappedColumnDescriptor struct {
-	inner anysdk.ColumnDescriptor
-}
-
-func (w *wrappedColumnDescriptor) unwrap() anysdk.ColumnDescriptor {
-	return w.inner
-}
-
-func (w *wrappedColumnDescriptor) GetVal() *sqlparser.SQLVal {
-	return w.inner.GetVal()
-}
-
-func (w *wrappedColumnDescriptor) GetNode() sqlparser.SQLNode {
-	return w.inner.GetNode()
-}
-
-func (w *wrappedColumnDescriptor) GetDecoratedCol() string {
-	return w.inner.GetDecoratedCol()
-}
-
-func (w *wrappedColumnDescriptor) GetQualifier() string {
-	return w.inner.GetQualifier()
-}
-
-func (w *wrappedColumnDescriptor) GetRepresentativeSchema() Schema {
-	return newWrappedSchemaFromAnySdkSchema(w.inner.GetRepresentativeSchema())
-}
-
-func (w *wrappedColumnDescriptor) GetSchema() Schema {
-	return newWrappedSchemaFromAnySdkSchema(w.inner.GetSchema())
-}
-
-func (w *wrappedColumnDescriptor) GetAlias() string {
-	return w.inner.GetAlias()
-}
-
-func (w *wrappedColumnDescriptor) GetName() string {
-	return w.inner.GetName()
-}
-
-func (w *wrappedColumnDescriptor) GetIdentifier() string {
-	return w.inner.GetIdentifier()
-}
-
-func newColDescriptorFromAnySdkColumnDescriptor(c anysdk.ColumnDescriptor) ColumnDescriptor {
-	return &wrappedColumnDescriptor{inner: c}
 }
 
 func NewColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema Schema, val *sqlparser.SQLVal) ColumnDescriptor {
@@ -247,6 +200,27 @@ func NewAddressSpaceFormulator(
 			method.unwrapStandardOperationStore(),
 			aliasedUnionSelectKeys,
 			isAwait,
+		),
+	}
+}
+
+func NewBasicDiscoveryAdapter(
+	alias string,
+	apiDiscoveryDocURL string,
+	discoveryStore IDiscoveryStore,
+	runtimeCtx *dto.RuntimeCtx,
+	registry RegistryAPI,
+	persistenceSystem PersistenceSystem,
+) IDiscoveryAdapter {
+	reverseWrappedSystem := &reverseWrappedPersistenceSystem{inner: persistenceSystem}
+	return &wrappedDiscoveryAdapter{
+		inner: discovery.NewBasicDiscoveryAdapter(
+			alias,
+			apiDiscoveryDocURL,
+			discoveryStore.unwrap(),
+			runtimeCtx,
+			registry.unwrap(),
+			reverseWrappedSystem,
 		),
 	}
 }

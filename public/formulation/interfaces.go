@@ -21,6 +21,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/internaldto"
 	"github.com/stackql/any-sdk/pkg/netutils"
 	"github.com/stackql/any-sdk/pkg/providerinvoker"
+	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/stackql-parser/go/sqltypes"
 	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
@@ -253,6 +254,7 @@ type ProviderService interface {
 	GetTitle() string
 	GetVersion() string
 	IsPreferred() bool
+	unwrap() anysdk.ProviderService
 }
 
 type MethodSet interface {
@@ -272,6 +274,7 @@ type RegistryAPI interface {
 	LoadProviderByName(p0 string, p1 string) (Provider, error)
 	PullAndPersistProviderArchive(p0 string, p1 string) error
 	RemoveProviderVersion(p0 string, p1 string) error
+	unwrap() anysdk.RegistryAPI
 }
 
 // Relation mirrors methods on Relation
@@ -623,6 +626,7 @@ type IDiscoveryAdapter interface {
 	GetServiceHandlesMap(prov Provider) (map[string]ProviderService, error)
 	GetServiceShard(prov Provider, serviceKey string, resourceKey string) (Service, error)
 	PersistStaticExternalSQLDataSource(prov Provider) error
+	unwrap() discovery.IDiscoveryAdapter
 }
 
 // AddressSpaceFormulator mirrors methods on AddressSpaceFormulator
@@ -646,4 +650,25 @@ type SQLEngine interface {
 	GetTx() (*sql.Tx, error)
 	Query(p0 string, p1 ...interface{}) (*sql.Rows, error)
 	QueryRow(query string, args ...any) *sql.Row
+}
+
+type ResourceRegister interface {
+	//
+	// GetServiceDocPath() *ServiceRef
+	ObtainServiceDocUrl(resourceKey string) string
+	SetProviderService(ps ProviderService)
+	SetProvider(p Provider)
+	GetResources() map[string]Resource
+	GetResource(string) (Resource, bool)
+	unwrap() anysdk.ResourceRegister
+}
+
+type IDiscoveryStore interface {
+	ProcessProviderDiscoveryDoc(string, string) (Provider, error)
+	processResourcesDiscoveryDoc(
+		Provider,
+		ProviderService,
+		string) (ResourceRegister, error)
+	PersistServiceShard(Provider, ProviderService, string) (Service, error)
+	unwrap() discovery.IDiscoveryStore
 }
