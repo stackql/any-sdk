@@ -706,6 +706,11 @@ type wrappedOperationStore struct {
 	inner anysdk.OperationStore
 }
 
+func (w *wrappedOperationStore) GetOptionalParameters() map[string]Addressable {
+	r0 := w.inner.GetOptionalParameters()
+	return wrapMapString_Addressable(r0)
+}
+
 func (w *wrappedOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetSelectSchemaAndObjectPath()
 	return newWrappedSchemaFromAnySdkSchema(r0), r1, r2
@@ -1260,10 +1265,10 @@ type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
 }
 
-/*
-GetSelectSchemaAndObjectPath() (Schema, string, error)
-	GetResponse() (ExpectedResponse, bool)
-*/
+func (w *wrappedStandardOperationStore) GetOptionalParameters() map[string]Addressable {
+	r0 := w.inner.GetOptionalParameters()
+	return wrapMapString_Addressable(r0)
+}
 
 func (w *wrappedStandardOperationStore) GetSelectSchemaAndObjectPath() (Schema, string, error) {
 	r0, r1, r2 := w.inner.GetSelectSchemaAndObjectPath()

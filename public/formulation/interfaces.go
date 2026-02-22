@@ -183,6 +183,7 @@ type OperationStore interface {
 	IsAwaitable() bool
 	GetSelectSchemaAndObjectPath() (Schema, string, error)
 	GetResponse() (ExpectedResponse, bool)
+	GetOptionalParameters() map[string]Addressable
 	unwrap() anysdk.OperationStore
 }
 
