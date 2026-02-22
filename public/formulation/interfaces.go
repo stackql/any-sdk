@@ -367,6 +367,7 @@ type Service interface {
 // StandardOperationStore mirrors methods on StandardOperationStore
 type StandardOperationStore interface {
 	OperationStore
+	ITable
 	GetServers() (openapi3.Servers, bool)
 	unwrapStandardOperationStore() anysdk.StandardOperationStore
 }
