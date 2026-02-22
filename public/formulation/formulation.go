@@ -478,3 +478,11 @@ func LoadProviderDocFromBytes(bytes []byte) (Provider, error) {
 	}
 	return &wrappedProvider{inner: prov}, nil
 }
+
+func ServiceConditionIsValid(lhs string, rhs interface{}) bool {
+	return anysdk.ServiceConditionIsValid(lhs, rhs)
+}
+
+func ResourceConditionIsValid(lhs string, rhs interface{}) bool {
+	return anysdk.ResourceConditionIsValid(lhs, rhs)
+}
