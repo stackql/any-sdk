@@ -698,6 +698,11 @@ type wrappedOperationStore struct {
 	inner anysdk.OperationStore
 }
 
+func (w *wrappedOperationStore) IsAwaitable() bool {
+	r0 := w.inner.IsAwaitable()
+	return r0
+}
+
 func (w *wrappedOperationStore) GetGraphQL() GraphQL {
 	r0 := w.inner.GetGraphQL()
 	return &wrappedGraphQL{inner: r0}
@@ -1235,6 +1240,11 @@ func (w *wrappedService) GetServers() (openapi3.Servers, bool) {
 
 type wrappedStandardOperationStore struct {
 	inner anysdk.StandardOperationStore
+}
+
+func (w *wrappedStandardOperationStore) IsAwaitable() bool {
+	r0 := w.inner.IsAwaitable()
+	return r0
 }
 
 func (w *wrappedStandardOperationStore) GetGraphQL() GraphQL {

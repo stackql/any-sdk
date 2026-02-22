@@ -178,6 +178,7 @@ type OperationStore interface {
 	GetProjections() map[string]string
 	GetAddressSpace() (AddressSpace, bool)
 	GetGraphQL() GraphQL
+	IsAwaitable() bool
 	unwrap() anysdk.OperationStore
 }
 
