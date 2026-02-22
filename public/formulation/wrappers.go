@@ -2612,3 +2612,27 @@ func (w *wrappedHTTPPreparatorConfig) IsFromAnnotation() bool {
 func (w *wrappedHTTPPreparatorConfig) unwrap() anysdk.HTTPPreparatorConfig {
 	return w.inner
 }
+
+type wrappedTTLDiscoveryStore struct {
+	inner discovery.IDiscoveryStore
+}
+
+func (w *wrappedTTLDiscoveryStore) ProcessProviderDiscoveryDoc(apiDiscoveryDocURL string, alias string) (Provider, error) {
+	prov, err := w.inner.ProcessProviderDiscoveryDoc(apiDiscoveryDocURL, alias)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedProvider{inner: prov}, nil
+}
+
+func (w *wrappedTTLDiscoveryStore) PersistServiceShard(prov Provider, sh ProviderService, resourceKey string) (Service, error) {
+	service, err := w.inner.PersistServiceShard(prov.unwrap(), sh.unwrap(), resourceKey)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedService{inner: service}, nil
+}
+
+func (w *wrappedTTLDiscoveryStore) unwrap() discovery.IDiscoveryStore {
+	return w.inner
+}

@@ -315,3 +315,17 @@ func GetResourcesHeader(extended bool) []string {
 	}
 	return retVal
 }
+
+func NewTTLDiscoveryStore(
+	persistenceSystem persistence.PersistenceSystem,
+	registry anysdk.RegistryAPI,
+	runtimeCtx dto.RuntimeCtx,
+) IDiscoveryStore {
+	return &wrappedTTLDiscoveryStore{
+		inner: discovery.NewTTLDiscoveryStore(
+			persistenceSystem,
+			registry,
+			runtimeCtx,
+		),
+	}
+}

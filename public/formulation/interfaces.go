@@ -680,10 +680,10 @@ type ResourceRegister interface {
 
 type IDiscoveryStore interface {
 	ProcessProviderDiscoveryDoc(string, string) (Provider, error)
-	processResourcesDiscoveryDoc(
-		Provider,
-		ProviderService,
-		string) (ResourceRegister, error)
+	// processResourcesDiscoveryDoc(
+	// 	Provider,
+	// 	ProviderService,
+	// 	string) (ResourceRegister, error)
 	PersistServiceShard(Provider, ProviderService, string) (Service, error)
 	unwrap() discovery.IDiscoveryStore
 }
