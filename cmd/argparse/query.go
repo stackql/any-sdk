@@ -13,13 +13,13 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/stackql/any-sdk/anysdk"
+	"github.com/stackql/any-sdk/pkg/authsurface"
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/internaldto"
 	"github.com/stackql/any-sdk/pkg/local_template_executor"
 	"github.com/stackql/any-sdk/pkg/stream_transform"
-	"github.com/stackql/any-sdk/pkg/surface"
 )
 
 func getLogger() *logrus.Logger {
@@ -269,7 +269,7 @@ func runQueryCommand(authCtx *dto.AuthCtx, payload *queryCmdPayload) error {
 	}
 }
 
-func transformOpenapiStackqlAuthToLocal(authDTO surface.AuthDTO) *dto.AuthCtx {
+func transformOpenapiStackqlAuthToLocal(authDTO authsurface.AuthDTO) *dto.AuthCtx {
 	rv := &dto.AuthCtx{
 		Scopes:                  authDTO.GetScopes(),
 		Subject:                 authDTO.GetSubject(),

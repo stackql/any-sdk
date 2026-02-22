@@ -6,8 +6,8 @@ import (
 	"github.com/getkin/kin-openapi/jsoninfo"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-openapi/jsonpointer"
+	"github.com/stackql/any-sdk/pkg/authsurface"
 	"github.com/stackql/any-sdk/pkg/client"
-	"github.com/stackql/any-sdk/pkg/surface"
 )
 
 var (
@@ -24,7 +24,7 @@ type Provider interface {
 	GetProtocolType() (client.ClientProtocolType, error)
 	GetProtocolTypeString() string
 	Debug() string
-	GetAuth() (surface.AuthDTO, bool)
+	GetAuth() (authsurface.AuthDTO, bool)
 	GetDeleteItemsKey() string
 	GetName() string
 	GetProviderServices() map[string]ProviderService
@@ -58,7 +58,7 @@ type standardProvider struct {
 	StackQLConfig    *standardStackQLConfig              `json:"config,omitempty" yaml:"config,omitempty"`
 }
 
-func (pr *standardProvider) GetAuth() (surface.AuthDTO, bool) {
+func (pr *standardProvider) GetAuth() (authsurface.AuthDTO, bool) {
 	if pr.StackQLConfig != nil {
 		return pr.StackQLConfig.GetAuth()
 	}

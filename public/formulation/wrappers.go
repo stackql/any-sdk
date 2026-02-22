@@ -17,6 +17,7 @@ import (
 	"github.com/lib/pq/oid"
 	"github.com/stackql/any-sdk/anysdk"
 	"github.com/stackql/any-sdk/pkg/auth_util"
+	"github.com/stackql/any-sdk/pkg/authsurface"
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/db/sqlcontrol"
@@ -31,7 +32,6 @@ import (
 	"github.com/stackql/any-sdk/pkg/response"
 	"github.com/stackql/any-sdk/pkg/stream_transform"
 	"github.com/stackql/any-sdk/pkg/streaming"
-	"github.com/stackql/any-sdk/pkg/surface"
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/any-sdk/public/providerinvokers/anysdkhttp"
@@ -2275,7 +2275,7 @@ func (w *wrappedMapStreamCollection) Push(p0 *wrappedMapStream) {
 }
 
 type wrappedAuthDTO struct {
-	inner surface.AuthDTO
+	inner authsurface.AuthDTO
 }
 
 func (w *wrappedAuthDTO) GetAccountID() string {
