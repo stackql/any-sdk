@@ -384,7 +384,28 @@ type PolyHandler interface {
 	GetMessages() []string
 }
 
-type ArmouryGenerator anysdkhttp.ArmouryGenerator
+type ArmouryGenerator interface {
+	GetHTTPArmoury() (HTTPArmoury, error)
+	unwrap() anysdkhttp.ArmouryGenerator
+}
+
+type wrappedArmouryGenerator struct {
+	inner anysdkhttp.ArmouryGenerator
+}
+
+func (wag *wrappedArmouryGenerator) GetHTTPArmoury() (HTTPArmoury, error) {
+	inner, err := wag.inner.GetHTTPArmoury()
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedHTTPArmoury{inner: inner}, nil
+}
+
+func (wag *wrappedArmouryGenerator) unwrap() anysdkhttp.ArmouryGenerator {
+	return wag.inner
+}
+
+// anysdkhttp.ArmouryGenerator
 
 func NewPayload(
 	armouryGenerator ArmouryGenerator,
@@ -407,7 +428,7 @@ func NewPayload(
 	messageHandler providerinvoker.MessageHandler,
 ) any {
 	return anysdkhttp.NewPayload(
-		armouryGenerator,
+		armouryGenerator.unwrap(),
 		provider.unwrap(),
 		method.unwrap(),
 		tableName,
