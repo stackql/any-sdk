@@ -576,6 +576,10 @@ type wrappedHTTPPreparator struct {
 	inner anysdk.HTTPPreparator
 }
 
+func (w *wrappedHTTPPreparator) unwrap() anysdk.HTTPPreparator {
+	return w.inner
+}
+
 func (w *wrappedHTTPPreparator) BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error) {
 	r0, r1 := w.inner.BuildHTTPRequestCtx(p0)
 	return &wrappedHTTPArmoury{inner: r0}, r1
@@ -604,8 +608,8 @@ func (w *wrappedHttpPreparatorStream) Next() (HTTPPreparator, bool) {
 	return &wrappedHTTPPreparator{inner: r0}, r1
 }
 
-func (w *wrappedHttpPreparatorStream) Write(p0 *wrappedHTTPPreparator) error {
-	r0 := w.inner.Write(p0.inner)
+func (w *wrappedHttpPreparatorStream) Write(p0 HTTPPreparator) error {
+	r0 := w.inner.Write(p0.unwrap())
 	return r0
 }
 

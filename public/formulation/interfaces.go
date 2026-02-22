@@ -103,6 +103,7 @@ type HTTPArmouryParameters interface {
 // HTTPPreparator mirrors methods on HTTPPreparator
 type HTTPPreparator interface {
 	BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error)
+	unwrap() anysdk.HTTPPreparator
 }
 
 func newHTTPPreparatorFromAnySdkHTTPPreparator(inner anysdk.HTTPPreparator) HTTPPreparator {

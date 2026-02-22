@@ -353,3 +353,25 @@ func NewExecContext(payload internaldto.ExecPayload, rsc Resource) ExecContext {
 		inner: anysdk.NewExecContext(payload, rsc.unwrap()),
 	}
 }
+
+func NewEmptyProviderService() ProviderService {
+	return &wrappedProviderService{inner: anysdk.NewEmptyProviderService()}
+}
+
+func ServiceKeyExists(key string) bool {
+	return anysdk.ServiceKeyExists(key)
+}
+
+func NewwHTTPAnySdkArgList(req *http.Request) client.AnySdkArgList {
+	return anysdk.NewwHTTPAnySdkArgList(req)
+}
+
+func NewHttpPreparatorStream() HttpPreparatorStream {
+	return &wrappedHttpPreparatorStream{
+		inner: anysdk.NewHttpPreparatorStream(),
+	}
+}
+
+func GetMonitorRequest(urlStr string) (client.AnySdkArgList, error) {
+	return anysdk.GetMonitorRequest(urlStr)
+}
