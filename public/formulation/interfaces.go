@@ -92,6 +92,7 @@ type HTTPArmoury interface {
 	SetRequestParams([]HTTPArmouryParameters)
 	SetRequestSchema(Schema)
 	SetResponseSchema(Schema)
+	MergeLateBindingMap(m map[string]any) (HTTPArmoury, error)
 	unwrap() anysdk.HTTPArmoury
 }
 

@@ -538,6 +538,11 @@ type wrappedHTTPArmoury struct {
 	inner anysdk.HTTPArmoury
 }
 
+func (w *wrappedHTTPArmoury) MergeLateBindingMap(m map[string]any) (HTTPArmoury, error) {
+	r0, r1 := w.inner.MergeLateBindingMap(m)
+	return &wrappedHTTPArmoury{inner: r0}, r1
+}
+
 func (w *wrappedHTTPArmoury) AddRequestParams(p HTTPArmouryParameters) {
 	w.inner.AddRequestParams(p.unwrap())
 }
@@ -2700,6 +2705,14 @@ var (
 
 type reverseWrappedHTTPArmoury struct {
 	inner HTTPArmoury
+}
+
+func (w *reverseWrappedHTTPArmoury) MergeLateBindingMap(m map[string]any) (anysdk.HTTPArmoury, error) {
+	r0, r1 := w.inner.MergeLateBindingMap(m)
+	if r1 != nil {
+		return nil, r1
+	}
+	return &reverseWrappedHTTPArmoury{inner: r0}, nil
 }
 
 func (w *reverseWrappedHTTPArmoury) AddRequestParams(params anysdk.HTTPArmouryParameters) {
