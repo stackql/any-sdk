@@ -12,7 +12,7 @@ type HTTPArmoury interface {
 	SetRequestParams([]HTTPArmouryParameters)
 	SetRequestSchema(Schema)
 	SetResponseSchema(Schema)
-	MergeLateBindingMap(map[string]any) (HTTPArmoury, error)
+	MergeLateBindingMaps(map[int]map[string]any) (HTTPArmoury, error)
 }
 
 type standardHTTPArmoury struct {
@@ -23,8 +23,11 @@ type standardHTTPArmoury struct {
 	prepcfg          HTTPPreparatorConfig // memory of how it was prepared
 }
 
-func (ih *standardHTTPArmoury) MergeLateBindingMap(m map[string]any) (HTTPArmoury, error) {
-	clonedParent := ih.parentPreparator.mergeMap(m)
+func (ih *standardHTTPArmoury) MergeLateBindingMaps(m map[int]map[string]any) (HTTPArmoury, error) {
+	clonedParent, err := ih.parentPreparator.MergeParams(m)
+	if err != nil {
+		return nil, err
+	}
 	return clonedParent.BuildHTTPRequestCtx(ih.prepcfg)
 }
 

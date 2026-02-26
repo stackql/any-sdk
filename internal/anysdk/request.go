@@ -35,7 +35,7 @@ func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
 
 type HTTPPreparator interface {
 	BuildHTTPRequestCtx(HTTPPreparatorConfig) (HTTPArmoury, error)
-	mergeMap(map[string]any) HTTPPreparator
+	MergeParams(map[int]map[string]any) (HTTPPreparator, error)
 }
 
 type standardHTTPPreparator struct {
@@ -105,19 +105,20 @@ func (pr *standardHTTPPreparator) clone() *standardHTTPPreparator {
 	}
 }
 
-func (pr *standardHTTPPreparator) mergeMap(maps map[string]any) HTTPPreparator {
+func (pr *standardHTTPPreparator) MergeParams(maps map[int]map[string]any) (HTTPPreparator, error) {
 	rv := pr.clone()
-	for i, j := range rv.paramMap {
-		merged := make(map[string]any)
-		for k, v := range j {
-			merged[k] = v
-			for k2, v2 := range maps {
-				merged[k2] = v2
-			}
-		}
-		rv.paramMap[i] = merged
+	if len(maps) > 1 {
+		return nil, fmt.Errorf("multiple maps provided for merging, cartesian product not yet supported")
 	}
-	return rv
+	for k, v := range maps {
+		if _, exists := rv.paramMap[k]; !exists {
+			rv.paramMap[k] = make(map[string]any)
+		}
+		for subK, subV := range v {
+			rv.paramMap[k][subK] = subV
+		}
+	}
+	return rv, nil
 }
 
 //nolint:funlen,gocognit // TODO: review
