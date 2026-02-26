@@ -92,6 +92,7 @@ type HTTPArmoury interface {
 	SetRequestParams([]HTTPArmouryParameters)
 	SetRequestSchema(Schema)
 	SetResponseSchema(Schema)
+	MergeLateBindingMaps(m map[int]map[string]any) (HTTPArmoury, error)
 	unwrap() anysdk.HTTPArmoury
 }
 
@@ -111,6 +112,7 @@ type HTTPArmouryParameters interface {
 // HTTPPreparator mirrors methods on HTTPPreparator
 type HTTPPreparator interface {
 	BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error)
+	MergeParams(map[int]map[string]any) (HTTPPreparator, error)
 	unwrap() anysdk.HTTPPreparator
 }
 

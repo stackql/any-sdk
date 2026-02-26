@@ -538,6 +538,11 @@ type wrappedHTTPArmoury struct {
 	inner anysdk.HTTPArmoury
 }
 
+func (w *wrappedHTTPArmoury) MergeLateBindingMaps(m map[int]map[string]any) (HTTPArmoury, error) {
+	r0, r1 := w.inner.MergeLateBindingMaps(m)
+	return &wrappedHTTPArmoury{inner: r0}, r1
+}
+
 func (w *wrappedHTTPArmoury) AddRequestParams(p HTTPArmouryParameters) {
 	w.inner.AddRequestParams(p.unwrap())
 }
@@ -627,6 +632,14 @@ func (w *wrappedHTTPArmouryParameters) ToFlatMap() (map[string]interface{}, erro
 
 type wrappedHTTPPreparator struct {
 	inner anysdk.HTTPPreparator
+}
+
+func (w *wrappedHTTPPreparator) MergeParams(m map[int]map[string]any) (HTTPPreparator, error) {
+	r0, r1 := w.inner.MergeParams(m)
+	if r1 != nil {
+		return nil, r1
+	}
+	return &wrappedHTTPPreparator{inner: r0}, nil
 }
 
 func (w *wrappedHTTPPreparator) unwrap() anysdk.HTTPPreparator {
@@ -2700,6 +2713,14 @@ var (
 
 type reverseWrappedHTTPArmoury struct {
 	inner HTTPArmoury
+}
+
+func (w *reverseWrappedHTTPArmoury) MergeLateBindingMaps(m map[int]map[string]any) (anysdk.HTTPArmoury, error) {
+	r0, r1 := w.inner.MergeLateBindingMaps(m)
+	if r1 != nil {
+		return nil, r1
+	}
+	return &reverseWrappedHTTPArmoury{inner: r0}, nil
 }
 
 func (w *reverseWrappedHTTPArmoury) AddRequestParams(params anysdk.HTTPArmouryParameters) {

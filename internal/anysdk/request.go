@@ -35,13 +35,14 @@ func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
 
 type HTTPPreparator interface {
 	BuildHTTPRequestCtx(HTTPPreparatorConfig) (HTTPArmoury, error)
+	MergeParams(map[int]map[string]any) (HTTPPreparator, error)
 }
 
 type standardHTTPPreparator struct {
 	prov              Provider
 	m                 OperationStore
 	svc               Service
-	paramMap          map[int]map[string]interface{}
+	paramMap          map[int]map[string]any
 	execContext       ExecContext
 	logger            *logrus.Logger
 	parameters        streaming.MapStream
@@ -52,7 +53,7 @@ func NewHTTPPreparator(
 	prov Provider,
 	svc Service,
 	m OperationStore,
-	paramMap map[int]map[string]interface{},
+	paramMap map[int]map[string]any,
 	parameters streaming.MapStream,
 	execContext ExecContext,
 	logger *logrus.Logger,
@@ -64,7 +65,7 @@ func newHTTPPreparator(
 	prov Provider,
 	svc Service,
 	m OperationStore,
-	paramMap map[int]map[string]interface{},
+	paramMap map[int]map[string]any,
 	parameters streaming.MapStream,
 	execContext ExecContext,
 	logger *logrus.Logger,
@@ -84,17 +85,53 @@ func newHTTPPreparator(
 	}
 }
 
+func (pr *standardHTTPPreparator) clone() *standardHTTPPreparator {
+	newParamMap := make(map[int]map[string]any)
+	for k, v := range pr.paramMap {
+		cloneSubMap := make(map[string]any)
+		for subK, subV := range v {
+			cloneSubMap[subK] = subV
+		}
+		newParamMap[k] = cloneSubMap
+	}
+	return &standardHTTPPreparator{
+		prov:        pr.prov,
+		m:           pr.m,
+		svc:         pr.svc,
+		paramMap:    newParamMap,
+		parameters:  pr.parameters,
+		execContext: pr.execContext,
+		logger:      pr.logger,
+	}
+}
+
+func (pr *standardHTTPPreparator) MergeParams(maps map[int]map[string]any) (HTTPPreparator, error) {
+	rv := pr.clone()
+	if len(maps) > 1 {
+		return nil, fmt.Errorf("multiple maps provided for merging, cartesian product not yet supported")
+	}
+	for k, v := range maps {
+		if _, exists := rv.paramMap[k]; !exists {
+			rv.paramMap[k] = make(map[string]any)
+		}
+		for subK, subV := range v {
+			rv.paramMap[k][subK] = subV
+		}
+	}
+	return rv, nil
+}
+
 //nolint:funlen,gocognit // TODO: review
 func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) (HTTPArmoury, error) {
 	if cfg.IsFromAnnotation() {
-		return pr.buildHTTPRequestCtxFromAnnotation()
+		return pr.buildHTTPRequestCtxFromAnnotation(cfg)
 	}
 	method, methodOk := pr.m.(StandardOperationStore)
 	if !methodOk {
 		return nil, fmt.Errorf("operation store is not a standard operation store")
 	}
 	var err error
-	httpArmoury := NewHTTPArmoury()
+	httpArmoury := NewHTTPArmoury(pr, cfg)
 	var requestSchema, responseSchema Schema
 	req, reqExists := pr.m.GetRequest()
 	if reqExists && req.GetSchema() != nil {
@@ -133,7 +170,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 				params.SetRequestBody(bm)
 			}
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
-			m := make(map[string]interface{})
+			m := make(map[string]any)
 			baseRequestBytes := method.getBaseRequestBodyBytes()
 			if len(baseRequestBytes) > 0 {
 				mapErr := json.Unmarshal(baseRequestBytes, &m)
@@ -175,7 +212,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 		if len(p.GetParameters().GetRequestBody()) == 0 && len(method.getDefaultRequestBodyBytes()) == 0 {
 			p.SetRequestBodyMap(nil)
 		} else if len(method.getDefaultRequestBodyBytes()) > 0 && len(p.GetParameters().GetRequestBody()) == 0 {
-			bm := make(map[string]interface{})
+			bm := make(map[string]any)
 			// TODO: support types other than json
 			err := json.Unmarshal(method.getDefaultRequestBodyBytes(), &bm)
 			if err == nil {
@@ -211,8 +248,8 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 func awsContextHousekeeping(
 	ctx context.Context,
 	method OperationStore,
-	contextParams map[string]interface{},
-	parameters map[string]interface{},
+	contextParams map[string]any,
+	parameters map[string]any,
 ) context.Context {
 	svcName := method.getServiceNameForProvider()
 	ctx = context.WithValue(ctx, "service", svcName) //nolint:revive,staticcheck // TODO: add custom context type
@@ -253,9 +290,9 @@ func getRequest(
 }
 
 //nolint:funlen,gocognit // acceptable
-func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation() (HTTPArmoury, error) {
+func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation(cfg HTTPPreparatorConfig) (HTTPArmoury, error) {
 	var err error
-	httpArmoury := NewHTTPArmoury()
+	httpArmoury := NewHTTPArmoury(pr, cfg)
 	var requestSchema, responseSchema Schema
 	httpMethod, httpMethodOk := pr.m.(StandardOperationStore)
 	if !httpMethodOk {
@@ -272,7 +309,7 @@ func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation() (HTTPArmou
 	httpArmoury.SetRequestSchema(requestSchema)
 	httpArmoury.SetResponseSchema(responseSchema)
 
-	paramMap := make(map[int]map[string]interface{})
+	paramMap := make(map[int]map[string]any)
 	i := 0
 	for {
 		out, oErr := pr.parameters.Read()
@@ -306,7 +343,7 @@ func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation() (HTTPArmou
 			}
 			params.SetRequestBody(pr.execContext.GetExecPayload().GetPayloadMap())
 		} else if params.GetRequestBody() != nil && len(params.GetRequestBody()) != 0 {
-			m := make(map[string]interface{})
+			m := make(map[string]any)
 			baseRequestBytes := httpMethod.getBaseRequestBodyBytes()
 			if len(baseRequestBytes) > 0 {
 				mapErr := json.Unmarshal(baseRequestBytes, &m)
@@ -348,7 +385,7 @@ func (pr *standardHTTPPreparator) buildHTTPRequestCtxFromAnnotation() (HTTPArmou
 		if len(p.GetParameters().GetRequestBody()) == 0 && len(httpMethod.getDefaultRequestBodyBytes()) == 0 {
 			p.SetRequestBodyMap(nil)
 		} else if len(httpMethod.getDefaultRequestBodyBytes()) > 0 {
-			bm := make(map[string]interface{})
+			bm := make(map[string]any)
 			// TODO: support types other than json
 			err := json.Unmarshal(httpMethod.getDefaultRequestBodyBytes(), &bm)
 			if err == nil {
