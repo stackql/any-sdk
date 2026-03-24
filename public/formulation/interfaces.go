@@ -422,6 +422,8 @@ type View interface {
 	GetDDL() string
 	GetNameNaive() string
 	GetRequiredParamNames() []string
+	ToPresentationMap(extended bool) map[string]interface{}
+	GetColumnOrder(extended bool) []string
 	unwrap() anysdk.View
 }
 
