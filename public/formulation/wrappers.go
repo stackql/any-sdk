@@ -1660,6 +1660,16 @@ func (w *wrappedView) GetDDL() string {
 	return r0
 }
 
+func (w *wrappedView) GetColumnOrder(extended bool) []string {
+	r0 := w.inner.GetColumnOrder(extended)
+	return r0
+}
+
+func (w *wrappedView) ToPresentationMap(extended bool) map[string]interface{} {
+	r0 := w.inner.ToPresentationMap(extended)
+	return r0
+}
+
 func (w *wrappedView) GetNameNaive() string {
 	r0 := w.inner.GetNameNaive()
 	return r0
