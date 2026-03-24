@@ -25,6 +25,7 @@ type View interface {
 	GetPredicate() string
 	GetNameNaive() string
 	GetRequiredParamNames() []string
+	ToPresentationMap(extended bool) map[string]interface{}
 }
 
 func GetTestingView() standardViewContainer {
@@ -56,6 +57,19 @@ func (v *standardViewContainer) setResource(rsc Resource) {
 	if v.Fallback != nil {
 		v.Fallback.setResource(rsc)
 	}
+}
+
+func (v *standardViewContainer) ToPresentationMap(extended bool) map[string]interface{} {
+	requiredParamNames := v.getRequiredParamNames()
+	retVal := map[string]interface{}{
+		MethodName:     ViewMethodName,
+		RequiredParams: strings.Join(requiredParamNames, ", "),
+		SQLVerb:        strings.ToUpper("select"),
+	}
+	if extended {
+		retVal[MethodDescription] = fmt.Sprintf("This is a view with DDL: %s and Predicate: %s", v.DDL, v.Predicate)
+	}
+	return retVal
 }
 
 func (v *standardViewContainer) GetRequiredParamNames() []string {

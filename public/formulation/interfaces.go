@@ -422,6 +422,7 @@ type View interface {
 	GetDDL() string
 	GetNameNaive() string
 	GetRequiredParamNames() []string
+	ToPresentationMap(extended bool) map[string]interface{}
 	unwrap() anysdk.View
 }
 

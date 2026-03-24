@@ -12,6 +12,7 @@ const (
 	MethodName        string = "MethodName"
 	RequiredParams    string = "RequiredParams"
 	SQLVerb           string = "SQLVerb"
+	ViewMethodName    string = "__view__"
 )
 
 const (
