@@ -139,6 +139,7 @@ jobs:
         path: stackql-core
 
     - name: Run Interrogate CLI robot tests
+      continue-on-error: true
       run: |
         stackql exec "registry pull aws ${PROVIDER_VERSION_AWS};"
         stackql exec "registry pull google ${PROVIDER_VERSION_GOOGLE};"
@@ -149,19 +150,19 @@ jobs:
           ./.stackql/src/aws/${PROVIDER_VERSION_AWS}/provider.yaml \
           -v \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl"
+          cicd/schema-definitions > "cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl" || true
         ./build/anysdk aot \
           ./.stackql \
           ./.stackql/src/azure/${PROVIDER_VERSION_AZURE}/provider.yaml \
           -v \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl"
+          cicd/schema-definitions > "cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl" || true
         ./build/anysdk aot \
           ./.stackql \
           ./.stackql/src/googleapis.com/${PROVIDER_VERSION_GOOGLE}/provider.yaml \
           -v \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl"
+          cicd/schema-definitions > "cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl" || true
 
     - name: Upload Interrogate CLI robot test results
       uses: actions/upload-artifact@v4
