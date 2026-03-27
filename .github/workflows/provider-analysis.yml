@@ -31,44 +31,6 @@ jobs:
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
-    
-    - name: API sprawl check
-      run: |
-        if ./cicd/scripts/hack/check_api_growth.sh; then
-          echo "API sprawl check passed"
-        else
-          echo "API sprawl check failed - please review for details"
-          # exit 1
-        fi
-    
-    - name: Setup system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y jq
-    
-    - name: Setup Python
-      uses: actions/setup-python@v5.0.0
-      with:
-        # cache: pip # this requires requirements in source control
-        python-version: '${{ env.PYTHON_VERSION }}'
-    
-    - name: Install python dependencies
-      run: |
-        echo "Installing python dependencies"
-        pip3 install -r cicd/testing-requirements.txt
-    
-    - name: Download python package dist folder
-      uses: actions/download-artifact@v4.1.2
-      with:
-        name: python-package-dist-folder
-        path: test/dist
-
-    - name: Install python testing package
-      run: |
-        echo "Inspecting python package"
-        for file in test/dist/*.whl; do
-          pip3 install "$file" --force-reinstall
-        done 
       
     - name: Get dependencies
       run: |
