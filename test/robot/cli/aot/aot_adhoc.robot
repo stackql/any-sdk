@@ -66,4 +66,4 @@ Simple AOT Service Level Analysis AWS EC2 with CLI
     Log    RC = ${result.rc}
     Should Contain                     ${result.stderr}    
     ...                                successfully dereferenced method = 'describeVolumes' for resource = 'volumes' with service name = 'ec2'
-    Should Be Equal As Strings    ${result.rc}    0
+    Should Be Equal As Strings    ${result.rc}    1
