@@ -35,6 +35,7 @@ func ClassifyWarnings(warnings []string) map[string][]string {
 
 // AnalysisSummary is the JSON-serialisable top-level output of static analysis.
 type AnalysisSummary struct {
+	TotalOK       int                       `json:"total_ok"`
 	TotalWarnings int                       `json:"total_warnings"`
 	TotalErrors   int                       `json:"total_errors"`
 	Bins          map[string]AnalysisBin    `json:"bins"`
@@ -49,10 +50,11 @@ type AnalysisBin struct {
 }
 
 // FormatSummaryJSON returns a JSON summary of errors and classified warnings.
-func FormatSummaryJSON(errors []error, warnings []string) string {
+func FormatSummaryJSON(errors []error, warnings []string, affirmatives []string) string {
 	bins := ClassifyWarnings(warnings)
 
 	summary := AnalysisSummary{
+		TotalOK:       len(affirmatives),
 		TotalWarnings: len(warnings),
 		TotalErrors:   len(errors),
 		Bins:          make(map[string]AnalysisBin),

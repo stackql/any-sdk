@@ -74,6 +74,7 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 
 	allErrs := analyzer.GetErrors()
 	allWarnings := analyzer.GetWarnings()
+	allAffirmatives := analyzer.GetAffirmatives()
 
 	// stderr: JSONL log entries
 	for _, err := range allErrs {
@@ -83,13 +84,13 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 		fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("warning", warning))
 	}
 	if rtCtx.VerboseFlag {
-		for _, affirmative := range analyzer.GetAffirmatives() {
+		for _, affirmative := range allAffirmatives {
 			fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("info", affirmative))
 		}
 	}
 
 	// stdout: JSON summary
-	fmt.Fprintln(os.Stdout, discovery.FormatSummaryJSON(allErrs, allWarnings))
+	fmt.Fprintln(os.Stdout, discovery.FormatSummaryJSON(allErrs, allWarnings, allAffirmatives))
 
 	if analyisErr != nil {
 		os.Exit(1)

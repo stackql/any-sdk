@@ -139,7 +139,6 @@ jobs:
         path: stackql-core
 
     - name: Run Interrogate CLI robot tests
-      continue-on-error: true
       run: |
         stackql exec "registry pull aws ${PROVIDER_VERSION_AWS};"
         stackql exec "registry pull google ${PROVIDER_VERSION_GOOGLE};"
