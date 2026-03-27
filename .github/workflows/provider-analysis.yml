@@ -161,7 +161,7 @@ jobs:
           cicd/schema-definitions > "cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl"
 
     - name: Upload Interrogate CLI robot test results
-      uses: actions/upload-artifact@v4.1.2
+      uses: actions/upload-artifact@v4
       with:
         name: interrogate-cli-robot-test-results
         path: cicd/out/*.json*
