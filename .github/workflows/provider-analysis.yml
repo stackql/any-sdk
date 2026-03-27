@@ -144,6 +144,7 @@ jobs:
     name: Analysis
     runs-on: ubuntu-24.04
     needs: 
+      - build-anysdk
       - build-stackql
     steps:
 
