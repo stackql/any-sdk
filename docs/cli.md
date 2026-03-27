@@ -1,7 +1,7 @@
 
 # CLI
 
-The `any-sdk` CLI is for testing purposes, so long as semver < 1.
+The `anysdk` CLI is for testing purposes, so long as semver < 1.
 
 
 ## Build
@@ -11,6 +11,8 @@ From the root of this repository:
 ```bash
 cicd/cli/build_cli.sh
 ```
+
+Or if you want, cut out the middle man with `go build -o build/anysdk ./cmd/interrogate`.
 
 This creates an executable at the `.gitignore`d location `build/anysdk`.
 
@@ -163,5 +165,20 @@ build/anysdk aot \
   -v \
   --schema-dir \
   cicd/schema-definitions
+
+```
+
+Feel like analyzing a live provider?  Download with stackql then go for it.
+
+```bash
+
+stackql exec "registry pull aws v26.02.00377;"
+
+_now="$(date +%s)" && build/anysdk aot \
+  ./.stackql \
+  ./.stackql/src/aws/v26.02.00377/provider.yaml \
+  -v \
+  --schema-dir \
+  cicd/schema-definitions > "cicd/out/${_now}-summary.json" 2>"cicd/out/${_now}-analysis.jsonl"
 
 ```

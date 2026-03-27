@@ -1,0 +1,205 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - provider-analysis*
+
+env:
+  STACKQL_CORE_REPOSITORY: ${{ vars.STACKQL_CORE_REPOSITORY != '' && vars.STACKQL_CORE_REPOSITORY || 'stackql/stackql' }}
+  STACKQL_CORE_REF: ${{ vars.STACKQL_CORE_REF != '' && vars.STACKQL_CORE_REF || 'main' }}
+  STACKQL_ANY_SDK_REPOSITORY: ${{ vars.STACKQL_ANY_SDK_REPOSITORY != '' && vars.STACKQL_ANY_SDK_REPOSITORY || 'stackql/any-sdk' }}
+  STACKQL_ANY_SDK_REF: ${{ vars.STACKQL_ANY_SDK_REF != '' && vars.STACKQL_ANY_SDK_REF || 'main' }} 
+  PROVIDER_VERSION_AWS: v26.02.00377
+  PROVIDER_VERSION_AZURE: v24.10.00267
+  PROVIDER_VERSION_GOOGLE: v25.12.00357
+  GOLANG_VERSION: 1.25.3
+  PYTHON_VERSION: 3.12
+
+jobs:
+
+  build-anysdk:
+    runs-on: ubuntu-24.04
+
+    steps:
+
+    - name: Set up golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^${{ env.GOLANG_VERSION }}
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    
+    - name: API sprawl check
+      run: |
+        if ./cicd/scripts/hack/check_api_growth.sh; then
+          echo "API sprawl check passed"
+        else
+          echo "API sprawl check failed - please review for details"
+          # exit 1
+        fi
+    
+    - name: Setup system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5.0.0
+      with:
+        # cache: pip # this requires requirements in source control
+        python-version: '${{ env.PYTHON_VERSION }}'
+    
+    - name: Install python dependencies
+      run: |
+        echo "Installing python dependencies"
+        pip3 install -r cicd/testing-requirements.txt
+    
+    - name: Download python package dist folder
+      uses: actions/download-artifact@v4.1.2
+      with:
+        name: python-package-dist-folder
+        path: test/dist
+
+    - name: Install python testing package
+      run: |
+        echo "Inspecting python package"
+        for file in test/dist/*.whl; do
+          pip3 install "$file" --force-reinstall
+        done 
+      
+    - name: Get dependencies
+      run: |
+        git config --global url.https://$GH_ACCESS_TOKEN@github.com/.insteadOf https://github.com/
+        $GOGETCMD
+      env:
+        GOGETCMD: ${{env.GOGETCMD}}
+        GH_ACCESS_TOKEN: ${{env.GH_ACCESS_TOKEN}}
+        GOPRIVATE: ${{env.GOPRIVATE}}
+
+    - name: Generate Build Flags and Build
+      env:
+        BUILDCOMMITSHA: ${{github.sha}}
+        BUILDBRANCH: ${{github.ref}}
+        BUILDPLATFORM: ${{runner.os}}
+        BUILDPATCHVERSION: ${{github.run_number}}
+      run: |
+        BUILDSHORTCOMMITSHA=$(echo $BUILDCOMMITSHA | cut -c 1-7)
+        BUILDDATE=$(date)
+        echo "BUILDBRANCH: ${BUILDBRANCH}"
+        echo "BUILDCOMMITSHA: ${BUILDCOMMITSHA}"
+        echo "BUILDSHORTCOMMITSHA: ${BUILDSHORTCOMMITSHA}"
+        echo "BUILDDATE: ${BUILDDATE}"
+        echo "BUILDPLATFORM: ${BUILDPLATFORM}"
+
+        go build -x -v \
+          -o build/anysdk ./cmd/interrogate
+      
+    - name: Test
+      if: success()
+      run: go test -timeout 240s -v ./...
+
+    - name: Upload any-sdk binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: anysdk_binary
+        path: build/anysdk
+
+
+  build-stackql:
+    runs-on: ubuntu-24.04
+        
+
+    steps:
+
+      - name: Set up golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^${{ env.GOLANG_VERSION }}
+        id: go
+
+      - name: Download core
+        uses: actions/checkout@v4.1.1
+        with:
+          repository: ${{ env.STACKQL_CORE_REPOSITORY }}
+          ref: ${{ env.STACKQL_CORE_REF }}
+          token: ${{ secrets.CI_STACKQL_PACKAGE_DOWNLOAD_TOKEN  }}
+          path: stackql-core
+
+      - name: Build stackql from core source
+        working-directory: stackql-core
+        run: |
+          go get ./...
+          python3 cicd/python/build.py --build
+
+      - name: Upload stackql binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: stackql_binary
+          path: stackql-core/build/stackql
+
+  analysis:
+    name: Analysis
+    runs-on: ubuntu-24.04
+    needs: 
+      - build-stackql
+    steps:
+
+    - name: Download stackql binary
+      uses: actions/download-artifact@v4
+      with:
+        name: stackql_binary
+        path: build
+
+    - name: Download any-sdk binary
+      uses: actions/download-artifact@v4
+      with:
+        name: anysdk_binary
+        path: build
+
+    - name: Make requisite binaries executable and add to path
+      run: |
+        echo "${{ github.workspace }}/build" >> $GITHUB_PATH;
+        chmod +x "${{ github.workspace }}/build/stackql"
+        chmod +x "${{ github.workspace }}/build/anysdk"
+
+    - name: Download core
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ env.STACKQL_CORE_REPOSITORY }}
+        ref: ${{ env.STACKQL_CORE_REF }}
+        path: stackql-core
+
+    - name: Run Interrogate CLI robot tests
+      run: |
+        stackql exec "registry pull aws ${PROVIDER_VERSION_AWS};"
+        stackql exec "registry pull google ${PROVIDER_VERSION_GOOGLE};"
+        stackql exec "registry pull azure ${PROVIDER_VERSION_AZURE};"
+        _now="$(date +%s)" && \
+        ./build/anysdk aot \
+          ./.stackql \
+          ./.stackql/src/aws/${PROVIDER_VERSION_AWS}/provider.yaml \
+          -v \
+          --schema-dir \
+          cicd/schema-definitions > "cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl"
+        ./build/anysdk aot \
+          ./.stackql \
+          ./.stackql/src/azure/${PROVIDER_VERSION_AZURE}/provider.yaml \
+          -v \
+          --schema-dir \
+          cicd/schema-definitions > "cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl"
+        ./build/anysdk aot \
+          ./.stackql \
+          ./.stackql/src/googleapis.com/${PROVIDER_VERSION_GOOGLE}/provider.yaml \
+          -v \
+          --schema-dir \
+          cicd/schema-definitions > "cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl"
+
+    - name: Upload Interrogate CLI robot test results
+      uses: actions/upload-artifact@v4.1.2
+      with:
+        name: interrogate-cli-robot-test-results
+        path: cicd/out/*.json*
+
