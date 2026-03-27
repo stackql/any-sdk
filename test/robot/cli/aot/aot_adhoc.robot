@@ -20,7 +20,7 @@ Simple AOT Analysis Google Provider with CLI
     Log    Stdout = ${result.stdout}
     Log    RC = ${result.rc}
     Should Contain                     ${result.stderr}    
-    ...                                error count 637
+    ...                                missing-semantics
     Should Be Equal As Strings    ${result.rc}    1
 
 Simple AOT Analysis AWS Provider with CLI
@@ -43,7 +43,7 @@ Simple AOT Analysis AWS Provider with CLI
     # Should Contain                     ${result.stdout}    
     # ...                                successfully performed AOT analysis
     Should Contain                     ${result.stderr}    
-    ...                                error count 2
+    ...                                missing-semantics
     Should Be Equal As Strings    ${result.rc}    1
 
 Simple AOT Service Level Analysis AWS EC2 with CLI
