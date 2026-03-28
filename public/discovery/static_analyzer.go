@@ -1359,10 +1359,10 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 				selectItemsKey := method.GetSelectItemsKey()
 				hasSelectionSemantics := selectItemsKey != ""
 				if !hasSelectionSemantics && isSelectMethod {
-					osa.warnings = append(osa.warnings, fmt.Sprintf("apparent select method %s for resource %s does not have selection semantics", methodName, resourceKey))
+					osa.warnings = append(osa.warnings, classifiedWarning(BinMissingSemantics, "apparent select method %s for resource %s does not have selection semantics", methodName, resourceKey))
 				}
 				if sqlVerb == "" {
-					osa.warnings = append(osa.warnings, fmt.Sprintf("method %s for resource %s has no SQL verb", methodName, resourceKey))
+					osa.warnings = append(osa.warnings, classifiedWarning(BinMissingSemantics, "method %s for resource %s has no SQL verb", methodName, resourceKey))
 				}
 				shouldBeSelectable := method.ShouldBeSelectable()
 				if shouldBeSelectable {
@@ -1384,6 +1384,12 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 					}
 					osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully inferred response schema for method = '%s' with media type %s  at object path = %s", methodName, mediaType, objPath))
 				}
+				// Response + objectKey combined analysis (empty response handling + routability)
+				roakResult := analyzeResponseAndObjectKey(&method, methodName, resourceKey)
+				osa.errors = append(osa.errors, roakResult.errors...)
+				osa.warnings = append(osa.warnings, roakResult.warnings...)
+				osa.affirmatives = append(osa.affirmatives, roakResult.affirmatives...)
+
 				osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced method = '%s' for resource = '%s' with service name = '%s'", methodName, resourceKey, k))
 			case client.LocalTemplated:
 				// Local templated protocol specific analysis

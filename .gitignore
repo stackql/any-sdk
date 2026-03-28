@@ -7,3 +7,4 @@ dist/
 __pycache__/
 *.py[co]
 stackql-core/
+.stackql/

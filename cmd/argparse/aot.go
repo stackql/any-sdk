@@ -71,17 +71,28 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 		os.Exit(1)
 	}
 	analyisErr := analyzer.Analyze()
-	if analyisErr != nil {
-		allErrs := analyzer.GetErrors()
-		for _, err := range allErrs {
-			fmt.Fprintln(os.Stderr, fmt.Sprint(err.Error()))
-		}
+
+	allErrs := analyzer.GetErrors()
+	allWarnings := analyzer.GetWarnings()
+	allAffirmatives := analyzer.GetAffirmatives()
+
+	// stderr: JSONL log entries
+	for _, err := range allErrs {
+		fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("error", err.Error()))
+	}
+	for _, warning := range allWarnings {
+		fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("warning", warning))
 	}
 	if rtCtx.VerboseFlag {
-		for _, affirmative := range analyzer.GetAffirmatives() {
-			fmt.Fprintln(os.Stderr, fmt.Sprint(affirmative))
+		for _, affirmative := range allAffirmatives {
+			fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("info", affirmative))
 		}
 	}
-	printErrorAndExitOneIfError(analyisErr)
-	fmt.Fprintf(os.Stdout, "\nsuccessfully performed AOT analysis on providerDoc = '%s'\n", providerDoc)
+
+	// stdout: JSON summary
+	fmt.Fprintln(os.Stdout, discovery.FormatSummaryJSON(allErrs, allWarnings, allAffirmatives))
+
+	if analyisErr != nil {
+		os.Exit(1)
+	}
 }
