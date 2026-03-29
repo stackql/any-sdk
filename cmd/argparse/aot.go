@@ -76,12 +76,24 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 	allWarnings := analyzer.GetWarnings()
 	allAffirmatives := analyzer.GetAffirmatives()
 
-	// stderr: JSONL log entries
-	for _, err := range allErrs {
-		fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("error", err.Error()))
+	// Collect structured findings if available
+	var findings []discovery.AnalysisFinding
+	if fa, ok := analyzer.(discovery.FindingsAware); ok {
+		findings = fa.GetFindings()
 	}
-	for _, warning := range allWarnings {
-		fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("warning", warning))
+
+	// stderr: JSONL log entries — use structured findings where available
+	if len(findings) > 0 {
+		for _, f := range findings {
+			fmt.Fprintln(os.Stderr, discovery.FormatFindingJSON(f))
+		}
+	} else {
+		for _, err := range allErrs {
+			fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("error", err.Error()))
+		}
+		for _, warning := range allWarnings {
+			fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("warning", warning))
+		}
 	}
 	if rtCtx.VerboseFlag {
 		for _, affirmative := range allAffirmatives {
@@ -90,7 +102,7 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 	}
 
 	// stdout: JSON summary
-	fmt.Fprintln(os.Stdout, discovery.FormatSummaryJSON(allErrs, allWarnings, allAffirmatives))
+	fmt.Fprintln(os.Stdout, discovery.FormatSummaryJSON(allErrs, allWarnings, allAffirmatives, findings))
 
 	if analyisErr != nil {
 		os.Exit(1)

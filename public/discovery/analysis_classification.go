@@ -8,7 +8,6 @@ import (
 )
 
 // Warning classification bins for static analysis.
-// Each warning string is prefixed with its bin tag in square brackets.
 const (
 	BinResponseShapeUnsafe = "response-shape-unsafe"
 	BinObjectKeyUnroutable = "objectKey-unroutable"
@@ -17,79 +16,83 @@ const (
 	BinMissingSemantics    = "missing-semantics"
 )
 
-// classifiedWarning prefixes a warning message with its bin tag.
+// classifiedWarning prefixes a warning message with its bin tag (legacy string format).
 func classifiedWarning(bin string, format string, args ...interface{}) string {
 	return fmt.Sprintf("[%s] %s", bin, fmt.Sprintf(format, args...))
 }
 
-// ClassifyWarnings parses tagged warning strings and groups them by bin.
-// Untagged warnings go into an "other" bin.
-func ClassifyWarnings(warnings []string) map[string][]string {
-	bins := make(map[string][]string)
-	for _, w := range warnings {
-		bin, msg := parseWarningBin(w)
-		bins[bin] = append(bins[bin], msg)
-	}
-	return bins
-}
-
 // AnalysisSummary is the JSON-serialisable top-level output of static analysis.
 type AnalysisSummary struct {
-	TotalOK       int                       `json:"total_ok"`
-	TotalWarnings int                       `json:"total_warnings"`
-	TotalErrors   int                       `json:"total_errors"`
-	Bins          map[string]AnalysisBin    `json:"bins"`
-	Errors        []string                  `json:"errors,omitempty"`
+	TotalOK       int                    `json:"total_ok"`
+	TotalWarnings int                    `json:"total_warnings"`
+	TotalErrors   int                    `json:"total_errors"`
+	Bins          map[string]AnalysisBin `json:"bins"`
+	Services      map[string]ServiceSummary `json:"services"`
+	Errors        []string               `json:"errors,omitempty"`
 }
 
 // AnalysisBin holds the items for a single classification bin.
 type AnalysisBin struct {
-	Count    int      `json:"count"`
-	Errors   []string `json:"errors,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
+	Count    int               `json:"count"`
+	Errors   []AnalysisFinding `json:"errors,omitempty"`
+	Warnings []AnalysisFinding `json:"warnings,omitempty"`
 }
 
-// FormatSummaryJSON returns a JSON summary of errors and classified warnings.
-func FormatSummaryJSON(errors []error, warnings []string, affirmatives []string) string {
-	bins := ClassifyWarnings(warnings)
+// ServiceSummary aggregates error and warning counts per service.
+type ServiceSummary struct {
+	ErrorCount   int `json:"error_count"`
+	WarningCount int `json:"warning_count"`
+}
 
+// FormatSummaryJSON returns a JSON summary from structured findings.
+func FormatSummaryJSON(legacyErrors []error, legacyWarnings []string, affirmatives []string, findings []AnalysisFinding) string {
 	summary := AnalysisSummary{
-		TotalOK:       len(affirmatives),
-		TotalWarnings: len(warnings),
-		TotalErrors:   len(errors),
-		Bins:          make(map[string]AnalysisBin),
+		TotalOK:  len(affirmatives),
+		Bins:     make(map[string]AnalysisBin),
+		Services: make(map[string]ServiceSummary),
 	}
 
-	// Classify errors into bins (if tagged) or the top-level errors list
-	for _, e := range errors {
-		bin, msg := parseWarningBin(e.Error())
-		if bin != "other" {
-			b := bins[bin]
-			b = append(b, "ERROR: "+msg)
-			bins[bin] = b
+	// Classify findings into bins and services
+	for _, f := range findings {
+		bin := f.Bin
+		if bin == "" {
+			bin = "other"
+		}
+		ab := summary.Bins[bin]
+		ab.Count++
+		if f.Level == "error" {
+			ab.Errors = append(ab.Errors, f)
+			summary.TotalErrors++
 		} else {
-			summary.Errors = append(summary.Errors, e.Error())
+			ab.Warnings = append(ab.Warnings, f)
+			summary.TotalWarnings++
 		}
-	}
+		summary.Bins[bin] = ab
 
-	// Sort bin names for stable output
-	binNames := make([]string, 0, len(bins))
-	for b := range bins {
-		binNames = append(binNames, b)
-	}
-	sort.Strings(binNames)
-
-	for _, b := range binNames {
-		items := bins[b]
-		ab := AnalysisBin{Count: len(items)}
-		for _, item := range items {
-			if strings.HasPrefix(item, "ERROR: ") {
-				ab.Errors = append(ab.Errors, strings.TrimPrefix(item, "ERROR: "))
+		if f.Service != "" {
+			ss := summary.Services[f.Service]
+			if f.Level == "error" {
+				ss.ErrorCount++
 			} else {
-				ab.Warnings = append(ab.Warnings, item)
+				ss.WarningCount++
 			}
+			summary.Services[f.Service] = ss
 		}
-		summary.Bins[b] = ab
+	}
+
+	// Include legacy errors that aren't in findings (infrastructure errors)
+	for _, e := range legacyErrors {
+		bin, msg := parseWarningBin(e.Error())
+		if bin == "other" {
+			// Only include if not already represented in findings
+			summary.Errors = append(summary.Errors, msg)
+		}
+	}
+	if summary.TotalErrors == 0 {
+		summary.TotalErrors = len(legacyErrors)
+	}
+	if summary.TotalWarnings == 0 {
+		summary.TotalWarnings = len(legacyWarnings)
 	}
 
 	out, err := json.MarshalIndent(summary, "", "  ")
@@ -99,16 +102,13 @@ func FormatSummaryJSON(errors []error, warnings []string, affirmatives []string)
 	return string(out)
 }
 
-// AnalysisLogEntry is a single JSONL line emitted during verbose analysis.
-type AnalysisLogEntry struct {
-	Level    string `json:"level"`              // "error", "warning", "info"
-	Bin      string `json:"bin,omitempty"`       // classification bin (warnings only)
-	Message  string `json:"message"`
-}
-
 // FormatLogEntryJSON returns a single JSONL line for an analysis event.
 func FormatLogEntryJSON(level string, message string) string {
-	entry := AnalysisLogEntry{
+	entry := struct {
+		Level   string `json:"level"`
+		Bin     string `json:"bin,omitempty"`
+		Message string `json:"message"`
+	}{
 		Level:   level,
 		Message: message,
 	}
@@ -119,11 +119,47 @@ func FormatLogEntryJSON(level string, message string) string {
 			entry.Message = msg
 		}
 	}
-	out, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Sprintf(`{"level":"error","message":"failed to marshal log entry: %v"}`, err)
-	}
+	out, _ := json.Marshal(entry)
 	return string(out)
+}
+
+// FormatFindingJSON returns a single JSONL line for a structured finding.
+func FormatFindingJSON(f AnalysisFinding) string {
+	out, _ := json.Marshal(f)
+	return string(out)
+}
+
+// ClassifyWarnings parses tagged warning strings and groups them by bin (legacy).
+func ClassifyWarnings(warnings []string) map[string][]string {
+	bins := make(map[string][]string)
+	for _, w := range warnings {
+		bin, msg := parseWarningBin(w)
+		bins[bin] = append(bins[bin], msg)
+	}
+	return bins
+}
+
+// FormatWarningSummary returns a human-readable summary (legacy, kept for reference).
+func FormatWarningSummary(warnings []string) string {
+	if len(warnings) == 0 {
+		return ""
+	}
+	bins := ClassifyWarnings(warnings)
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("\n=== Warning Summary (%d total) ===\n", len(warnings)))
+	binNames := make([]string, 0, len(bins))
+	for b := range bins {
+		binNames = append(binNames, b)
+	}
+	sort.Strings(binNames)
+	for _, b := range binNames {
+		items := bins[b]
+		sb.WriteString(fmt.Sprintf("\n[%s] (%d)\n", b, len(items)))
+		for _, item := range items {
+			sb.WriteString(fmt.Sprintf("  - %s\n", item))
+		}
+	}
+	return sb.String()
 }
 
 func parseWarningBin(warning string) (string, string) {
