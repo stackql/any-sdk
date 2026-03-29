@@ -941,12 +941,17 @@ type genericStaticAnalyzer struct {
 	errors            []error
 	warnings          []string
 	affirmatives      []string
+	findings          []AnalysisFinding
 	persistenceSystem persistence.PersistenceSystem
 	discoveryAdapter  IDiscoveryAdapter
 	discoveryStore    IDiscoveryStore
 	registryAPI       anysdk.RegistryAPI
 	schemaDir         string
 	validator         docval.FileValidator
+}
+
+func (osa *genericStaticAnalyzer) GetFindings() []AnalysisFinding {
+	return osa.findings
 }
 
 // For each operation store in each resource:
@@ -1039,6 +1044,9 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 		}
 		osa.warnings = append(osa.warnings, serviceLevelStaticAnalyzer.GetWarnings()...)
 		osa.affirmatives = append(osa.affirmatives, serviceLevelStaticAnalyzer.GetAffirmatives()...)
+		if fa, ok := serviceLevelStaticAnalyzer.(FindingsAware); ok {
+			osa.findings = append(osa.findings, fa.GetFindings()...)
+		}
 	}
 	wg.Wait()
 	if len(osa.errors) > 0 {
@@ -1239,12 +1247,18 @@ type serviceLevelStaticAnalyzer struct {
 	errors             []error
 	warnings           []string
 	affirmatives       []string
+	findings           []AnalysisFinding
 	discoveryAdapter   IDiscoveryAdapter
 	discoveryStore     IDiscoveryStore
 	provider           anysdk.Provider
 	providerService    anysdk.ProviderService
 	providerServiceKey string
 	registryAPI        anysdk.RegistryAPI
+}
+
+// GetFindings returns structured findings from this analyzer.
+func (osa *serviceLevelStaticAnalyzer) GetFindings() []AnalysisFinding {
+	return osa.findings
 }
 
 func (osa *serviceLevelStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
@@ -1311,6 +1325,7 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 		osa.errors = append(osa.errors, err)
 		return err
 	}
+	providerName := osa.provider.GetName()
 	for resourceKey, resource := range resources {
 		// Loader.mergeResource() dereferences interesting stuff including:
 		//   - operation store attributes dereference:
@@ -1324,6 +1339,12 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 			// Perform analysis on each method
 			if !osa.cfg.IsProviderServicesMustExpand() {
 				continue
+			}
+			actx := AnalysisContext{
+				Provider: providerName,
+				Service:  k,
+				Resource: resourceKey,
+				Method:   methodName,
 			}
 			svc := svcFragments[resourceKey]
 			if svc == nil {
@@ -1359,9 +1380,11 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 				selectItemsKey := method.GetSelectItemsKey()
 				hasSelectionSemantics := selectItemsKey != ""
 				if !hasSelectionSemantics && isSelectMethod {
+					osa.findings = append(osa.findings, actx.NewWarning(BinMissingSemantics, fmt.Sprintf("apparent select method does not have selection semantics")))
 					osa.warnings = append(osa.warnings, classifiedWarning(BinMissingSemantics, "apparent select method %s for resource %s does not have selection semantics", methodName, resourceKey))
 				}
 				if sqlVerb == "" {
+					osa.findings = append(osa.findings, actx.NewWarning(BinMissingSemantics, "method has no SQL verb"))
 					osa.warnings = append(osa.warnings, classifiedWarning(BinMissingSemantics, "method %s for resource %s has no SQL verb", methodName, resourceKey))
 				}
 				shouldBeSelectable := method.ShouldBeSelectable()
@@ -1385,10 +1408,11 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 					osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully inferred response schema for method = '%s' with media type %s  at object path = %s", methodName, mediaType, objPath))
 				}
 				// Response + objectKey combined analysis (empty response handling + routability)
-				roakResult := analyzeResponseAndObjectKey(&method, methodName, resourceKey)
+				roakResult := analyzeResponseAndObjectKey(actx, &method)
 				osa.errors = append(osa.errors, roakResult.errors...)
 				osa.warnings = append(osa.warnings, roakResult.warnings...)
 				osa.affirmatives = append(osa.affirmatives, roakResult.affirmatives...)
+				osa.findings = append(osa.findings, roakResult.findings...)
 
 				osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced method = '%s' for resource = '%s' with service name = '%s'", methodName, resourceKey, k))
 			case client.LocalTemplated:
