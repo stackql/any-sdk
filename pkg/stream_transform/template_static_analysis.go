@@ -104,7 +104,7 @@ func (a *standardTemplateStaticAnalyzer) Analyze() TemplateAnalysisResult {
 	factory := NewStreamTransformerFactory(tplType, tplBody)
 	if !factory.IsTransformable() {
 		msg := fmt.Sprintf("response transform type '%s' is not a recognised transformable type", tplType)
-		result.errors = append(result.errors, fmt.Errorf(msg))
+		result.errors = append(result.errors, fmt.Errorf("%s", msg))
 		result.findings = append(result.findings, a.newFinding("error", "", msg))
 		return result
 	}
@@ -113,7 +113,7 @@ func (a *standardTemplateStaticAnalyzer) Analyze() TemplateAnalysisResult {
 	_, parseErr := template.New("__static_analysis__").Funcs(funcMap).Parse(tplBody)
 	if parseErr != nil {
 		msg := fmt.Sprintf("response transform template failed to parse: %v", parseErr)
-		result.errors = append(result.errors, fmt.Errorf(msg))
+		result.errors = append(result.errors, fmt.Errorf("%s", msg))
 		result.findings = append(result.findings, a.newFinding("error", "", msg))
 		return result
 	}
