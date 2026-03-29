@@ -54,12 +54,13 @@ type TemplateAnalysisResult interface {
 
 // TemplateAnalysisContext provides the caller's context.
 type TemplateAnalysisContext struct {
-	ProviderName string
-	ServiceName  string
-	MethodName   string
-	ResourceKey  string
-	TemplateType string
-	TemplateBody string
+	ProviderName   string
+	ServiceName    string
+	MethodName     string
+	ResourceKey    string
+	TemplateType   string
+	TemplateBody   string
+	IsFixValidation bool // true when analyzing a proposed fix — suppresses fix generation
 }
 
 func NewTemplateStaticAnalyzer(ctx TemplateAnalysisContext) TemplateStaticAnalyzer {
@@ -126,12 +127,44 @@ func (a *standardTemplateStaticAnalyzer) Analyze() TemplateAnalysisResult {
 	a.analyzeFormatSpecific(result)
 
 	// If any errors or warnings were found, attempt to produce a fixed template
-	if len(result.errors) > 0 || len(result.warnings) > 0 {
+	// (but not if this is already a fix validation pass)
+	if !a.ctx.IsFixValidation && (len(result.errors) > 0 || len(result.warnings) > 0) {
 		fixed := FixTemplate(tplBody, tplType)
 		if fixed != "" {
-			if err := ValidateFixedTemplateWithOriginal(fixed, tplBody, tplType); err != nil {
+			// Validate the fix by running it through the same static analysis
+			fixAnalyzer := NewTemplateStaticAnalyzer(TemplateAnalysisContext{
+				ProviderName:    a.ctx.ProviderName,
+				ServiceName:     a.ctx.ServiceName,
+				MethodName:      a.ctx.MethodName,
+				ResourceKey:     a.ctx.ResourceKey,
+				TemplateType:    tplType,
+				TemplateBody:    fixed,
+				IsFixValidation: true,
+			})
+			fixResult := fixAnalyzer.Analyze()
+			fixErrors := fixResult.GetErrors()
+
+			// Also run empirical empty-input tests on the fix
+			fixEmpirical := RunEmpiricalTests(fixed, tplType)
+
+			// Compare fix empirical results against original — only fail if fix introduces NEW errors
+			origEmpirical := RunEmpiricalTests(tplBody, tplType)
+			fixIntroducedNewError := false
+			for i, fr := range fixEmpirical.Results {
+				if !fr.OK && i < len(origEmpirical.Results) && origEmpirical.Results[i].OK {
+					fixIntroducedNewError = true
+					break
+				}
+			}
+
+			if len(fixErrors) > 0 {
 				f := a.newFinding("warning", BinResponseShapeUnsafe,
-					fmt.Sprintf("proposed fix failed validation: %v", err))
+					fmt.Sprintf("proposed fix failed static analysis: %v", fixErrors[0]))
+				result.warnings = append(result.warnings, f.String())
+				result.findings = append(result.findings, f)
+			} else if fixIntroducedNewError {
+				f := a.newFinding("warning", BinResponseShapeUnsafe,
+					"proposed fix introduced new empirical test failures")
 				result.warnings = append(result.warnings, f.String())
 				result.findings = append(result.findings, f)
 			} else {
