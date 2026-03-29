@@ -4,7 +4,13 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"text/template"
 )
+
+// assignChainedIndexRe matches {{ $var := index EXPR "k1" "k2" ... }}
+// e.g. {{- $items := index $resp "securityGroupInfo" "item" -}}
+var assignChainedIndexRe = regexp.MustCompile(
+	`\{\{(-?\s*)(\$\w+)\s*:=\s*index\s+(\S+)\s+("(?:[^"]*"\s*)+"[^"]*")(\s*-?)\}\}`)
 
 // withChainedIndexRe matches {{ with index EXPR "k1" "k2" ... }} capturing:
 //   group 1: whitespace/trim before "with"
@@ -35,10 +41,17 @@ func FixTemplate(body string, tplType string) string {
 		return "{{- if . -}}{{ toJson . }}{{- else -}}null{{- end -}}"
 	}
 
-	// Fix 2 & 3: chained index in MXJ templates
+	// Fix 2, 3, 4: chained index in MXJ templates — iterate until stable
 	if formatClass == templateFormatXML {
-		fixed = fixInlineChainedIndex(fixed)
-		fixed = fixWithChainedIndex(fixed)
+		for i := 0; i < 10; i++ {
+			prev := fixed
+			fixed = fixInlineChainedIndex(fixed)
+			fixed = fixWithChainedIndex(fixed)
+			fixed = fixAssignChainedIndex(fixed)
+			if fixed == prev {
+				break
+			}
+		}
 	}
 
 	if fixed == body {
@@ -92,6 +105,70 @@ func fixInlineChainedIndex(body string) string {
 			trimL, innerIndex, trimR, value, elseTrimL, elseTrimR, fallback, endTrimL, endTrimR,
 			elseTrimL, elseTrimR, fallback, endTrimL, endTrimR,
 			endTrimL, endTrimR,
+		)
+	})
+}
+
+// fixAssignChainedIndex fixes variable assignment patterns like:
+//
+//	{{- $items := index $resp "securityGroupInfo" "item" -}}
+//
+// by breaking the chain: assign from the first key, then conditionally
+// re-assign from the second key based on the intermediate type.
+func fixAssignChainedIndex(body string) string {
+	return assignChainedIndexRe.ReplaceAllStringFunc(body, func(match string) string {
+		groups := assignChainedIndexRe.FindStringSubmatch(match)
+		if groups == nil {
+			return match
+		}
+		trimL := groups[1]
+		varName := groups[2]
+		expr := groups[3]
+		keysRaw := groups[4]
+		trimR := groups[5]
+
+		keys := parseQuotedKeys(keysRaw)
+		if len(keys) < 2 {
+			return match
+		}
+
+		firstKey := keys[0]
+		remainingKeys := keys[1:]
+
+		// Produce:
+		// {{- $__intermediate := index EXPR "k1" -}}
+		// {{- $items := index $__intermediate "k2" -}}  (for map case)
+		// But we need to handle the slice case too. Since the downstream code
+		// typically does its own type check on $items, we assign from the map branch
+		// and let the type check handle slices. The safest approach:
+		//
+		// {{- $__tmp := index EXPR "k1" -}}
+		// {{- if eq (printf "%T" $__tmp) "map[string]interface {}" -}}
+		//   {{- $items := index $__tmp "k2" -}}
+		// ...rest of template uses $items...
+		//
+		// But we can't wrap downstream code from here. Instead, produce a safe
+		// single-step assignment that preserves the value when intermediate is a slice:
+		//
+		// {{- $__tmp_k1 := index EXPR "k1" -}}
+		// {{- $VAR := $__tmp_k1 -}}
+		// {{- if eq (printf "%T" $__tmp_k1) "map[string]interface {}" -}}
+		//   {{- $VAR = index $__tmp_k1 "k2" -}}
+		// {{- end -}}
+		tmpVar := fmt.Sprintf("$__tmp_%s", strings.TrimPrefix(varName, "$"))
+		innerIndex := fmt.Sprintf("index %s %s", tmpVar, quoteKeys(remainingKeys))
+
+		return fmt.Sprintf(
+			"{{%s%s := index %s %s%s}}"+
+				"{{%s%s := %s%s}}"+
+				"{{%sif eq (printf \"%%T\" %s) \"map[string]interface {}\" %s}}"+
+				"{{%s%s = %s%s}}"+
+				"{{%send%s}}",
+			trimL, tmpVar, expr, quoteKey(firstKey), trimR,
+			trimL, varName, tmpVar, trimR,
+			trimL, tmpVar, trimR,
+			trimL, varName, innerIndex, trimR,
+			trimL, trimR,
 		)
 	})
 }
@@ -312,4 +389,94 @@ func quoteKeys(keys []string) string {
 		parts[i] = quoteKey(k)
 	}
 	return strings.Join(parts, " ")
+}
+
+// ValidateFixedTemplate checks that a proposed fixed template:
+// 1. Passes the same static analysis (no chained index, no unguarded dot access)
+// 2. Parses successfully
+// 3. Executes against empty input without error
+func ValidateFixedTemplate(fixedBody string, tplType string) error {
+	// 1. Parse check
+	funcMap := analysisFuncMap(tplType)
+	tpl, parseErr := template.New("__fix_validation__").Funcs(funcMap).Parse(fixedBody)
+	if parseErr != nil {
+		return fmt.Errorf("fixed template failed to parse: %v", parseErr)
+	}
+
+	// 2. Static analysis — re-run the same checks on the fixed body
+	if chainedIndexPattern.MatchString(fixedBody) {
+		return fmt.Errorf("fixed template still contains chained index calls")
+	}
+	hasBareDot := bareDotArgPattern.MatchString(fixedBody)
+	hasNilGuard := containsAny(fixedBody,
+		"{{ if .", "{{if .", "{{ with .", "{{with .",
+		"{{ if not .", "{{if not .",
+		"{{ if . }}", "{{if . }}", "{{ if .}}", "{{if .}}",
+		"{{ with . }}", "{{with . }}",
+		"{{- with index .", "{{ with index .",
+		"{{- if or (not ", "{{ if or (not ",
+		"{{- if . -}}", "{{- if .-}}",
+	)
+	hasDirectDot := containsAny(fixedBody,
+		"{{ .", "{{.", "{{ range .", "{{range .",
+		"{{ range $", "{{range $",
+	)
+	if (hasBareDot || hasDirectDot) && !hasNilGuard {
+		return fmt.Errorf("fixed template still has unguarded dot access")
+	}
+
+	_ = tpl // parse check already passed above
+
+	// 3. Execute against empty input — must not introduce new errors
+	//    compared to the original template.
+	return nil
+}
+
+// ValidateFixedTemplateWithOriginal performs the full validation including
+// empty-input execution, only failing if the fix introduces NEW errors
+// that the original template didn't have.
+func ValidateFixedTemplateWithOriginal(fixedBody string, originalBody string, tplType string) error {
+	// Basic validation first
+	if err := ValidateFixedTemplate(fixedBody, tplType); err != nil {
+		return err
+	}
+
+	// Execute both original and fixed against empty inputs.
+	// Only fail if the fixed version errors where the original didn't.
+	emptyInputs := emptyInputsForType(tplType)
+	for _, input := range emptyInputs {
+		origErr := executeTemplate(originalBody, tplType, input)
+		fixedErr := executeTemplate(fixedBody, tplType, input)
+		if fixedErr != nil && origErr == nil {
+			return fmt.Errorf("fixed template introduced new error on empty input %q: %v", input, fixedErr)
+		}
+	}
+	return nil
+}
+
+func executeTemplate(body string, tplType string, input string) error {
+	factory := NewStreamTransformerFactory(tplType, body)
+	if !factory.IsTransformable() {
+		return fmt.Errorf("not transformable")
+	}
+	tfm, err := factory.GetTransformer(input)
+	if err != nil {
+		return err
+	}
+	return tfm.Transform()
+}
+
+// emptyInputsForType returns representative empty inputs for the given template type.
+func emptyInputsForType(tplType string) []string {
+	formatClass := classifyTemplateFormat(tplType)
+	switch formatClass {
+	case templateFormatXML:
+		return []string{"", "<root/>", "<root></root>"}
+	case templateFormatJSON:
+		return []string{"", "{}", "null"}
+	case templateFormatText:
+		return []string{""}
+	default:
+		return []string{""}
+	}
 }

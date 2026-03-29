@@ -129,8 +129,15 @@ func (a *standardTemplateStaticAnalyzer) Analyze() TemplateAnalysisResult {
 	if len(result.errors) > 0 || len(result.warnings) > 0 {
 		fixed := FixTemplate(tplBody, tplType)
 		if fixed != "" {
-			for i := range result.findings {
-				result.findings[i].FixedTemplate = fixed
+			if err := ValidateFixedTemplateWithOriginal(fixed, tplBody, tplType); err != nil {
+				f := a.newFinding("warning", BinResponseShapeUnsafe,
+					fmt.Sprintf("proposed fix failed validation: %v", err))
+				result.warnings = append(result.warnings, f.String())
+				result.findings = append(result.findings, f)
+			} else {
+				for i := range result.findings {
+					result.findings[i].FixedTemplate = fixed
+				}
 			}
 		}
 	}
