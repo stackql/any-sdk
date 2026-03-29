@@ -18,6 +18,7 @@ env:
   PROVIDER_VERSION_GOOGLE: v25.12.00357
   GOLANG_VERSION: 1.25.3
   PYTHON_VERSION: 3.12
+  ANALYSIS_RESULTS_BUCKET: 'stackql-provider-analysis-results'
 
 jobs:
 
@@ -128,7 +129,7 @@ jobs:
         name: anysdk_binary
         path: build
 
-    - name: Make requisite binaries executable and add to path
+    - name: Produce requisite binaries executable and add to path
       run: |
         echo "${{ github.workspace }}/build" >> $GITHUB_PATH;
         chmod +x "${{ github.workspace }}/build/stackql"
@@ -141,35 +142,66 @@ jobs:
         ref: ${{ env.STACKQL_CORE_REF }}
         path: stackql-core
 
-    - name: Run Interrogate CLI robot tests
+    - name: Interrogate Providers via CLI and Generate Analysis
       run: |
         stackql exec "registry pull aws ${PROVIDER_VERSION_AWS};"
         stackql exec "registry pull google ${PROVIDER_VERSION_GOOGLE};"
         stackql exec "registry pull azure ${PROVIDER_VERSION_AZURE};"
-        _now="$(date +%s)"
+        RUN_EPOCH="$(date -u +%s)"
+        RUN_TS="$(date -u -d "@${RUN_EPOCH}" +%Y-%m-%dT%H-%M-%SZ)"
+        DATE_PATH="$(date -u -d "@${RUN_EPOCH}" +%Y/%m/%d)"
+        {
+          echo "RUN_EPOCH=${RUN_EPOCH}"
+          echo "DATE_PATH=${DATE_PATH}"
+          echo "RUN_TS=${RUN_TS}"
+        } >> "$GITHUB_ENV"
         ./build/anysdk aot \
           ./.stackql \
           ./.stackql/src/aws/${PROVIDER_VERSION_AWS}/provider.yaml \
           -v \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/${_now}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl" || true
+          cicd/schema-definitions > "cicd/out/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl" || true
         ./build/anysdk aot \
           ./.stackql \
           ./.stackql/src/azure/${PROVIDER_VERSION_AZURE}/provider.yaml \
           -v \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/${_now}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl" || true
+          cicd/schema-definitions > "cicd/out/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl" || true
         ./build/anysdk aot \
           ./.stackql \
           ./.stackql/src/googleapis.com/${PROVIDER_VERSION_GOOGLE}/provider.yaml \
           -v \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/${_now}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl" || true
+          cicd/schema-definitions > "cicd/out/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl" || true
 
-    - name: Upload Interrogate CLI robot test results
+    - name: Upload Provider Analysis results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: interrogate-cli-robot-test-results
+        name: provider-analysis-results
         path: cicd/out/*.json*
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.ANALYSIS_UPLOAD_GCS }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Upload analysis artifacts to GCS
+      run: |
+        set -e
+
+        DEST="gs://${ANALYSIS_RESULTS_BUCKET}/provider-analysis/${DATE_PATH}/${RUN_TS}"
+
+        echo "Uploading to ${DEST}"
+
+        # upload everything
+        gcloud storage cp -r cicd/out "${DEST}/"
+
+        # optional: also write a pointer to latest
+        echo "{\"latest\": \"${DEST}/out\"}" > latest.json
+        gcloud storage cp latest.json "gs://${ANALYSIS_RESULTS_BUCKET}/provider-analysis/latest.json"
+
 
