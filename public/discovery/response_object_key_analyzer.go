@@ -253,13 +253,14 @@ func analyzeResponseTransform(
 	result.affirmatives = append(result.affirmatives, tplResult.GetAffirmatives()...)
 	for _, tf := range tplResult.GetFindings() {
 		result.findings = append(result.findings, AnalysisFinding{
-			Level:    tf.Level,
-			Bin:      tf.Bin,
-			Provider: tf.Provider,
-			Service:  tf.Service,
-			Resource: tf.Resource,
-			Method:   tf.Method,
-			Message:  tf.Message,
+			Level:         tf.Level,
+			Bin:           tf.Bin,
+			Provider:      tf.Provider,
+			Service:       tf.Service,
+			Resource:      tf.Resource,
+			Method:        tf.Method,
+			Message:       tf.Message,
+			FixedTemplate: tf.FixedTemplate,
 		})
 	}
 

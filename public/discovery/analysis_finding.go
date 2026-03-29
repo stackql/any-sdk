@@ -12,8 +12,9 @@ type AnalysisFinding struct {
 	Provider string `json:"provider,omitempty"`
 	Service  string `json:"service,omitempty"`
 	Resource string `json:"resource,omitempty"`
-	Method   string `json:"method,omitempty"`
-	Message  string `json:"message"`
+	Method        string `json:"method,omitempty"`
+	Message       string `json:"message"`
+	FixedTemplate string `json:"fixed_template,omitempty"`
 }
 
 func (f AnalysisFinding) Error() string {

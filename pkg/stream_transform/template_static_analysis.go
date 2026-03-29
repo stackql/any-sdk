@@ -21,13 +21,14 @@ var chainedIndexPattern = regexp.MustCompile(`index\s+\S+\s+"[^"]+"\s+"[^"]+"`)
 
 // TemplateFinding is a structured finding from template static analysis.
 type TemplateFinding struct {
-	Level    string `json:"level"`
-	Bin      string `json:"bin,omitempty"`
-	Provider string `json:"provider,omitempty"`
-	Service  string `json:"service,omitempty"`
-	Resource string `json:"resource,omitempty"`
-	Method   string `json:"method,omitempty"`
-	Message  string `json:"message"`
+	Level         string `json:"level"`
+	Bin           string `json:"bin,omitempty"`
+	Provider      string `json:"provider,omitempty"`
+	Service       string `json:"service,omitempty"`
+	Resource      string `json:"resource,omitempty"`
+	Method        string `json:"method,omitempty"`
+	Message       string `json:"message"`
+	FixedTemplate string `json:"fixed_template,omitempty"`
 }
 
 func (f TemplateFinding) Error() string {
@@ -123,6 +124,16 @@ func (a *standardTemplateStaticAnalyzer) Analyze() TemplateAnalysisResult {
 
 	a.analyzeEmptyResilience(result)
 	a.analyzeFormatSpecific(result)
+
+	// If any errors or warnings were found, attempt to produce a fixed template
+	if len(result.errors) > 0 || len(result.warnings) > 0 {
+		fixed := FixTemplate(tplBody, tplType)
+		if fixed != "" {
+			for i := range result.findings {
+				result.findings[i].FixedTemplate = fixed
+			}
+		}
+	}
 
 	return result
 }
