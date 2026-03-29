@@ -256,16 +256,17 @@ func analyzeResponseTransform(
 	// Run empirical tests: execute the template against empty input
 	empiricalSuite := stream_transform.RunEmpiricalTests(transform.GetBody(), transform.GetType())
 
-	// Generate sample response from schema
-	var sampleResponse string
-	if responseSchema != nil {
-		normalizedMedia := inferExpectedMediaType(responseMediaType)
-		if strings.Contains(normalizedMedia, "xml") {
-			sampleResponse = GenerateSampleXMLResponse(responseSchema, "")
-		} else {
-			sampleResponse = GenerateSampleResponse(responseSchema, responseMediaType)
-		}
+	// Generate sample responses: pre-transform (raw API) and post-transform (override)
+	rawSchema := expectedResponse.GetRawSchema()
+	rawMediaType := expectedResponse.GetBodyMediaType()
+	overrideSchema := expectedResponse.GetSchema() // returns override if present, else raw
+	overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
+	// If override schema is same as raw, it means no override — post = pre
+	var postSchema anysdk.Schema
+	if overrideMediaType != "" && overrideSchema != rawSchema {
+		postSchema = overrideSchema
 	}
+	sampleResponse := GenerateSampleResponsePair(rawSchema, rawMediaType, postSchema, overrideMediaType)
 
 	// Report empirical test failures
 	if empiricalSuite.HasFailures() {

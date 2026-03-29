@@ -18,7 +18,7 @@ type AnalysisFinding struct {
 	Message        string                                  `json:"message"`
 	FixedTemplate  string                                  `json:"fixed_template,omitempty"`
 	EmpiricalTests *stream_transform.EmpiricalTestSuite    `json:"empirical_tests,omitempty"`
-	SampleResponse string                                  `json:"sample_response,omitempty"`
+	SampleResponse *SampleResponsePair                     `json:"sample_response,omitempty"`
 }
 
 func (f AnalysisFinding) Error() string {

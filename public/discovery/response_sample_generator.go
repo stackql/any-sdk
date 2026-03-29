@@ -8,6 +8,47 @@ import (
 	"github.com/stackql/any-sdk/internal/anysdk"
 )
 
+// SampleResponsePair holds pre-transform and post-transform sample responses.
+type SampleResponsePair struct {
+	PreTransform  string `json:"pre_transform"`
+	PostTransform string `json:"post_transform"`
+}
+
+// GenerateSampleResponsePair produces both samples from the raw and override schemas.
+// rawSchema is the base API response schema (pre-transform), rawMediaType its media type.
+// overrideSchema is the post-transform schema (may be nil if no transform).
+// overrideMediaType is the post-transform media type (may be empty).
+func GenerateSampleResponsePair(
+	rawSchema anysdk.Schema,
+	rawMediaType string,
+	overrideSchema anysdk.Schema,
+	overrideMediaType string,
+) *SampleResponsePair {
+	pair := &SampleResponsePair{}
+
+	// Pre-transform: use raw schema + raw media type
+	if rawSchema != nil {
+		normalizedRaw := strings.ToLower(rawMediaType)
+		if strings.Contains(normalizedRaw, "xml") {
+			pair.PreTransform = GenerateSampleXMLResponse(rawSchema, "")
+		} else {
+			pair.PreTransform = GenerateSampleResponse(rawSchema, rawMediaType)
+		}
+	}
+
+	// Post-transform: use override schema if present, otherwise same as pre
+	if overrideSchema != nil {
+		pair.PostTransform = GenerateSampleResponse(overrideSchema, overrideMediaType)
+	} else if rawSchema != nil {
+		pair.PostTransform = pair.PreTransform
+	}
+
+	if pair.PreTransform == "" && pair.PostTransform == "" {
+		return nil
+	}
+	return pair
+}
+
 // GenerateSampleResponse walks a response schema and produces a sample
 // response body as a JSON string. This is used for empirical template testing.
 func GenerateSampleResponse(schema anysdk.Schema, mediaType string) string {
