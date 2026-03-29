@@ -1514,14 +1514,14 @@ func (op *standardOpenAPIOperationStore) GetRequestBodySchema() (Schema, error) 
 }
 
 func (op *standardOpenAPIOperationStore) getRequestBodySchema() (Schema, error) {
-	if op.Request != nil {
+	if op.Request != nil && op.Request.Schema != nil {
 		return op.Request.Schema, nil
 	}
 	return nil, fmt.Errorf("no request body for operation =  %s", op.GetName())
 }
 
 func (op *standardOpenAPIOperationStore) GetRequestBodyRequiredProperties() ([]string, error) {
-	if op.Request != nil {
+	if op.Request != nil && op.Request.Schema != nil {
 		return op.Request.Required, nil
 	}
 	return nil, fmt.Errorf("no request body required elements for operation =  %s", op.GetName())

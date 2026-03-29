@@ -2,18 +2,23 @@ package discovery
 
 import (
 	"fmt"
+
+	"github.com/stackql/any-sdk/pkg/stream_transform"
 )
 
 // AnalysisFinding is a structured finding from static analysis.
 // It carries the full provider/service/resource/method hierarchy.
 type AnalysisFinding struct {
-	Level    string `json:"level"`              // "error", "warning", "info"
-	Bin      string `json:"bin,omitempty"`
-	Provider string `json:"provider,omitempty"`
-	Service  string `json:"service,omitempty"`
-	Resource string `json:"resource,omitempty"`
-	Method   string `json:"method,omitempty"`
-	Message  string `json:"message"`
+	Level          string                                  `json:"level"`
+	Bin            string                                  `json:"bin,omitempty"`
+	Provider       string                                  `json:"provider,omitempty"`
+	Service        string                                  `json:"service,omitempty"`
+	Resource       string                                  `json:"resource,omitempty"`
+	Method         string                                  `json:"method,omitempty"`
+	Message        string                                  `json:"message"`
+	FixedTemplate  string                                  `json:"fixed_template,omitempty"`
+	EmpiricalTests *stream_transform.EmpiricalTestSuite    `json:"empirical_tests,omitempty"`
+	SampleResponse *SampleResponsePair                     `json:"sample_response,omitempty"`
 }
 
 func (f AnalysisFinding) Error() string {

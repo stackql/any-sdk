@@ -17,6 +17,7 @@ type ExpectedResponse interface {
 	setOverrideSchemaValue(Schema)
 	setAsyncOverrideSchemaValue(Schema)
 	GetTransform() (Transform, bool)
+	GetRawSchema() Schema // base schema before any override
 	//
 	setSchema(Schema)
 	setBodyMediaType(string)
@@ -111,6 +112,10 @@ func (er *standardExpectedResponse) getAsyncOverrideSchema() (*LocalSchemaRef, b
 	}
 	overrideSchema := er.AsyncOverrideSchema
 	return overrideSchema, true
+}
+
+func (er *standardExpectedResponse) GetRawSchema() Schema {
+	return er.Schema
 }
 
 func (er *standardExpectedResponse) GetTransform() (Transform, bool) {

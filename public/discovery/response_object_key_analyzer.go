@@ -71,7 +71,7 @@ func analyzeResponseAndObjectKey(
 	}
 
 	if hasExpectedResponse {
-		transformResult := analyzeResponseTransform(actx, expectedResponse, objectKey, isLeafSchema, isEmptyObjectSchema)
+		transformResult := analyzeResponseTransform(actx, expectedResponse, responseSchema, responseMediaType, objectKey, isLeafSchema, isEmptyObjectSchema)
 		result.errors = append(result.errors, transformResult.errors...)
 		result.warnings = append(result.warnings, transformResult.warnings...)
 		result.affirmatives = append(result.affirmatives, transformResult.affirmatives...)
@@ -227,6 +227,8 @@ func walkSchemaPath(
 func analyzeResponseTransform(
 	actx AnalysisContext,
 	expectedResponse anysdk.ExpectedResponse,
+	responseSchema anysdk.Schema,
+	responseMediaType string,
 	objectKey string,
 	isLeafSchema bool,
 	isEmptyObjectSchema bool,
@@ -251,16 +253,44 @@ func analyzeResponseTransform(
 	result.errors = append(result.errors, tplResult.GetErrors()...)
 	result.warnings = append(result.warnings, tplResult.GetWarnings()...)
 	result.affirmatives = append(result.affirmatives, tplResult.GetAffirmatives()...)
+	// Run empirical tests: execute the template against empty input
+	empiricalSuite := stream_transform.RunEmpiricalTests(transform.GetBody(), transform.GetType())
+
+	// Generate sample responses: pre-transform (raw API) and post-transform (override)
+	rawSchema := expectedResponse.GetRawSchema()
+	rawMediaType := expectedResponse.GetBodyMediaType()
+	overrideSchema := expectedResponse.GetSchema() // returns override if present, else raw
+	overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
+	// If override schema is same as raw, it means no override — post = pre
+	var postSchema anysdk.Schema
+	if overrideMediaType != "" && overrideSchema != rawSchema {
+		postSchema = overrideSchema
+	}
+	sampleResponse := GenerateSampleResponsePair(rawSchema, rawMediaType, postSchema, overrideMediaType)
+
+	// Report empirical test failures
+	if empiricalSuite.HasFailures() {
+		for _, msg := range empiricalSuite.FailureMessages() {
+			f := actx.NewError(BinEmptyResponseUnsafe, fmt.Sprintf("empirical empty-input test failed: %s", msg))
+			result.errors = append(result.errors, f)
+			result.findings = append(result.findings, f)
+		}
+	}
+
 	for _, tf := range tplResult.GetFindings() {
-		result.findings = append(result.findings, AnalysisFinding{
-			Level:    tf.Level,
-			Bin:      tf.Bin,
-			Provider: tf.Provider,
-			Service:  tf.Service,
-			Resource: tf.Resource,
-			Method:   tf.Method,
-			Message:  tf.Message,
-		})
+		f := AnalysisFinding{
+			Level:          tf.Level,
+			Bin:            tf.Bin,
+			Provider:       tf.Provider,
+			Service:        tf.Service,
+			Resource:       tf.Resource,
+			Method:         tf.Method,
+			Message:        tf.Message,
+			FixedTemplate:  tf.FixedTemplate,
+			EmpiricalTests: &empiricalSuite,
+			SampleResponse: sampleResponse,
+		}
+		result.findings = append(result.findings, f)
 	}
 
 	if (isEmptyObjectSchema || isLeafSchema) && objectKey != "" {
