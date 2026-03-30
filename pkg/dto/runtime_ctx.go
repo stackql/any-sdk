@@ -62,6 +62,7 @@ type RuntimeCtx struct {
 	CLIParameters                string
 	CLIProvFilePath              string
 	CLISvcFilePath               string
+	CLIProviderName              string
 	CLIResourceStr               string
 	CLIMethodName                string
 	CLISchemaDir                 string

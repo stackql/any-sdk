@@ -66,6 +66,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIParameters, "parameters", `{}`, "json string of parameter map")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIProvFilePath, "prov-file-path", ``, "path to provider definition file")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLISvcFilePath, "svc-file-path", ``, "path to service definition file")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIProviderName, "provider", ``, "provider name (required for resource and method level analysis)")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIResourceStr, "resource", ``, "resource name")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMethodName, "method", ``, "method name")
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLISchemaDir, "schema-dir", ``, "path to schema directory")
