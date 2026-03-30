@@ -137,7 +137,7 @@ func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
 	}
 	return anysdk.NewRegistry(
 		anysdk.RegistryConfig{
-			RegistryURL:      fmt.Sprintf("file://%s", absPath),
+			RegistryURL:      fmt.Sprintf("file:///%s", filepath.ToSlash(absPath)),
 			LocalDocRoot:     absPath,
 			AllowSrcDownload: false,
 			VerifyConfig: &edcrypto.VerifierConfig{
