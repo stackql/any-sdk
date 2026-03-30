@@ -28,6 +28,7 @@ type TemplateFinding struct {
 	Resource      string `json:"resource,omitempty"`
 	Method        string `json:"method,omitempty"`
 	Message       string `json:"message"`
+	PriorTemplate string `json:"prior_template,omitempty"`
 	FixedTemplate string `json:"fixed_template,omitempty"`
 }
 
@@ -169,6 +170,7 @@ func (a *standardTemplateStaticAnalyzer) Analyze() TemplateAnalysisResult {
 				result.findings = append(result.findings, f)
 			} else {
 				for i := range result.findings {
+					result.findings[i].PriorTemplate = a.ctx.TemplateBody
 					result.findings[i].FixedTemplate = fixed
 				}
 			}

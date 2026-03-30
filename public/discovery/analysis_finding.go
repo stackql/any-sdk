@@ -16,6 +16,7 @@ type AnalysisFinding struct {
 	Resource       string                                  `json:"resource,omitempty"`
 	Method         string                                  `json:"method,omitempty"`
 	Message        string                                  `json:"message"`
+	PriorTemplate  string                                  `json:"prior_template,omitempty"`
 	FixedTemplate  string                                  `json:"fixed_template,omitempty"`
 	EmpiricalTests *stream_transform.EmpiricalTestSuite    `json:"empirical_tests,omitempty"`
 	SampleResponse *SampleResponsePair                     `json:"sample_response,omitempty"`
