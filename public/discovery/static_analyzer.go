@@ -131,14 +131,14 @@ func newGenericStaticAnalyzer(
 }
 
 func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
-	absPath, absErr := filepath.Abs(relativePath)
-	if absErr != nil {
-		return nil, absErr
+	cleanPath := filepath.ToSlash(relativePath)
+	if !strings.HasPrefix(cleanPath, "/") && !strings.HasPrefix(cleanPath, "./") {
+		cleanPath = "./" + cleanPath
 	}
 	return anysdk.NewRegistry(
 		anysdk.RegistryConfig{
-			RegistryURL:      fmt.Sprintf("file:///%s", filepath.ToSlash(absPath)),
-			LocalDocRoot:     absPath,
+			RegistryURL:      fmt.Sprintf("file://%s", cleanPath),
+			LocalDocRoot:     relativePath,
 			AllowSrcDownload: false,
 			VerifyConfig: &edcrypto.VerifierConfig{
 				NopVerify: true,
