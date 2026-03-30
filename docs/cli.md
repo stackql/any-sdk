@@ -193,7 +193,9 @@ build/anysdk aot \
   test/registry/src/aws/v0.1.0/provider.yaml \
   ec2 \
   --provider aws \
-  --resource volumes_post_naively_presented
+  --resource volumes_post_naively_presented \
+  --schema-dir \
+  cicd/schema-definitions
 
 
 build/anysdk aot \
@@ -202,6 +204,8 @@ build/anysdk aot \
   ec2 \
   --provider aws \
   --resource volumes_post_naively_presented \
-  --method describeVolumes
+  --method describeVolumes \
+  --schema-dir \
+  cicd/schema-definitions
 
 ```
