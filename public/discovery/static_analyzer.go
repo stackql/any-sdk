@@ -131,9 +131,13 @@ func newGenericStaticAnalyzer(
 }
 
 func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
+	cleanPath := filepath.ToSlash(relativePath)
+	if !strings.HasPrefix(cleanPath, "/") && !strings.HasPrefix(cleanPath, "./") {
+		cleanPath = "./" + cleanPath
+	}
 	return anysdk.NewRegistry(
 		anysdk.RegistryConfig{
-			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
+			RegistryURL:      fmt.Sprintf("file://%s", cleanPath),
 			LocalDocRoot:     relativePath,
 			AllowSrcDownload: false,
 			VerifyConfig: &edcrypto.VerifierConfig{
@@ -265,6 +269,10 @@ type standardResourceAggregateStaticAnalyzer struct {
 	serviceName      string
 	resourceName     string
 	partialHierarchy AnalyzedPartialHierarchy
+	errors           []error
+	warnings         []string
+	affirmatives     []string
+	findings         []AnalysisFinding
 }
 
 func (asa *standardResourceAggregateStaticAnalyzer) FindMethodByVerbAndParameters(sqlVerb string, params map[string]any) (anysdk.StandardOperationStore, map[string]any, bool) {
@@ -283,15 +291,19 @@ func (asa *standardResourceAggregateStaticAnalyzer) GetPartialHierarchy() (Analy
 }
 
 func (asa *standardResourceAggregateStaticAnalyzer) GetErrors() []error {
-	return asa.psrAnalyzer.GetErrors()
+	return append(asa.psrAnalyzer.GetErrors(), asa.errors...)
 }
 
 func (asa *standardResourceAggregateStaticAnalyzer) GetWarnings() []string {
-	return asa.psrAnalyzer.GetWarnings()
+	return append(asa.psrAnalyzer.GetWarnings(), asa.warnings...)
 }
 
 func (asa *standardResourceAggregateStaticAnalyzer) GetAffirmatives() []string {
-	return asa.psrAnalyzer.GetAffirmatives()
+	return append(asa.psrAnalyzer.GetAffirmatives(), asa.affirmatives...)
+}
+
+func (asa *standardResourceAggregateStaticAnalyzer) GetFindings() []AnalysisFinding {
+	return asa.findings
 }
 
 func (asa *standardResourceAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
@@ -316,7 +328,7 @@ func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
 	if resource == nil {
 		return fmt.Errorf("static analysis failed: expected non-nil '%s' resource to exist", asa.resourceName)
 	}
-	prov, hasProv := resource.GetProvider()
+	prov, hasProv := staticAnalyzer.GetProvider()
 	if !hasProv {
 		return fmt.Errorf("static analysis failed: expected provider to exist on '%s' resource", asa.resourceName)
 	}
@@ -327,13 +339,13 @@ func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
 	if registryAPI == nil {
 		return fmt.Errorf("static analysis failed: expected non-nil registry API to exist on static analyzer")
 	}
-	providerService, providerServiceErr := prov.GetProviderService(asa.serviceName)
-	if providerServiceErr != nil {
-		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+	providerService, hasProviderService := staticAnalyzer.GetProviderService()
+	if !hasProviderService {
+		return fmt.Errorf("static analysis failed: provider service not available from analyzer for service '%s'", asa.serviceName)
 	}
 	svc, svcErr := registryAPI.GetServiceFragment(providerService, asa.resourceName)
 	if svcErr != nil {
-		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
+		return fmt.Errorf("static analysis failed: could not get service fragment for '%s'/'%s': %w", asa.serviceName, asa.resourceName, svcErr)
 	}
 	shallowRsc, rscErr := svc.GetResource(asa.resourceName)
 	if rscErr != nil {
@@ -358,6 +370,26 @@ func (asa *standardResourceAggregateStaticAnalyzer) Analyze() error {
 		resource:    resource,
 		registryAPI: registryAPI,
 	}
+
+	// Run per-method static analysis on the target resource
+	protocolType, protocolTypeErr := prov.GetProtocolType()
+	if protocolTypeErr != nil {
+		return protocolTypeErr
+	}
+	methods := resource.GetMethods()
+	for methodName, method := range methods {
+		actx := AnalysisContext{
+			Provider: asa.providerName,
+			Service:  asa.serviceName,
+			Resource: asa.resourceName,
+			Method:   methodName,
+		}
+		mar := analyzeMethod(prov, svc, resource, &method, registryAPI, actx, protocolType)
+		asa.errors = append(asa.errors, mar.errors...)
+		asa.warnings = append(asa.warnings, mar.warnings...)
+		asa.affirmatives = append(asa.affirmatives, mar.affirmatives...)
+		asa.findings = append(asa.findings, mar.findings...)
+	}
 	return nil
 }
 
@@ -372,6 +404,7 @@ type standardMethodAggregateStaticAnalyzer struct {
 	warnings           []string
 	errors             []error
 	affirmatives       []string
+	findings           []AnalysisFinding
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetFullHierarchy() (AnalyzedFullHierarchy, bool) {
@@ -388,6 +421,10 @@ func (asa *standardMethodAggregateStaticAnalyzer) GetWarnings() []string {
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetAffirmatives() []string {
 	return asa.affirmatives
+}
+
+func (asa *standardMethodAggregateStaticAnalyzer) GetFindings() []AnalysisFinding {
+	return asa.findings
 }
 
 func (asa *standardMethodAggregateStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, bool) {
@@ -438,7 +475,7 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 	if method == nil {
 		return fmt.Errorf("static analysis failed: expected non-nil '%s' method to exist on '%s' resource", asa.methodSelectorName, asa.resourceName)
 	}
-	prov, hasProv := resource.GetProvider()
+	prov, hasProv := staticAnalyzer.GetProvider()
 	if !hasProv {
 		return fmt.Errorf("static analysis failed: expected provider to exist on '%s' resource", asa.resourceName)
 	}
@@ -449,8 +486,8 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 	if registryAPI == nil {
 		return fmt.Errorf("static analysis failed: expected non-nil registry API to exist on static analyzer")
 	}
-	providerService, providerServiceErr := prov.GetProviderService(asa.serviceName)
-	if providerServiceErr != nil {
+	providerService, hasProviderService := staticAnalyzer.GetProviderService()
+	if !hasProviderService {
 		return fmt.Errorf("static analysis failed: expected '%s' service to exist on provider", asa.serviceName)
 	}
 	svc, svcErr := registryAPI.GetServiceFragment(providerService, asa.resourceName)
@@ -483,20 +520,22 @@ func (asa *standardMethodAggregateStaticAnalyzer) Analyze() error {
 		method:      method,
 		registryAPI: registryAPI,
 	}
-	methodLevelAnalyzer := newStandardMethodPreparedAnalyzer(
-		prov,
-		svc,
-		resource,
-		method,
-		registryAPI,
-	)
-	analysisErr := methodLevelAnalyzer.Analyze()
-	asa.warnings = append(asa.warnings, methodLevelAnalyzer.GetWarnings()...)
-	asa.errors = append(asa.errors, methodLevelAnalyzer.GetErrors()...)
-	asa.affirmatives = append(asa.affirmatives, methodLevelAnalyzer.GetAffirmatives()...)
-	if analysisErr != nil {
-		return analysisErr
+
+	protocolType, protocolTypeErr := prov.GetProtocolType()
+	if protocolTypeErr != nil {
+		return protocolTypeErr
 	}
+	actx := AnalysisContext{
+		Provider: asa.providerName,
+		Service:  asa.serviceName,
+		Resource: asa.resourceName,
+		Method:   asa.methodSelectorName,
+	}
+	mar := analyzeMethod(prov, svc, resource, method, registryAPI, actx, protocolType)
+	asa.errors = append(asa.errors, mar.errors...)
+	asa.warnings = append(asa.warnings, mar.warnings...)
+	asa.affirmatives = append(asa.affirmatives, mar.affirmatives...)
+	asa.findings = append(asa.findings, mar.findings...)
 	return nil
 }
 
@@ -1104,6 +1143,8 @@ type ProviderServiceResourceAnalyzer interface {
 	StaticAnalyzer
 	GetResources() map[string]anysdk.Resource
 	GetServiceFragments() map[string]anysdk.Service
+	GetProvider() (anysdk.Provider, bool)
+	GetProviderService() (anysdk.ProviderService, bool)
 }
 
 type standardProviderServiceResourceAnalyzer struct {
@@ -1146,6 +1187,14 @@ func (srf *standardProviderServiceResourceAnalyzer) GetResources() map[string]an
 
 func (srf *standardProviderServiceResourceAnalyzer) GetServiceFragments() map[string]anysdk.Service {
 	return srf.resourceServiceFragments
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetProvider() (anysdk.Provider, bool) {
+	return srf.provider, srf.provider != nil
+}
+
+func (srf *standardProviderServiceResourceAnalyzer) GetProviderService() (anysdk.ProviderService, bool) {
+	return srf.providerService, srf.providerService != nil
 }
 
 func (srf *standardProviderServiceResourceAnalyzer) Analyze() error {
@@ -1327,16 +1376,8 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 	}
 	providerName := osa.provider.GetName()
 	for resourceKey, resource := range resources {
-		// Loader.mergeResource() dereferences interesting stuff including:
-		//   - operation store attributes dereference:
-		//        -  OperationRef
-		//        -  PathItemRef
-		//   - expected response attributes:
-		//        -  LocalSchemaRef x 2 for sync and async schema overrides
-		//   - OpenAPIOperationStoreRef via resolveSQLVerb()
 		methods := resource.GetMethods()
 		for methodName, method := range methods {
-			// Perform analysis on each method
 			if !osa.cfg.IsProviderServicesMustExpand() {
 				continue
 			}
@@ -1349,83 +1390,13 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 			svc := svcFragments[resourceKey]
 			if svc == nil {
 				osa.errors = append(osa.errors, fmt.Errorf("service fragment is nil for resource %s", resourceKey))
-			} else {
-				methodAnalyzer := newStandardMethodPreparedAnalyzer(
-					osa.provider,
-					svc,
-					resource,
-					&method,
-					osa.registryAPI,
-				)
-
-				methodAnalyzerErr := methodAnalyzer.Analyze()
-				osa.affirmatives = append(osa.affirmatives, methodAnalyzer.GetAffirmatives()...)
-				osa.warnings = append(osa.warnings, methodAnalyzer.GetWarnings()...)
-				osa.errors = append(osa.errors, methodAnalyzer.GetErrors()...)
-				if methodAnalyzerErr != nil {
-					osa.errors = append(osa.errors, fmt.Errorf("static analysis found errors for method %s on resource %s: %v", methodName, resourceKey, methodAnalyzerErr))
-				}
+				continue
 			}
-
-			switch protocolType {
-			case client.HTTP:
-				graphQL := method.GetGraphQL()
-				isGraphQL := graphQL != nil
-				if isGraphQL {
-					continue // TODO: GraphQL methods analysis
-				}
-				// Does this method have selection semantics?
-				sqlVerb := strings.ToLower(method.GetSQLVerb())
-				isSelectMethod := sqlVerb == "select"
-				selectItemsKey := method.GetSelectItemsKey()
-				hasSelectionSemantics := selectItemsKey != ""
-				if !hasSelectionSemantics && isSelectMethod {
-					osa.findings = append(osa.findings, actx.NewWarning(BinMissingSemantics, fmt.Sprintf("apparent select method does not have selection semantics")))
-					osa.warnings = append(osa.warnings, classifiedWarning(BinMissingSemantics, "apparent select method %s for resource %s does not have selection semantics", methodName, resourceKey))
-				}
-				if sqlVerb == "" {
-					osa.findings = append(osa.findings, actx.NewWarning(BinMissingSemantics, "method has no SQL verb"))
-					osa.warnings = append(osa.warnings, classifiedWarning(BinMissingSemantics, "method %s for resource %s has no SQL verb", methodName, resourceKey))
-				}
-				shouldBeSelectable := method.ShouldBeSelectable()
-				if shouldBeSelectable {
-					responseSchema, mediaType, responseInferenceErr := method.GetFinalResponseBodySchemaAndMediaType()
-					if responseInferenceErr != nil {
-						osa.errors = append(osa.errors, fmt.Errorf("failed to infer response schema for method = '%s': %v", methodName, responseInferenceErr))
-					}
-					if responseSchema == nil {
-						osa.errors = append(osa.errors, fmt.Errorf("response schema not found for method = '%s' with media type %s", methodName, mediaType))
-						continue
-					}
-					selectableSchema, objPath, selectionErr := method.GetSelectSchemaAndObjectPath()
-					if selectionErr != nil {
-						osa.errors = append(osa.errors, fmt.Errorf("failed to infer selectable schema for method = '%s': %v", methodName, selectionErr))
-						continue
-					}
-					if selectableSchema == nil {
-						osa.errors = append(osa.errors, fmt.Errorf("selectable schema not found for method = '%s'", methodName))
-					}
-					osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully inferred response schema for method = '%s' with media type %s  at object path = %s", methodName, mediaType, objPath))
-				}
-				// Response + objectKey combined analysis (empty response handling + routability)
-				roakResult := analyzeResponseAndObjectKey(actx, &method)
-				osa.errors = append(osa.errors, roakResult.errors...)
-				osa.warnings = append(osa.warnings, roakResult.warnings...)
-				osa.affirmatives = append(osa.affirmatives, roakResult.affirmatives...)
-				osa.findings = append(osa.findings, roakResult.findings...)
-
-				osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced method = '%s' for resource = '%s' with service name = '%s'", methodName, resourceKey, k))
-			case client.LocalTemplated:
-				// Local templated protocol specific analysis
-				inline := method.GetInline()
-				if len(inline) != 0 {
-					osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully found inline for local templated method = '%s'", methodName))
-				} else {
-					osa.errors = append(osa.errors, fmt.Errorf("inline not found for local templated method = '%s'", methodName))
-				}
-			default:
-				// placeholder for fine grained protocol type analysis
-			}
+			mar := analyzeMethod(osa.provider, svc, resource, &method, osa.registryAPI, actx, protocolType)
+			osa.errors = append(osa.errors, mar.errors...)
+			osa.warnings = append(osa.warnings, mar.warnings...)
+			osa.affirmatives = append(osa.affirmatives, mar.affirmatives...)
+			osa.findings = append(osa.findings, mar.findings...)
 		}
 		osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced resource = '%s' with attendant service fragment for svc name = '%s'", resourceKey, k))
 	}
@@ -1434,6 +1405,99 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 		return fmt.Errorf("static analysis found errors, error count %d", len(osa.errors))
 	}
 	return nil
+}
+
+// methodAnalysisResult collects all outputs from per-method static analysis.
+type methodAnalysisResult struct {
+	errors       []error
+	warnings     []string
+	affirmatives []string
+	findings     []AnalysisFinding
+}
+
+// analyzeMethod performs the full static analysis on a single method within its resource context.
+func analyzeMethod(
+	provider anysdk.Provider,
+	svc anysdk.Service,
+	resource anysdk.Resource,
+	method anysdk.StandardOperationStore,
+	registryAPI anysdk.RegistryAPI,
+	actx AnalysisContext,
+	protocolType client.ClientProtocolType,
+) methodAnalysisResult {
+	var result methodAnalysisResult
+
+	methodAnalyzer := newStandardMethodPreparedAnalyzer(
+		provider,
+		svc,
+		resource,
+		method,
+		registryAPI,
+	)
+	methodAnalyzerErr := methodAnalyzer.Analyze()
+	result.affirmatives = append(result.affirmatives, methodAnalyzer.GetAffirmatives()...)
+	result.warnings = append(result.warnings, methodAnalyzer.GetWarnings()...)
+	result.errors = append(result.errors, methodAnalyzer.GetErrors()...)
+	if methodAnalyzerErr != nil {
+		result.errors = append(result.errors, fmt.Errorf("static analysis found errors for method %s on resource %s: %v", actx.Method, actx.Resource, methodAnalyzerErr))
+	}
+
+	switch protocolType {
+	case client.HTTP:
+		graphQL := method.GetGraphQL()
+		if graphQL != nil {
+			return result // TODO: GraphQL methods analysis
+		}
+		sqlVerb := strings.ToLower(method.GetSQLVerb())
+		isSelectMethod := sqlVerb == "select"
+		selectItemsKey := method.GetSelectItemsKey()
+		hasSelectionSemantics := selectItemsKey != ""
+		if !hasSelectionSemantics && isSelectMethod {
+			result.findings = append(result.findings, actx.NewWarning(BinMissingSemantics, "apparent select method does not have selection semantics"))
+			result.warnings = append(result.warnings, classifiedWarning(BinMissingSemantics, "apparent select method %s for resource %s does not have selection semantics", actx.Method, actx.Resource))
+		}
+		if sqlVerb == "" {
+			result.findings = append(result.findings, actx.NewWarning(BinMissingSemantics, "method has no SQL verb"))
+			result.warnings = append(result.warnings, classifiedWarning(BinMissingSemantics, "method %s for resource %s has no SQL verb", actx.Method, actx.Resource))
+		}
+		shouldBeSelectable := method.ShouldBeSelectable()
+		if shouldBeSelectable {
+			responseSchema, mediaType, responseInferenceErr := method.GetFinalResponseBodySchemaAndMediaType()
+			if responseInferenceErr != nil {
+				result.errors = append(result.errors, fmt.Errorf("failed to infer response schema for method = '%s': %v", actx.Method, responseInferenceErr))
+			}
+			if responseSchema == nil {
+				result.errors = append(result.errors, fmt.Errorf("response schema not found for method = '%s' with media type %s", actx.Method, mediaType))
+				return result
+			}
+			selectableSchema, objPath, selectionErr := method.GetSelectSchemaAndObjectPath()
+			if selectionErr != nil {
+				result.errors = append(result.errors, fmt.Errorf("failed to infer selectable schema for method = '%s': %v", actx.Method, selectionErr))
+				return result
+			}
+			if selectableSchema == nil {
+				result.errors = append(result.errors, fmt.Errorf("selectable schema not found for method = '%s'", actx.Method))
+			}
+			result.affirmatives = append(result.affirmatives, fmt.Sprintf("successfully inferred response schema for method = '%s' with media type %s  at object path = %s", actx.Method, mediaType, objPath))
+		}
+		roakResult := analyzeResponseAndObjectKey(actx, method)
+		result.errors = append(result.errors, roakResult.errors...)
+		result.warnings = append(result.warnings, roakResult.warnings...)
+		result.affirmatives = append(result.affirmatives, roakResult.affirmatives...)
+		result.findings = append(result.findings, roakResult.findings...)
+
+		result.affirmatives = append(result.affirmatives, fmt.Sprintf("successfully dereferenced method = '%s' for resource = '%s' with service name = '%s'", actx.Method, actx.Resource, actx.Service))
+	case client.LocalTemplated:
+		inline := method.GetInline()
+		if len(inline) != 0 {
+			result.affirmatives = append(result.affirmatives, fmt.Sprintf("successfully found inline for local templated method = '%s'", actx.Method))
+		} else {
+			result.errors = append(result.errors, fmt.Errorf("inline not found for local templated method = '%s'", actx.Method))
+		}
+	default:
+		// placeholder for fine grained protocol type analysis
+	}
+	return result
 }
 
 func (osa *serviceLevelStaticAnalyzer) GetErrors() []error {

@@ -182,3 +182,30 @@ _now="$(date +%s)" && build/anysdk aot \
   cicd/schema-definitions > "cicd/out/${_now}-summary.json" 2>"cicd/out/${_now}-analysis.jsonl"
 
 ```
+
+## Fine grained analysis
+
+
+```bash
+
+build/anysdk aot \
+  test/registry \
+  test/registry/src/aws/v0.1.0/provider.yaml \
+  ec2 \
+  --provider aws \
+  --resource volumes_post_naively_presented \
+  --schema-dir \
+  cicd/schema-definitions
+
+
+build/anysdk aot \
+  test/registry \
+  test/registry/src/aws/v0.1.0/provider.yaml \
+  ec2 \
+  --provider aws \
+  --resource volumes_post_naively_presented \
+  --method describeVolumes \
+  --schema-dir \
+  cicd/schema-definitions
+
+```

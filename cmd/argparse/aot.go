@@ -3,7 +3,9 @@ package argparse
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime/pprof"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -14,9 +16,15 @@ import (
 )
 
 var aotCmd = &cobra.Command{
-	Use:   "aot",
+	Use:   "aot <registry> <provider-doc> [service]",
 	Short: "Provider AOT analysis with any-sdk",
-	Long:  `Provider AOT analysis with any-sdk`,
+	Long: `Provider AOT analysis with any-sdk.
+
+Granularity is determined by positional arguments and flags:
+  aot <registry> <provider-doc>                                                    provider level
+  aot <registry> <provider-doc> <service>                                          service level
+  aot <registry> <provider-doc> <service> --provider <name> --resource <name>      resource level
+  aot <registry> <provider-doc> <service> --provider <name> --resource <name> --method <name>  method level`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if runtimeCtx.CPUProfile != "" {
@@ -38,9 +46,13 @@ var aotCmd = &cobra.Command{
 }
 
 func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
+	cleanPath := filepath.ToSlash(relativePath)
+	if !strings.HasPrefix(cleanPath, "/") && !strings.HasPrefix(cleanPath, "./") {
+		cleanPath = "./" + cleanPath
+	}
 	return anysdk.NewRegistry(
 		anysdk.RegistryConfig{
-			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
+			RegistryURL:      fmt.Sprintf("file://%s", cleanPath),
 			LocalDocRoot:     relativePath,
 			AllowSrcDownload: false,
 			VerifyConfig: &edcrypto.VerifierConfig{
@@ -59,11 +71,32 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 	printErrorAndExitOneIfError(factoryFactoryErr)
 	var analyzer discovery.StaticAnalyzer
 	var factoryErr error
-	switch len(extraArgs) {
-	case 1:
+
+	// Flags override positional args for resource and method level analysis
+	providerName := rtCtx.CLIProviderName
+	resourceName := rtCtx.CLIResourceStr
+	methodName := rtCtx.CLIMethodName
+
+	switch {
+	case methodName != "" && resourceName == "":
+		fmt.Fprintln(os.Stderr, "--method requires --resource")
+		os.Exit(1)
+	case resourceName != "" && providerName == "":
+		fmt.Fprintln(os.Stderr, "--resource requires --provider")
+		os.Exit(1)
+	case resourceName != "" && len(extraArgs) < 1:
+		fmt.Fprintln(os.Stderr, "--resource requires a service positional arg")
+		os.Exit(1)
+	case resourceName != "" && methodName != "":
+		analyzer, factoryErr = analyzerFactory.CreateMethodAggregateStaticAnalyzer(providerDoc, providerName, extraArgs[0], resourceName, methodName, false)
+		printErrorAndExitOneIfError(factoryErr)
+	case resourceName != "":
+		analyzer, factoryErr = analyzerFactory.CreateResourceAggregateStaticAnalyzer(providerDoc, providerName, extraArgs[0], resourceName)
+		printErrorAndExitOneIfError(factoryErr)
+	case len(extraArgs) == 1:
 		analyzer, factoryErr = analyzerFactory.CreateServiceLevelStaticAnalyzer(providerDoc, extraArgs[0])
 		printErrorAndExitOneIfError(factoryErr)
-	case 0:
+	case len(extraArgs) == 0:
 		analyzer, factoryErr = analyzerFactory.CreateStaticAnalyzer(providerDoc)
 		printErrorAndExitOneIfError(factoryErr)
 	default:
@@ -71,6 +104,9 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 		os.Exit(1)
 	}
 	analyisErr := analyzer.Analyze()
+	if analyisErr != nil {
+		fmt.Fprintln(os.Stderr, discovery.FormatLogEntryJSON("error", analyisErr.Error()))
+	}
 
 	allErrs := analyzer.GetErrors()
 	allWarnings := analyzer.GetWarnings()

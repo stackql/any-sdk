@@ -286,6 +286,7 @@ func analyzeResponseTransform(
 			Resource:       tf.Resource,
 			Method:         tf.Method,
 			Message:        tf.Message,
+			PriorTemplate:  tf.PriorTemplate,
 			FixedTemplate:  tf.FixedTemplate,
 			EmpiricalTests: &empiricalSuite,
 			SampleResponse: sampleResponse,
