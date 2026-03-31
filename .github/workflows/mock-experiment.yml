@@ -155,7 +155,7 @@ jobs:
 
         remoteSourceDir="$(jq -r '.latest' latest.json)"
 
-        mkdir -p cicd/prior
+        mkdir -p cicd/prior/analysis_results
         mkdir -p cicd/post/mocks
 
         if ! gcloud storage cp -r "${remoteSourceDir}" "cicd/prior/analysis_results"; then
