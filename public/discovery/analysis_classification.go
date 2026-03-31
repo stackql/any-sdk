@@ -33,9 +33,9 @@ type AnalysisSummary struct {
 
 // AnalysisBin holds the items for a single classification bin.
 type AnalysisBin struct {
-	Count    int               `json:"count"`
-	Errors   []AnalysisFinding `json:"errors,omitempty"`
-	Warnings []AnalysisFinding `json:"warnings,omitempty"`
+	Count    int      `json:"count"`
+	Errors   []string `json:"errors,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // ServiceSummary aggregates error and warning counts per service.
@@ -60,11 +60,15 @@ func FormatSummaryJSON(legacyErrors []error, legacyWarnings []string, affirmativ
 		}
 		ab := summary.Bins[bin]
 		ab.Count++
+		resourceRef := f.Resource
+		if f.Service != "" {
+			resourceRef = f.Service + "." + f.Resource
+		}
 		if f.Level == "error" {
-			ab.Errors = append(ab.Errors, f)
+			ab.Errors = append(ab.Errors, resourceRef)
 			summary.TotalErrors++
 		} else {
-			ab.Warnings = append(ab.Warnings, f)
+			ab.Warnings = append(ab.Warnings, resourceRef)
 			summary.TotalWarnings++
 		}
 		summary.Bins[bin] = ab

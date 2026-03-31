@@ -20,6 +20,9 @@ type AnalysisFinding struct {
 	FixedTemplate  string                                  `json:"fixed_template,omitempty"`
 	EmpiricalTests *stream_transform.EmpiricalTestSuite    `json:"empirical_tests,omitempty"`
 	SampleResponse *SampleResponsePair                     `json:"sample_response,omitempty"`
+	MockRoute        string                                  `json:"mock_route,omitempty"`
+	StackQLQuery     string                                  `json:"stackql_query,omitempty"`
+	ExpectedResponse string                                  `json:"expected_response,omitempty"`
 }
 
 func (f AnalysisFinding) Error() string {
