@@ -93,8 +93,8 @@ jobs:
           name: stackql_binary
           path: stackql-core/build/stackql
 
-  analysis:
-    name: Analysis
+  mock_expansion:
+    name: Mock Expansion
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
     needs:
@@ -166,8 +166,8 @@ jobs:
         python3 -c "
         from record_parser import generate_mocks_from_analysis_run
         generate_mocks_from_analysis_run(
-          analysis_run_dir='cicd/prior/analysis_results',
-          output_dir='cicd/post/mocks',
+          'cicd/prior/analysis_results',
+          'cicd/post/mocks',
         )
         "
 
