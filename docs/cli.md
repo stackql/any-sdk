@@ -178,7 +178,7 @@ _now="$(date +%s)" && build/anysdk aot \
   ./.stackql \
   ./.stackql/src/aws/v26.02.00377/provider.yaml \
   -v \
-  --mock-output-dir "cicd/out/auto-mocks" \
+  --mock-output-dir "cicd/out/auto-mocks/aws" \
   --schema-dir \
   cicd/schema-definitions > "cicd/out/aot/${_now}-summary.json" 2>"cicd/out/aot/${_now}-analysis.jsonl"
 
@@ -277,13 +277,32 @@ stackql exec \
 
 This validates the full round-trip: StackQL sends a real request → Flask returns the schema-derived mock → the provider's response transform processes it → StackQL presents the result.
 
-## Leveraging CLI for mocking
+## Leveraging CLI for mock testing
 
-For each closure, we can attach and instantiate corresponding method mocks from the appropriate `jsonl` records.  These mocks can be run in containers.  Then we can test against these containers, verify, and terminate at the conclusion.
+For each closure, we can attach and instantiate corresponding method mocks from the appropriate generated mock file (when the parameter to persist these is populated with an output location).  These mocks can be run in containers.  Then we can test against these containers, verify, and terminate at the conclusion.
 
 How to do this?
 
+First, do somethig like this:
+
+```bash
+
+_now="$(date +%s)" && build/anysdk aot \
+  ./.stackql \
+  ./.stackql/src/aws/v26.02.00377/provider.yaml \
+  -v \
+  --mock-output-dir "cicd/out/auto-mocks/aws" \
+  --schema-dir \
+  cicd/schema-definitions > "cicd/out/aot/${_now}-summary.json" 2>"cicd/out/aot/${_now}-analysis.jsonl"
+
+```
+
 Initial proposal is repository root level docker compose file:
 
-- Relies on a simple python
+- Run 
+- Mounts python file or files in for example `cicd/out/auto-mocks/aws`.
+- Run `stackql` against the complementary closure.
+- Verify that the result is as expected.  Confusingly, the expectation is still in a `jsonl` record.
+
+
 

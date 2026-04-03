@@ -38,8 +38,8 @@ func runClosureCommand(rtCtx dto.RuntimeCtx, registryRoot string, providerDoc st
 	providerName := rtCtx.CLIProviderName
 	resourceName := rtCtx.CLIResourceStr
 
-	if providerName == "" || resourceName == "" {
-		fmt.Fprintln(os.Stderr, "closure requires --provider and --resource flags")
+	if providerName == "" {
+		fmt.Fprintln(os.Stderr, "closure requires --provider flag")
 		os.Exit(1)
 	}
 

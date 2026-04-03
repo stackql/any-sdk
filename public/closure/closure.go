@@ -22,6 +22,18 @@ func BuildClosure(serviceDocBytes []byte, cfg ClosureConfig) ([]byte, error) {
 		return nil, fmt.Errorf("failed to parse service document: %w", err)
 	}
 
+	// If no resource specified, rewrite the entire service doc (all resources)
+	if cfg.ResourceName == "" {
+		if cfg.RewriteURL != "" {
+			if servers, ok := doc["servers"]; ok {
+				if serverSlice, ok := servers.([]interface{}); ok {
+					doc["servers"] = RewriteServers(serverSlice, cfg.RewriteURL)
+				}
+			}
+		}
+		return yaml.Marshal(doc)
+	}
+
 	// Locate target resource
 	resource, err := getResource(doc, cfg.ResourceName)
 	if err != nil {

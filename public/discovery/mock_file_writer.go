@@ -38,6 +38,32 @@ func mockFileName(provider, service, resource, method string) string {
 	return strings.ToLower(base) + ".py"
 }
 
+// WriteExpectationFiles writes individual expected response files for each finding
+// that has an expected_response. Each file is a plain text file containing the
+// expected JSON output from `stackql exec -o json`.
+func WriteExpectationFiles(findings []AnalysisFinding, outputDir string) error {
+	if outputDir == "" {
+		return nil
+	}
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create expectation output dir: %w", err)
+	}
+	for _, f := range findings {
+		if f.ExpectedResponse == "" {
+			continue
+		}
+		base := fmt.Sprintf("expect_%s_%s_%s_%s", f.Provider, f.Service, f.Resource, f.Method)
+		base = strings.ReplaceAll(base, ".", "_")
+		base = strings.ReplaceAll(base, "-", "_")
+		filename := strings.ToLower(base) + ".txt"
+		path := filepath.Join(outputDir, filename)
+		if err := os.WriteFile(path, []byte(f.ExpectedResponse), 0o644); err != nil {
+			return fmt.Errorf("failed to write expectation file %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
 func buildMockPythonFile(f AnalysisFinding) string {
 	varName := f.SampleResponse.VarName
 	if varName == "" {

@@ -147,6 +147,13 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 		}
 	}
 
+	// Optional: write individual expected response files
+	if rtCtx.CLIMockExpectationDir != "" && len(findings) > 0 {
+		if expErr := discovery.WriteExpectationFiles(findings, rtCtx.CLIMockExpectationDir); expErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to write expectation files: %v\n", expErr)
+		}
+	}
+
 	if analyisErr != nil {
 		os.Exit(1)
 	}
