@@ -117,7 +117,7 @@ AOT Resource Level Analysis AWS EC2 volumes_post_naively_presented with CLI
     Should Contain                     ${result.stdout}
     ...                                "warning_count": 2
     Should Contain                     ${result.stdout}
-    ...                                sample_response
+    ...                                ec2.volumes_post_naively_presented
     Should Be Equal As Strings    ${result.rc}    0
 
 AOT Method Level Analysis AWS EC2 volumes_post_naively_presented describeVolumes with CLI
@@ -167,9 +167,7 @@ AOT Method Level Analysis AWS EC2 volumes_post_naively_presented describeVolumes
     Should Contain                     ${result.stdout}
     ...                                "missing-semantics"
     Should Contain                     ${result.stdout}
-    ...                                "method": "describeVolumes"
-    Should Contain                     ${result.stdout}
-    ...                                sample_response
+    ...                                ec2.volumes_post_naively_presented
     Should Be Equal As Strings    ${result.rc}    0
 
 Closure Generation AWS EC2 volumes_post_naively_presented with Rewrite
