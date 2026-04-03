@@ -1489,8 +1489,10 @@ func analyzeMethod(
 
 	// Enrich findings that have sample responses with mock route and StackQL query
 	reqParams := method.GetRequiredParameters()
+	hasMock := false
 	for i := range result.findings {
 		if result.findings[i].SampleResponse != nil {
+			hasMock = true
 			varName := MockResponseVarName(actx.Provider, actx.Service, actx.Resource, actx.Method)
 			result.findings[i].SampleResponse.VarName = varName
 			result.findings[i].MockRoute = GenerateMockRoute(
@@ -1514,6 +1516,50 @@ func analyzeMethod(
 				result.findings[i].SampleResponse.PostTransform,
 				method.GetSelectItemsKey(),
 			)
+		}
+	}
+
+	// For methods that didn't produce a SampleResponse through transform analysis,
+	// generate a mock-only finding directly from the response schema.
+	if !hasMock {
+		responseSchema, mediaType, _ := method.GetFinalResponseBodySchemaAndMediaType()
+		if responseSchema != nil {
+			sampleResponse := GenerateSampleResponsePair(responseSchema, mediaType, responseSchema, mediaType)
+			if sampleResponse != nil && sampleResponse.PreTransform != "" {
+				varName := MockResponseVarName(actx.Provider, actx.Service, actx.Resource, actx.Method)
+				sampleResponse.VarName = varName
+				f := AnalysisFinding{
+					Level:    "info",
+					Provider: actx.Provider,
+					Service:  actx.Service,
+					Resource: actx.Resource,
+					Method:   actx.Method,
+					Message:  "mock generated from response schema",
+					SampleResponse: sampleResponse,
+					MockRoute: GenerateMockRoute(
+						actx.Provider,
+						actx.Service,
+						actx.Resource,
+						actx.Method,
+						method.GetAPIMethod(),
+						method.GetName(),
+						method.GetParameterizedPath(),
+						reqParams,
+					),
+					StackQLQuery: GenerateStackQLQuery(
+						actx.Provider,
+						actx.Service,
+						actx.Resource,
+						method.GetSQLVerb(),
+						reqParams,
+					),
+					ExpectedResponse: GenerateExpectedResponse(
+						sampleResponse.PostTransform,
+						method.GetSelectItemsKey(),
+					),
+				}
+				result.findings = append(result.findings, f)
+			}
 		}
 	}
 

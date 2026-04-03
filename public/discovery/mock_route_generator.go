@@ -113,12 +113,20 @@ func buildWhereClause(params map[string]anysdk.Addressable) string {
 	clauses := make([]string, 0, len(keys))
 	for _, k := range keys {
 		p := params[k]
-		clauses = append(clauses, fmt.Sprintf("%s = '%s'", k, dummyValue(p)))
+		clauses = append(clauses, fmt.Sprintf("%s = '%s'", k, dummyValue(p, k)))
 	}
 	return strings.Join(clauses, " AND ")
 }
 
-func dummyValue(p anysdk.Addressable) string {
+func dummyValue(p anysdk.Addressable, key string) (rv string) {
+	defer func() {
+		if r := recover(); r != nil {
+			rv = "dummy_" + key
+		}
+	}()
+	if p == nil {
+		return "dummy_" + key
+	}
 	switch strings.ToLower(p.GetType()) {
 	case "integer", "number":
 		return "0"
