@@ -140,6 +140,13 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 	// stdout: JSON summary
 	fmt.Fprintln(os.Stdout, discovery.FormatSummaryJSON(allErrs, allWarnings, allAffirmatives, findings))
 
+	// Optional: write individual Python mock files
+	if rtCtx.CLIMockOutputDir != "" && len(findings) > 0 {
+		if mockErr := discovery.WriteMockFiles(findings, rtCtx.CLIMockOutputDir); mockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to write mock files: %v\n", mockErr)
+		}
+	}
+
 	if analyisErr != nil {
 		os.Exit(1)
 	}

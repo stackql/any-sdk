@@ -72,6 +72,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLISchemaDir, "schema-dir", ``, "path to schema directory")
 	rootCmd.PersistentFlags().BoolVar(&runtimeCtx.CLISkipSchemaValidation, "skip-schema-validation", false, "skip schema validation")
 	rootCmd.PersistentFlags().BoolVarP(&runtimeCtx.VerboseFlag, dto.VerboseFlagKey, "v", false, "Verbose flag")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMockOutputDir, "mock-output-dir", "", "output directory for individual Python mock files (aot only, empty to disable)")
 
 	rootCmd.AddCommand(execCmd)
 	rootCmd.AddCommand(constCmd)

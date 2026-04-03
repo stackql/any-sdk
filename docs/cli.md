@@ -178,8 +178,9 @@ _now="$(date +%s)" && build/anysdk aot \
   ./.stackql \
   ./.stackql/src/aws/v26.02.00377/provider.yaml \
   -v \
+  --mock-output-dir "cicd/out/auto-mocks" \
   --schema-dir \
-  cicd/schema-definitions > "cicd/out/${_now}-summary.json" 2>"cicd/out/${_now}-analysis.jsonl"
+  cicd/schema-definitions > "cicd/out/aot/${_now}-summary.json" 2>"cicd/out/aot/${_now}-analysis.jsonl"
 
 ```
 
@@ -223,7 +224,7 @@ build/anysdk closure \
   --provider aws \
   --resource volumes_post_naively_presented \
   --rewrite-url http://localhost:1091 \
-  > cicd/out/closure_ec2_volumes.yaml
+  > cicd/out/aot/closure_ec2_volumes.yaml
 
 
 
@@ -275,3 +276,14 @@ stackql exec \
 ```
 
 This validates the full round-trip: StackQL sends a real request → Flask returns the schema-derived mock → the provider's response transform processes it → StackQL presents the result.
+
+## Leveraging CLI for mocking
+
+For each closure, we can attach and instantiate corresponding method mocks from the appropriate `jsonl` records.  These mocks can be run in containers.  Then we can test against these containers, verify, and terminate at the conclusion.
+
+How to do this?
+
+Initial proposal is repository root level docker compose file:
+
+- Relies on a simple python
+

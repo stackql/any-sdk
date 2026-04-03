@@ -146,6 +146,9 @@ jobs:
 
     - name: Interrogate Providers via CLI and Generate Analysis
       run: |
+        mkdir -p "cicd/out/auto-mocks/aws"
+        mkdir -p "cicd/out/auto-mocks/google"
+        mkdir -p "cicd/out/auto-mocks/azure"
         stackql exec "registry pull aws ${PROVIDER_VERSION_AWS};"
         stackql exec "registry pull google ${PROVIDER_VERSION_GOOGLE};"
         stackql exec "registry pull azure ${PROVIDER_VERSION_AZURE};"
@@ -161,27 +164,38 @@ jobs:
           ./.stackql \
           ./.stackql/src/aws/${PROVIDER_VERSION_AWS}/provider.yaml \
           -v \
+          --mock-output-dir "cicd/out/auto-mocks/aws" \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl" || true
+          cicd/schema-definitions > "cicd/out/aot/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/aot/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl" || true
         ./build/anysdk aot \
           ./.stackql \
           ./.stackql/src/azure/${PROVIDER_VERSION_AZURE}/provider.yaml \
           -v \
+          --mock-output-dir "cicd/out/auto-mocks/azure" \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl" || true
+          cicd/schema-definitions > "cicd/out/aot/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/aot/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl" || true
         ./build/anysdk aot \
           ./.stackql \
           ./.stackql/src/googleapis.com/${PROVIDER_VERSION_GOOGLE}/provider.yaml \
           -v \
+          --mock-output-dir "cicd/out/auto-mocks/google" \
           --schema-dir \
-          cicd/schema-definitions > "cicd/out/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl" || true
+          cicd/schema-definitions > "cicd/out/aot/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/aot/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl" || true
 
     - name: Upload Provider Analysis results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: provider-analysis-results
-        path: cicd/out/*.json*
+        path: cicd/out/aot/*.json*
+
+
+    - name: Upload Auto Mocks
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: auto-mocks
+        path: cicd/out/auto-mocks
 
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -200,10 +214,11 @@ jobs:
         echo "Uploading to ${DEST}"
 
         # upload everything
-        gcloud storage cp -r cicd/out "${DEST}/"
+        gcloud storage cp -r cicd/out/aot "${DEST}/"
+        gcloud storage cp -r cicd/out/auto-mocks "${DEST}/"
 
         # optional: also write a pointer to latest
-        echo "{\"latest\": \"${DEST}/out\"}" > latest.json
+        echo "{\"latest\": \"${DEST}\"}" > latest.json
         gcloud storage cp latest.json "gs://${ANALYSIS_RESULTS_BUCKET}/provider-analysis/latest.json"
 
 

@@ -20,7 +20,7 @@ uv venv && uv pip install -e ./cicd/python/record_parser
 from record_parser import parse_record, generate_flask_app, generate_flask_apps_from_file, generate_mocks_from_analysis_run
 
 
-generate_mocks_from_analysis_run("test/assets/analysis-jsonl", "cicd/out")
+generate_mocks_from_analysis_run("test/assets/analysis-jsonl", "cicd/out/aot")
 
 
 for line in generate_flask_apps_from_file("test/assets/analysis-jsonl/single-entry-observations.jsonl"): print(json.dumps(line))
