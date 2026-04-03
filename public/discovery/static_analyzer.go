@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/client"
@@ -1055,8 +1054,6 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 	}
 	// --- END DOCVAL ANALYSIS ---
 	providerServices := provider.GetProviderServices()
-	var wg sync.WaitGroup
-	serviceAnalyzers := make(map[string]StaticAnalyzer, len(providerServices))
 	for k, providerService := range providerServices {
 		serviceLevelStaticAnalyzer := NewServiceLevelStaticAnalyzer(
 			osa.cfg,
@@ -1067,15 +1064,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			k,
 			osa.registryAPI,
 		)
-		serviceAnalyzers[k] = serviceLevelStaticAnalyzer
-		wg.Add(1)
-		go func(k string) {
-			defer wg.Done()
-			serviceLevelStaticAnalyzer.Analyze()
-		}(k)
-	}
-	wg.Wait()
-	for k, serviceLevelStaticAnalyzer := range serviceAnalyzers {
+		serviceLevelStaticAnalyzer.Analyze()
 		serviceErrors := serviceLevelStaticAnalyzer.GetErrors()
 		if len(serviceErrors) > 0 {
 			osa.errors = append(osa.errors, fmt.Errorf("static analysis found errors for service %s, error count %d", k, len(serviceErrors)))
@@ -1087,7 +1076,6 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			osa.findings = append(osa.findings, fa.GetFindings()...)
 		}
 	}
-	wg.Wait()
 	if len(osa.errors) > 0 {
 		return fmt.Errorf("static analysis found errors, error count %d", len(osa.errors))
 	}
@@ -1318,7 +1306,8 @@ func (osa *serviceLevelStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, boo
 }
 
 func (osa *serviceLevelStaticAnalyzer) Analyze() error {
-	anysdk.OpenapiFileRoot = osa.cfg.GetRegistryRootDir()
+	// NOTE: OpenapiFileRoot must be set by the caller before concurrent invocation.
+	// Do not set it here — concurrent goroutines would race on the global.
 	protocolType, protocolTypeErr := osa.provider.GetProtocolType()
 	if protocolTypeErr != nil {
 		return protocolTypeErr
