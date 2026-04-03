@@ -1497,6 +1497,37 @@ func analyzeMethod(
 	default:
 		// placeholder for fine grained protocol type analysis
 	}
+
+	// Enrich findings that have sample responses with mock route and StackQL query
+	reqParams := method.GetRequiredParameters()
+	for i := range result.findings {
+		if result.findings[i].SampleResponse != nil {
+			varName := MockResponseVarName(actx.Provider, actx.Service, actx.Resource, actx.Method)
+			result.findings[i].SampleResponse.VarName = varName
+			result.findings[i].MockRoute = GenerateMockRoute(
+				actx.Provider,
+				actx.Service,
+				actx.Resource,
+				actx.Method,
+				method.GetAPIMethod(),
+				method.GetName(),
+				method.GetParameterizedPath(),
+				reqParams,
+			)
+			result.findings[i].StackQLQuery = GenerateStackQLQuery(
+				actx.Provider,
+				actx.Service,
+				actx.Resource,
+				method.GetSQLVerb(),
+				reqParams,
+			)
+			result.findings[i].ExpectedResponse = GenerateExpectedResponse(
+				result.findings[i].SampleResponse.PostTransform,
+				method.GetSelectItemsKey(),
+			)
+		}
+	}
+
 	return result
 }
 

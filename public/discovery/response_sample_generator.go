@@ -10,6 +10,7 @@ import (
 
 // SampleResponsePair holds pre-transform and post-transform sample responses.
 type SampleResponsePair struct {
+	VarName       string `json:"var_name,omitempty"`
 	PreTransform  string `json:"pre_transform"`
 	PostTransform string `json:"post_transform"`
 }

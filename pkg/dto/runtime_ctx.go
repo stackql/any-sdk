@@ -67,6 +67,7 @@ type RuntimeCtx struct {
 	CLIMethodName                string
 	CLISchemaDir                 string
 	CLISkipSchemaValidation      bool
+	CLIRewriteURL                string
 }
 
 func setInt(iPtr *int, val string) error {

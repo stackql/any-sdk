@@ -1,0 +1,196 @@
+name: Mock Generation
+
+permissions:
+  contents: read
+
+on:
+  # schedule:
+  #   - cron: '45 */12 * * *'
+  workflow_run:
+    workflows: ["Provider Analysis"]
+    types:
+      - completed
+  push:
+    tags:
+      - mock-experiment*
+
+env:
+  STACKQL_CORE_REPOSITORY: ${{ vars.STACKQL_CORE_REPOSITORY != '' && vars.STACKQL_CORE_REPOSITORY || 'stackql/stackql' }}
+  STACKQL_CORE_REF: ${{ vars.STACKQL_CORE_REF != '' && vars.STACKQL_CORE_REF || 'main' }}
+  STACKQL_ANY_SDK_REPOSITORY: ${{ vars.STACKQL_ANY_SDK_REPOSITORY != '' && vars.STACKQL_ANY_SDK_REPOSITORY || 'stackql/any-sdk' }}
+  STACKQL_ANY_SDK_REF: ${{ vars.STACKQL_ANY_SDK_REF != '' && vars.STACKQL_ANY_SDK_REF || 'main' }}
+  PROVIDER_VERSION_AWS: v26.02.00377
+  PROVIDER_VERSION_AZURE: v24.10.00267
+  PROVIDER_VERSION_GOOGLE: v25.12.00357
+  GOLANG_VERSION: 1.25.3
+  PYTHON_VERSION: '3.12'
+  ANALYSIS_RESULTS_BUCKET: 'stackql-provider-analysis-results'
+
+jobs:
+
+  build-anysdk:
+    runs-on: ubuntu-24.04
+
+    steps:
+
+    - name: Set up golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: ^${{ env.GOLANG_VERSION }}
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v4
+
+    - name: Build
+      run: |
+        go build -x -v \
+          -o build/anysdk ./cmd/interrogate
+
+    - name: Test
+      run: go test -timeout 240s -v ./...
+
+    - name: Upload any-sdk binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: anysdk_binary
+        path: build/anysdk
+
+
+  build-stackql:
+    runs-on: ubuntu-24.04
+
+    steps:
+
+      - name: Set up golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^${{ env.GOLANG_VERSION }}
+        id: go
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download core
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.STACKQL_CORE_REPOSITORY }}
+          ref: ${{ env.STACKQL_CORE_REF }}
+          token: ${{ secrets.CI_STACKQL_PACKAGE_DOWNLOAD_TOKEN }}
+          path: stackql-core
+
+      - name: Build stackql from core source
+        working-directory: stackql-core
+        run: |
+          go get ./...
+          python3 cicd/python/build.py --build
+
+      - name: Upload stackql binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: stackql_binary
+          path: stackql-core/build/stackql
+
+  mock_expansion:
+    name: Mock Expansion
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    needs:
+      - build-anysdk
+      - build-stackql
+    steps:
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v4
+
+    - name: Download stackql binary
+      uses: actions/download-artifact@v4
+      with:
+        name: stackql_binary
+        path: build
+
+    - name: Download any-sdk binary
+      uses: actions/download-artifact@v4
+      with:
+        name: anysdk_binary
+        path: build
+
+    - name: Produce requisite binaries executable and add to path
+      run: |
+        echo "${{ github.workspace }}/build" >> $GITHUB_PATH;
+        chmod +x "${{ github.workspace }}/build/stackql"
+        chmod +x "${{ github.workspace }}/build/anysdk"
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Install record_parser
+      run: uv pip install --system -e ./cicd/python/record_parser
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.ANALYSIS_UPLOAD_GCS }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Download analysis artifacts from GCS
+      run: |
+        set -e
+
+        if ! gcloud storage cp "gs://${ANALYSIS_RESULTS_BUCKET}/provider-analysis/latest.json" latest.json; then
+          echo "No latest marker found, cannot proceed"
+          exit 1
+        fi
+
+        remoteSourceDir="$(jq -r '.latest' latest.json)"
+
+        mkdir -p cicd/prior/analysis_results
+        mkdir -p cicd/post/mocks
+
+        if ! gcloud storage cp -r "${remoteSourceDir}" "cicd/prior/analysis_results"; then
+          echo "No previous results found, cannot proceed"
+          exit 1
+        fi
+
+    - name: Generate Mocks
+      run: |
+        python3 -c "
+        from record_parser import generate_mocks_from_analysis_run
+        generate_mocks_from_analysis_run(
+          'cicd/prior/analysis_results',
+          'cicd/post/mocks',
+        )
+        "
+
+    - name: Upload Generated Mocks
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: provider-mocks
+        path: cicd/post/mocks
+
+    - name: Upload mock artifacts to GCS
+      run: |
+        set -e
+
+        RUN_EPOCH="$(date -u +%s)"
+        RUN_TS="$(date -u -d "@${RUN_EPOCH}" +%Y-%m-%dT%H-%M-%SZ)"
+        DATE_PATH="$(date -u -d "@${RUN_EPOCH}" +%Y/%m/%d)"
+
+        DEST="gs://${ANALYSIS_RESULTS_BUCKET}/provider-mocks/${DATE_PATH}/${RUN_TS}"
+
+        echo "Uploading to ${DEST}"
+
+        gcloud storage cp -r cicd/post/mocks "${DEST}/"
+
+        echo "{\"latest\": \"${DEST}/mocks\"}" > latest.json
+        gcloud storage cp latest.json "gs://${ANALYSIS_RESULTS_BUCKET}/provider-mocks/latest.json"
