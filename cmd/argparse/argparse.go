@@ -2,6 +2,8 @@ package argparse
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,12 +74,19 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLISchemaDir, "schema-dir", ``, "path to schema directory")
 	rootCmd.PersistentFlags().BoolVar(&runtimeCtx.CLISkipSchemaValidation, "skip-schema-validation", false, "skip schema validation")
 	rootCmd.PersistentFlags().BoolVarP(&runtimeCtx.VerboseFlag, dto.VerboseFlagKey, "v", false, "Verbose flag")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMockOutputDir, "mock-output-dir", "", "output directory for individual Python mock files (aot only, empty to disable)")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMockExpectationDir, "mock-expectation-dir", "", "output directory for expected response files (aot only, empty to disable)")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIMockQueryDir, "mock-query-dir", "", "output directory for StackQL query files (aot only, empty to disable)")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIStdoutFile, "stdout-file", "", "redirect stdout to this file (creates parent dirs, empty to use stdout)")
+	rootCmd.PersistentFlags().StringVar(&runtimeCtx.CLIStderrFile, "stderr-file", "", "redirect stderr to this file (creates parent dirs, empty to use stderr)")
 
 	rootCmd.AddCommand(execCmd)
 	rootCmd.AddCommand(constCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(aotCmd)
 	rootCmd.AddCommand(interrogateCmd)
+	rootCmd.AddCommand(closureCmd)
+	initClosureFlags()
 
 }
 
@@ -93,6 +102,7 @@ func setLogLevel() {
 func initConfig() {
 
 	setLogLevel()
+	setupOutputRedirects()
 
 	viper.AutomaticEnv() // read in environment variables that match
 
@@ -100,4 +110,31 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func setupOutputRedirects() {
+	if runtimeCtx.CLIStdoutFile != "" {
+		f, err := createFileWithDirs(runtimeCtx.CLIStdoutFile)
+		if err != nil {
+			log.Fatalf("cannot open stdout file: %v", err)
+		}
+		os.Stdout = f
+	}
+	if runtimeCtx.CLIStderrFile != "" {
+		f, err := createFileWithDirs(runtimeCtx.CLIStderrFile)
+		if err != nil {
+			log.Fatalf("cannot open stderr file: %v", err)
+		}
+		os.Stderr = f
+	}
+}
+
+func createFileWithDirs(path string) (*os.File, error) {
+	dir := filepath.Dir(path)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
+		}
+	}
+	return os.Create(path)
 }

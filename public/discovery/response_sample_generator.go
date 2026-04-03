@@ -10,6 +10,7 @@ import (
 
 // SampleResponsePair holds pre-transform and post-transform sample responses.
 type SampleResponsePair struct {
+	VarName       string `json:"var_name,omitempty"`
 	PreTransform  string `json:"pre_transform"`
 	PostTransform string `json:"post_transform"`
 }
@@ -67,9 +68,28 @@ func GenerateSampleResponse(schema anysdk.Schema, mediaType string) string {
 }
 
 // GenerateSampleXMLResponse produces a minimal XML sample from the schema.
+// If the schema is an object with properties, each top-level property becomes
+// a root XML element — matching real API responses that don't wrap in an
+// artificial <Response> envelope.
 func GenerateSampleXMLResponse(schema anysdk.Schema, rootElement string) string {
 	if schema == nil {
 		return ""
+	}
+	// If the schema is an object, emit each top-level property as its own
+	// XML element — no artificial wrapper. This matches real API behavior
+	// (e.g., <DescribeVolumesResponse>...</DescribeVolumesResponse>).
+	schemaType := schema.GetType()
+	if (schemaType == "object" || schemaType == "") && rootElement == "" {
+		props, err := schema.GetProperties()
+		if err == nil && len(props) > 0 {
+			var sb strings.Builder
+			for key, propSchema := range props {
+				sb.WriteString(fmt.Sprintf("<%s>", key))
+				generateSampleXML(&sb, propSchema, 1)
+				sb.WriteString(fmt.Sprintf("</%s>", key))
+			}
+			return sb.String()
+		}
 	}
 	if rootElement == "" {
 		rootElement = "Response"
