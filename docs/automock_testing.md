@@ -27,11 +27,12 @@ From the root of this repository:
 
 ```bash
 docker build -f testlib.Dockerfile -t stackql/any-sdk-testlib:latest .
+
 ```
 
 Then, generate some auto mocks, for example `aws`, again from repository root:
 
-```
+```bash
 
 stackql exec "registry pull aws v26.02.00377;"
 
@@ -46,13 +47,28 @@ _now="$(date +%s)" && build/anysdk aot \
 
 ```
 
+Pick a method, eg: `aws` `ec2` instances describe and generate the closure:
+
+```bash
+
+build/anysdk closure \
+  ./.stackql \
+  ./.stackql/src/aws/v26.02.00377/provider.yaml \
+  ec2 \
+  --provider aws \
+  --resource instances \
+  --rewrite-url http://localhost:1091 \
+  > cicd/out/closures/closure_ec2_instances.yaml
+
+```
+
 Now we can do a single run:
 
 
 ```bash
 
 
-container_id="$(docker run -d -p 5000:5000 -v ./cicd/out/auto-mocks/aws:/opt/auto-mocks stackql/any-sdk-testlib:latest python /opt/auto-mocks/mock_aws_ec2_native_instances_describe.py --port 5000)"
+container_id="$(docker run -d -p 5000:5000 -v ./test/auto-mocks/reference:/opt/auto-mocks stackql/any-sdk-testlib:latest python /opt/auto-mocks/mock_aws_ec2_instances_describe.py --port 5000)"
 
 
 docker exec $container_id curl -s -X POST http://localhost:5000/ -d "Action=DescribeInstances"
@@ -61,8 +77,7 @@ docker exec $container_id curl -s -X POST http://localhost:5000/ -d "Action=Desc
 docker kill $container_id
 
 
-
-
+AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "select * from aws.ec2.instances where region = 'ap-southeast-2';" -o json
 
 
 

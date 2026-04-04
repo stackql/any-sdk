@@ -1,0 +1,23 @@
+[
+  {
+    "availability_zone": "sample_string",
+    "block_device_mappings": {},
+    "iam_instance_profile": {},
+    "image_id": "sample_string",
+    "instance_id": "sample_string",
+    "instance_type": "sample_string",
+    "key_name": "sample_string",
+    "launch_time": "sample_string",
+    "monitoring": {},
+    "network_interfaces": {},
+    "private_dns_name": "sample_string",
+    "private_ip_address": "sample_string",
+    "public_dns_name": "sample_string",
+    "public_ip_address": "sample_string",
+    "security_groups": {},
+    "state": {},
+    "subnet_id": "sample_string",
+    "tag_set": {},
+    "vpc_id": "sample_string"
+  }
+]
