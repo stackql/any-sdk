@@ -13,4 +13,4 @@ if __name__ == '__main__':
     import argparse as ap
     p = ap.ArgumentParser()
     p.add_argument('--port', type=int, default=5000)
-    app.run(port=p.parse_args().port)
+    app.run(host='0.0.0.0', port=p.parse_args().port)
