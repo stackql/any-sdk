@@ -62,7 +62,9 @@ build/anysdk closure \
 
 ```
 
-Now we can do a single run:
+## Esxample run
+
+Let us perform an example run with reference material: 
 
 
 ```bash
@@ -77,8 +79,14 @@ docker exec $container_id curl -s -X POST http://localhost:5000/ -d "Action=Desc
 docker kill $container_id
 
 
-AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "select * from aws.ec2.instances where region = 'ap-southeast-2';" -o json
+response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "select * from aws.ec2.instances where region = 'ap-southeast-2';" -o json)
 
+
+if [ "$response" != "$(cat test/auto-mocks/reference/expect_aws_ec2_instances_describe.txt)" ]; then
+  echo "failed"
+else 
+  echo "success"
+fi
 
 
 # cicd/out/mock-expectations/aws/expect_aws_ec2_instances_describe.txt
