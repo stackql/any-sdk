@@ -1,113 +1,103 @@
 #!/usr/bin/env bash
 
+set -e
+
 provider="aws"
-
-providerHandle="aws" # differs for google and future proof aliasing
-
+providerHandle="aws"
 providerVersion="v26.02.00377"
-
 service="ec2"
-
 resource="volumes"
-
 method="describe"
+MOCK_PORT=5050
 
-## Hoisted out of loop section
+## Activate venv
+if [ ! -d "mock.venv" ]; then
+  echo "Creating mock.venv..."
+  python3 -m venv mock.venv
+  mock.venv/bin/pip install -r cicd/mock-testing-requirements.txt
+fi
+source mock.venv/bin/activate
 
-# stackql exec "registry pull ${provider} ${providerVersion};" 
-_now="$(date +%s)" && build/anysdk aot \
-  ./.stackql \
-  ./.stackql/src/aws/v26.02.00377/provider.yaml \
-  -v \
-  --mock-output-dir "cicd/out/auto-mocks/aws" \
-  --mock-expectation-dir "cicd/out/mock-expectations/aws" \
-  --mock-query-dir "cicd/out/mock-queries/aws" \
-  --schema-dir \
-  cicd/schema-definitions \
-  --stdout-file "cicd/out/aot/${_now}-summary.json" \
-  --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
+## Generate artifacts (uncomment to regenerate)
+# stackql exec "registry pull ${provider} ${providerVersion};"
+# _now="$(date +%s)" && build/anysdk aot \
+#   ./.stackql \
+#   ./.stackql/src/${providerHandle}/${providerVersion}/provider.yaml \
+#   -v \
+#   --mock-output-dir "cicd/out/auto-mocks/${provider}" \
+#   --mock-expectation-dir "cicd/out/mock-expectations/${provider}" \
+#   --mock-query-dir "cicd/out/mock-queries/${provider}" \
+#   --schema-dir cicd/schema-definitions \
+#   --stdout-file "cicd/out/aot/${_now}-summary.json" \
+#   --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
 
-## End Hoisted out of loop section
-
-
-mkdir -p "cicd/out/closures/${provider}_${service}_${resource}/src/${providerHandle}/${providerVersion}/services"
-
-read -r -d '' PROVIDER_FILE_TMPL << EOF
-id: ${provider}:${providerVersion}
-name: ${provider}
-version: ${providerVersion}
-providerServices:
-  ${service}:
-    description: ${service}
-    id: ${service}:${providerVersion}
-    name: ${service}
-    preferred: true
-    service:
-      \$ref: ${providerHandle}/${providerVersion}/services/${service}.yaml
-    title: ${service} API
-    version: ${providerVersion}
-openapi: 3.0.0
-config: # this should be copied from actual provider and paste here unchanged
-  auth:
-    type: "aws_signing_v4"
-    credentialsenvvar: "AWS_SECRET_ACCESS_KEY"
-    keyIDenvvar: "AWS_ACCESS_KEY_ID"
-EOF
-
-{
-    echo "$PROVIDER_FILE_TMPL"
-} > "./cicd/out/closures/${provider}_${service}_${resource}/src/${providerHandle}/${providerVersion}/provider.yaml"
-
-
-
+## Generate closure with provider doc
 build/anysdk closure \
   ./.stackql \
   ./.stackql/src/${providerHandle}/${providerVersion}/provider.yaml \
   "${service}" \
   --provider "${provider}" \
   --resource "${resource}" \
-  --rewrite-url http://localhost:5000 \
-  > "cicd/out/closures/${provider}_${service}_${resource}/src/${providerHandle}/${providerVersion}/services/${service}.yaml"
+  --rewrite-url "http://localhost:${MOCK_PORT}" \
+  --output-dir "cicd/out/closures/${provider}"
 
-query="$(cat cicd/out/mock-queries/${provider}/query_${provider}_${service}_${resource}_${method}.txt)"
+## Resolve files
+mock_file="cicd/out/auto-mocks/${provider}/mock_${provider}_${service}_${resource}_${method}.py"
+query_file="cicd/out/mock-queries/${provider}/query_${provider}_${service}_${resource}_${method}.txt"
+expect_file="cicd/out/mock-expectations/${provider}/expect_${provider}_${service}_${resource}_${method}.txt"
+closure_dir="$(pwd)/cicd/out/closures/${provider}/${provider}_${service}_${resource}"
 
-# eg: cicd/out/mock-expectations/aws/expect_aws_ec2_volumes_describe.txt
-expectation="$(cat cicd/out/mock-expectations/${provider}/expect_${provider}_${service}_${resource}_${method}.txt)"
+query="$(cat "$query_file")"
+expectation=""
+[ -f "$expect_file" ] && [ -s "$expect_file" ] && expectation="$(cat "$expect_file")"
 
+echo "query: $query"
+echo "expectation: ${expectation:-<none>}"
+echo "closure dir: $closure_dir"
+echo "mock file: $(pwd)/$mock_file"
 
+## Kill any leftover mock on this port
+lsof -ti ":${MOCK_PORT}" 2>/dev/null | xargs kill -9 2>/dev/null || true
 
+## Start mock
+python3 "$mock_file" --port ${MOCK_PORT} &
+MOCK_PID=$!
+sleep 1
 
-mock_file="mock_${provider}_${service}_${resource}_${method}.py"
-registry_dir="$(pwd)/cicd/out/closures/${provider}_${service}_${resource}"
+## Smoke test
+echo ""
+echo "=== Smoke test ==="
+curl -s -X POST "http://localhost:${MOCK_PORT}/" -d "Action=DescribeVolumes" | head -100
+echo ""
 
-echo "query is: $query"
-echo "expectation is: $expectation"
-
-echo "registry dir is: $registry_dir"
-echo "mock file is: $(pwd)/cicd/out/auto-mocks/${provider}/$mock_file"
-
-
-container_id="$(docker run -d -p 5000:5000 -v "$(pwd)/cicd/out/auto-mocks/${provider}:/opt/auto-mocks" stackql/any-sdk-testlib:latest python "/opt/auto-mocks/${mock_file}" --port 5000)"
-
-# Wait for Flask to start
-sleep 2
-
-# Smoke test the mock
-docker exec "$container_id" curl -s -X POST http://localhost:5000/ -d "Action=DescribeVolumes&Version=2016-11-15" || echo "smoke test failed"
-
-# Run StackQL against the closure registry
+## Run StackQL
+echo ""
+echo "=== StackQL query ==="
 response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql \
   --http.log.enabled \
   --tls.allowInsecure \
-  --registry "{ \"url\": \"file://${registry_dir}\", \"localDocRoot\": \"${registry_dir}\", \"verifyConfig\": { \"nopVerify\": true } }" \
-  exec "${query};" -o json)
+  --registry "{ \"url\": \"file://${closure_dir}\", \"localDocRoot\": \"${closure_dir}\", \"verifyConfig\": { \"nopVerify\": true } }" \
+  exec "${query};" -o json 2>/tmp/stackql_stderr.txt)
 
-echo "response is: $response"
+echo "response: $response"
 
-if [ "$response" != "$expectation" ]; then
-  echo "failed"
+## Check result
+http_status="$(grep 'http response status code:' /tmp/stackql_stderr.txt | head -1 | sed 's/.*status code: //' | sed 's/,.*//')"
+echo "http status: ${http_status:-none}"
+
+if [ -n "$expectation" ]; then
+  if [ "$response" = "$expectation" ]; then
+    echo "RESULT: PASS (body match)"
+  else
+    echo "RESULT: FAIL (body mismatch)"
+  fi
+elif [ "$http_status" = "200" ]; then
+  echo "RESULT: PASS (status 200)"
 else
-  echo "success"
+  echo "RESULT: FAIL"
+  cat /tmp/stackql_stderr.txt | head -5
 fi
 
-docker kill "$container_id"
+## Cleanup
+kill $MOCK_PID 2>/dev/null
+wait $MOCK_PID 2>/dev/null

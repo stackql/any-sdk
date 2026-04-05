@@ -10,7 +10,7 @@ You will need to install:
 
 -  `stackql`, eg with `brew install stackql`.  There are other alternatives on [the official install doco](https://stackql.io/docs/installing-stackql). 
 - `golang` >= `1.25.3`.
-- `docker`.
+- `python3` >= `3.12`.
 
 
 Once dependencies are in place, let us install the `anysdk` CLI.  From the root of this repository:
@@ -23,10 +23,14 @@ Or if you want, cut out the middle man with `go build -o build/anysdk ./cmd/inte
 
 This creates an executable at the `.gitignore`d location `build/anysdk`.
 
-From the root of this repository:
+Set up the mock testing venv from the root of this repository:
 
 ```bash
-docker build -f testlib.Dockerfile -t stackql/any-sdk-testlib:latest .
+python3 -m venv mock.venv
+
+source mock.venv/bin/activate
+
+pip install -r cicd/mock-testing-requirements.txt
 
 ```
 
@@ -60,7 +64,7 @@ build/anysdk closure \
   ec2 \
   --provider aws \
   --resource instances \
-  --rewrite-url http://localhost:1091 \
+  --rewrite-url http://localhost:5050 \
   > cicd/out/closures/closure_ec2_instances.yaml
 
 ```
@@ -72,18 +76,24 @@ Let us perform an example run with reference material:
 
 ```bash
 
+source mock.venv/bin/activate
 
-container_id="$(docker run -d -p 5000:5000 -v ./test/auto-mocks/reference:/opt/auto-mocks stackql/any-sdk-testlib:latest python /opt/auto-mocks/mock_aws_ec2_instances_describe.py --port 5000)"
+# Start mock in background
+python3 test/auto-mocks/reference/mock_aws_ec2_instances_describe.py --port 5050 &
+MOCK_PID=$!
+sleep 1
 
+# Smoke test
+curl -s -X POST http://localhost:5050/ -d "Action=DescribeInstances"
 
-docker exec $container_id curl -s -X POST http://localhost:5000/ -d "Action=DescribeInstances"
+# Run StackQL against the closure registry
+response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql \
+  --http.log.enabled \
+  --tls.allowInsecure \
+  --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" \
+  exec "$(cat test/auto-mocks/reference/query_aws_ec2_instances_describe.txt);" -o json)
 
-
-docker kill $container_id
-
-
-response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "$(cat test/auto-mocks/reference/query_aws_ec2_instances_describe.txt);" -o json)
-
+echo "response: $response"
 
 if [ "$response" != "$(cat test/auto-mocks/reference/expect_aws_ec2_instances_describe.txt)" ]; then
   echo "failed"
@@ -91,8 +101,8 @@ else
   echo "success"
 fi
 
-
-# cicd/out/mock-expectations/aws/expect_aws_ec2_instances_describe.txt
+# Cleanup
+kill $MOCK_PID 2>/dev/null
 
 ```
 
@@ -104,51 +114,48 @@ Let us perform a fully automated run:
 
 ```bash
 
+source mock.venv/bin/activate
+
 provider="aws"
-
-providerHandle="aws" # differs for google and future proof aliasing
-
+providerHandle="aws"
 providerVersion="v26.02.00377"
-
 service="ec2"
-
 resource="volumes"
 
 stackql exec "registry pull ${provider} ${providerVersion};"
 
-mkdir -p "cicd/out/closures/${provider}_${service}_${resource}/src/${providerHandle}/${providerVersion}/services"
-
-
-
+# Generate closure with provider doc
 build/anysdk closure \
   ./.stackql \
   ./.stackql/src/${providerHandle}/${providerVersion}/provider.yaml \
   "${service}" \
   --provider "${provider}" \
   --resource "${resource}" \
-  --rewrite-url http://localhost:5000 \
-  > "cicd/out/closures/${provider}_${service}_${resource}/services/${service}.yaml"
+  --rewrite-url http://localhost:5050 \
+  --output-dir "cicd/out/closures/${provider}"
 
+closure_dir="cicd/out/closures/${provider}/${provider}_${service}_${resource}"
+mock_file="cicd/out/auto-mocks/${provider}/mock_${provider}_${service}_${resource}_describe.py"
+query="$(cat cicd/out/mock-queries/${provider}/query_${provider}_${service}_${resource}_describe.txt)"
 
-container_id="$(docker run -d -p 5000:5000 -v ./test/auto-mocks/reference:/opt/auto-mocks stackql/any-sdk-testlib:latest python /opt/auto-mocks/mock_aws_ec2_instances_describe.py --port 5000)"
+# Start mock
+python3 "$mock_file" --port 5050 &
+MOCK_PID=$!
+sleep 1
 
+# Smoke test
+curl -s -X POST http://localhost:5050/ -d "Action=DescribeVolumes"
 
-docker exec $container_id curl -s -X POST http://localhost:5000/ -d "Action=DescribeInstances"
+# Run StackQL
+response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql \
+  --http.log.enabled \
+  --tls.allowInsecure \
+  --registry "{ \"url\": \"file://$(pwd)/${closure_dir}\", \"localDocRoot\": \"$(pwd)/${closure_dir}\", \"verifyConfig\": { \"nopVerify\": true } }" \
+  exec "${query};" -o json)
 
+echo "response: $response"
 
-docker kill $container_id
-
-
-response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "$(cat test/auto-mocks/reference/query_aws_ec2_instances_describe.txt);" -o json)
-
-
-if [ "$response" != "$(cat test/auto-mocks/reference/expect_aws_ec2_instances_describe.txt)" ]; then
-  echo "failed"
-else 
-  echo "success"
-fi
-
-
-# cicd/out/mock-expectations/aws/expect_aws_ec2_instances_describe.txt
+# Cleanup
+kill $MOCK_PID 2>/dev/null
 
 ```

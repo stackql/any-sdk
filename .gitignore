@@ -3,7 +3,7 @@
 opint
 .DS_Store
 dist/
-.venv/
+*.venv/
 __pycache__/
 *.py[co]
 stackql-core/
