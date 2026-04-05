@@ -89,42 +89,30 @@ jobs:
         chmod +x build/stackql
         echo "${{ github.workspace }}/build" >> $GITHUB_PATH
 
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: ${{ secrets.ANALYSIS_UPLOAD_GCS }}
-
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-
-    - name: Download Provider Analysis artifacts from GCS
+    - name: Download Provider Analysis artifacts
       run: |
         set -e
 
-        if ! gcloud storage cp "gs://${ANALYSIS_RESULTS_BUCKET}/provider-analysis/latest.json" latest.json; then
-          echo "No latest marker found, cannot proceed"
-          exit 1
-        fi
+        # Find the latest successful Provider Analysis run
+        RUN_ID=$(gh run list --workflow="Provider Analysis" --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+        echo "Downloading artifacts from run: ${RUN_ID}"
 
-        LATEST_DIR="$(jq -r '.latest' latest.json)"
-        echo "Downloading from: ${LATEST_DIR}"
+        gh run download "$RUN_ID" --name auto-mocks --dir cicd/out/auto-mocks
+        gh run download "$RUN_ID" --name mock-queries --dir cicd/out/mock-queries
+        gh run download "$RUN_ID" --name mock-expectations --dir cicd/out/mock-expectations
+        gh run download "$RUN_ID" --name closures --dir cicd/out/closures
+      env:
+        GH_TOKEN: ${{ github.token }}
 
-        mkdir -p cicd/out
-
-        gcloud storage cp -r "${LATEST_DIR}/auto-mocks" cicd/out/ || true
-        gcloud storage cp -r "${LATEST_DIR}/mock-queries" cicd/out/ || true
-        gcloud storage cp -r "${LATEST_DIR}/mock-expectations" cicd/out/ || true
-        gcloud storage cp -r "${LATEST_DIR}/closures" cicd/out/ || true
-
+    - name: Verify downloaded artifacts
+      run: |
         echo "=== Downloaded artifacts ==="
-        echo "Directory structure:"
-        find cicd/out -maxdepth 3 -type d
-        echo "Mocks: $(find cicd/out -name 'mock_*.py' 2>/dev/null | wc -l)"
-        echo "Queries: $(find cicd/out -name 'query_*.txt' 2>/dev/null | wc -l)"
-        echo "Expectations: $(find cicd/out -name 'expect_*.txt' 2>/dev/null | wc -l)"
-        echo "Closures: $(find cicd/out -name 'provider.yaml' 2>/dev/null | wc -l)"
+        echo "Mocks: $(find cicd/out/auto-mocks -name 'mock_*.py' 2>/dev/null | wc -l)"
+        echo "Queries: $(find cicd/out/mock-queries -name 'query_*.txt' 2>/dev/null | wc -l)"
+        echo "Expectations: $(find cicd/out/mock-expectations -name 'expect_*.txt' 2>/dev/null | wc -l)"
+        echo "Closures: $(find cicd/out/closures -name 'provider.yaml' 2>/dev/null | wc -l)"
         echo "Sample mock paths:"
-        find cicd/out -name 'mock_*.py' 2>/dev/null | head -3
+        find cicd/out/auto-mocks -name 'mock_*.py' 2>/dev/null | head -3
 
     - name: Run Mock E2E Tests
       env:
@@ -250,6 +238,16 @@ jobs:
       with:
         name: mock-test-results
         path: cicd/out/mock-test-results.json
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      if: always()
+      with:
+        credentials_json: ${{ secrets.ANALYSIS_UPLOAD_GCS }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      if: always()
 
     - name: Upload Mock Test Results to GCS
       if: always()
