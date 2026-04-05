@@ -179,7 +179,7 @@ jobs:
             --stderr-file "cicd/out/aot/${RUN_TS}-${provider}-${version}-analysis.jsonl" || true
         done
 
-    - name: Generate Closures with Provider Docs
+    - name: Generate Per-Resource Closures with Provider Docs
       run: |
         MOCK_PORT=5000
 
@@ -193,18 +193,14 @@ jobs:
           for svc_file in .stackql/src/${handle}/${version}/services/*.yaml; do
             svc_name="$(basename "$svc_file" .yaml)"
 
-            closure_dir="cicd/out/closures/${provider}/${svc_name}/src/${handle}/${version}/services"
-            mkdir -p "$closure_dir"
-
-            # Generate closure service doc with rewritten URLs
             ./build/anysdk closure \
               ./.stackql \
               ./.stackql/src/${handle}/${version}/provider.yaml \
               "$svc_name" \
               --provider "$provider" \
               --rewrite-url "http://localhost:${MOCK_PORT}" \
-              --provider-out "cicd/out/closures/${provider}/${svc_name}/src/${handle}/${version}/provider.yaml" \
-              > "${closure_dir}/${svc_name}.yaml" 2>/dev/null || true
+              --output-dir "cicd/out/closures/${provider}" \
+              2>/dev/null || true
           done
         done
 

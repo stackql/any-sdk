@@ -278,6 +278,27 @@ func buildClosureDoc(
 	return out
 }
 
+// ListResources returns all resource names from the x-stackQL-resources section.
+func ListResources(serviceDocBytes []byte) ([]string, error) {
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(serviceDocBytes, &doc); err != nil {
+		return nil, err
+	}
+	components := getMap(doc, "components")
+	if components == nil {
+		return nil, nil
+	}
+	resources := getMap(components, "x-stackQL-resources")
+	if resources == nil {
+		return nil, nil
+	}
+	names := make([]string, 0, len(resources))
+	for k := range resources {
+		names = append(names, k)
+	}
+	return names, nil
+}
+
 // getMap safely navigates to a nested map key.
 func getMap(m map[string]interface{}, key string) map[string]interface{} {
 	if m == nil {

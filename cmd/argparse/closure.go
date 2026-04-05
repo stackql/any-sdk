@@ -33,6 +33,7 @@ The closure YAML is written to stdout.`,
 func initClosureFlags() {
 	closureCmd.Flags().StringVar(&runtimeCtx.CLIRewriteURL, "rewrite-url", "", "rewrite all server URLs to this base URL")
 	closureCmd.Flags().StringVar(&runtimeCtx.CLIProviderOut, "provider-out", "", "write a minimal provider YAML to this file (for use with the closure)")
+	closureCmd.Flags().StringVar(&runtimeCtx.CLIClosureOutputDir, "output-dir", "", "generate one closure per resource into this directory (each as a complete registry)")
 }
 
 func runClosureCommand(rtCtx dto.RuntimeCtx, registryRoot string, providerDoc string, serviceName string) {
@@ -58,14 +59,54 @@ func runClosureCommand(rtCtx dto.RuntimeCtx, registryRoot string, providerDoc st
 		os.Exit(1)
 	}
 
+	// --output-dir mode: generate one closure per resource as a complete registry
+	if rtCtx.CLIClosureOutputDir != "" {
+		resourceNames, listErr := closure.ListResources(serviceDocBytes)
+		if listErr != nil {
+			fmt.Fprintf(os.Stderr, "failed to list resources: %v\n", listErr)
+			os.Exit(1)
+		}
+		provVersion := extractVersion(providerDoc)
+		provHandle := extractHandle(providerDoc)
+		for _, rsc := range resourceNames {
+			cfg := closure.ClosureConfig{
+				ResourceName: rsc,
+				RewriteURL:   rtCtx.CLIRewriteURL,
+			}
+			closureBytes, buildErr := closure.BuildClosure(serviceDocBytes, cfg)
+			if buildErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: closure for %s/%s failed: %v\n", serviceName, rsc, buildErr)
+				continue
+			}
+			// Write closure as: output-dir/<provider>_<service>_<resource>/src/<handle>/<version>/services/<service>.yaml
+			registryBase := filepath.Join(rtCtx.CLIClosureOutputDir,
+				fmt.Sprintf("%s_%s_%s", providerName, serviceName, rsc),
+				"src", provHandle, provVersion)
+			svcDir := filepath.Join(registryBase, "services")
+			os.MkdirAll(svcDir, 0o755)
+			os.WriteFile(filepath.Join(svcDir, serviceName+".yaml"), closureBytes, 0o644)
+
+			// Write provider doc
+			providerBytes, provErr := generateMinimalProviderDoc(providerDoc, providerName, serviceName, "")
+			if provErr == nil {
+				os.WriteFile(filepath.Join(registryBase, "provider.yaml"), providerBytes, 0o644)
+			}
+		}
+		return
+	}
+
+	// Single resource mode: output closure to stdout
+	if resourceName == "" {
+		// No resource specified and no --output-dir: rewrite entire service doc
+	}
 	cfg := closure.ClosureConfig{
 		ResourceName: resourceName,
 		RewriteURL:   rtCtx.CLIRewriteURL,
 	}
 
-	closureBytes, err := closure.BuildClosure(serviceDocBytes, cfg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to build closure: %v\n", err)
+	closureBytes, buildErr := closure.BuildClosure(serviceDocBytes, cfg)
+	if buildErr != nil {
+		fmt.Fprintf(os.Stderr, "failed to build closure: %v\n", buildErr)
 		os.Exit(1)
 	}
 
@@ -84,6 +125,20 @@ func runClosureCommand(rtCtx dto.RuntimeCtx, registryRoot string, providerDoc st
 			}
 		}
 	}
+}
+
+// extractVersion extracts the version directory from a provider doc path like
+// .stackql/src/aws/v26.02.00377/provider.yaml → v26.02.00377
+func extractVersion(providerDoc string) string {
+	dir := filepath.Dir(providerDoc)
+	return filepath.Base(dir)
+}
+
+// extractHandle extracts the provider handle from a provider doc path like
+// .stackql/src/aws/v26.02.00377/provider.yaml → aws
+func extractHandle(providerDoc string) string {
+	dir := filepath.Dir(providerDoc)
+	return filepath.Base(filepath.Dir(dir))
 }
 
 // generateMinimalProviderDoc reads the original provider doc and produces a minimal

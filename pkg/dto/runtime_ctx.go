@@ -72,6 +72,7 @@ type RuntimeCtx struct {
 	CLIMockExpectationDir        string
 	CLIMockQueryDir              string
 	CLIProviderOut               string
+	CLIClosureOutputDir          string
 	CLIStdoutFile                string
 	CLIStderrFile                string
 }
