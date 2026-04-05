@@ -44,7 +44,9 @@ _now="$(date +%s)" && build/anysdk aot \
   --mock-expectation-dir "cicd/out/mock-expectations/aws" \
   --mock-query-dir "cicd/out/mock-queries/aws" \
   --schema-dir \
-  cicd/schema-definitions --stdout-file "cicd/out/aot/${_now}-summary.json" --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
+  cicd/schema-definitions \
+  --stdout-file "cicd/out/aot/${_now}-summary.json" \
+  --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
 
 ```
 
@@ -80,7 +82,7 @@ docker exec $container_id curl -s -X POST http://localhost:5000/ -d "Action=Desc
 docker kill $container_id
 
 
-response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "select * from aws.ec2.instances where region = 'ap-southeast-2';" -o json)
+response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "$(cat test/auto-mocks/reference/query_aws_ec2_instances_describe.txt);" -o json)
 
 
 if [ "$response" != "$(cat test/auto-mocks/reference/expect_aws_ec2_instances_describe.txt)" ]; then
