@@ -10,6 +10,8 @@ import (
 // WriteMockFiles writes individual Python mock files for each finding
 // that has a mock_route and sample_response. Each file is a standalone
 // Flask app that can be run directly.
+// WriteMockFiles writes individual Python mock files and a manifest mapping
+// each filename to its provider/service/resource/method components.
 func WriteMockFiles(findings []AnalysisFinding, outputDir string) error {
 	if outputDir == "" {
 		return nil
@@ -17,6 +19,7 @@ func WriteMockFiles(findings []AnalysisFinding, outputDir string) error {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create mock output dir: %w", err)
 	}
+	var manifest strings.Builder
 	for _, f := range findings {
 		if f.MockRoute == "" || f.SampleResponse == nil || f.SampleResponse.PreTransform == "" {
 			continue
@@ -26,6 +29,12 @@ func WriteMockFiles(findings []AnalysisFinding, outputDir string) error {
 		content := buildMockPythonFile(f)
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			return fmt.Errorf("failed to write mock file %s: %w", path, err)
+		}
+		manifest.WriteString(fmt.Sprintf("%s|%s|%s|%s|%s\n", filename, f.Provider, f.Service, f.Resource, f.Method))
+	}
+	if manifest.Len() > 0 {
+		if err := os.WriteFile(filepath.Join(outputDir, "manifest.txt"), []byte(manifest.String()), 0o644); err != nil {
+			return fmt.Errorf("failed to write manifest: %w", err)
 		}
 	}
 	return nil

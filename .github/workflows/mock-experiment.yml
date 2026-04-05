@@ -135,49 +135,47 @@ jobs:
         TEST_COUNT=0
         MAX_TESTS="${MAX_TEST_COUNT:-200}"
 
-        for mock_file in cicd/out/auto-mocks/*/mock_*.py; do
-          [ -f "$mock_file" ] || continue
+        # Iterate manifests from all providers
+        for manifest in cicd/out/auto-mocks/*/manifest.txt; do
+          [ -f "$manifest" ] || continue
+          provider_dir="$(basename "$(dirname "$manifest")")"
 
-          # Enforce iteration limit
-          if [ "$TEST_COUNT" -ge "$MAX_TESTS" ]; then
-            echo "Reached MAX_TEST_COUNT=${MAX_TESTS}, stopping."
-            break
-          fi
+          while IFS='|' read -r mock_filename provider service resource method; do
+            # Enforce iteration limit
+            if [ "$TEST_COUNT" -ge "$MAX_TESTS" ]; then
+              echo "Reached MAX_TEST_COUNT=${MAX_TESTS}, stopping."
+              break 2
+            fi
 
-          # Parse provider_service_resource_method from filename
-          basename_no_ext="$(basename "$mock_file" .py)"
-          method_key="${basename_no_ext#mock_}"
+            mock_file="cicd/out/auto-mocks/${provider_dir}/${mock_filename}"
+            [ -f "$mock_file" ] || continue
 
-          # Derive matching files
-          provider_dir="$(basename "$(dirname "$mock_file")")"
-          query_file="cicd/out/mock-queries/${provider_dir}/query_${method_key}.txt"
-          expect_file="cicd/out/mock-expectations/${provider_dir}/expect_${method_key}.txt"
+            method_key="${provider}_${service}_${resource}_${method}"
+            query_file="cicd/out/mock-queries/${provider_dir}/query_${method_key}.txt"
+            expect_file="cicd/out/mock-expectations/${provider_dir}/expect_${method_key}.txt"
+            closure_dir="cicd/out/closures/${provider_dir}/${provider}_${service}_${resource}"
 
-          # Closure registry: closures/{provider}/{provider}_{service}_{resource}/
-          resource_key="${method_key%_*}"
-          closure_dir="cicd/out/closures/${provider_dir}/${resource_key}"
+            # Skip if missing query or closure
+            if [ ! -f "$query_file" ]; then
+              SKIP_LIST="${SKIP_LIST}${method_key} (no query file)\n"
+              continue
+            fi
+            if [ ! -d "$closure_dir" ]; then
+              SKIP_LIST="${SKIP_LIST}${method_key} (no closure)\n"
+              continue
+            fi
 
-          # Skip if missing query or closure
-          if [ ! -f "$query_file" ]; then
-            SKIP_LIST="${SKIP_LIST}${method_key} (no query file)\n"
-            continue
-          fi
-          if [ ! -d "$closure_dir" ]; then
-            SKIP_LIST="${SKIP_LIST}${method_key} (no closure)\n"
-            continue
-          fi
+            TOTAL=$((TOTAL + 1))
+            TEST_COUNT=$((TEST_COUNT + 1))
+            query="$(cat "$query_file")"
 
-          TOTAL=$((TOTAL + 1))
-          TEST_COUNT=$((TEST_COUNT + 1))
-          query="$(cat "$query_file")"
+            # Start Flask mock in background
+            python3 "$mock_file" --port ${MOCK_PORT} &
+            MOCK_PID=$!
+            sleep 0.5
 
-          # Start Flask mock in background
-          python3 "$mock_file" --port ${MOCK_PORT} &
-          MOCK_PID=$!
-          sleep 0.5
-
-          # Run StackQL query
-          registry_dir="$(pwd)/${closure_dir}"
+            # Run StackQL query
+            registry_dir="$(pwd)/${closure_dir}"
           response="$(stackql \
             --tls.allowInsecure \
             --http.log.enabled \
@@ -202,9 +200,10 @@ jobs:
             fi
           fi
 
-          # Kill mock
-          kill $MOCK_PID 2>/dev/null
-          wait $MOCK_PID 2>/dev/null
+            # Kill mock
+            kill $MOCK_PID 2>/dev/null
+            wait $MOCK_PID 2>/dev/null
+          done < "$manifest"
         done
 
         # Count failures
