@@ -144,14 +144,8 @@ jobs:
         ref: ${{ env.STACKQL_CORE_REF }}
         path: stackql-core
 
-    - name: Interrogate Providers via CLI and Generate Analysis
+    - name: Pull Providers
       run: |
-        mkdir -p "cicd/out/auto-mocks/aws"
-        mkdir -p "cicd/out/auto-mocks/google"
-        mkdir -p "cicd/out/auto-mocks/azure"
-        mkdir -p "cicd/out/mock-expectations/aws"
-        mkdir -p "cicd/out/mock-expectations/google"
-        mkdir -p "cicd/out/mock-expectations/azure"
         stackql exec "registry pull aws ${PROVIDER_VERSION_AWS};"
         stackql exec "registry pull google ${PROVIDER_VERSION_GOOGLE};"
         stackql exec "registry pull azure ${PROVIDER_VERSION_AZURE};"
@@ -163,71 +157,55 @@ jobs:
           echo "DATE_PATH=${DATE_PATH}"
           echo "RUN_TS=${RUN_TS}"
         } >> "$GITHUB_ENV"
-        ./build/anysdk aot \
-          ./.stackql \
-          ./.stackql/src/aws/${PROVIDER_VERSION_AWS}/provider.yaml \
-          -v \
-          --mock-output-dir "cicd/out/auto-mocks/aws" \
-          --mock-expectation-dir "cicd/out/mock-expectations/aws" \
-          --schema-dir \
-          cicd/schema-definitions > "cicd/out/aot/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-summary.json" 2>"cicd/out/aot/${RUN_TS}-aws-${PROVIDER_VERSION_AWS}-analysis.jsonl" || true
-        ./build/anysdk aot \
-          ./.stackql \
-          ./.stackql/src/azure/${PROVIDER_VERSION_AZURE}/provider.yaml \
-          -v \
-          --mock-output-dir "cicd/out/auto-mocks/azure" \
-          --mock-expectation-dir "cicd/out/mock-expectations/azure" \
-          --schema-dir \
-          cicd/schema-definitions > "cicd/out/aot/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-summary.json" 2>"cicd/out/aot/${RUN_TS}-azure-${PROVIDER_VERSION_AZURE}-analysis.jsonl" || true
-        ./build/anysdk aot \
-          ./.stackql \
-          ./.stackql/src/googleapis.com/${PROVIDER_VERSION_GOOGLE}/provider.yaml \
-          -v \
-          --mock-output-dir "cicd/out/auto-mocks/google" \
-          --mock-expectation-dir "cicd/out/mock-expectations/google" \
-          --schema-dir \
-          cicd/schema-definitions > "cicd/out/aot/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-summary.json" 2>"cicd/out/aot/${RUN_TS}-google-${PROVIDER_VERSION_GOOGLE}-analysis.jsonl" || true
 
-    - name: Generate Closures per Service
+    - name: AOT Analysis and Mock Generation
       run: |
-        mkdir -p "cicd/out/closures/aws"
-        mkdir -p "cicd/out/closures/google"
-        mkdir -p "cicd/out/closures/azure"
+        for provider_cfg in \
+          "aws|aws|${PROVIDER_VERSION_AWS}" \
+          "azure|azure|${PROVIDER_VERSION_AZURE}" \
+          "google|googleapis.com|${PROVIDER_VERSION_GOOGLE}"; do
 
-        # AWS closures — one per service
-        for svc_file in .stackql/src/aws/${PROVIDER_VERSION_AWS}/services/*.yaml; do
-          svc_name="$(basename "$svc_file" .yaml)"
-          ./build/anysdk closure \
+          IFS='|' read -r provider handle version <<< "$provider_cfg"
+
+          ./build/anysdk aot \
             ./.stackql \
-            ./.stackql/src/aws/${PROVIDER_VERSION_AWS}/provider.yaml \
-            "$svc_name" \
-            --provider aws \
-            --rewrite-url http://localhost:1091 \
-            > "cicd/out/closures/aws/${svc_name}.yaml" 2>/dev/null || true
+            ./.stackql/src/${handle}/${version}/provider.yaml \
+            -v \
+            --mock-output-dir "cicd/out/auto-mocks/${provider}" \
+            --mock-expectation-dir "cicd/out/mock-expectations/${provider}" \
+            --mock-query-dir "cicd/out/mock-queries/${provider}" \
+            --schema-dir cicd/schema-definitions \
+            --stdout-file "cicd/out/aot/${RUN_TS}-${provider}-${version}-summary.json" \
+            --stderr-file "cicd/out/aot/${RUN_TS}-${provider}-${version}-analysis.jsonl" || true
         done
 
-        # Google closures
-        for svc_file in .stackql/src/googleapis.com/${PROVIDER_VERSION_GOOGLE}/services/*.yaml; do
-          svc_name="$(basename "$svc_file" .yaml)"
-          ./build/anysdk closure \
-            ./.stackql \
-            ./.stackql/src/googleapis.com/${PROVIDER_VERSION_GOOGLE}/provider.yaml \
-            "$svc_name" \
-            --provider google \
-            --rewrite-url http://localhost:1080 \
-            > "cicd/out/closures/google/${svc_name}.yaml" 2>/dev/null || true
-        done
+    - name: Generate Closures with Provider Docs
+      run: |
+        MOCK_PORT=5000
 
-        # Azure closures
-        for svc_file in .stackql/src/azure/${PROVIDER_VERSION_AZURE}/services/*.yaml; do
-          svc_name="$(basename "$svc_file" .yaml)"
-          ./build/anysdk closure \
-            ./.stackql \
-            ./.stackql/src/azure/${PROVIDER_VERSION_AZURE}/provider.yaml \
-            "$svc_name" \
-            --provider azure \
-            --rewrite-url http://localhost:1095 \
-            > "cicd/out/closures/azure/${svc_name}.yaml" 2>/dev/null || true
+        for provider_cfg in \
+          "aws|aws|${PROVIDER_VERSION_AWS}" \
+          "azure|azure|${PROVIDER_VERSION_AZURE}" \
+          "google|googleapis.com|${PROVIDER_VERSION_GOOGLE}"; do
+
+          IFS='|' read -r provider handle version <<< "$provider_cfg"
+
+          for svc_file in .stackql/src/${handle}/${version}/services/*.yaml; do
+            svc_name="$(basename "$svc_file" .yaml)"
+
+            closure_dir="cicd/out/closures/${provider}/${svc_name}/src/${handle}/${version}/services"
+            mkdir -p "$closure_dir"
+
+            # Generate closure service doc with rewritten URLs
+            ./build/anysdk closure \
+              ./.stackql \
+              ./.stackql/src/${handle}/${version}/provider.yaml \
+              "$svc_name" \
+              --provider "$provider" \
+              --rewrite-url "http://localhost:${MOCK_PORT}" \
+              --provider-out "cicd/out/closures/${provider}/${svc_name}/src/${handle}/${version}/provider.yaml" \
+              > "${closure_dir}/${svc_name}.yaml" 2>/dev/null || true
+          done
         done
 
     - name: Upload Provider Analysis results
@@ -235,28 +213,35 @@ jobs:
       if: always()
       with:
         name: provider-analysis-results
-        path: cicd/out/aot/*.json*
+        path: cicd/out/aot/
 
     - name: Upload Auto Mocks
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: auto-mocks
-        path: cicd/out/auto-mocks
+        path: cicd/out/auto-mocks/
 
     - name: Upload Mock Expectations
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: mock-expectations
-        path: cicd/out/mock-expectations
+        path: cicd/out/mock-expectations/
+
+    - name: Upload Mock Queries
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: mock-queries
+        path: cicd/out/mock-queries/
 
     - name: Upload Closures
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: closures
-        path: cicd/out/closures
+        path: cicd/out/closures/
 
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -266,7 +251,7 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
 
-    - name: Upload analysis artifacts to GCS
+    - name: Upload all artifacts to GCS
       run: |
         set -e
 
@@ -277,6 +262,7 @@ jobs:
         gcloud storage cp -r cicd/out/aot "${DEST}/"
         gcloud storage cp -r cicd/out/auto-mocks "${DEST}/"
         gcloud storage cp -r cicd/out/mock-expectations "${DEST}/"
+        gcloud storage cp -r cicd/out/mock-queries "${DEST}/"
         gcloud storage cp -r cicd/out/closures "${DEST}/"
 
         echo "{\"latest\": \"${DEST}\"}" > latest.json
