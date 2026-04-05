@@ -18,8 +18,9 @@ env:
   GOLANG_VERSION: 1.25.3
   PYTHON_VERSION: '3.12'
   ANALYSIS_RESULTS_BUCKET: 'stackql-provider-analysis-results'
-  MOCK_PORT: 5000
-  MAX_TEST_COUNT: 200
+  MOCK_PORT_BASE: 5050
+  MAX_TEST_COUNT: 20000
+  PARALLEL_JOBS: 20
 
 jobs:
 
@@ -92,11 +93,8 @@ jobs:
     - name: Download Provider Analysis artifacts
       run: |
         set -e
-
-        # Find the latest successful Provider Analysis run
         RUN_ID=$(gh run list --workflow="Provider Analysis" --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
         echo "Downloading artifacts from run: ${RUN_ID}"
-
         gh run download "$RUN_ID" --name auto-mocks --dir cicd/out/auto-mocks
         gh run download "$RUN_ID" --name mock-queries --dir cicd/out/mock-queries
         gh run download "$RUN_ID" --name mock-expectations --dir cicd/out/mock-expectations
@@ -106,13 +104,120 @@ jobs:
 
     - name: Verify downloaded artifacts
       run: |
-        echo "=== Downloaded artifacts ==="
         echo "Mocks: $(find cicd/out/auto-mocks -name 'mock_*.py' 2>/dev/null | wc -l)"
         echo "Queries: $(find cicd/out/mock-queries -name 'query_*.txt' 2>/dev/null | wc -l)"
-        echo "Expectations: $(find cicd/out/mock-expectations -name 'expect_*.txt' 2>/dev/null | wc -l)"
         echo "Closures: $(find cicd/out/closures -name 'provider.yaml' 2>/dev/null | wc -l)"
-        echo "Sample mock paths:"
-        find cicd/out/auto-mocks -name 'mock_*.py' 2>/dev/null | head -3
+
+    - name: Prepare test runner script
+      run: |
+        cat > /tmp/run_one_test.sh << 'SCRIPT'
+        #!/usr/bin/env bash
+        # Args: line_number provider_dir mock_filename provider service resource method
+        set -f
+        LINE_NUM="$1"
+        PROVIDER_DIR="$2"
+        MOCK_FILENAME="$3"
+        PROVIDER="$4"
+        SERVICE="$5"
+        RESOURCE="$6"
+        METHOD="$7"
+
+        EVENTS_FILE="$EVENTS_DIR/events.jsonl"
+        PORT=$(( MOCK_PORT_BASE + (LINE_NUM % 500) ))
+        METHOD_KEY="${PROVIDER}_${SERVICE}_${RESOURCE}_${METHOD}"
+
+        MOCK_FILE="cicd/out/auto-mocks/${PROVIDER_DIR}/${MOCK_FILENAME}"
+        QUERY_FILE="cicd/out/mock-queries/${PROVIDER_DIR}/query_${METHOD_KEY}.txt"
+        EXPECT_FILE="cicd/out/mock-expectations/${PROVIDER_DIR}/expect_${METHOD_KEY}.txt"
+        CLOSURE_DIR="cicd/out/closures/${PROVIDER_DIR}/${PROVIDER}_${SERVICE}_${RESOURCE}"
+
+        emit() {
+          local status="$1" error_class="$2" detail="$3" http_code="$4"
+          printf '{"method_key":"%s","provider":"%s","service":"%s","resource":"%s","method":"%s","sql_verb":"%s","status":"%s","error_class":"%s","http_code":%s,"detail":"%s"}\n' \
+            "$METHOD_KEY" "$PROVIDER" "$SERVICE" "$RESOURCE" "$METHOD" "$SQL_VERB" \
+            "$status" "$error_class" "${http_code:-null}" "$detail" \
+            | flock "$EVENTS_FILE.lock" tee -a "$EVENTS_FILE" > /dev/null
+        }
+
+        # Determine SQL verb from query
+        SQL_VERB="unknown"
+        if [ -f "$QUERY_FILE" ]; then
+          first_word="$(head -c 20 "$QUERY_FILE" | awk '{print tolower($1)}')"
+          case "$first_word" in
+            select) SQL_VERB="select" ;;
+            insert) SQL_VERB="insert" ;;
+            delete) SQL_VERB="delete" ;;
+            update) SQL_VERB="update" ;;
+            exec)   SQL_VERB="exec" ;;
+          esac
+        fi
+
+        [ -f "$MOCK_FILE" ] || { emit "skip" "no_mock" "" ""; exit 0; }
+        [ -f "$QUERY_FILE" ] || { emit "skip" "no_query" "" ""; exit 0; }
+        [ -d "$CLOSURE_DIR" ] || { emit "skip" "no_closure" "" ""; exit 0; }
+
+        QUERY="$(cat "$QUERY_FILE")"
+        REGISTRY_DIR="$(pwd)/${CLOSURE_DIR}"
+
+        # Start mock, retry port if busy
+        for attempt in 1 2 3; do
+          python3 "$MOCK_FILE" --port "$PORT" &
+          MOCK_PID=$!
+          sleep 0.3
+          if kill -0 $MOCK_PID 2>/dev/null; then
+            break
+          fi
+          PORT=$(( PORT + 500 ))
+        done
+
+        if ! kill -0 $MOCK_PID 2>/dev/null; then
+          emit "fail" "mock_start_failed" "could not start mock on any port" ""
+          exit 0
+        fi
+
+        STDERR_FILE="/tmp/sq_stderr_${LINE_NUM}.txt"
+        RESPONSE="$(stackql \
+          --tls.allowInsecure \
+          --http.log.enabled \
+          --registry "{ \"url\": \"file://${REGISTRY_DIR}\", \"localDocRoot\": \"${REGISTRY_DIR}\", \"verifyConfig\": { \"nopVerify\": true } }" \
+          exec "${QUERY};" -o json 2>"$STDERR_FILE")"
+
+        HTTP_CODE="$(grep 'http response status code:' "$STDERR_FILE" 2>/dev/null | head -1 | sed 's/.*status code: //' | sed 's/,.*//' | tr -d ' ')"
+
+        kill $MOCK_PID 2>/dev/null
+        wait $MOCK_PID 2>/dev/null
+
+        if [ "$HTTP_CODE" = "200" ]; then
+          # Check body match if expectation exists
+          if [ -f "$EXPECT_FILE" ] && [ -s "$EXPECT_FILE" ]; then
+            EXPECTED="$(cat "$EXPECT_FILE")"
+            if [ "$RESPONSE" = "$EXPECTED" ]; then
+              emit "pass" "status_ok_body_match" "" "$HTTP_CODE"
+            else
+              emit "fail" "body_mismatch" "" "$HTTP_CODE"
+            fi
+          else
+            emit "pass" "status_ok" "" "$HTTP_CODE"
+          fi
+        elif [ -n "$HTTP_CODE" ]; then
+          emit "fail" "status_${HTTP_CODE}" "" "$HTTP_CODE"
+        else
+          # No HTTP request made — classify from stderr
+          STDERR_FIRST="$(head -1 "$STDERR_FILE" 2>/dev/null | tr '"' "'" | head -c 200)"
+          if echo "$STDERR_FIRST" | grep -qi "syntax error"; then
+            emit "fail" "query_syntax_error" "$STDERR_FIRST" ""
+          elif echo "$STDERR_FIRST" | grep -qi "cannot resolve"; then
+            emit "fail" "registry_resolve_error" "$STDERR_FIRST" ""
+          elif echo "$STDERR_FIRST" | grep -qi "credentials"; then
+            emit "fail" "credentials_error" "$STDERR_FIRST" ""
+          else
+            emit "fail" "no_http_request" "$STDERR_FIRST" ""
+          fi
+        fi
+
+        rm -f "$STDERR_FILE"
+        SCRIPT
+        chmod +x /tmp/run_one_test.sh
 
     - name: Run Mock E2E Tests
       env:
@@ -122,147 +227,114 @@ jobs:
         AZURE_CLIENT_ID: fake
         AZURE_CLIENT_SECRET: fake
         AZURE_TENANT_ID: fake
+        MOCK_PORT_BASE: ${{ env.MOCK_PORT_BASE }}
+        EVENTS_DIR: cicd/out
       run: |
         set +e
+        mkdir -p cicd/out
+        touch cicd/out/events.jsonl
+        touch cicd/out/events.jsonl.lock
 
-        RESULTS_FILE="cicd/out/mock-test-results.json"
-        PASS_STATUS=0
-        PASS_BODY=0
-        FAIL_STATUS_LIST=""
-        FAIL_BODY_LIST=""
-        SKIP_LIST=""
-        TOTAL=0
-        TEST_COUNT=0
-        MAX_TESTS="${MAX_TEST_COUNT:-200}"
+        MAX_TESTS="${MAX_TEST_COUNT:--1}"
 
-        # Build a test list: prefer manifest, fall back to query files
+        # Build test list: prefer manifest, fall back to query files
         TEST_LIST="/tmp/test_list.txt"
         : > "$TEST_LIST"
 
-        # If manifests exist, use them (exact provider/service/resource/method)
         for manifest in cicd/out/auto-mocks/*/manifest.txt; do
           [ -f "$manifest" ] || continue
           provider_dir="$(basename "$(dirname "$manifest")")"
           while IFS='|' read -r mock_filename provider service resource method; do
-            echo "${provider_dir}|${mock_filename}|${provider}|${service}|${resource}|${method}" >> "$TEST_LIST"
+            echo "${provider_dir}|${mock_filename}|${provider}|${service}|${resource}|${method}"
           done < "$manifest"
-        done
+        done >> "$TEST_LIST"
 
-        # If no manifests, derive from query files (works with older artifacts)
         if [ ! -s "$TEST_LIST" ]; then
-          echo "No manifests found, deriving test list from query files"
+          echo "No manifests found, deriving from query files"
           for qf in cicd/out/mock-queries/*/query_*.txt; do
             [ -f "$qf" ] || continue
             provider_dir="$(basename "$(dirname "$qf")")"
-            key="$(basename "$qf" .txt)"
-            key="${key#query_}"
-            mock_file="cicd/out/auto-mocks/${provider_dir}/mock_${key}.py"
-            [ -f "$mock_file" ] || continue
-            echo "${provider_dir}|mock_${key}.py|${key}||||" >> "$TEST_LIST"
-          done
+            key="$(basename "$qf" .txt)"; key="${key#query_}"
+            [ -f "cicd/out/auto-mocks/${provider_dir}/mock_${key}.py" ] || continue
+            echo "${provider_dir}|mock_${key}.py|${key}||||"
+          done >> "$TEST_LIST"
         fi
 
-        echo "Test list entries: $(wc -l < "$TEST_LIST")"
+        TOTAL_AVAILABLE="$(wc -l < "$TEST_LIST")"
+        if [ "$MAX_TESTS" -ge 0 ] 2>/dev/null && [ "$TOTAL_AVAILABLE" -gt "$MAX_TESTS" ]; then
+          echo "Limiting to ${MAX_TESTS} of ${TOTAL_AVAILABLE} tests"
+          head -n "$MAX_TESTS" "$TEST_LIST" > /tmp/test_list_limited.txt
+          mv /tmp/test_list_limited.txt "$TEST_LIST"
+        fi
 
-        while IFS='|' read -r provider_dir mock_filename provider service resource method; do
-          if [ "$TEST_COUNT" -ge "$MAX_TESTS" ]; then
-            echo "Reached MAX_TEST_COUNT=${MAX_TESTS}, stopping."
-            break
-          fi
+        echo "Running $(wc -l < "$TEST_LIST") tests with ${PARALLEL_JOBS} parallel workers"
 
-          mock_file="cicd/out/auto-mocks/${provider_dir}/${mock_filename}"
-          [ -f "$mock_file" ] || continue
+        export EVENTS_DIR MOCK_PORT_BASE
+        nl -ba "$TEST_LIST" | tr '\t' '|' | \
+          xargs -P "${PARALLEL_JOBS}" -I {} bash -c '
+            IFS="|" read -r line_num provider_dir mock_filename provider service resource method <<< "{}"
+            /tmp/run_one_test.sh "$line_num" "$provider_dir" "$mock_filename" "$provider" "$service" "$resource" "$method"
+          '
 
-          # Derive file keys — from manifest fields or from filename
-          if [ -n "$provider" ] && [ -n "$service" ] && [ -n "$resource" ] && [ -n "$method" ]; then
-            method_key="${provider}_${service}_${resource}_${method}"
-            closure_dir="cicd/out/closures/${provider_dir}/${provider}_${service}_${resource}"
-          else
-            method_key="$(basename "$mock_filename" .py)"
-            method_key="${method_key#mock_}"
-            # Best-effort: strip last segment for resource key
-            resource_key="${method_key%_*}"
-            closure_dir="cicd/out/closures/${provider_dir}/${resource_key}"
-          fi
+        echo "Test run complete. Events: $(wc -l < cicd/out/events.jsonl)"
 
-          query_file="cicd/out/mock-queries/${provider_dir}/query_${method_key}.txt"
-          expect_file="cicd/out/mock-expectations/${provider_dir}/expect_${method_key}.txt"
+    - name: Generate Summary
+      if: always()
+      run: |
+        python3 << 'PYEOF'
+        import json, sys
+        from collections import Counter
 
-          if [ ! -f "$query_file" ]; then
-            SKIP_LIST="${SKIP_LIST}${method_key} (no query file)\n"
-            continue
-          fi
-          if [ ! -d "$closure_dir" ]; then
-            SKIP_LIST="${SKIP_LIST}${method_key} (no closure)\n"
-            continue
-          fi
+        events = []
+        with open("cicd/out/events.jsonl") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
 
-          TOTAL=$((TOTAL + 1))
-          TEST_COUNT=$((TEST_COUNT + 1))
-          query="$(cat "$query_file")"
+        total = len(events)
+        status_counts = Counter(e["status"] for e in events)
+        class_counts = Counter(e["error_class"] for e in events)
 
-          python3 "$mock_file" --port ${MOCK_PORT} &
-          MOCK_PID=$!
-          sleep 0.5
+        # Intersection: sql_verb × error_class
+        verb_class = Counter((e.get("sql_verb", "unknown"), e["error_class"]) for e in events)
+        verb_class_summary = {}
+        for (verb, cls), count in verb_class.most_common():
+            key = f"{verb}:{cls}"
+            verb_class_summary[key] = count
 
-          registry_dir="$(pwd)/${closure_dir}"
-          response="$(stackql \
-            --tls.allowInsecure \
-            --http.log.enabled \
-            --registry "{ \"url\": \"file://${registry_dir}\", \"localDocRoot\": \"${registry_dir}\", \"verifyConfig\": { \"nopVerify\": true } }" \
-            exec "${query};" -o json 2>/tmp/stackql_stderr.txt)"
+        # Provider × status
+        provider_status = Counter((e.get("provider", "unknown"), e["status"]) for e in events)
+        provider_summary = {}
+        for (prov, st), count in provider_status.most_common():
+            key = f"{prov}:{st}"
+            provider_summary[key] = count
 
-          http_status="$(grep -oP 'http response status code: \K[0-9]+' /tmp/stackql_stderr.txt | head -1)"
-          if [ "$http_status" = "200" ]; then
-            PASS_STATUS=$((PASS_STATUS + 1))
-          else
-            FAIL_STATUS_LIST="${FAIL_STATUS_LIST}${method_key} (status=${http_status:-none})\n"
-          fi
-
-          if [ -f "$expect_file" ] && [ -s "$expect_file" ]; then
-            expected="$(cat "$expect_file")"
-            if [ "$response" = "$expected" ]; then
-              PASS_BODY=$((PASS_BODY + 1))
-            else
-              FAIL_BODY_LIST="${FAIL_BODY_LIST}${method_key}\n"
-            fi
-          fi
-
-          kill $MOCK_PID 2>/dev/null
-          wait $MOCK_PID 2>/dev/null
-        done < "$TEST_LIST"
-
-        # Count failures
-        FAIL_STATUS_COUNT="$(echo -e "$FAIL_STATUS_LIST" | grep -c . || true)"
-        FAIL_BODY_COUNT="$(echo -e "$FAIL_BODY_LIST" | grep -c . || true)"
-        SKIP_COUNT="$(echo -e "$SKIP_LIST" | grep -c . || true)"
-
-        # Write JSON summary
-        mkdir -p "$(dirname "$RESULTS_FILE")"
-        cat > "$RESULTS_FILE" <<EOJSON
-        {
-          "total_methods_tested": ${TOTAL},
-          "max_test_count": ${MAX_TESTS},
-          "pass_response_code": ${PASS_STATUS},
-          "fail_response_code": ${FAIL_STATUS_COUNT},
-          "pass_response_body": ${PASS_BODY},
-          "fail_response_body": ${FAIL_BODY_COUNT},
-          "skipped": ${SKIP_COUNT},
-          "fail_status_methods": $(echo -e "$FAIL_STATUS_LIST" | grep . | jq -R -s 'split("\n") | map(select(length > 0))'),
-          "fail_body_methods": $(echo -e "$FAIL_BODY_LIST" | grep . | jq -R -s 'split("\n") | map(select(length > 0))'),
-          "skipped_methods": $(echo -e "$SKIP_LIST" | grep . | jq -R -s 'split("\n") | map(select(length > 0))')
+        summary = {
+            "total": total,
+            "by_status": dict(status_counts.most_common()),
+            "by_error_class": dict(class_counts.most_common()),
+            "by_verb_and_class": verb_class_summary,
+            "by_provider_and_status": provider_summary,
         }
-        EOJSON
 
-        echo "=== Mock Test Results ==="
-        cat "$RESULTS_FILE" | jq .
+        with open("cicd/out/mock-test-results.json", "w") as f:
+            json.dump(summary, f, indent=2)
+
+        print(json.dumps(summary, indent=2))
+        PYEOF
 
     - name: Upload Mock Test Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: mock-test-results
-        path: cicd/out/mock-test-results.json
+        path: |
+          cicd/out/mock-test-results.json
+          cicd/out/events.jsonl
 
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -283,6 +355,7 @@ jobs:
         DEST="gs://${ANALYSIS_RESULTS_BUCKET}/mock-experiments/${DATE_PATH}/${RUN_TS}"
 
         gcloud storage cp cicd/out/mock-test-results.json "${DEST}/mock-test-results.json"
+        gcloud storage cp cicd/out/events.jsonl "${DEST}/events.jsonl"
 
         echo "{\"latest\": \"${DEST}\"}" > latest.json
         gcloud storage cp latest.json "gs://${ANALYSIS_RESULTS_BUCKET}/mock-experiments/latest.json"
