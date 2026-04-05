@@ -238,7 +238,13 @@ jobs:
         touch cicd/out/events.jsonl
         touch cicd/out/events.jsonl.lock
 
-        MAX_TESTS="${MAX_TEST_COUNT:--1}"
+        MAX_TESTS="${MAX_TEST_COUNT:-20000}"
+        # Unlimited for workflow_run trigger or mock-experiment-total* tags
+        if [ "${{ github.event_name }}" = "workflow_run" ]; then
+          MAX_TESTS=-1
+        elif echo "${{ github.ref }}" | grep -q "refs/tags/mock-experiment-total"; then
+          MAX_TESTS=-1
+        fi
 
         TIMEOUT_MIN="${DEFAULT_MOCK_TIMEOUT_MIN:-60}"
         DEADLINE=$(($(date +%s) + TIMEOUT_MIN * 60))
