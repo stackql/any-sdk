@@ -14,18 +14,18 @@ method="describe"
 
 ## Hoisted out of loop section
 
-stackql exec "registry pull ${provider} ${providerVersion};" 
-_now="$(date +%s)" && build/anysdk aot \
-  ./.stackql \
-  ./.stackql/src/aws/v26.02.00377/provider.yaml \
-  -v \
-  --mock-output-dir "cicd/out/auto-mocks/aws" \
-  --mock-expectation-dir "cicd/out/mock-expectations/aws" \
-  --mock-query-dir "cicd/out/mock-queries/aws" \
-  --schema-dir \
-  cicd/schema-definitions \
-  --stdout-file "cicd/out/aot/${_now}-summary.json" \
-  --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
+# stackql exec "registry pull ${provider} ${providerVersion};" 
+# _now="$(date +%s)" && build/anysdk aot \
+#   ./.stackql \
+#   ./.stackql/src/aws/v26.02.00377/provider.yaml \
+#   -v \
+#   --mock-output-dir "cicd/out/auto-mocks/aws" \
+#   --mock-expectation-dir "cicd/out/mock-expectations/aws" \
+#   --mock-query-dir "cicd/out/mock-queries/aws" \
+#   --schema-dir \
+#   cicd/schema-definitions \
+#   --stdout-file "cicd/out/aot/${_now}-summary.json" \
+#   --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
 
 ## End Hoisted out of loop section
 
@@ -74,12 +74,18 @@ query="$(cat cicd/out/mock-queries/${provider}/query_${provider}_${service}_${re
 # eg: cicd/out/mock-expectations/aws/expect_aws_ec2_volumes_describe.txt
 expectation="$(cat cicd/out/mock-expectations/${provider}/expect_${provider}_${service}_${resource}_${method}.txt)"
 
-echo "query is: $query"
-echo "expectation is: $expectation"
+
 
 
 mock_file="mock_${provider}_${service}_${resource}_${method}.py"
 registry_dir="$(pwd)/cicd/out/closures/${provider}_${service}_${resource}"
+
+echo "query is: $query"
+echo "expectation is: $expectation"
+
+echo "registry dir is: $registry_dir"
+echo "mock file is: $(pwd)/cicd/out/auto-mocks/${provider}/$mock_file"
+
 
 container_id="$(docker run -d -p 5000:5000 -v "$(pwd)/cicd/out/auto-mocks/${provider}:/opt/auto-mocks" stackql/any-sdk-testlib:latest python "/opt/auto-mocks/${mock_file}" --port 5000)"
 
@@ -87,7 +93,7 @@ container_id="$(docker run -d -p 5000:5000 -v "$(pwd)/cicd/out/auto-mocks/${prov
 sleep 2
 
 # Smoke test the mock
-docker exec "$container_id" curl -s -X POST http://localhost:5000/ -d "Action=DescribeInstances" || echo "smoke test failed"
+docker exec "$container_id" curl -s -X POST http://localhost:5000/ -d "Action=DescribeVolumes&Version=2016-11-15" || echo "smoke test failed"
 
 # Run StackQL against the closure registry
 response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql \

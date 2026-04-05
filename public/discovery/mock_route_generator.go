@@ -51,7 +51,8 @@ func GenerateMockRoute(
 			"@app.route('/', methods=['POST'])\n"+
 				"def %s():\n"+
 				"    if request.form.get('Action') == '%s':\n"+
-				"        return Response(MOCK_RESPONSE_%s, content_type='application/xml')",
+				"        return Response(MOCK_RESPONSE_%s, content_type='application/xml')\n"+
+				"    return Response('Action not matched', status=404)",
 			funcName, action, strings.ToUpper(funcName))
 	}
 
