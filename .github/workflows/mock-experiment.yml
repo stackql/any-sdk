@@ -141,6 +141,8 @@ jobs:
           provider_dir="$(basename "$(dirname "$manifest")")"
 
           while IFS='|' read -r mock_filename provider service resource method; do
+            mock_file="cicd/out/auto-mocks/${provider_dir}/${mock_filename}"
+            [ -f "$mock_file" ] || continue
             # Enforce iteration limit
             if [ "$TEST_COUNT" -ge "$MAX_TESTS" ]; then
               echo "Reached MAX_TEST_COUNT=${MAX_TESTS}, stopping."
