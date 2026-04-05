@@ -39,22 +39,26 @@ func GenerateMockRoute(
 	httpVerb string,
 	operationName string,
 	parameterizedPath string,
+	responseMediaType string,
 	requiredParams map[string]anysdk.Addressable,
 ) string {
 	funcName := sanitizePythonName(fmt.Sprintf("%s_%s_%s_%s", providerName, serviceName, resourceName, methodName))
 	httpVerb = resolveHTTPVerb(httpVerb, operationName)
+	if responseMediaType == "" {
+		responseMediaType = "application/json"
+	}
 
-	// AWS pattern: POST to root with Action discrimination
-	if isAWSStyle(providerName, parameterizedPath) {
+	// Action query style: POST to root with Action discrimination
+	if isActionQueryStyle(parameterizedPath) {
 		action := deriveAction(operationName, parameterizedPath)
 		return fmt.Sprintf(
 			"@app.route('/', methods=['POST'])\n"+
 				"def %s():\n"+
 				"    body = request.get_data(as_text=True)\n"+
 				"    if 'Action=%s' in body or request.form.get('Action') == '%s':\n"+
-				"        return Response(MOCK_RESPONSE_%s, content_type='application/xml')\n"+
+				"        return Response(MOCK_RESPONSE_%s, content_type='%s')\n"+
 				"    return Response('Action not matched', status=404)",
-			funcName, action, action, strings.ToUpper(funcName))
+			funcName, action, action, strings.ToUpper(funcName), responseMediaType)
 	}
 
 	// REST pattern: unique path with parameterized segments
@@ -65,8 +69,8 @@ func GenerateMockRoute(
 	return fmt.Sprintf(
 		"@app.route('%s', methods=['%s'])\n"+
 			"def %s():\n"+
-			"    return Response(MOCK_RESPONSE_%s, content_type='application/json')",
-		flaskPath, httpVerb, funcName, strings.ToUpper(funcName))
+			"    return Response(MOCK_RESPONSE_%s, content_type='%s')",
+		flaskPath, httpVerb, funcName, strings.ToUpper(funcName), responseMediaType)
 }
 
 // GenerateStackQLQuery produces a StackQL SQL query that exercises the given method.
@@ -139,16 +143,12 @@ func dummyValue(p anysdk.Addressable, key string) (rv string) {
 	}
 }
 
-// isAWSStyle detects the AWS query API pattern. AWS EC2-style services use POST
-// to root with Action discrimination, regardless of what the OpenAPI spec says
-// about the HTTP method (specs often say GET but runtime uses POST).
-func isAWSStyle(providerName string, path string) bool {
-	if !strings.HasPrefix(providerName, "aws") {
-		return false
-	}
-	// Root path or query-string-only path (e.g., "/?Action=..." or "/")
-	cleanPath := strings.SplitN(path, "?", 2)[0]
-	return cleanPath == "/" || cleanPath == ""
+// isActionQueryStyle detects the query API pattern where the path has an Action=
+// parameter (e.g., "/?Action=DescribeVolumes&Version=..."). These APIs use POST
+// to a root path with Action discrimination in the form body at runtime,
+// regardless of what the OpenAPI spec says about the HTTP method.
+func isActionQueryStyle(path string) bool {
+	return strings.Contains(path, "Action=")
 }
 
 // deriveAction extracts the AWS Action name from the operation name or parameterized path.
@@ -177,37 +177,34 @@ func deriveAction(operationName string, parameterizedPath string) string {
 
 // GenerateExpectedResponse extracts the items array from the post-transform JSON
 // using the selectItemsKey, and wraps it as a JSON array — matching `stackql exec -o json` output.
-// If selectItemsKey is empty or navigation fails, wraps the entire response as a single-element array.
+// Returns empty string if selectItemsKey is absent (expected response cannot be reliably predicted).
 func GenerateExpectedResponse(postTransform string, selectItemsKey string) string {
-	if postTransform == "" {
-		return "[]"
+	if postTransform == "" || selectItemsKey == "" {
+		return ""
 	}
 	var parsed interface{}
 	if err := json.Unmarshal([]byte(postTransform), &parsed); err != nil {
-		return "[]"
+		return ""
 	}
 
+	// Navigate dot-separated or $. prefixed key path, e.g. "$.items" or "items"
 	target := parsed
-	if selectItemsKey != "" {
-		// Navigate dot-separated or $. prefixed key path, e.g. "$.items" or "items"
-		keyPath := strings.TrimPrefix(selectItemsKey, "$.")
-		keyPath = strings.TrimPrefix(keyPath, "$")
-		if keyPath != "" {
-			segments := strings.Split(keyPath, ".")
-			for _, seg := range segments {
-				if seg == "" {
-					continue
-				}
-				m, ok := target.(map[string]interface{})
-				if !ok {
-					break
-				}
-				next, exists := m[seg]
-				if !exists {
-					break
-				}
-				target = next
+	keyPath := strings.TrimPrefix(selectItemsKey, "$.")
+	keyPath = strings.TrimPrefix(keyPath, "$")
+	if keyPath != "" {
+		for _, seg := range strings.Split(keyPath, ".") {
+			if seg == "" {
+				continue
 			}
+			m, ok := target.(map[string]interface{})
+			if !ok {
+				return ""
+			}
+			next, exists := m[seg]
+			if !exists {
+				return ""
+			}
+			target = next
 		}
 	}
 
@@ -215,14 +212,14 @@ func GenerateExpectedResponse(postTransform string, selectItemsKey string) strin
 	if arr, ok := target.([]interface{}); ok {
 		out, err := json.MarshalIndent(arr, "", "  ")
 		if err != nil {
-			return "[]"
+			return ""
 		}
 		return string(out)
 	}
-	// Otherwise wrap as single-element array
+	// Single item — wrap as array
 	out, err := json.MarshalIndent([]interface{}{target}, "", "  ")
 	if err != nil {
-		return "[]"
+		return ""
 	}
 	return string(out)
 }
@@ -231,6 +228,19 @@ func GenerateExpectedResponse(postTransform string, selectItemsKey string) strin
 func MockResponseVarName(providerName, serviceName, resourceName, methodName string) string {
 	return "MOCK_RESPONSE_" + strings.ToUpper(sanitizePythonName(
 		fmt.Sprintf("%s_%s_%s_%s", providerName, serviceName, resourceName, methodName)))
+}
+
+// InferMediaType determines the content type from the response body content.
+// If the body starts with '<', it's XML; otherwise fall back to the provided default.
+func InferMediaType(body string, fallback string) string {
+	trimmed := strings.TrimSpace(body)
+	if len(trimmed) > 0 && trimmed[0] == '<' {
+		return "application/xml"
+	}
+	if fallback != "" {
+		return fallback
+	}
+	return "application/json"
 }
 
 func sanitizePythonName(s string) string {

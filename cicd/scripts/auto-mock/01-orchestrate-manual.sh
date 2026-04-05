@@ -15,17 +15,17 @@ method="describe"
 ## Hoisted out of loop section
 
 # stackql exec "registry pull ${provider} ${providerVersion};" 
-# _now="$(date +%s)" && build/anysdk aot \
-#   ./.stackql \
-#   ./.stackql/src/aws/v26.02.00377/provider.yaml \
-#   -v \
-#   --mock-output-dir "cicd/out/auto-mocks/aws" \
-#   --mock-expectation-dir "cicd/out/mock-expectations/aws" \
-#   --mock-query-dir "cicd/out/mock-queries/aws" \
-#   --schema-dir \
-#   cicd/schema-definitions \
-#   --stdout-file "cicd/out/aot/${_now}-summary.json" \
-#   --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
+_now="$(date +%s)" && build/anysdk aot \
+  ./.stackql \
+  ./.stackql/src/aws/v26.02.00377/provider.yaml \
+  -v \
+  --mock-output-dir "cicd/out/auto-mocks/aws" \
+  --mock-expectation-dir "cicd/out/mock-expectations/aws" \
+  --mock-query-dir "cicd/out/mock-queries/aws" \
+  --schema-dir \
+  cicd/schema-definitions \
+  --stdout-file "cicd/out/aot/${_now}-summary.json" \
+  --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
 
 ## End Hoisted out of loop section
 

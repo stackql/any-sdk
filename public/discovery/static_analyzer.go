@@ -1489,12 +1489,19 @@ func analyzeMethod(
 
 	// Enrich findings that have sample responses with mock route and StackQL query
 	reqParams := method.GetRequiredParameters()
+	// responseMediaType will be refined per-finding based on the actual pre-transform content
+	_, responseMediaType, _ := method.GetResponseBodySchemaAndMediaType()
+	operationPath := ""
+	if opRef := method.GetOperationRef(); opRef != nil {
+		operationPath = opRef.ExtractPathItem()
+	}
 	hasMock := false
 	for i := range result.findings {
 		if result.findings[i].SampleResponse != nil {
 			hasMock = true
 			varName := MockResponseVarName(actx.Provider, actx.Service, actx.Resource, actx.Method)
 			result.findings[i].SampleResponse.VarName = varName
+			mockMediaType := InferMediaType(result.findings[i].SampleResponse.PreTransform, responseMediaType)
 			result.findings[i].MockRoute = GenerateMockRoute(
 				actx.Provider,
 				actx.Service,
@@ -1502,7 +1509,8 @@ func analyzeMethod(
 				actx.Method,
 				method.GetAPIMethod(),
 				method.GetName(),
-				method.GetParameterizedPath(),
+				operationPath,
+				mockMediaType,
 				reqParams,
 			)
 			result.findings[i].StackQLQuery = GenerateStackQLQuery(
@@ -1543,7 +1551,8 @@ func analyzeMethod(
 						actx.Method,
 						method.GetAPIMethod(),
 						method.GetName(),
-						method.GetParameterizedPath(),
+						operationPath,
+						mediaType,
 						reqParams,
 					),
 					StackQLQuery: GenerateStackQLQuery(
