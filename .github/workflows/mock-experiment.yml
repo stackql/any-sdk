@@ -21,6 +21,8 @@ env:
   MOCK_PORT_BASE: 5050
   MAX_TEST_COUNT: 20000
   PARALLEL_JOBS: 20
+  DEFAULT_JOB_TIMEOUT_MIN: ${{ vars.DEFAULT_JOB_TIMEOUT_MIN == '' && 80 || vars.DEFAULT_JOB_TIMEOUT_MIN }}
+  DEFAULT_MOCK_TIMEOUT_MIN: ${{ vars.DEFAULT_MOCK_TIMEOUT_MIN == '' && 60 || vars.DEFAULT_MOCK_TIMEOUT_MIN }}
 
 jobs:
 
@@ -238,6 +240,9 @@ jobs:
 
         MAX_TESTS="${MAX_TEST_COUNT:--1}"
 
+        TIMEOUT_MIN="${DEFAULT_MOCK_TIMEOUT_MIN:-60}"
+        DEADLINE=$(($(date +%s) + TIMEOUT_MIN * 60))
+
         # Build test list: prefer manifest, fall back to query files
         TEST_LIST="/tmp/test_list.txt"
         : > "$TEST_LIST"
@@ -270,14 +275,18 @@ jobs:
 
         echo "Running $(wc -l < "$TEST_LIST") tests with ${PARALLEL_JOBS} parallel workers"
 
-        export EVENTS_DIR MOCK_PORT_BASE
-        nl -ba "$TEST_LIST" | tr '\t' '|' | \
-          xargs -P "${PARALLEL_JOBS}" -I {} bash -c '
-            IFS="|" read -r line_num provider_dir mock_filename provider service resource method <<< "{}"
-            /tmp/run_one_test.sh "$line_num" "$provider_dir" "$mock_filename" "$provider" "$service" "$resource" "$method"
-          '
+        export EVENTS_DIR MOCK_PORT_BASE DEADLINE
+        echo "Deadline: $(date -u -d "@${DEADLINE}" +%H:%M:%SZ 2>/dev/null || date -u -r "${DEADLINE}" +%H:%M:%SZ) (${TIMEOUT_MIN}m from now)"
 
-        echo "Test run complete. Events: $(wc -l < cicd/out/events.jsonl)"
+        timeout --signal=TERM "${TIMEOUT_MIN}m" bash -c '
+          nl -ba "$0" | tr "\t" "|" | \
+            xargs -P "${PARALLEL_JOBS}" -I {} bash -c '\''
+              IFS="|" read -r line_num provider_dir mock_filename provider service resource method <<< "{}"
+              /tmp/run_one_test.sh "$line_num" "$provider_dir" "$mock_filename" "$provider" "$service" "$resource" "$method"
+            '\''
+        ' "$TEST_LIST" || true
+
+        echo "Test run complete (or timed out). Events: $(wc -l < cicd/out/events.jsonl)"
 
     - name: Download prior results for trend comparison
       if: always()
