@@ -1489,6 +1489,7 @@ func analyzeMethod(
 
 	// Enrich findings that have sample responses with mock route and StackQL query
 	reqParams := method.GetRequiredParameters()
+	bodyAttrs, _ := method.GetRequestBodyAttributesNoRename()
 	// responseMediaType will be refined per-finding based on the actual pre-transform content
 	_, responseMediaType, _ := method.GetResponseBodySchemaAndMediaType()
 	operationPath := ""
@@ -1519,6 +1520,7 @@ func analyzeMethod(
 				actx.Resource,
 				method.GetSQLVerb(),
 				reqParams,
+				bodyAttrs,
 			)
 			result.findings[i].ExpectedResponse = GenerateExpectedResponse(
 				result.findings[i].SampleResponse.PostTransform,
@@ -1561,6 +1563,7 @@ func analyzeMethod(
 						actx.Resource,
 						method.GetSQLVerb(),
 						reqParams,
+						bodyAttrs,
 					),
 					ExpectedResponse: GenerateExpectedResponse(
 						sampleResponse.PostTransform,

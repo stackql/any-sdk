@@ -74,35 +74,126 @@ func GenerateMockRoute(
 }
 
 // GenerateStackQLQuery produces a StackQL SQL query that exercises the given method.
+// It partitions parameters by location: server/path/query params go in WHERE,
+// requestBody params go in column/value lists for INSERT or SET for UPDATE.
 func GenerateStackQLQuery(
 	providerName string,
 	serviceName string,
 	resourceName string,
 	sqlVerb string,
 	requiredParams map[string]anysdk.Addressable,
+	requestBodyAttrs map[string]anysdk.Addressable,
 ) string {
 	fqResource := fmt.Sprintf("%s.%s.%s", providerName, serviceName, resourceName)
 	sqlVerb = strings.ToLower(sqlVerb)
 
-	var prefix string
-	switch sqlVerb {
-	case "select":
-		prefix = "SELECT * FROM"
-	case "insert":
-		prefix = "INSERT INTO"
-	case "delete":
-		prefix = "DELETE FROM"
-	case "exec":
-		prefix = "EXEC"
-	default:
-		prefix = "SELECT * FROM"
+	// WHERE params = required non-body params
+	whereParams := make(map[string]anysdk.Addressable)
+	for k, p := range requiredParams {
+		loc := ""
+		if p != nil {
+			loc = p.GetLocation()
+		}
+		if loc != "requestBody" && loc != "body" {
+			whereParams[k] = p
+		}
+	}
+	// Body params = explicit request body attributes (preferred) or body-located required params
+	bodyParams := make(map[string]anysdk.Addressable)
+	if len(requestBodyAttrs) > 0 {
+		for k, p := range requestBodyAttrs {
+			bodyParams[k] = p
+		}
+	} else {
+		for k, p := range requiredParams {
+			if p != nil && (p.GetLocation() == "requestBody" || p.GetLocation() == "body") {
+				bodyParams[k] = p
+			}
+		}
 	}
 
-	whereClause := buildWhereClause(requiredParams)
-	if whereClause != "" {
-		return fmt.Sprintf("%s %s WHERE %s", prefix, fqResource, whereClause)
+	whereClause := buildWhereClause(whereParams)
+
+	switch sqlVerb {
+	case "select":
+		if whereClause != "" {
+			return fmt.Sprintf("SELECT * FROM %s WHERE %s", fqResource, whereClause)
+		}
+		return fmt.Sprintf("SELECT * FROM %s", fqResource)
+
+	case "insert":
+		// StackQL INSERT: all params (body + where) go as columns/values
+		allInsertParams := make(map[string]anysdk.Addressable)
+		for k, v := range bodyParams {
+			allInsertParams[k] = v
+		}
+		for k, v := range whereParams {
+			allInsertParams[k] = v
+		}
+		cols, vals := buildInsertColumnsAndValues(allInsertParams)
+		return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", fqResource, cols, vals)
+
+	case "delete":
+		if whereClause != "" {
+			return fmt.Sprintf("DELETE FROM %s WHERE %s", fqResource, whereClause)
+		}
+		return fmt.Sprintf("DELETE FROM %s", fqResource)
+
+	case "update":
+		setClause := buildSetClause(bodyParams)
+		q := fmt.Sprintf("UPDATE %s SET %s", fqResource, setClause)
+		if whereClause != "" {
+			q += fmt.Sprintf(" WHERE %s", whereClause)
+		}
+		return q
+
+	case "exec":
+		if whereClause != "" {
+			return fmt.Sprintf("EXEC %s WHERE %s", fqResource, whereClause)
+		}
+		return fmt.Sprintf("EXEC %s", fqResource)
+
+	default:
+		if whereClause != "" {
+			return fmt.Sprintf("SELECT * FROM %s WHERE %s", fqResource, whereClause)
+		}
+		return fmt.Sprintf("SELECT * FROM %s", fqResource)
 	}
-	return fmt.Sprintf("%s %s", prefix, fqResource)
+}
+
+func buildInsertColumnsAndValues(params map[string]anysdk.Addressable) (string, string) {
+	if len(params) == 0 {
+		return "dummy_col", "'dummy_val'"
+	}
+	keys := sortedKeys(params)
+	cols := make([]string, 0, len(keys))
+	vals := make([]string, 0, len(keys))
+	for _, k := range keys {
+		cols = append(cols, k)
+		vals = append(vals, fmt.Sprintf("'%s'", dummyValue(params[k], k)))
+	}
+	return strings.Join(cols, ", "), strings.Join(vals, ", ")
+}
+
+func buildSetClause(params map[string]anysdk.Addressable) string {
+	if len(params) == 0 {
+		return "dummy_col = 'dummy_val'"
+	}
+	keys := sortedKeys(params)
+	clauses := make([]string, 0, len(keys))
+	for _, k := range keys {
+		clauses = append(clauses, fmt.Sprintf("%s = '%s'", k, dummyValue(params[k], k)))
+	}
+	return strings.Join(clauses, ", ")
+}
+
+func sortedKeys(params map[string]anysdk.Addressable) []string {
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func buildWhereClause(params map[string]anysdk.Addressable) string {

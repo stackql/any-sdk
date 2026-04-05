@@ -274,6 +274,13 @@ func buildClosureDoc(
 		components["securitySchemes"] = ss
 	}
 
+	// Copy all x- extensions from components (e.g., x-cloud-control-schemas)
+	for k, v := range srcComponents {
+		if strings.HasPrefix(k, "x-") && k != "x-stackQL-resources" {
+			components[k] = v
+		}
+	}
+
 	out["components"] = components
 	return out
 }
