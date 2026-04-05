@@ -1,11 +1,9 @@
-name: Mock Generation
+name: Mock Experiment
 
 permissions:
   contents: read
 
 on:
-  # schedule:
-  #   - cron: '45 */12 * * *'
   workflow_run:
     workflows: ["Provider Analysis"]
     types:
@@ -17,47 +15,16 @@ on:
 env:
   STACKQL_CORE_REPOSITORY: ${{ vars.STACKQL_CORE_REPOSITORY != '' && vars.STACKQL_CORE_REPOSITORY || 'stackql/stackql' }}
   STACKQL_CORE_REF: ${{ vars.STACKQL_CORE_REF != '' && vars.STACKQL_CORE_REF || 'main' }}
-  STACKQL_ANY_SDK_REPOSITORY: ${{ vars.STACKQL_ANY_SDK_REPOSITORY != '' && vars.STACKQL_ANY_SDK_REPOSITORY || 'stackql/any-sdk' }}
-  STACKQL_ANY_SDK_REF: ${{ vars.STACKQL_ANY_SDK_REF != '' && vars.STACKQL_ANY_SDK_REF || 'main' }}
-  PROVIDER_VERSION_AWS: v26.02.00377
-  PROVIDER_VERSION_AZURE: v24.10.00267
-  PROVIDER_VERSION_GOOGLE: v25.12.00357
   GOLANG_VERSION: 1.25.3
   PYTHON_VERSION: '3.12'
   ANALYSIS_RESULTS_BUCKET: 'stackql-provider-analysis-results'
+  MOCK_PORT: 5000
+  MAX_TEST_COUNT: 200
 
 jobs:
 
-  build-anysdk:
-    runs-on: ubuntu-24.04
-
-    steps:
-
-    - name: Set up golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: ^${{ env.GOLANG_VERSION }}
-      id: go
-
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v4
-
-    - name: Build
-      run: |
-        go build -x -v \
-          -o build/anysdk ./cmd/interrogate
-
-    - name: Test
-      run: go test -timeout 240s -v ./...
-
-    - name: Upload any-sdk binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: anysdk_binary
-        path: build/anysdk
-
-
   build-stackql:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
 
     steps:
@@ -93,17 +60,23 @@ jobs:
           name: stackql_binary
           path: stackql-core/build/stackql
 
-  mock_expansion:
-    name: Mock Expansion
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+  mock-test:
+    name: Mock E2E Tests
     runs-on: ubuntu-24.04
     needs:
-      - build-anysdk
       - build-stackql
     steps:
 
-    - name: Check out code into the Go module directory
+    - name: Check out code
       uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install Flask
+      run: pip install flask
 
     - name: Download stackql binary
       uses: actions/download-artifact@v4
@@ -111,28 +84,10 @@ jobs:
         name: stackql_binary
         path: build
 
-    - name: Download any-sdk binary
-      uses: actions/download-artifact@v4
-      with:
-        name: anysdk_binary
-        path: build
-
-    - name: Produce requisite binaries executable and add to path
+    - name: Make stackql executable
       run: |
-        echo "${{ github.workspace }}/build" >> $GITHUB_PATH;
-        chmod +x "${{ github.workspace }}/build/stackql"
-        chmod +x "${{ github.workspace }}/build/anysdk"
-
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v5
-
-    - name: Install record_parser
-      run: uv pip install --system -e ./cicd/python/record_parser
+        chmod +x build/stackql
+        echo "${{ github.workspace }}/build" >> $GITHUB_PATH
 
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -142,7 +97,7 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
 
-    - name: Download analysis artifacts from GCS
+    - name: Download Provider Analysis artifacts from GCS
       run: |
         set -e
 
@@ -151,46 +106,156 @@ jobs:
           exit 1
         fi
 
-        remoteSourceDir="$(jq -r '.latest' latest.json)"
+        LATEST_DIR="$(jq -r '.latest' latest.json)"
+        echo "Downloading from: ${LATEST_DIR}"
 
-        mkdir -p cicd/prior/analysis_results
-        mkdir -p cicd/post/mocks
+        mkdir -p cicd/out
 
-        if ! gcloud storage cp -r "${remoteSourceDir}" "cicd/prior/analysis_results"; then
-          echo "No previous results found, cannot proceed"
-          exit 1
-        fi
+        gcloud storage cp -r "${LATEST_DIR}/auto-mocks" cicd/out/auto-mocks || true
+        gcloud storage cp -r "${LATEST_DIR}/mock-queries" cicd/out/mock-queries || true
+        gcloud storage cp -r "${LATEST_DIR}/mock-expectations" cicd/out/mock-expectations || true
+        gcloud storage cp -r "${LATEST_DIR}/closures" cicd/out/closures || true
 
-    - name: Generate Mocks
+        echo "=== Downloaded artifacts ==="
+        echo "Mocks: $(find cicd/out/auto-mocks -name '*.py' 2>/dev/null | wc -l)"
+        echo "Queries: $(find cicd/out/mock-queries -name '*.txt' 2>/dev/null | wc -l)"
+        echo "Expectations: $(find cicd/out/mock-expectations -name '*.txt' 2>/dev/null | wc -l)"
+        echo "Closures: $(find cicd/out/closures -name 'provider.yaml' 2>/dev/null | wc -l)"
+
+    - name: Run Mock E2E Tests
+      env:
+        AWS_SECRET_ACCESS_KEY: fake
+        AWS_ACCESS_KEY_ID: fake
+        GOOGLE_CREDENTIALS: '{}'
+        AZURE_CLIENT_ID: fake
+        AZURE_CLIENT_SECRET: fake
+        AZURE_TENANT_ID: fake
       run: |
-        python3 -c "
-        from record_parser import generate_mocks_from_analysis_run
-        generate_mocks_from_analysis_run(
-          'cicd/prior/analysis_results',
-          'cicd/post/mocks',
-        )
-        "
+        set +e
 
-    - name: Upload Generated Mocks
+        RESULTS_FILE="cicd/out/mock-test-results.json"
+        PASS_STATUS=0
+        PASS_BODY=0
+        FAIL_STATUS_LIST=""
+        FAIL_BODY_LIST=""
+        SKIP_LIST=""
+        TOTAL=0
+        TEST_COUNT=0
+        MAX_TESTS="${MAX_TEST_COUNT:-200}"
+
+        for mock_file in cicd/out/auto-mocks/*/mock_*.py; do
+          [ -f "$mock_file" ] || continue
+
+          # Enforce iteration limit
+          if [ "$TEST_COUNT" -ge "$MAX_TESTS" ]; then
+            echo "Reached MAX_TEST_COUNT=${MAX_TESTS}, stopping."
+            break
+          fi
+
+          # Parse provider_service_resource_method from filename
+          basename_no_ext="$(basename "$mock_file" .py)"
+          method_key="${basename_no_ext#mock_}"
+
+          # Derive matching files
+          provider_dir="$(basename "$(dirname "$mock_file")")"
+          query_file="cicd/out/mock-queries/${provider_dir}/query_${method_key}.txt"
+          expect_file="cicd/out/mock-expectations/${provider_dir}/expect_${method_key}.txt"
+
+          # Closure registry: closures/{provider}/{provider}_{service}_{resource}/
+          resource_key="${method_key%_*}"
+          closure_dir="cicd/out/closures/${provider_dir}/${resource_key}"
+
+          # Skip if missing query or closure
+          if [ ! -f "$query_file" ]; then
+            SKIP_LIST="${SKIP_LIST}${method_key} (no query file)\n"
+            continue
+          fi
+          if [ ! -d "$closure_dir" ]; then
+            SKIP_LIST="${SKIP_LIST}${method_key} (no closure)\n"
+            continue
+          fi
+
+          TOTAL=$((TOTAL + 1))
+          TEST_COUNT=$((TEST_COUNT + 1))
+          query="$(cat "$query_file")"
+
+          # Start Flask mock in background
+          python3 "$mock_file" --port ${MOCK_PORT} &
+          MOCK_PID=$!
+          sleep 0.5
+
+          # Run StackQL query
+          registry_dir="$(pwd)/${closure_dir}"
+          response="$(stackql \
+            --tls.allowInsecure \
+            --http.log.enabled \
+            --registry "{ \"url\": \"file://${registry_dir}\", \"localDocRoot\": \"${registry_dir}\", \"verifyConfig\": { \"nopVerify\": true } }" \
+            exec "${query};" -o json 2>/tmp/stackql_stderr.txt)"
+
+          # Check 1: HTTP status code from stderr log
+          http_status="$(grep -oP 'http response status code: \K[0-9]+' /tmp/stackql_stderr.txt | head -1)"
+          if [ "$http_status" = "200" ]; then
+            PASS_STATUS=$((PASS_STATUS + 1))
+          else
+            FAIL_STATUS_LIST="${FAIL_STATUS_LIST}${method_key} (status=${http_status:-none})\n"
+          fi
+
+          # Check 2: Response body match (if expectation exists and is non-empty)
+          if [ -f "$expect_file" ] && [ -s "$expect_file" ]; then
+            expected="$(cat "$expect_file")"
+            if [ "$response" = "$expected" ]; then
+              PASS_BODY=$((PASS_BODY + 1))
+            else
+              FAIL_BODY_LIST="${FAIL_BODY_LIST}${method_key}\n"
+            fi
+          fi
+
+          # Kill mock
+          kill $MOCK_PID 2>/dev/null
+          wait $MOCK_PID 2>/dev/null
+        done
+
+        # Count failures
+        FAIL_STATUS_COUNT="$(echo -e "$FAIL_STATUS_LIST" | grep -c . || true)"
+        FAIL_BODY_COUNT="$(echo -e "$FAIL_BODY_LIST" | grep -c . || true)"
+        SKIP_COUNT="$(echo -e "$SKIP_LIST" | grep -c . || true)"
+
+        # Write JSON summary
+        mkdir -p "$(dirname "$RESULTS_FILE")"
+        cat > "$RESULTS_FILE" <<EOJSON
+        {
+          "total_methods_tested": ${TOTAL},
+          "max_test_count": ${MAX_TESTS},
+          "pass_response_code": ${PASS_STATUS},
+          "fail_response_code": ${FAIL_STATUS_COUNT},
+          "pass_response_body": ${PASS_BODY},
+          "fail_response_body": ${FAIL_BODY_COUNT},
+          "skipped": ${SKIP_COUNT},
+          "fail_status_methods": $(echo -e "$FAIL_STATUS_LIST" | grep . | jq -R -s 'split("\n") | map(select(length > 0))'),
+          "fail_body_methods": $(echo -e "$FAIL_BODY_LIST" | grep . | jq -R -s 'split("\n") | map(select(length > 0))'),
+          "skipped_methods": $(echo -e "$SKIP_LIST" | grep . | jq -R -s 'split("\n") | map(select(length > 0))')
+        }
+        EOJSON
+
+        echo "=== Mock Test Results ==="
+        cat "$RESULTS_FILE" | jq .
+
+    - name: Upload Mock Test Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: provider-mocks
-        path: cicd/post/mocks
+        name: mock-test-results
+        path: cicd/out/mock-test-results.json
 
-    - name: Upload mock artifacts to GCS
+    - name: Upload Mock Test Results to GCS
+      if: always()
       run: |
-        set -e
-
         RUN_EPOCH="$(date -u +%s)"
         RUN_TS="$(date -u -d "@${RUN_EPOCH}" +%Y-%m-%dT%H-%M-%SZ)"
         DATE_PATH="$(date -u -d "@${RUN_EPOCH}" +%Y/%m/%d)"
+        DEST="gs://${ANALYSIS_RESULTS_BUCKET}/mock-experiments/${DATE_PATH}/${RUN_TS}"
 
-        DEST="gs://${ANALYSIS_RESULTS_BUCKET}/provider-mocks/${DATE_PATH}/${RUN_TS}"
+        gcloud storage cp cicd/out/mock-test-results.json "${DEST}/mock-test-results.json"
 
-        echo "Uploading to ${DEST}"
-
-        gcloud storage cp -r cicd/post/mocks "${DEST}/"
-
-        echo "{\"latest\": \"${DEST}/mocks\"}" > latest.json
-        gcloud storage cp latest.json "gs://${ANALYSIS_RESULTS_BUCKET}/provider-mocks/latest.json"
+        echo "{\"latest\": \"${DEST}\"}" > latest.json
+        gcloud storage cp latest.json "gs://${ANALYSIS_RESULTS_BUCKET}/mock-experiments/latest.json"
