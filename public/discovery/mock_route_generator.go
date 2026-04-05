@@ -45,8 +45,8 @@ func GenerateMockRoute(
 	httpVerb = resolveHTTPVerb(httpVerb, operationName)
 
 	// AWS pattern: POST to root with Action discrimination
-	if isAWSStyle(providerName, parameterizedPath, httpVerb) {
-		action := deriveAction(methodName, requiredParams)
+	if isAWSStyle(providerName, parameterizedPath) {
+		action := deriveAction(operationName, parameterizedPath)
 		return fmt.Sprintf(
 			"@app.route('/', methods=['POST'])\n"+
 				"def %s():\n"+
@@ -137,19 +137,40 @@ func dummyValue(p anysdk.Addressable, key string) (rv string) {
 	}
 }
 
-func isAWSStyle(providerName string, path string, httpVerb string) bool {
-	return strings.HasPrefix(providerName, "aws") && httpVerb == "POST" && (path == "/" || path == "")
+// isAWSStyle detects the AWS query API pattern. AWS EC2-style services use POST
+// to root with Action discrimination, regardless of what the OpenAPI spec says
+// about the HTTP method (specs often say GET but runtime uses POST).
+func isAWSStyle(providerName string, path string) bool {
+	if !strings.HasPrefix(providerName, "aws") {
+		return false
+	}
+	// Root path or query-string-only path (e.g., "/?Action=..." or "/")
+	cleanPath := strings.SplitN(path, "?", 2)[0]
+	return cleanPath == "/" || cleanPath == ""
 }
 
-func deriveAction(methodName string, params map[string]anysdk.Addressable) string {
-	// Use the method name as the Action — capitalize first letter of each segment
-	parts := strings.Split(methodName, "_")
-	for i, p := range parts {
-		if len(p) > 0 {
-			parts[i] = strings.ToUpper(p[:1]) + p[1:]
+// deriveAction extracts the AWS Action name from the operation name or parameterized path.
+// Operation names like "GET_DescribeVolumes" → "DescribeVolumes".
+// Paths like "/?Action=DescribeVolumes&Version=..." → "DescribeVolumes".
+func deriveAction(operationName string, parameterizedPath string) string {
+	// Try extracting from path query string: ?Action=Xyz or ?__Action=Xyz
+	if idx := strings.Index(parameterizedPath, "Action="); idx >= 0 {
+		action := parameterizedPath[idx+len("Action="):]
+		if ampIdx := strings.Index(action, "&"); ampIdx >= 0 {
+			action = action[:ampIdx]
+		}
+		if action != "" {
+			return action
 		}
 	}
-	return strings.Join(parts, "")
+	// Fall back to operation name: strip HTTP verb prefix (e.g., "GET_DescribeVolumes" → "DescribeVolumes")
+	if idx := strings.Index(operationName, "_"); idx >= 0 {
+		candidate := operationName[idx+1:]
+		if candidate != "" {
+			return candidate
+		}
+	}
+	return operationName
 }
 
 // GenerateExpectedResponse extracts the items array from the post-transform JSON
