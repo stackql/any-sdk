@@ -50,10 +50,11 @@ func GenerateMockRoute(
 		return fmt.Sprintf(
 			"@app.route('/', methods=['POST'])\n"+
 				"def %s():\n"+
-				"    if request.form.get('Action') == '%s':\n"+
+				"    body = request.get_data(as_text=True)\n"+
+				"    if 'Action=%s' in body or request.form.get('Action') == '%s':\n"+
 				"        return Response(MOCK_RESPONSE_%s, content_type='application/xml')\n"+
 				"    return Response('Action not matched', status=404)",
-			funcName, action, strings.ToUpper(funcName))
+			funcName, action, action, strings.ToUpper(funcName))
 	}
 
 	// REST pattern: unique path with parameterized segments
