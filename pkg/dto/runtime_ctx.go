@@ -70,6 +70,10 @@ type RuntimeCtx struct {
 	CLIRewriteURL                string
 	CLIMockOutputDir             string
 	CLIMockExpectationDir        string
+	CLIMockQueryDir              string
+	CLIProviderOut               string
+	CLIStdoutFile                string
+	CLIStderrFile                string
 }
 
 func setInt(iPtr *int, val string) error {

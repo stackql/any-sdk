@@ -154,6 +154,13 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 		}
 	}
 
+	// Optional: write individual StackQL query files
+	if rtCtx.CLIMockQueryDir != "" && len(findings) > 0 {
+		if qErr := discovery.WriteQueryFiles(findings, rtCtx.CLIMockQueryDir); qErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to write query files: %v\n", qErr)
+		}
+	}
+
 	if analyisErr != nil {
 		os.Exit(1)
 	}

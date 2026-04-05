@@ -64,6 +64,31 @@ func WriteExpectationFiles(findings []AnalysisFinding, outputDir string) error {
 	return nil
 }
 
+// WriteQueryFiles writes individual StackQL query files for each finding
+// that has a stackql_query. Each file is a plain text file containing the query.
+func WriteQueryFiles(findings []AnalysisFinding, outputDir string) error {
+	if outputDir == "" {
+		return nil
+	}
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create query output dir: %w", err)
+	}
+	for _, f := range findings {
+		if f.StackQLQuery == "" {
+			continue
+		}
+		base := fmt.Sprintf("query_%s_%s_%s_%s", f.Provider, f.Service, f.Resource, f.Method)
+		base = strings.ReplaceAll(base, ".", "_")
+		base = strings.ReplaceAll(base, "-", "_")
+		filename := strings.ToLower(base) + ".txt"
+		path := filepath.Join(outputDir, filename)
+		if err := os.WriteFile(path, []byte(f.StackQLQuery), 0o644); err != nil {
+			return fmt.Errorf("failed to write query file %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
 func buildMockPythonFile(f AnalysisFinding) string {
 	varName := f.SampleResponse.VarName
 	if varName == "" {

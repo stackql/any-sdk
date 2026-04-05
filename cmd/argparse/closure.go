@@ -30,8 +30,9 @@ The closure YAML is written to stdout.`,
 	},
 }
 
-func init() {
+func initClosureFlags() {
 	closureCmd.Flags().StringVar(&runtimeCtx.CLIRewriteURL, "rewrite-url", "", "rewrite all server URLs to this base URL")
+	closureCmd.Flags().StringVar(&runtimeCtx.CLIProviderOut, "provider-out", "", "write a minimal provider YAML to this file (for use with the closure)")
 }
 
 func runClosureCommand(rtCtx dto.RuntimeCtx, registryRoot string, providerDoc string, serviceName string) {
@@ -69,6 +70,83 @@ func runClosureCommand(rtCtx dto.RuntimeCtx, registryRoot string, providerDoc st
 	}
 
 	os.Stdout.Write(closureBytes)
+
+	// Optional: write a minimal provider doc alongside the closure
+	if rtCtx.CLIProviderOut != "" {
+		providerBytes, provErr := generateMinimalProviderDoc(providerDoc, providerName, serviceName, rtCtx.CLIProviderOut)
+		if provErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to generate provider doc: %v\n", provErr)
+		} else {
+			if wErr := os.MkdirAll(filepath.Dir(rtCtx.CLIProviderOut), 0o755); wErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to create provider output dir: %v\n", wErr)
+			} else if wErr := os.WriteFile(rtCtx.CLIProviderOut, providerBytes, 0o644); wErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to write provider doc: %v\n", wErr)
+			}
+		}
+	}
+}
+
+// generateMinimalProviderDoc reads the original provider doc and produces a minimal
+// version with only the specified service, referencing a closure service doc at the
+// conventional path: <provider>/<version>/services/<service>.yaml
+func generateMinimalProviderDoc(originalProviderDoc string, providerName string, serviceName string, providerOutPath string) ([]byte, error) {
+	provBytes, err := os.ReadFile(originalProviderDoc)
+	if err != nil {
+		return nil, err
+	}
+	var prov map[string]interface{}
+	if err := yaml.Unmarshal(provBytes, &prov); err != nil {
+		return nil, err
+	}
+
+	// Extract original service entry and auth config
+	services, _ := prov["providerServices"].(map[string]interface{})
+	originalSvc, _ := services[serviceName].(map[string]interface{})
+
+	version, _ := prov["version"].(string)
+	if version == "" {
+		version = "v0.1.0"
+	}
+
+	// Build the service ref path relative to the registry src/ dir
+	svcRefPath := fmt.Sprintf("%s/%s/services/%s.yaml", providerName, version, serviceName)
+
+	svcEntry := map[string]interface{}{
+		"id":        fmt.Sprintf("%s:%s", serviceName, version),
+		"name":      serviceName,
+		"preferred": true,
+		"service": map[string]interface{}{
+			"$ref": svcRefPath,
+		},
+		"title":   serviceName,
+		"version": version,
+	}
+	// Preserve description from original if present
+	if originalSvc != nil {
+		if desc, ok := originalSvc["description"]; ok {
+			svcEntry["description"] = desc
+		}
+		if title, ok := originalSvc["title"]; ok {
+			svcEntry["title"] = title
+		}
+	}
+
+	minimal := map[string]interface{}{
+		"id":      providerName,
+		"name":    providerName,
+		"version": version,
+		"openapi": "3.0.0",
+		"providerServices": map[string]interface{}{
+			serviceName: svcEntry,
+		},
+	}
+
+	// Copy auth config from original
+	if config, ok := prov["config"]; ok {
+		minimal["config"] = config
+	}
+
+	return yaml.Marshal(minimal)
 }
 
 // resolveServiceDocPath finds the service YAML file path by reading the

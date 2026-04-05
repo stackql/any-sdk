@@ -42,8 +42,9 @@ _now="$(date +%s)" && build/anysdk aot \
   -v \
   --mock-output-dir "cicd/out/auto-mocks/aws" \
   --mock-expectation-dir "cicd/out/mock-expectations/aws" \
+  --mock-query-dir "cicd/out/mock-queries/aws" \
   --schema-dir \
-  cicd/schema-definitions > "cicd/out/aot/${_now}-summary.json" 2>"cicd/out/aot/${_now}-analysis.jsonl"
+  cicd/schema-definitions --stdout-file "cicd/out/aot/${_now}-summary.json" --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
 
 ```
 
