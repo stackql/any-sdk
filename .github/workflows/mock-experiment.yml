@@ -135,56 +135,83 @@ jobs:
         TEST_COUNT=0
         MAX_TESTS="${MAX_TEST_COUNT:-200}"
 
-        # Iterate manifests from all providers
+        # Build a test list: prefer manifest, fall back to query files
+        TEST_LIST="/tmp/test_list.txt"
+        : > "$TEST_LIST"
+
+        # If manifests exist, use them (exact provider/service/resource/method)
         for manifest in cicd/out/auto-mocks/*/manifest.txt; do
           [ -f "$manifest" ] || continue
           provider_dir="$(basename "$(dirname "$manifest")")"
-
           while IFS='|' read -r mock_filename provider service resource method; do
-            mock_file="cicd/out/auto-mocks/${provider_dir}/${mock_filename}"
-            [ -f "$mock_file" ] || continue
-            # Enforce iteration limit
-            if [ "$TEST_COUNT" -ge "$MAX_TESTS" ]; then
-              echo "Reached MAX_TEST_COUNT=${MAX_TESTS}, stopping."
-              break 2
-            fi
+            echo "${provider_dir}|${mock_filename}|${provider}|${service}|${resource}|${method}" >> "$TEST_LIST"
+          done < "$manifest"
+        done
 
-            mock_file="cicd/out/auto-mocks/${provider_dir}/${mock_filename}"
+        # If no manifests, derive from query files (works with older artifacts)
+        if [ ! -s "$TEST_LIST" ]; then
+          echo "No manifests found, deriving test list from query files"
+          for qf in cicd/out/mock-queries/*/query_*.txt; do
+            [ -f "$qf" ] || continue
+            provider_dir="$(basename "$(dirname "$qf")")"
+            key="$(basename "$qf" .txt)"
+            key="${key#query_}"
+            mock_file="cicd/out/auto-mocks/${provider_dir}/mock_${key}.py"
             [ -f "$mock_file" ] || continue
+            echo "${provider_dir}|mock_${key}.py|${key}||||" >> "$TEST_LIST"
+          done
+        fi
 
+        echo "Test list entries: $(wc -l < "$TEST_LIST")"
+
+        while IFS='|' read -r provider_dir mock_filename provider service resource method; do
+          if [ "$TEST_COUNT" -ge "$MAX_TESTS" ]; then
+            echo "Reached MAX_TEST_COUNT=${MAX_TESTS}, stopping."
+            break
+          fi
+
+          mock_file="cicd/out/auto-mocks/${provider_dir}/${mock_filename}"
+          [ -f "$mock_file" ] || continue
+
+          # Derive file keys — from manifest fields or from filename
+          if [ -n "$provider" ] && [ -n "$service" ] && [ -n "$resource" ] && [ -n "$method" ]; then
             method_key="${provider}_${service}_${resource}_${method}"
-            query_file="cicd/out/mock-queries/${provider_dir}/query_${method_key}.txt"
-            expect_file="cicd/out/mock-expectations/${provider_dir}/expect_${method_key}.txt"
             closure_dir="cicd/out/closures/${provider_dir}/${provider}_${service}_${resource}"
+          else
+            method_key="$(basename "$mock_filename" .py)"
+            method_key="${method_key#mock_}"
+            # Best-effort: strip last segment for resource key
+            resource_key="${method_key%_*}"
+            closure_dir="cicd/out/closures/${provider_dir}/${resource_key}"
+          fi
 
-            # Skip if missing query or closure
-            if [ ! -f "$query_file" ]; then
-              SKIP_LIST="${SKIP_LIST}${method_key} (no query file)\n"
-              continue
-            fi
-            if [ ! -d "$closure_dir" ]; then
-              SKIP_LIST="${SKIP_LIST}${method_key} (no closure)\n"
-              continue
-            fi
+          query_file="cicd/out/mock-queries/${provider_dir}/query_${method_key}.txt"
+          expect_file="cicd/out/mock-expectations/${provider_dir}/expect_${method_key}.txt"
 
-            TOTAL=$((TOTAL + 1))
-            TEST_COUNT=$((TEST_COUNT + 1))
-            query="$(cat "$query_file")"
+          if [ ! -f "$query_file" ]; then
+            SKIP_LIST="${SKIP_LIST}${method_key} (no query file)\n"
+            continue
+          fi
+          if [ ! -d "$closure_dir" ]; then
+            SKIP_LIST="${SKIP_LIST}${method_key} (no closure)\n"
+            continue
+          fi
 
-            # Start Flask mock in background
-            python3 "$mock_file" --port ${MOCK_PORT} &
-            MOCK_PID=$!
-            sleep 0.5
+          TOTAL=$((TOTAL + 1))
+          TEST_COUNT=$((TEST_COUNT + 1))
+          query="$(cat "$query_file")"
 
-            # Run StackQL query
-            registry_dir="$(pwd)/${closure_dir}"
+          python3 "$mock_file" --port ${MOCK_PORT} &
+          MOCK_PID=$!
+          sleep 0.5
+
+          registry_dir="$(pwd)/${closure_dir}"
           response="$(stackql \
             --tls.allowInsecure \
             --http.log.enabled \
             --registry "{ \"url\": \"file://${registry_dir}\", \"localDocRoot\": \"${registry_dir}\", \"verifyConfig\": { \"nopVerify\": true } }" \
             exec "${query};" -o json 2>/tmp/stackql_stderr.txt)"
 
-          # Check 1: HTTP status code from stderr log
           http_status="$(grep -oP 'http response status code: \K[0-9]+' /tmp/stackql_stderr.txt | head -1)"
           if [ "$http_status" = "200" ]; then
             PASS_STATUS=$((PASS_STATUS + 1))
@@ -192,7 +219,6 @@ jobs:
             FAIL_STATUS_LIST="${FAIL_STATUS_LIST}${method_key} (status=${http_status:-none})\n"
           fi
 
-          # Check 2: Response body match (if expectation exists and is non-empty)
           if [ -f "$expect_file" ] && [ -s "$expect_file" ]; then
             expected="$(cat "$expect_file")"
             if [ "$response" = "$expected" ]; then
@@ -202,11 +228,9 @@ jobs:
             fi
           fi
 
-            # Kill mock
-            kill $MOCK_PID 2>/dev/null
-            wait $MOCK_PID 2>/dev/null
-          done < "$manifest"
-        done
+          kill $MOCK_PID 2>/dev/null
+          wait $MOCK_PID 2>/dev/null
+        done < "$TEST_LIST"
 
         # Count failures
         FAIL_STATUS_COUNT="$(echo -e "$FAIL_STATUS_LIST" | grep -c . || true)"
