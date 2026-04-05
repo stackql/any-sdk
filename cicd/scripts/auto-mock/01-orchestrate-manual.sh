@@ -14,18 +14,18 @@ method="describe"
 
 ## Hoisted out of loop section
 
-# stackql exec "registry pull ${provider} ${providerVersion};" 
-# _now="$(date +%s)" && build/anysdk aot \
-#   ./.stackql \
-#   ./.stackql/src/aws/v26.02.00377/provider.yaml \
-#   -v \
-#   --mock-output-dir "cicd/out/auto-mocks/aws" \
-#   --mock-expectation-dir "cicd/out/mock-expectations/aws" \
-#   --mock-query-dir "cicd/out/mock-queries/aws" \
-#   --schema-dir \
-#   cicd/schema-definitions \
-#   --stdout-file "cicd/out/aot/${_now}-summary.json" \
-#   --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
+stackql exec "registry pull ${provider} ${providerVersion};" 
+_now="$(date +%s)" && build/anysdk aot \
+  ./.stackql \
+  ./.stackql/src/aws/v26.02.00377/provider.yaml \
+  -v \
+  --mock-output-dir "cicd/out/auto-mocks/aws" \
+  --mock-expectation-dir "cicd/out/mock-expectations/aws" \
+  --mock-query-dir "cicd/out/mock-queries/aws" \
+  --schema-dir \
+  cicd/schema-definitions \
+  --stdout-file "cicd/out/aot/${_now}-summary.json" \
+  --stderr-file "cicd/out/aot/${_now}-analysis.jsonl"
 
 ## End Hoisted out of loop section
 
@@ -78,22 +78,30 @@ echo "query is: $query"
 echo "expectation is: $expectation"
 
 
-container_id="$(docker run -d -p 5000:5000 -v ./cicd/out/auto-mocks:/opt/auto-mocks stackql/any-sdk-testlib:latest python /opt/auto-mocks/${provider}mock__${service}_${resource}_${method}.py --port 5000)"
+mock_file="mock_${provider}_${service}_${resource}_${method}.py"
+registry_dir="$(pwd)/cicd/out/closures/${provider}_${service}_${resource}"
 
+container_id="$(docker run -d -p 5000:5000 -v "$(pwd)/cicd/out/auto-mocks/${provider}:/opt/auto-mocks" stackql/any-sdk-testlib:latest python "/opt/auto-mocks/${mock_file}" --port 5000)"
 
-docker exec $container_id curl -s -X POST http://localhost:5000/ -d "Action=DescribeInstances"
+# Wait for Flask to start
+sleep 2
 
+# Smoke test the mock
+docker exec "$container_id" curl -s -X POST http://localhost:5000/ -d "Action=DescribeInstances" || echo "smoke test failed"
 
-
-response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql --http.log.enabled --tls.allowInsecure --registry "{ \"url\": \"file://$(pwd)/test/auto-mocks/reference/registry\", \"localDocRoot\": \"$(pwd)/test/auto-mocks/reference/registry\", \"verifyConfig\": { \"nopVerify\": true } }" exec "$(cat test/auto-mocks/reference/query_aws_ec2_instances_describe.txt);" -o json)
-
+# Run StackQL against the closure registry
+response=$(AWS_SECRET_ACCESS_KEY=fake AWS_ACCESS_KEY_ID=fake stackql \
+  --http.log.enabled \
+  --tls.allowInsecure \
+  --registry "{ \"url\": \"file://${registry_dir}\", \"localDocRoot\": \"${registry_dir}\", \"verifyConfig\": { \"nopVerify\": true } }" \
+  exec "${query};" -o json)
 
 echo "response is: $response"
 
-if [ "$response" != "$(cat test/auto-mocks/reference/expect_aws_ec2_instances_describe.txt)" ]; then
+if [ "$response" != "$expectation" ]; then
   echo "failed"
-else 
+else
   echo "success"
 fi
 
-docker kill $container_id
+docker kill "$container_id"

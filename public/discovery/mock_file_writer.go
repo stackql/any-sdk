@@ -104,7 +104,7 @@ func buildMockPythonFile(f AnalysisFinding) string {
 	sb.WriteString("app = Flask(__name__)\n\n")
 	sb.WriteString(fmt.Sprintf("%s = \"\"\"%s\"\"\"\n\n", varName, body))
 	sb.WriteString(f.MockRoute)
-	sb.WriteString("\n\n\nif __name__ == '__main__':\n    import argparse as ap\n    p = ap.ArgumentParser()\n    p.add_argument('--port', type=int, default=5000)\n    app.run(port=p.parse_args().port)\n")
+	sb.WriteString("\n\n\nif __name__ == '__main__':\n    import argparse as ap\n    p = ap.ArgumentParser()\n    p.add_argument('--port', type=int, default=5000)\n    app.run(host='0.0.0.0', port=p.parse_args().port)\n")
 
 	return sb.String()
 }
