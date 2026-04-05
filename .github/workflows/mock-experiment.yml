@@ -111,16 +111,20 @@ jobs:
 
         mkdir -p cicd/out
 
-        gcloud storage cp -r "${LATEST_DIR}/auto-mocks" cicd/out/auto-mocks || true
-        gcloud storage cp -r "${LATEST_DIR}/mock-queries" cicd/out/mock-queries || true
-        gcloud storage cp -r "${LATEST_DIR}/mock-expectations" cicd/out/mock-expectations || true
-        gcloud storage cp -r "${LATEST_DIR}/closures" cicd/out/closures || true
+        gcloud storage cp -r "${LATEST_DIR}/auto-mocks" cicd/out/ || true
+        gcloud storage cp -r "${LATEST_DIR}/mock-queries" cicd/out/ || true
+        gcloud storage cp -r "${LATEST_DIR}/mock-expectations" cicd/out/ || true
+        gcloud storage cp -r "${LATEST_DIR}/closures" cicd/out/ || true
 
         echo "=== Downloaded artifacts ==="
-        echo "Mocks: $(find cicd/out/auto-mocks -name '*.py' 2>/dev/null | wc -l)"
-        echo "Queries: $(find cicd/out/mock-queries -name '*.txt' 2>/dev/null | wc -l)"
-        echo "Expectations: $(find cicd/out/mock-expectations -name '*.txt' 2>/dev/null | wc -l)"
-        echo "Closures: $(find cicd/out/closures -name 'provider.yaml' 2>/dev/null | wc -l)"
+        echo "Directory structure:"
+        find cicd/out -maxdepth 3 -type d
+        echo "Mocks: $(find cicd/out -name 'mock_*.py' 2>/dev/null | wc -l)"
+        echo "Queries: $(find cicd/out -name 'query_*.txt' 2>/dev/null | wc -l)"
+        echo "Expectations: $(find cicd/out -name 'expect_*.txt' 2>/dev/null | wc -l)"
+        echo "Closures: $(find cicd/out -name 'provider.yaml' 2>/dev/null | wc -l)"
+        echo "Sample mock paths:"
+        find cicd/out -name 'mock_*.py' 2>/dev/null | head -3
 
     - name: Run Mock E2E Tests
       env:
