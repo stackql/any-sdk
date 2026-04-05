@@ -21,11 +21,24 @@ func classifiedWarning(bin string, format string, args ...interface{}) string {
 	return fmt.Sprintf("[%s] %s", bin, fmt.Sprintf(format, args...))
 }
 
+// ScoreMetrics provides aggregate pass rates and health scores.
+type ScoreMetrics struct {
+	TotalMethods       int     `json:"total_methods"`
+	MethodsWithMocks   int     `json:"methods_with_mocks"`
+	MethodsWithTransforms int  `json:"methods_with_transforms"`
+	MethodsClean       int     `json:"methods_clean"`
+	ErrorRate          float64 `json:"error_rate"`
+	WarningRate        float64 `json:"warning_rate"`
+	CleanRate          float64 `json:"clean_rate"`
+	MockCoverage       float64 `json:"mock_coverage"`
+}
+
 // AnalysisSummary is the JSON-serialisable top-level output of static analysis.
 type AnalysisSummary struct {
 	TotalOK       int                    `json:"total_ok"`
 	TotalWarnings int                    `json:"total_warnings"`
 	TotalErrors   int                    `json:"total_errors"`
+	Scores        *ScoreMetrics          `json:"scores,omitempty"`
 	Bins          map[string]AnalysisBin `json:"bins"`
 	Services      map[string]ServiceSummary `json:"services"`
 	Errors        []string               `json:"errors,omitempty"`
@@ -83,6 +96,54 @@ func FormatSummaryJSON(legacyErrors []error, legacyWarnings []string, affirmativ
 			summary.Services[f.Service] = ss
 		}
 	}
+
+	// Compute score metrics from findings
+	methodSet := make(map[string]bool)         // all methods seen
+	methodHasMock := make(map[string]bool)     // methods with sample_response
+	methodHasTransform := make(map[string]bool) // methods with prior_template (has transform)
+	methodHasIssue := make(map[string]bool)    // methods with errors or warnings
+	for _, f := range findings {
+		mk := f.Provider + "." + f.Service + "." + f.Resource + "." + f.Method
+		methodSet[mk] = true
+		if f.SampleResponse != nil {
+			methodHasMock[mk] = true
+		}
+		if f.PriorTemplate != "" {
+			methodHasTransform[mk] = true
+		}
+		methodHasIssue[mk] = true
+	}
+	// Methods from affirmatives that had no findings are clean
+	totalMethods := len(methodSet)
+	if totalMethods == 0 {
+		totalMethods = summary.TotalOK // fallback to affirmative count
+	}
+	methodsClean := 0
+	for mk := range methodHasMock {
+		if !methodHasIssue[mk] {
+			methodsClean++
+		}
+	}
+	// For methods that only appear in affirmatives (no findings), count as clean
+	cleanFromAffirmatives := summary.TotalOK
+	if len(methodSet) > 0 {
+		cleanFromAffirmatives = 0
+	}
+	totalForRate := totalMethods
+	if totalForRate == 0 {
+		totalForRate = 1
+	}
+	scores := &ScoreMetrics{
+		TotalMethods:        totalMethods,
+		MethodsWithMocks:    len(methodHasMock),
+		MethodsWithTransforms: len(methodHasTransform),
+		MethodsClean:        methodsClean + cleanFromAffirmatives,
+		ErrorRate:           float64(summary.TotalErrors) / float64(totalForRate),
+		WarningRate:         float64(summary.TotalWarnings) / float64(totalForRate),
+		MockCoverage:        float64(len(methodHasMock)) / float64(totalForRate),
+	}
+	scores.CleanRate = float64(scores.MethodsClean) / float64(totalForRate)
+	summary.Scores = scores
 
 	// Include legacy errors that aren't in findings (infrastructure errors)
 	for _, e := range legacyErrors {

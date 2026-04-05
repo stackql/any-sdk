@@ -1388,6 +1388,10 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 			osa.findings = append(osa.findings, mar.findings...)
 		}
 		osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced resource = '%s' with attendant service fragment for svc name = '%s'", resourceKey, k))
+		// Resource-level checks
+		rctx := AnalysisContext{Provider: providerName, Service: k, Resource: resourceKey}
+		osa.findings = append(osa.findings, checkSQLVerbCoverage(rctx, resource)...)
+		osa.findings = append(osa.findings, checkCrossResourceConsistency(rctx, resourceKey, resources)...)
 	}
 
 	if len(osa.errors) > 0 {
@@ -1430,6 +1434,13 @@ func analyzeMethod(
 	if methodAnalyzerErr != nil {
 		result.errors = append(result.errors, fmt.Errorf("static analysis found errors for method %s on resource %s: %v", actx.Method, actx.Resource, methodAnalyzerErr))
 	}
+
+	// Static analysis checks (provider-agnostic, schema-driven)
+	result.findings = append(result.findings, checkRequestParamRoutability(actx, method)...)
+	result.findings = append(result.findings, checkRefResolution(actx, method)...)
+	result.findings = append(result.findings, checkServerURLValidity(actx, method)...)
+	result.findings = append(result.findings, checkPaginationCompleteness(actx, method)...)
+	result.findings = append(result.findings, checkTransformSchemaConsistency(actx, method)...)
 
 	switch protocolType {
 	case client.HTTP:

@@ -64,6 +64,7 @@ jobs:
   mock-test:
     name: Mock E2E Tests
     runs-on: ubuntu-24.04
+    timeout-minutes: ${{ vars.DEFAULT_JOB_TIMEOUT_MIN == '' && 80 || vars.DEFAULT_JOB_TIMEOUT_MIN }}
     needs:
       - build-stackql
     steps:
@@ -278,11 +279,21 @@ jobs:
 
         echo "Test run complete. Events: $(wc -l < cicd/out/events.jsonl)"
 
+    - name: Download prior results for trend comparison
+      if: always()
+      continue-on-error: true
+      run: |
+        gcloud storage cp "gs://${ANALYSIS_RESULTS_BUCKET}/mock-experiments/latest.json" /tmp/prior_latest.json 2>/dev/null || true
+        if [ -f /tmp/prior_latest.json ]; then
+          PRIOR_DIR="$(jq -r '.latest' /tmp/prior_latest.json)"
+          gcloud storage cp "${PRIOR_DIR}/mock-test-results.json" cicd/out/prior-results.json 2>/dev/null || true
+        fi
+
     - name: Generate Summary
       if: always()
       run: |
         python3 << 'PYEOF'
-        import json, sys
+        import json, os
         from collections import Counter
 
         events = []
@@ -299,27 +310,82 @@ jobs:
         status_counts = Counter(e["status"] for e in events)
         class_counts = Counter(e["error_class"] for e in events)
 
+        # Score metrics
+        pass_count = status_counts.get("pass", 0)
+        fail_count = status_counts.get("fail", 0)
+        skip_count = status_counts.get("skip", 0)
+        tested = pass_count + fail_count
+        scores = {
+            "pass_rate": round(pass_count / tested, 4) if tested > 0 else 0,
+            "fail_rate": round(fail_count / tested, 4) if tested > 0 else 0,
+            "skip_rate": round(skip_count / total, 4) if total > 0 else 0,
+            "tested": tested,
+        }
+
+        # Coverage: methods with mocks (have sample_response) — from events that aren't skips
+        methods_tested = set()
+        sql_verbs_seen = Counter()
+        for e in events:
+            if e["status"] != "skip":
+                methods_tested.add(e["method_key"])
+                sql_verbs_seen[e.get("sql_verb", "unknown")] += 1
+        coverage = {
+            "unique_methods_tested": len(methods_tested),
+            "by_sql_verb": dict(sql_verbs_seen.most_common()),
+        }
+
         # Intersection: sql_verb × error_class
         verb_class = Counter((e.get("sql_verb", "unknown"), e["error_class"]) for e in events)
-        verb_class_summary = {}
-        for (verb, cls), count in verb_class.most_common():
-            key = f"{verb}:{cls}"
-            verb_class_summary[key] = count
+        verb_class_summary = {f"{v}:{c}": n for (v, c), n in verb_class.most_common()}
 
         # Provider × status
         provider_status = Counter((e.get("provider", "unknown"), e["status"]) for e in events)
-        provider_summary = {}
-        for (prov, st), count in provider_status.most_common():
-            key = f"{prov}:{st}"
-            provider_summary[key] = count
+        provider_summary = {f"{p}:{s}": n for (p, s), n in provider_status.most_common()}
 
         summary = {
             "total": total,
+            "scores": scores,
+            "coverage": coverage,
             "by_status": dict(status_counts.most_common()),
             "by_error_class": dict(class_counts.most_common()),
             "by_verb_and_class": verb_class_summary,
             "by_provider_and_status": provider_summary,
         }
+
+        # Trend comparison against prior run
+        prior_path = "cicd/out/prior-results.json"
+        if os.path.exists(prior_path):
+            try:
+                with open(prior_path) as f:
+                    prior = json.load(f)
+                prior_scores = prior.get("scores", {})
+                prior_pass = prior_scores.get("pass_rate", 0)
+                prior_tested = prior_scores.get("tested", 0)
+                delta_pass_rate = round(scores["pass_rate"] - prior_pass, 4)
+                delta_tested = scores["tested"] - prior_tested
+
+                # Regressions: error classes that increased
+                prior_classes = prior.get("by_error_class", {})
+                regressions = {}
+                improvements = {}
+                for cls, count in class_counts.items():
+                    prior_count = prior_classes.get(cls, 0)
+                    if count > prior_count:
+                        regressions[cls] = {"current": count, "prior": prior_count, "delta": count - prior_count}
+                    elif count < prior_count:
+                        improvements[cls] = {"current": count, "prior": prior_count, "delta": prior_count - count}
+
+                summary["trend"] = {
+                    "delta_pass_rate": delta_pass_rate,
+                    "delta_tested": delta_tested,
+                    "direction": "improving" if delta_pass_rate > 0 else "regressing" if delta_pass_rate < 0 else "stable",
+                    "regressions": regressions,
+                    "improvements": improvements,
+                }
+            except (json.JSONDecodeError, KeyError):
+                summary["trend"] = {"error": "could not parse prior results"}
+        else:
+            summary["trend"] = {"note": "no prior run available for comparison"}
 
         with open("cicd/out/mock-test-results.json", "w") as f:
             json.dump(summary, f, indent=2)
