@@ -117,7 +117,7 @@ AOT Resource Level Analysis AWS EC2 volumes_post_naively_presented with CLI
     Should Contain                     ${result.stdout}
     ...                                "warning_count": 2
     Should Contain                     ${result.stdout}
-    ...                                sample_response
+    ...                                ec2.volumes_post_naively_presented
     Should Be Equal As Strings    ${result.rc}    0
 
 AOT Method Level Analysis AWS EC2 volumes_post_naively_presented describeVolumes with CLI
@@ -167,7 +167,58 @@ AOT Method Level Analysis AWS EC2 volumes_post_naively_presented describeVolumes
     Should Contain                     ${result.stdout}
     ...                                "missing-semantics"
     Should Contain                     ${result.stdout}
-    ...                                "method": "describeVolumes"
+    ...                                ec2.volumes_post_naively_presented
+    Should Be Equal As Strings    ${result.rc}    0
+
+Closure Generation AWS EC2 volumes_post_naively_presented with Rewrite
+    [Documentation]    Test closure generation with server URL rewrite produces valid minimal service doc
+    [Tags]    cli    closure
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    closure
+    ...    \./test/registry
+    ...    \./test/registry/src/aws/v0\.1\.0/provider\.yaml
+    ...    ec2
+    ...    \-\-provider
+    ...    aws
+    ...    \-\-resource
+    ...    volumes_post_naively_presented
+    ...    \-\-rewrite-url
+    ...    http://localhost:1091
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}Closure-Generation-AWS-EC2-with-CLI.yaml
+    ...    stderr=${CURDIR}${/}/tmp${/}Closure-Generation-AWS-EC2-with-CLI_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Log    RC = ${result.rc}
+    # stdout: valid YAML closure with only the target resource
     Should Contain                     ${result.stdout}
-    ...                                sample_response
+    ...                                x-stackQL-resources
+    Should Contain                     ${result.stdout}
+    ...                                volumes_post_naively_presented
+    # Only the POST path for DescribeVolumes should be present
+    Should Contain                     ${result.stdout}
+    ...                                Action=DescribeVolumes
+    # Transitive schemas included
+    Should Contain                     ${result.stdout}
+    ...                                DescribeVolumesOutput
+    Should Contain                     ${result.stdout}
+    ...                                DescribeVolumesRequest
+    Should Contain                     ${result.stdout}
+    ...                                DescribeVolumesResult
+    # Server URLs rewritten
+    Should Contain                     ${result.stdout}
+    ...                                http://localhost:1091
+    # Original server URLs absent (check the url: field pattern, not metadata like x-providerName)
+    Should Not Contain                 ${result.stdout}
+    ...                                ec2.{region}.amazonaws.com
+    # Other resources from ec2.yaml absent
+    Should Not Contain                 ${result.stdout}
+    ...                                volumes_presented
+    # Security schemes preserved
+    Should Contain                     ${result.stdout}
+    ...                                securitySchemes
+    # Method transform config survives round-trip
+    Should Contain                     ${result.stdout}
+    ...                                toJson
     Should Be Equal As Strings    ${result.rc}    0

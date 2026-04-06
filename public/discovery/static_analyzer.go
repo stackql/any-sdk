@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/client"
@@ -1055,8 +1054,6 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 	}
 	// --- END DOCVAL ANALYSIS ---
 	providerServices := provider.GetProviderServices()
-	var wg sync.WaitGroup
-	serviceAnalyzers := make(map[string]StaticAnalyzer, len(providerServices))
 	for k, providerService := range providerServices {
 		serviceLevelStaticAnalyzer := NewServiceLevelStaticAnalyzer(
 			osa.cfg,
@@ -1067,15 +1064,7 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			k,
 			osa.registryAPI,
 		)
-		serviceAnalyzers[k] = serviceLevelStaticAnalyzer
-		wg.Add(1)
-		go func(k string) {
-			defer wg.Done()
-			serviceLevelStaticAnalyzer.Analyze()
-		}(k)
-	}
-	wg.Wait()
-	for k, serviceLevelStaticAnalyzer := range serviceAnalyzers {
+		serviceLevelStaticAnalyzer.Analyze()
 		serviceErrors := serviceLevelStaticAnalyzer.GetErrors()
 		if len(serviceErrors) > 0 {
 			osa.errors = append(osa.errors, fmt.Errorf("static analysis found errors for service %s, error count %d", k, len(serviceErrors)))
@@ -1087,7 +1076,6 @@ func (osa *genericStaticAnalyzer) Analyze() error {
 			osa.findings = append(osa.findings, fa.GetFindings()...)
 		}
 	}
-	wg.Wait()
 	if len(osa.errors) > 0 {
 		return fmt.Errorf("static analysis found errors, error count %d", len(osa.errors))
 	}
@@ -1318,7 +1306,8 @@ func (osa *serviceLevelStaticAnalyzer) GetRegistryAPI() (anysdk.RegistryAPI, boo
 }
 
 func (osa *serviceLevelStaticAnalyzer) Analyze() error {
-	anysdk.OpenapiFileRoot = osa.cfg.GetRegistryRootDir()
+	// NOTE: OpenapiFileRoot must be set by the caller before concurrent invocation.
+	// Do not set it here — concurrent goroutines would race on the global.
 	protocolType, protocolTypeErr := osa.provider.GetProtocolType()
 	if protocolTypeErr != nil {
 		return protocolTypeErr
@@ -1399,6 +1388,10 @@ func (osa *serviceLevelStaticAnalyzer) Analyze() error {
 			osa.findings = append(osa.findings, mar.findings...)
 		}
 		osa.affirmatives = append(osa.affirmatives, fmt.Sprintf("successfully dereferenced resource = '%s' with attendant service fragment for svc name = '%s'", resourceKey, k))
+		// Resource-level checks
+		rctx := AnalysisContext{Provider: providerName, Service: k, Resource: resourceKey}
+		osa.findings = append(osa.findings, checkSQLVerbCoverage(rctx, resource)...)
+		osa.findings = append(osa.findings, checkCrossResourceConsistency(rctx, resourceKey, resources)...)
 	}
 
 	if len(osa.errors) > 0 {
@@ -1441,6 +1434,13 @@ func analyzeMethod(
 	if methodAnalyzerErr != nil {
 		result.errors = append(result.errors, fmt.Errorf("static analysis found errors for method %s on resource %s: %v", actx.Method, actx.Resource, methodAnalyzerErr))
 	}
+
+	// Static analysis checks (provider-agnostic, schema-driven)
+	result.findings = append(result.findings, checkRequestParamRoutability(actx, method)...)
+	result.findings = append(result.findings, checkRefResolution(actx, method)...)
+	result.findings = append(result.findings, checkServerURLValidity(actx, method)...)
+	result.findings = append(result.findings, checkPaginationCompleteness(actx, method)...)
+	result.findings = append(result.findings, checkTransformSchemaConsistency(actx, method)...)
 
 	switch protocolType {
 	case client.HTTP:
@@ -1497,6 +1497,95 @@ func analyzeMethod(
 	default:
 		// placeholder for fine grained protocol type analysis
 	}
+
+	// Enrich findings that have sample responses with mock route and StackQL query
+	reqParams := method.GetRequiredParameters()
+	bodyAttrs, _ := method.GetRequestBodyAttributesNoRename()
+	// responseMediaType will be refined per-finding based on the actual pre-transform content
+	_, responseMediaType, _ := method.GetResponseBodySchemaAndMediaType()
+	operationPath := ""
+	if opRef := method.GetOperationRef(); opRef != nil {
+		operationPath = opRef.ExtractPathItem()
+	}
+	hasMock := false
+	for i := range result.findings {
+		if result.findings[i].SampleResponse != nil {
+			hasMock = true
+			varName := MockResponseVarName(actx.Provider, actx.Service, actx.Resource, actx.Method)
+			result.findings[i].SampleResponse.VarName = varName
+			mockMediaType := InferMediaType(result.findings[i].SampleResponse.PreTransform, responseMediaType)
+			result.findings[i].MockRoute = GenerateMockRoute(
+				actx.Provider,
+				actx.Service,
+				actx.Resource,
+				actx.Method,
+				method.GetAPIMethod(),
+				method.GetName(),
+				operationPath,
+				mockMediaType,
+				reqParams,
+			)
+			result.findings[i].StackQLQuery = GenerateStackQLQuery(
+				actx.Provider,
+				actx.Service,
+				actx.Resource,
+				method.GetSQLVerb(),
+				reqParams,
+				bodyAttrs,
+			)
+			result.findings[i].ExpectedResponse = GenerateExpectedResponse(
+				result.findings[i].SampleResponse.PostTransform,
+				method.GetSelectItemsKey(),
+			)
+		}
+	}
+
+	// For methods that didn't produce a SampleResponse through transform analysis,
+	// generate a mock-only finding directly from the response schema.
+	if !hasMock {
+		responseSchema, mediaType, _ := method.GetFinalResponseBodySchemaAndMediaType()
+		if responseSchema != nil {
+			sampleResponse := GenerateSampleResponsePair(responseSchema, mediaType, responseSchema, mediaType)
+			if sampleResponse != nil && sampleResponse.PreTransform != "" {
+				varName := MockResponseVarName(actx.Provider, actx.Service, actx.Resource, actx.Method)
+				sampleResponse.VarName = varName
+				f := AnalysisFinding{
+					Level:    "info",
+					Provider: actx.Provider,
+					Service:  actx.Service,
+					Resource: actx.Resource,
+					Method:   actx.Method,
+					Message:  "mock generated from response schema",
+					SampleResponse: sampleResponse,
+					MockRoute: GenerateMockRoute(
+						actx.Provider,
+						actx.Service,
+						actx.Resource,
+						actx.Method,
+						method.GetAPIMethod(),
+						method.GetName(),
+						operationPath,
+						mediaType,
+						reqParams,
+					),
+					StackQLQuery: GenerateStackQLQuery(
+						actx.Provider,
+						actx.Service,
+						actx.Resource,
+						method.GetSQLVerb(),
+						reqParams,
+						bodyAttrs,
+					),
+					ExpectedResponse: GenerateExpectedResponse(
+						sampleResponse.PostTransform,
+						method.GetSelectItemsKey(),
+					),
+				}
+				result.findings = append(result.findings, f)
+			}
+		}
+	}
+
 	return result
 }
 

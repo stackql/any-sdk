@@ -140,6 +140,27 @@ func runAotCommand(rtCtx dto.RuntimeCtx, registryURL string, providerDoc string,
 	// stdout: JSON summary
 	fmt.Fprintln(os.Stdout, discovery.FormatSummaryJSON(allErrs, allWarnings, allAffirmatives, findings))
 
+	// Optional: write individual Python mock files
+	if rtCtx.CLIMockOutputDir != "" && len(findings) > 0 {
+		if mockErr := discovery.WriteMockFiles(findings, rtCtx.CLIMockOutputDir); mockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to write mock files: %v\n", mockErr)
+		}
+	}
+
+	// Optional: write individual expected response files
+	if rtCtx.CLIMockExpectationDir != "" && len(findings) > 0 {
+		if expErr := discovery.WriteExpectationFiles(findings, rtCtx.CLIMockExpectationDir); expErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to write expectation files: %v\n", expErr)
+		}
+	}
+
+	// Optional: write individual StackQL query files
+	if rtCtx.CLIMockQueryDir != "" && len(findings) > 0 {
+		if qErr := discovery.WriteQueryFiles(findings, rtCtx.CLIMockQueryDir); qErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to write query files: %v\n", qErr)
+		}
+	}
+
 	if analyisErr != nil {
 		os.Exit(1)
 	}

@@ -178,8 +178,9 @@ _now="$(date +%s)" && build/anysdk aot \
   ./.stackql \
   ./.stackql/src/aws/v26.02.00377/provider.yaml \
   -v \
+  --mock-output-dir "cicd/out/auto-mocks/aws" \
   --schema-dir \
-  cicd/schema-definitions > "cicd/out/${_now}-summary.json" 2>"cicd/out/${_now}-analysis.jsonl"
+  cicd/schema-definitions > "cicd/out/aot/${_now}-summary.json" 2>"cicd/out/aot/${_now}-analysis.jsonl"
 
 ```
 
@@ -209,3 +210,99 @@ build/anysdk aot \
   cicd/schema-definitions
 
 ```
+
+
+## Closure Generation
+
+
+```bash
+
+build/anysdk closure \
+  test/registry \
+  test/registry/src/aws/v0.1.0/provider.yaml \
+  ec2 \
+  --provider aws \
+  --resource volumes_post_naively_presented \
+  --rewrite-url http://localhost:1091 \
+  > cicd/out/aot/closure_ec2_volumes.yaml
+
+
+
+```
+
+
+## Auto-generated Flask mocks
+
+The AOT analysis produces structured findings that include `sample_response`, `mock_route`, and `stackql_query` attributes for each analyzed method. These can be composed into runnable Flask mock servers for end-to-end testing.
+
+### What the analysis emits per method
+
+Each finding with a response transform includes:
+
+| Field | Description |
+|---|---|
+| `sample_response.pre_transform` | Raw API response body (XML/JSON) derived from the provider's OpenAPI schema |
+| `sample_response.post_transform` | Response after the provider's transform is applied |
+| `mock_route` | Python string — a Flask route handler returning the mock response |
+| `stackql_query` | The StackQL SQL query that exercises this endpoint |
+
+### Composing a mock server
+
+1. **Extract** — pull `mock_route` and `sample_response.pre_transform` from the JSONL analysis output
+2. **Compose** — concatenate Flask boilerplate + all route strings with the mock response bodies injected:
+
+```python
+from flask import Flask, request, Response
+
+app = Flask(__name__)
+
+# ... paste mock_route strings here, with sample_response.pre_transform as the body ...
+
+if __name__ == '__main__':
+    app.run(port=1091)
+```
+
+3. **Reroute** — use an existing registry rewrite or server override to point the provider's base URL at `localhost:<port>`
+4. **Test** — execute the `stackql_query` values against the rewritten registry:
+
+```bash
+# start mock
+python mock_aws_ec2.py &
+
+# run StackQL query from the analysis output
+stackql exec \
+  --registry='{"url": "file://./test/registry"}' \
+  "SELECT * FROM aws.ec2.volumes_post_naively_presented WHERE region = 'us-east-1';"
+```
+
+This validates the full round-trip: StackQL sends a real request → Flask returns the schema-derived mock → the provider's response transform processes it → StackQL presents the result.
+
+## Leveraging CLI for mock testing
+
+For each closure, we can attach and instantiate corresponding method mocks from the appropriate generated mock file (when the parameter to persist these is populated with an output location).  These mocks can be run in containers.  Then we can test against these containers, verify, and terminate at the conclusion.
+
+How to do this?
+
+First, do somethig like this:
+
+```bash
+
+_now="$(date +%s)" && build/anysdk aot \
+  ./.stackql \
+  ./.stackql/src/aws/v26.02.00377/provider.yaml \
+  -v \
+  --mock-output-dir "cicd/out/auto-mocks/aws" \
+  --schema-dir \
+  cicd/schema-definitions > "cicd/out/aot/${_now}-summary.json" 2>"cicd/out/aot/${_now}-analysis.jsonl"
+
+```
+
+Initial proposal is repository root level docker compose file:
+
+- Run 
+- Mounts python file or files in for example `cicd/out/auto-mocks/aws`.
+- Run `stackql` against the complementary closure.
+- Verify that the result is as expected.  Confusingly, the expectation is still in a `jsonl` record.
+
+
+
