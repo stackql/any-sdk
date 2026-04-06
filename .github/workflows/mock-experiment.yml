@@ -97,6 +97,10 @@ jobs:
       run: |
         set -e
         RUN_ID=$(gh run list --workflow="Provider Analysis" --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+        if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+          echo "::error::No successful Provider Analysis run found. Run the Provider Analysis workflow first."
+          exit 1
+        fi
         echo "Downloading artifacts from run: ${RUN_ID}"
         gh run download "$RUN_ID" --name auto-mocks --dir cicd/out/auto-mocks
         gh run download "$RUN_ID" --name mock-queries --dir cicd/out/mock-queries
