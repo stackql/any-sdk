@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "analysis-finding.schema.json",
+  "title": "Analysis Finding (JSONL line)",
+  "description": "A single line in the analysis JSONL output. Each line represents one finding from static analysis of a provider method.",
+  "type": "object",
+  "required": ["level", "message"],
+  "properties": {
+    "level": {
+      "type": "string",
+      "enum": ["error", "warning", "info"],
+      "description": "Severity of the finding."
+    },
+    "bin": {
+      "type": "string",
+      "enum": [
+        "response-shape-unsafe",
+        "objectKey-unroutable",
+        "empty-response-unsafe",
+        "media-type-mismatch",
+        "missing-semantics",
+        "cross-resource-inconsistent",
+        "other"
+      ],
+      "description": "Classification bin for the finding. Omitted for info-level findings."
+    },
+    "provider": {
+      "type": "string",
+      "description": "Provider name, e.g. 'aws'."
+    },
+    "service": {
+      "type": "string",
+      "description": "Service name within the provider, e.g. 'ec2'."
+    },
+    "resource": {
+      "type": "string",
+      "description": "Resource name within the service, e.g. 'instances'."
+    },
+    "method": {
+      "type": "string",
+      "description": "Method name on the resource, e.g. 'select'."
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable description of the finding."
+    },
+    "prior_template": {
+      "type": "string",
+      "description": "The response transform template before auto-repair, if applicable."
+    },
+    "fixed_template": {
+      "type": "string",
+      "description": "The response transform template after auto-repair, if applicable."
+    },
+    "empirical_tests": {
+      "type": "object",
+      "description": "Results of empirical tests run against the transform template.",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["input", "ok"],
+            "properties": {
+              "input": {
+                "type": "string",
+                "description": "The test input fed to the template."
+              },
+              "output": {
+                "type": "string",
+                "description": "The template output for this input. Omitted on failure."
+              },
+              "error": {
+                "type": "string",
+                "description": "Error message if the test failed. Omitted on success."
+              },
+              "ok": {
+                "type": "boolean",
+                "description": "Whether the test passed."
+              }
+            }
+          }
+        }
+      }
+    },
+    "sample_response": {
+      "type": "object",
+      "description": "Generated sample API response pair used for mock generation.",
+      "properties": {
+        "var_name": {
+          "type": "string",
+          "description": "Variable name for the mock response constant."
+        },
+        "pre_transform": {
+          "type": "string",
+          "description": "Sample response body as the API would return it (before any transform)."
+        },
+        "post_transform": {
+          "type": "string",
+          "description": "Sample response body after applying the response transform."
+        }
+      },
+      "required": ["pre_transform", "post_transform"]
+    },
+    "mock_route": {
+      "type": "string",
+      "description": "The HTTP route pattern for the generated mock server endpoint."
+    },
+    "stackql_query": {
+      "type": "string",
+      "description": "The StackQL SQL query that exercises this method."
+    },
+    "expected_response": {
+      "type": "string",
+      "description": "The expected JSON output from the StackQL query for assertion."
+    }
+  }
+}
