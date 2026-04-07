@@ -23,25 +23,25 @@ func classifiedWarning(bin string, format string, args ...interface{}) string {
 
 // ScoreMetrics provides aggregate pass rates and health scores.
 type ScoreMetrics struct {
-	TotalMethods       int     `json:"total_methods"`
-	MethodsWithMocks   int     `json:"methods_with_mocks"`
-	MethodsWithTransforms int  `json:"methods_with_transforms"`
-	MethodsClean       int     `json:"methods_clean"`
-	ErrorRate          float64 `json:"error_rate"`
-	WarningRate        float64 `json:"warning_rate"`
-	CleanRate          float64 `json:"clean_rate"`
-	MockCoverage       float64 `json:"mock_coverage"`
+	TotalMethods          int     `json:"total_methods"`
+	MethodsWithMocks      int     `json:"methods_with_mocks"`
+	MethodsWithTransforms int     `json:"methods_with_transforms"`
+	MethodsClean          int     `json:"methods_clean"`
+	ErrorRate             float64 `json:"error_rate"`
+	WarningRate           float64 `json:"warning_rate"`
+	CleanRate             float64 `json:"clean_rate"`
+	MockCoverage          float64 `json:"mock_coverage"`
 }
 
 // AnalysisSummary is the JSON-serialisable top-level output of static analysis.
 type AnalysisSummary struct {
-	TotalOK       int                    `json:"total_ok"`
-	TotalWarnings int                    `json:"total_warnings"`
-	TotalErrors   int                    `json:"total_errors"`
-	Scores        *ScoreMetrics          `json:"scores,omitempty"`
-	Bins          map[string]AnalysisBin `json:"bins"`
+	TotalOK       int                       `json:"total_ok"`
+	TotalWarnings int                       `json:"total_warnings"`
+	TotalErrors   int                       `json:"total_errors"`
+	Scores        *ScoreMetrics             `json:"scores,omitempty"`
+	Bins          map[string]AnalysisBin    `json:"bins"`
 	Services      map[string]ServiceSummary `json:"services"`
-	Errors        []string               `json:"errors,omitempty"`
+	Errors        []string                  `json:"errors,omitempty"`
 }
 
 // AnalysisBin holds the items for a single classification bin.
@@ -97,11 +97,14 @@ func FormatSummaryJSON(legacyErrors []error, legacyWarnings []string, affirmativ
 		}
 	}
 
-	// Compute score metrics from findings
-	methodSet := make(map[string]bool)         // all methods seen
-	methodHasMock := make(map[string]bool)     // methods with sample_response
-	methodHasTransform := make(map[string]bool) // methods with prior_template (has transform)
-	methodHasIssue := make(map[string]bool)    // methods with errors or warnings
+	// Compute score metrics from findings.
+	// A method is identified by provider.service.resource.method.
+	// Findings include info (clean), warning, and error levels.
+	methodSet := make(map[string]bool)          // all unique methods
+	methodHasMock := make(map[string]bool)      // methods with sample_response
+	methodHasTransform := make(map[string]bool) // methods with prior_template
+	methodHasError := make(map[string]bool)
+	methodHasWarning := make(map[string]bool)
 	for _, f := range findings {
 		mk := f.Provider + "." + f.Service + "." + f.Resource + "." + f.Method
 		methodSet[mk] = true
@@ -111,38 +114,33 @@ func FormatSummaryJSON(legacyErrors []error, legacyWarnings []string, affirmativ
 		if f.PriorTemplate != "" {
 			methodHasTransform[mk] = true
 		}
-		methodHasIssue[mk] = true
+		switch f.Level {
+		case "error":
+			methodHasError[mk] = true
+		case "warning":
+			methodHasWarning[mk] = true
+		}
 	}
-	// Methods from affirmatives that had no findings are clean
 	totalMethods := len(methodSet)
 	if totalMethods == 0 {
-		totalMethods = summary.TotalOK // fallback to affirmative count
+		totalMethods = 1 // avoid division by zero
 	}
 	methodsClean := 0
-	for mk := range methodHasMock {
-		if !methodHasIssue[mk] {
+	for mk := range methodSet {
+		if !methodHasError[mk] && !methodHasWarning[mk] {
 			methodsClean++
 		}
 	}
-	// For methods that only appear in affirmatives (no findings), count as clean
-	cleanFromAffirmatives := summary.TotalOK
-	if len(methodSet) > 0 {
-		cleanFromAffirmatives = 0
-	}
-	totalForRate := totalMethods
-	if totalForRate == 0 {
-		totalForRate = 1
-	}
 	scores := &ScoreMetrics{
-		TotalMethods:        totalMethods,
-		MethodsWithMocks:    len(methodHasMock),
+		TotalMethods:          len(methodSet),
+		MethodsWithMocks:      len(methodHasMock),
 		MethodsWithTransforms: len(methodHasTransform),
-		MethodsClean:        methodsClean + cleanFromAffirmatives,
-		ErrorRate:           float64(summary.TotalErrors) / float64(totalForRate),
-		WarningRate:         float64(summary.TotalWarnings) / float64(totalForRate),
-		MockCoverage:        float64(len(methodHasMock)) / float64(totalForRate),
+		MethodsClean:          methodsClean,
+		ErrorRate:             float64(len(methodHasError)) / float64(totalMethods),
+		WarningRate:           float64(len(methodHasWarning)) / float64(totalMethods),
+		CleanRate:             float64(methodsClean) / float64(totalMethods),
+		MockCoverage:          float64(len(methodHasMock)) / float64(totalMethods),
 	}
-	scores.CleanRate = float64(scores.MethodsClean) / float64(totalForRate)
 	summary.Scores = scores
 
 	// Include legacy errors that aren't in findings (infrastructure errors)

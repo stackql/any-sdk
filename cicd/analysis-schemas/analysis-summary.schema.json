@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "analysis-summary.schema.json",
+  "title": "Analysis Summary",
+  "description": "Top-level JSON output of provider static analysis. One file per provider analysis run.",
+  "type": "object",
+  "required": ["total_ok", "total_warnings", "total_errors", "bins", "services"],
+  "properties": {
+    "total_ok": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of affirmative log messages emitted during analysis. Not a method count — a single method may produce multiple affirmatives."
+    },
+    "total_warnings": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of warnings across all methods. A single method may contribute multiple warnings across different bins."
+    },
+    "total_errors": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of errors across all methods."
+    },
+    "scores": {
+      "type": "object",
+      "description": "Aggregate health metrics. All rates are normalised to [0, 1].",
+      "required": [
+        "total_methods",
+        "methods_with_mocks",
+        "methods_with_transforms",
+        "methods_clean",
+        "error_rate",
+        "warning_rate",
+        "clean_rate",
+        "mock_coverage"
+      ],
+      "properties": {
+        "total_methods": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total unique methods analysed (provider.service.resource.method)."
+        },
+        "methods_with_mocks": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Methods for which a sample response could be generated (mock-eligible)."
+        },
+        "methods_with_transforms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Methods that have a response transform template."
+        },
+        "methods_clean": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Methods with zero warnings and zero errors."
+        },
+        "error_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of methods that have at least one error. Range [0, 1]."
+        },
+        "warning_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of methods that have at least one warning. Range [0, 1]."
+        },
+        "clean_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of methods with no errors and no warnings (may still have info-level findings). Range [0, 1]."
+        },
+        "mock_coverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of methods for which a mock response was generated. Range [0, 1]."
+        }
+      }
+    },
+    "bins": {
+      "type": "object",
+      "description": "Findings grouped by classification bin. Keys are bin names.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["count"],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total findings in this bin."
+          },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Resource references (service.resource) that produced errors in this bin."
+          },
+          "warnings": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Resource references (service.resource) that produced warnings in this bin."
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "description": "Per-service aggregates. Keys are service names.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["error_count", "warning_count"],
+        "properties": {
+          "error_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total errors across all resources in this service."
+          },
+          "warning_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total warnings across all resources in this service."
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Infrastructure-level errors not attributable to a specific finding (e.g. provider load failures)."
+    }
+  }
+}
