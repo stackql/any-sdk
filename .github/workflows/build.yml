@@ -341,6 +341,20 @@ jobs:
         openssl req -x509 -keyout ${{ github.workspace }}/test/credentials/pg_client_key.pem  -out ${{ github.workspace }}/test/credentials/pg_client_cert.pem   -config ${{ github.workspace }}/stackql-core/test/server/mtls/openssl.cnf -days 365
         openssl req -x509 -keyout ${{ github.workspace }}/test/credentials/pg_rubbish_key.pem -out ${{ github.workspace }}/test/credentials/pg_rubbish_cert.pem  -config ${{ github.workspace }}/stackql-core/test/server/mtls/openssl.cnf -days 365
 
+    - name: Start Retry Mock
+      run: |
+        mkdir -p ${{ github.workspace }}/test/robot/cli/mocked/tmp
+        flask --app=test/python/any_sdk_test_utils/flask/retry_app:app run --host 127.0.0.1 --port 1199 \
+          > ${{ github.workspace }}/test/robot/cli/mocked/tmp/retry_mock_stdout.log \
+          2> ${{ github.workspace }}/test/robot/cli/mocked/tmp/retry_mock_stderr.log &
+        for i in $(seq 1 40); do
+          if curl -sf -X POST http://127.0.0.1:1199/reset > /dev/null; then
+            echo "Retry mock up after ${i} attempts"; break
+          fi
+          sleep 0.5
+        done
+        curl -sf -X POST http://127.0.0.1:1199/reset || (echo "Retry mock failed to start"; cat ${{ github.workspace }}/test/robot/cli/mocked/tmp/retry_mock_stderr.log; exit 1)
+
     - name: Run mocked robot tests
       env:
         AWS_ACCESS_KEY_ID: dummy

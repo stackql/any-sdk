@@ -184,20 +184,30 @@ Tight Retry Budget Surfaces Final 503
 
 *** Keywords ***
 Ensure Retry Mock Running
-    [Documentation]    Idempotently start the local flask retry mock if not already up.
+    [Documentation]    Confirm the local flask retry mock is reachable. CI starts it
+    ...                ahead of time; for local dev we'll spin it up on demand.
     ${ping} =    Run Process    curl    -sf    -X    POST    ${RETRY_MOCK_BASE}/reset
-    Run Keyword If    '${ping.rc}' == '0'    Return From Keyword
+    Log    Ping rc=${ping.rc} stdout=${ping.stdout} stderr=${ping.stderr}
+    IF    '${ping.rc}' == '0'    RETURN
     Create Directory                  ${CURDIR}${/}tmp
-    Start Process    python3    -m    flask    --app\=test/python/any_sdk_test_utils/flask/retry_app:app    run    --host    ${RETRY_MOCK_HOST}    --port    ${RETRY_MOCK_PORT}
+    Start Process    flask    --app\=test/python/any_sdk_test_utils/flask/retry_app:app    run    --host    ${RETRY_MOCK_HOST}    --port    ${RETRY_MOCK_PORT}
     ...    cwd=${CWD_FOR_EXEC}
     ...    alias=retry_mock_server
     ...    stdout=${CURDIR}${/}tmp${/}retry_mock_stdout.log
     ...    stderr=${CURDIR}${/}tmp${/}retry_mock_stderr.log
-    Wait Until Keyword Succeeds    40x    250ms    Reset Retry Mock Counters
+    ${started} =    Run Keyword And Return Status    Wait Until Keyword Succeeds    60x    500ms    Reset Retry Mock Counters
+    IF    not ${started}    Log Retry Mock Diagnostics
+    Should Be True    ${started}    Retry mock did not become reachable on ${RETRY_MOCK_BASE}
+
+Log Retry Mock Diagnostics
+    ${stdout_exists} =    Run Keyword And Return Status    File Should Exist    ${CURDIR}${/}tmp${/}retry_mock_stdout.log
+    ${stderr_exists} =    Run Keyword And Return Status    File Should Exist    ${CURDIR}${/}tmp${/}retry_mock_stderr.log
+    IF    ${stdout_exists}    Log File    ${CURDIR}${/}tmp${/}retry_mock_stdout.log
+    IF    ${stderr_exists}    Log File    ${CURDIR}${/}tmp${/}retry_mock_stderr.log
 
 Reset Retry Mock Counters
     ${reset} =    Run Process    curl    -sf    -X    POST    ${RETRY_MOCK_BASE}/reset
-    Should Be Equal As Strings    ${reset.rc}    0
+    Should Be Equal As Strings    ${reset.rc}    0    Reset call to ${RETRY_MOCK_BASE}/reset returned rc=${reset.rc} stdout='${reset.stdout}' stderr='${reset.stderr}'
 
 Assert Mock Attempts
     [Arguments]    ${key}    ${expected}
