@@ -88,6 +88,78 @@
       "additionalProperties": false
     },
 
+    "RetryConditions": {
+      "type": "object",
+      "description": "Per-response signals that mark a result as transient/retryable. Only HTTP status codes are checked today; the bag is open so future signals (header probes, body shape, error class) can be added without breaking specs.",
+      "properties": {
+        "status_codes": {
+          "type": "array",
+          "description": "HTTP status codes treated as transient. Defaults to [408, 429, 502, 503, 504] when omitted or empty.",
+          "items": { "type": "integer", "minimum": 100, "maximum": 599 }
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "RetryPolicy": {
+      "type": "object",
+      "description": "Retry/backoff policy applied to outbound HTTP calls. Resolved with inheritance: operation -> resource -> service -> providerService -> provider; absent at every level falls back to defaults.",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "description": "Backoff algorithm. Only 'exponential' is implemented today; unknown values degrade to a flat initial_delay_ms.",
+          "enum": ["exponential"],
+          "default": "exponential"
+        },
+        "max_attempts": {
+          "type": "integer",
+          "description": "Total attempts including the first try. Values < 1 fall back to the default (3). max_attempts: 1 disables retry.",
+          "minimum": 1,
+          "default": 3
+        },
+        "initial_delay_ms": {
+          "type": "integer",
+          "description": "Delay before the second attempt, in milliseconds. Values <= 0 fall back to the default (500ms).",
+          "minimum": 0,
+          "default": 500
+        },
+        "max_delay_ms": {
+          "type": "integer",
+          "description": "Per-attempt delay ceiling, in milliseconds. Values <= 0 fall back to the default (10000ms).",
+          "minimum": 0,
+          "default": 10000
+        },
+        "multiplier": {
+          "type": "number",
+          "description": "Exponential growth factor between attempts. Values <= 1 fall back to the default (2.0).",
+          "default": 2.0
+        },
+        "jitter_fraction": {
+          "type": "number",
+          "description": "Symmetric jitter band as a fraction of the computed delay (e.g. 0.2 -> +/-20%). Clamped to [0, 1]; 0 disables jitter.",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        },
+        "retryable_methods": {
+          "type": "array",
+          "description": "HTTP methods eligible for retry. Use '*' to match every method. Defaults to ['GET', 'HEAD'] when omitted or empty.",
+          "items": { "type": "string" }
+        },
+        "retryable_conditions": { "$ref": "#/$defs/RetryConditions" }
+      },
+      "additionalProperties": false
+    },
+
+    "Config": {
+      "type": "object",
+      "description": "x-stackQL config bag. Recognised here only insofar as any-sdk consumes it; passthrough keys are tolerated.",
+      "properties": {
+        "retry": { "$ref": "#/$defs/RetryPolicy" }
+      },
+      "additionalProperties": true
+    },
+
     "Resource": {
       "type": "object",
       "required": ["id", "title", "methods"],
@@ -96,6 +168,7 @@
         "id":   { "$ref": "#/$defs/Name" },
         "name": { "$ref": "#/$defs/Name" },
         "title": { "type": "string" },
+        "config": { "$ref": "#/$defs/Config" },
         "methods": { "$ref": "#/$defs/MethodsMap" },
         "sqlVerbs": { "$ref": "#/$defs/SqlVerbs" }
       },

@@ -26,6 +26,7 @@ type ProviderService interface {
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
+	GetRetryPolicy() (RetryPolicy, bool)
 	ConditionIsValid(lhs string, rhs interface{}) bool
 	GetID() string
 	GetServiceFragment(resourceKey string) (Service, error)
@@ -182,6 +183,13 @@ func (sv *standardProviderService) getPaginationResponseTokenSemantic() (TokenSe
 func (sv *standardProviderService) GetQueryParamPushdown() (QueryParamPushdown, bool) {
 	if sv.StackQLConfig != nil {
 		return sv.StackQLConfig.GetQueryParamPushdown()
+	}
+	return nil, false
+}
+
+func (sv *standardProviderService) GetRetryPolicy() (RetryPolicy, bool) {
+	if sv.StackQLConfig != nil {
+		return sv.StackQLConfig.GetRetryPolicy()
 	}
 	return nil, false
 }
