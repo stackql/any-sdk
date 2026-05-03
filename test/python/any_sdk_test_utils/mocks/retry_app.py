@@ -5,7 +5,7 @@ but lives in this repo so the retry CLI tests are fully self-contained — no
 checkout of the stackql core repo or its test tooling is required.
 
 Run with:
-    flask --app=test/python/any_sdk_test_utils/flask/retry_app run --host 0.0.0.0 --port 1199
+    flask --app=test/python/any_sdk_test_utils/mocks/retry_app:app run --host 127.0.0.1 --port 1199
 """
 
 from collections import defaultdict

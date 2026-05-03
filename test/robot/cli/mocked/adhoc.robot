@@ -190,7 +190,7 @@ Ensure Retry Mock Running
     Log    Ping rc=${ping.rc} stdout=${ping.stdout} stderr=${ping.stderr}
     IF    '${ping.rc}' == '0'    RETURN
     Create Directory                  ${CURDIR}${/}tmp
-    Start Process    flask    --app\=test/python/any_sdk_test_utils/flask/retry_app:app    run    --host    ${RETRY_MOCK_HOST}    --port    ${RETRY_MOCK_PORT}
+    Start Process    flask    --app\=test/python/any_sdk_test_utils/mocks/retry_app:app    run    --host    ${RETRY_MOCK_HOST}    --port    ${RETRY_MOCK_PORT}
     ...    cwd=${CWD_FOR_EXEC}
     ...    alias=retry_mock_server
     ...    stdout=${CURDIR}${/}tmp${/}retry_mock_stdout.log
