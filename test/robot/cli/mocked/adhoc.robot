@@ -2,6 +2,14 @@
 Resource          ${CURDIR}/anysdk_mocked.resource
 Test Teardown     AnySDK Per Test Teardown
 
+*** Variables ***
+${RETRY_MOCK_HOST}      127.0.0.1
+${RETRY_MOCK_PORT}      1199
+${RETRY_MOCK_BASE}      http://${RETRY_MOCK_HOST}:${RETRY_MOCK_PORT}
+${RETRY_PROV_PATH}      test/registry-mocked/src/retrytestprovider/v0.1.0/provider.yaml
+${RETRY_SVC_PATH}       test/registry-mocked/src/retrytestprovider/v0.1.0/services/flaky.yaml
+${RETRY_AUTH_JSON}      {"retrytestprovider": {"type": "null_auth"}}
+
 *** Test Cases *** 
 Select Google Cloud Storage Buckets with CLI
     [Documentation]    Test CLI Working
@@ -75,6 +83,124 @@ AWS EC2 Describe Volumes Demonstrates No Request Body Parameters Still Expands T
     Log    Stdout = ${result.stdout}
     Log    RC = ${result.rc}
     Should Be Equal As Strings    ${result.rc}    0
-    Should Contain                     ${result.stdout}    
+    Should Contain                     ${result.stdout}
     ...                                vol\-00100000000000000
     Should Be Equal               ${result.stderr}        ${EMPTY}
+
+Default Retry Policy Recovers After Transient 503s
+    [Documentation]    Default policy (3 attempts) — server fails twice then succeeds.
+    [Tags]    cli    retry
+    Ensure Retry Mock Running
+    Reset Retry Mock Counters
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    query
+    ...    \-\-prov-file-path         ${RETRY_PROV_PATH}
+    ...    \-\-svc-file-path          ${RETRY_SVC_PATH}
+    ...    \-\-resource               recoverable_default
+    ...    \-\-method                 get
+    ...    \-\-parameters             {"fail_until": 2}
+    ...    \-\-auth                   ${RETRY_AUTH_JSON}
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}Default-Retry-Policy-Recovers.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}Default-Retry-Policy-Recovers_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Should Be Equal As Strings    ${result.rc}    0
+    Should Contain                ${result.stdout}    "ok":true
+    Should Contain                ${result.stdout}    "attempt":3
+    Assert Mock Attempts          default-recover    3
+
+Configured Retry Policy Recovers On Fifth Attempt
+    [Documentation]    Resource-level config (max_attempts=5) — server fails four times then succeeds.
+    [Tags]    cli    retry
+    Ensure Retry Mock Running
+    Reset Retry Mock Counters
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    query
+    ...    \-\-prov-file-path         ${RETRY_PROV_PATH}
+    ...    \-\-svc-file-path          ${RETRY_SVC_PATH}
+    ...    \-\-resource               recoverable_configured
+    ...    \-\-method                 get
+    ...    \-\-parameters             {"fail_until": 4}
+    ...    \-\-auth                   ${RETRY_AUTH_JSON}
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}Configured-Retry-Policy-Recovers.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}Configured-Retry-Policy-Recovers_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Should Be Equal As Strings    ${result.rc}    0
+    Should Contain                ${result.stdout}    "ok":true
+    Should Contain                ${result.stdout}    "attempt":5
+    Assert Mock Attempts          configured-recover    5
+
+Zero Retry Policy Issues Exactly One Attempt
+    [Documentation]    Resource-level config max_attempts=1 disables retry entirely.
+    [Tags]    cli    retry
+    Ensure Retry Mock Running
+    Reset Retry Mock Counters
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    query
+    ...    \-\-prov-file-path         ${RETRY_PROV_PATH}
+    ...    \-\-svc-file-path          ${RETRY_SVC_PATH}
+    ...    \-\-resource               no_retry
+    ...    \-\-method                 get
+    ...    \-\-auth                   ${RETRY_AUTH_JSON}
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}Zero-Retry-Single-Attempt.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}Zero-Retry-Single-Attempt_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Should Contain                ${result.stdout}    "ok":false
+    Should Contain                ${result.stdout}    "attempt":1
+    Should Contain                ${result.stderr}    503
+    Assert Mock Attempts          always_503    1
+
+Tight Retry Budget Surfaces Final 503
+    [Documentation]    Resource-level config max_attempts=2 with four required failures — should exhaust.
+    [Tags]    cli    retry
+    Ensure Retry Mock Running
+    Reset Retry Mock Counters
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    query
+    ...    \-\-prov-file-path         ${RETRY_PROV_PATH}
+    ...    \-\-svc-file-path          ${RETRY_SVC_PATH}
+    ...    \-\-resource               tight_budget
+    ...    \-\-method                 get
+    ...    \-\-parameters             {"fail_until": 4}
+    ...    \-\-auth                   ${RETRY_AUTH_JSON}
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}Tight-Retry-Budget.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}Tight-Retry-Budget_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Should Contain                ${result.stdout}    "ok":false
+    Should Contain                ${result.stdout}    "attempt":2
+    Should Contain                ${result.stderr}    503
+    Assert Mock Attempts          tight-budget    2
+
+*** Keywords ***
+Ensure Retry Mock Running
+    [Documentation]    Idempotently start the local flask retry mock if not already up.
+    ${ping} =    Run Process    curl    -sf    -X    POST    ${RETRY_MOCK_BASE}/reset
+    Run Keyword If    '${ping.rc}' == '0'    Return From Keyword
+    Create Directory                  ${CURDIR}${/}tmp
+    Start Process    python3    -m    flask    --app\=test/python/any_sdk_test_utils/flask/retry_app:app    run    --host    ${RETRY_MOCK_HOST}    --port    ${RETRY_MOCK_PORT}
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    alias=retry_mock_server
+    ...    stdout=${CURDIR}${/}tmp${/}retry_mock_stdout.log
+    ...    stderr=${CURDIR}${/}tmp${/}retry_mock_stderr.log
+    Wait Until Keyword Succeeds    40x    250ms    Reset Retry Mock Counters
+
+Reset Retry Mock Counters
+    ${reset} =    Run Process    curl    -sf    -X    POST    ${RETRY_MOCK_BASE}/reset
+    Should Be Equal As Strings    ${reset.rc}    0
+
+Assert Mock Attempts
+    [Arguments]    ${key}    ${expected}
+    ${count} =    Run Process    curl    -sf    ${RETRY_MOCK_BASE}/count/${key}
+    Should Be Equal As Strings    ${count.rc}    0
+    Should Contain                ${count.stdout}    "attempts":${expected}
