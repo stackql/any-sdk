@@ -36,6 +36,7 @@ type OpenAPIService interface {
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	getQueryTransposeAlgorithm() string
 	getQueryParamPushdown() (QueryParamPushdown, bool)
+	getRetryPolicy() (RetryPolicy, bool)
 	GetT() *openapi3.T
 	getT() *openapi3.T
 	iDiscoveryDoc()
@@ -286,6 +287,13 @@ func (svc *standardService) getPaginationResponseTokenSemantic() (TokenSemantic,
 func (svc *standardService) getQueryParamPushdown() (QueryParamPushdown, bool) {
 	if svc.StackQLConfig != nil {
 		return svc.StackQLConfig.GetQueryParamPushdown()
+	}
+	return nil, false
+}
+
+func (svc *standardService) getRetryPolicy() (RetryPolicy, bool) {
+	if svc.StackQLConfig != nil {
+		return svc.StackQLConfig.GetRetryPolicy()
 	}
 	return nil, false
 }

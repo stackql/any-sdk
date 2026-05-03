@@ -23,6 +23,7 @@ type StackQLConfig interface {
 	GetViews() map[string]View
 	GetExternalTables() map[string]SQLExternalTable
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
+	GetRetryPolicy() (RetryPolicy, bool)
 	GetMinStackQLVersion() string
 	//
 	isObjectSchemaImplicitlyUnioned() bool
@@ -40,6 +41,7 @@ type standardStackQLConfig struct {
 	ExternalTables       map[string]standardSQLExternalTable `json:"sqlExternalTables" yaml:"sqlExternalTables"`
 	Auth                 *standardAuthDTO                    `json:"auth,omitempty" yaml:"auth,omitempty"`
 	QueryParamPushdown   *standardQueryParamPushdown         `json:"queryParamPushdown,omitempty" yaml:"queryParamPushdown,omitempty"`
+	Retry                *standardRetryPolicy                `json:"retry,omitempty" yaml:"retry,omitempty"`
 	MinStackQLVersion    string                              `json:"minStackQLVersion,omitempty" yaml:"minStackQLVersion,omitempty"`
 }
 
@@ -55,6 +57,8 @@ func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
 		return qt.Views, nil
 	case "queryParamPushdown":
 		return qt.QueryParamPushdown, nil
+	case "retry":
+		return qt.Retry, nil
 	case "minStackQLVersion":
 		return qt.MinStackQLVersion, nil
 	default:
@@ -144,6 +148,13 @@ func (cfg *standardStackQLConfig) GetQueryParamPushdown() (QueryParamPushdown, b
 		return nil, false
 	}
 	return cfg.QueryParamPushdown, true
+}
+
+func (cfg *standardStackQLConfig) GetRetryPolicy() (RetryPolicy, bool) {
+	if cfg.Retry == nil {
+		return nil, false
+	}
+	return cfg.Retry, true
 }
 
 func (cfg *standardStackQLConfig) GetExternalTables() map[string]SQLExternalTable {

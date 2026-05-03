@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/stackql/any-sdk/pkg/auth_util"
 	"github.com/stackql/any-sdk/pkg/client"
@@ -127,12 +128,104 @@ func (hc *anySdkHttpClient) Do(designation client.AnySdkDesignation, argList cli
 	if translationErr != nil {
 		return nil, translationErr
 	}
-	httpResponse, httpResponseErr := hc.client.Do(translatedRequest)
+	policy := resolveRetryPolicy(designation)
+	httpResponse, httpResponseErr := hc.doWithRetry(translatedRequest, policy)
 	if httpResponseErr != nil {
 		return nil, httpResponseErr
 	}
 	anySdkHttpResponse := newAnySdkHttpReponse(httpResponse)
 	return anySdkHttpResponse, nil
+}
+
+// resolveRetryPolicy walks the designation back to its OperationStore (when
+// present) and consults the inheritance chain. Falls back to defaults when the
+// designation does not carry an OperationStore (e.g. monitor pings, GraphQL).
+func resolveRetryPolicy(designation client.AnySdkDesignation) RetryPolicy {
+	if designation == nil {
+		return DefaultRetryPolicy()
+	}
+	raw, ok := designation.GetDesignation()
+	if !ok {
+		return DefaultRetryPolicy()
+	}
+	if op, isOp := raw.(OperationStore); isOp {
+		return op.GetRetryPolicy()
+	}
+	return DefaultRetryPolicy()
+}
+
+// doWithRetry buffers the request body once, then runs up to MaxAttempts tries
+// with backoff between them. Only requests whose method is in the policy's
+// retryable-methods set get retried; everything else makes a single attempt.
+// Network errors and policy-listed status codes are treated as retryable.
+func (hc *anySdkHttpClient) doWithRetry(req *http.Request, policy RetryPolicy) (*http.Response, error) {
+	if policy == nil {
+		policy = DefaultRetryPolicy()
+	}
+	maxAttempts := policy.GetMaxAttempts()
+	methodRetryable := policy.IsMethodRetryable(req.Method)
+	if !methodRetryable {
+		maxAttempts = 1
+	}
+
+	var bodyBytes []byte
+	if req.Body != nil && maxAttempts > 1 {
+		buf, readErr := io.ReadAll(req.Body)
+		_ = req.Body.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		bodyBytes = buf
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		if req.GetBody == nil {
+			req.GetBody = func() (io.ReadCloser, error) {
+				return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+			}
+		}
+	}
+
+	var lastResp *http.Response
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if attempt > 1 {
+			if bodyBytes != nil {
+				req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			}
+			delay := policy.BackoffFor(attempt - 1)
+			ctx := req.Context()
+			if delay > 0 {
+				timer := time.NewTimer(delay)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					if lastErr == nil {
+						lastErr = ctx.Err()
+					}
+					return lastResp, lastErr
+				case <-timer.C:
+				}
+			}
+		}
+		resp, err := hc.client.Do(req)
+		lastResp = resp
+		lastErr = err
+		if err != nil {
+			if attempt < maxAttempts {
+				continue
+			}
+			return nil, err
+		}
+		if attempt < maxAttempts && policy.IsStatusRetryable(resp.StatusCode) {
+			// drain & close so the connection can be reused
+			if resp.Body != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+			}
+			continue
+		}
+		return resp, nil
+	}
+	return lastResp, lastErr
 }
 
 type anySdkHTTPClientConfigurator struct {

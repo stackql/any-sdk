@@ -64,6 +64,7 @@ type OperationStore interface {
 	GetInverse() (OperationInverse, bool)
 	GetStackQLConfig() StackQLConfig
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
+	GetRetryPolicy() RetryPolicy
 	GetParameters() map[string]Addressable
 	GetPathItem() *openapi3.PathItem
 	GetAPIMethod() string
@@ -405,6 +406,38 @@ func (op *standardOpenAPIOperationStore) GetStackQLConfig() StackQLConfig {
 func (op *standardOpenAPIOperationStore) getStackQLConfig() (StackQLConfig, bool) {
 	rv := op.StackQLConfig
 	return rv, rv != nil
+}
+
+// GetRetryPolicy returns the retry policy with the same inheritance walk used
+// for queryParamPushdown: Method -> Resource -> Service -> ProviderService -> Provider.
+// Falls back to DefaultRetryPolicy() so callers always get a usable policy.
+func (op *standardOpenAPIOperationStore) GetRetryPolicy() RetryPolicy {
+	if op.StackQLConfig != nil {
+		if rp, ok := op.StackQLConfig.GetRetryPolicy(); ok {
+			return rp
+		}
+	}
+	if op.Resource != nil {
+		if rp, ok := op.Resource.GetRetryPolicy(); ok {
+			return rp
+		}
+	}
+	if op.OpenAPIService != nil {
+		if rp, ok := op.OpenAPIService.getRetryPolicy(); ok {
+			return rp
+		}
+	}
+	if op.ProviderService != nil {
+		if rp, ok := op.ProviderService.GetRetryPolicy(); ok {
+			return rp
+		}
+	}
+	if op.Provider != nil {
+		if rp, ok := op.Provider.GetRetryPolicy(); ok {
+			return rp
+		}
+	}
+	return DefaultRetryPolicy()
 }
 
 // GetQueryParamPushdown returns the queryParamPushdown config with inheritance.

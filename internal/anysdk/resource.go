@@ -28,6 +28,7 @@ type Resource interface {
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
+	GetRetryPolicy() (RetryPolicy, bool)
 	FindMethod(key string) (StandardOperationStore, error)
 	GetFirstMethodFromSQLVerb(sqlVerb string) (StandardOperationStore, string, bool)
 	GetFirstNamespaceMethodMatchFromSQLVerb(sqlVerb string, parameters map[string]interface{}) (StandardOperationStore, map[string]interface{}, bool)
@@ -205,6 +206,13 @@ func (r *standardResource) GetPaginationResponseTokenSemantic() (TokenSemantic, 
 func (r *standardResource) GetQueryParamPushdown() (QueryParamPushdown, bool) {
 	if r.StackQLConfig != nil {
 		return r.StackQLConfig.GetQueryParamPushdown()
+	}
+	return nil, false
+}
+
+func (r *standardResource) GetRetryPolicy() (RetryPolicy, bool) {
+	if r.StackQLConfig != nil {
+		return r.StackQLConfig.GetRetryPolicy()
 	}
 	return nil, false
 }
