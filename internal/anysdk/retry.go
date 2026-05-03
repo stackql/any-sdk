@@ -23,7 +23,9 @@ const (
 
 var (
 	_ RetryPolicy               = &standardRetryPolicy{}
+	_ RetryConditions           = &standardRetryConditions{}
 	_ jsonpointer.JSONPointable = standardRetryPolicy{}
+	_ jsonpointer.JSONPointable = standardRetryConditions{}
 
 	defaultRetryableStatusCodes = []int{
 		http.StatusRequestTimeout,
@@ -50,41 +52,81 @@ type RetryPolicy interface {
 	GetMaxDelay() time.Duration
 	GetMultiplier() float64
 	GetJitterFraction() float64
-	GetRetryableStatusCodes() []int
+	GetRetryableConditions() RetryConditions
 	GetRetryableMethods() []string
 	IsStatusRetryable(statusCode int) bool
 	IsMethodRetryable(method string) bool
 	BackoffFor(attempt int) time.Duration
 }
 
+// RetryConditions enumerates the per-response signals that mark a result as
+// retryable. Currently only HTTP status codes are checked, but the type is
+// modelled as an extensible bag so future signals (header probes, body shape,
+// error class) can be added without rewriting specs.
+type RetryConditions interface {
+	GetStatusCodes() []int
+	IsStatusRetryable(statusCode int) bool
+}
+
+type standardRetryConditions struct {
+	StatusCodes []int `json:"status_codes,omitempty" yaml:"status_codes,omitempty"`
+}
+
+func (rc standardRetryConditions) JSONLookup(token string) (interface{}, error) {
+	switch token {
+	case "status_codes":
+		return rc.StatusCodes, nil
+	default:
+		return nil, fmt.Errorf("could not resolve token '%s' from RetryConditions doc object", token)
+	}
+}
+
+func (rc *standardRetryConditions) GetStatusCodes() []int {
+	if len(rc.StatusCodes) == 0 {
+		out := make([]int, len(defaultRetryableStatusCodes))
+		copy(out, defaultRetryableStatusCodes)
+		return out
+	}
+	return rc.StatusCodes
+}
+
+func (rc *standardRetryConditions) IsStatusRetryable(statusCode int) bool {
+	for _, c := range rc.GetStatusCodes() {
+		if c == statusCode {
+			return true
+		}
+	}
+	return false
+}
+
 type standardRetryPolicy struct {
-	Algorithm            string   `json:"algorithm,omitempty" yaml:"algorithm,omitempty"`
-	MaxAttempts          int      `json:"maxAttempts,omitempty" yaml:"maxAttempts,omitempty"`
-	InitialDelayMs       int      `json:"initialDelayMs,omitempty" yaml:"initialDelayMs,omitempty"`
-	MaxDelayMs           int      `json:"maxDelayMs,omitempty" yaml:"maxDelayMs,omitempty"`
-	Multiplier           float64  `json:"multiplier,omitempty" yaml:"multiplier,omitempty"`
-	JitterFraction       float64  `json:"jitterFraction,omitempty" yaml:"jitterFraction,omitempty"`
-	RetryableStatusCodes []int    `json:"retryableStatusCodes,omitempty" yaml:"retryableStatusCodes,omitempty"`
-	RetryableMethods     []string `json:"retryableMethods,omitempty" yaml:"retryableMethods,omitempty"`
+	Algorithm           string                   `json:"algorithm,omitempty" yaml:"algorithm,omitempty"`
+	MaxAttempts         int                      `json:"max_attempts,omitempty" yaml:"max_attempts,omitempty"`
+	InitialDelayMs      int                      `json:"initial_delay_ms,omitempty" yaml:"initial_delay_ms,omitempty"`
+	MaxDelayMs          int                      `json:"max_delay_ms,omitempty" yaml:"max_delay_ms,omitempty"`
+	Multiplier          float64                  `json:"multiplier,omitempty" yaml:"multiplier,omitempty"`
+	JitterFraction      float64                  `json:"jitter_fraction,omitempty" yaml:"jitter_fraction,omitempty"`
+	RetryableConditions *standardRetryConditions `json:"retryable_conditions,omitempty" yaml:"retryable_conditions,omitempty"`
+	RetryableMethods    []string                 `json:"retryable_methods,omitempty" yaml:"retryable_methods,omitempty"`
 }
 
 func (rp standardRetryPolicy) JSONLookup(token string) (interface{}, error) {
 	switch token {
 	case "algorithm":
 		return rp.Algorithm, nil
-	case "maxAttempts":
+	case "max_attempts":
 		return rp.MaxAttempts, nil
-	case "initialDelayMs":
+	case "initial_delay_ms":
 		return rp.InitialDelayMs, nil
-	case "maxDelayMs":
+	case "max_delay_ms":
 		return rp.MaxDelayMs, nil
 	case "multiplier":
 		return rp.Multiplier, nil
-	case "jitterFraction":
+	case "jitter_fraction":
 		return rp.JitterFraction, nil
-	case "retryableStatusCodes":
-		return rp.RetryableStatusCodes, nil
-	case "retryableMethods":
+	case "retryable_conditions":
+		return rp.RetryableConditions, nil
+	case "retryable_methods":
 		return rp.RetryableMethods, nil
 	default:
 		return nil, fmt.Errorf("could not resolve token '%s' from RetryPolicy doc object", token)
@@ -139,13 +181,11 @@ func (rp *standardRetryPolicy) GetJitterFraction() float64 {
 	return rp.JitterFraction
 }
 
-func (rp *standardRetryPolicy) GetRetryableStatusCodes() []int {
-	if len(rp.RetryableStatusCodes) == 0 {
-		out := make([]int, len(defaultRetryableStatusCodes))
-		copy(out, defaultRetryableStatusCodes)
-		return out
+func (rp *standardRetryPolicy) GetRetryableConditions() RetryConditions {
+	if rp.RetryableConditions == nil {
+		return &standardRetryConditions{}
 	}
-	return rp.RetryableStatusCodes
+	return rp.RetryableConditions
 }
 
 func (rp *standardRetryPolicy) GetRetryableMethods() []string {
@@ -158,12 +198,7 @@ func (rp *standardRetryPolicy) GetRetryableMethods() []string {
 }
 
 func (rp *standardRetryPolicy) IsStatusRetryable(statusCode int) bool {
-	for _, c := range rp.GetRetryableStatusCodes() {
-		if c == statusCode {
-			return true
-		}
-	}
-	return false
+	return rp.GetRetryableConditions().IsStatusRetryable(statusCode)
 }
 
 func (rp *standardRetryPolicy) IsMethodRetryable(method string) bool {
@@ -191,7 +226,6 @@ func (rp *standardRetryPolicy) BackoffFor(attempt int) time.Duration {
 	switch algo {
 	case RetryAlgorithmExponential:
 		multiplier := rp.GetMultiplier()
-		// initial * multiplier^(attempt-1)
 		factor := math.Pow(multiplier, float64(attempt-1))
 		nanos := float64(initial) * factor
 		if math.IsInf(nanos, 0) || nanos > float64(maxDelay) {
@@ -207,7 +241,6 @@ func (rp *standardRetryPolicy) BackoffFor(attempt int) time.Duration {
 	}
 	jf := rp.GetJitterFraction()
 	if jf > 0 {
-		// jitter in [-jf, +jf] applied multiplicatively
 		noise := (rand.Float64()*2 - 1) * jf //nolint:gosec // not security-sensitive
 		d = time.Duration(float64(d) * (1 + noise))
 		if d < 0 {
