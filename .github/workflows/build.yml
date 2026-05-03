@@ -368,6 +368,14 @@ jobs:
       run: |
         cat test/robot/reports/mocked/output.xml
 
+    - name: upload mocked test results
+      if: always()
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: mocked-robot-test-results
+        path: test/robot/reports/mocked
+
+
     - name: Run AOT CLI robot tests
       run: |
         export PYTHONPATH="${PYTHONPATH}:${{ github.workspace }}/test/python"
