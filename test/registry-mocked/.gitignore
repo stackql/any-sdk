@@ -1,2 +1,6 @@
 *
 !.gitignore
+!src/
+src/*
+!src/retrytestprovider/
+!src/retrytestprovider/**
