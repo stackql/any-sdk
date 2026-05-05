@@ -170,6 +170,76 @@ AOT Method Level Analysis AWS EC2 volumes_post_naively_presented describeVolumes
     ...                                ec2.volumes_post_naively_presented
     Should Be Equal As Strings    ${result.rc}    0
 
+AOT Provider Level Analysis Contrived Provider Surfaces Path Param Adjacency Warning
+    [Documentation]    Path template /repos/{owner}/{repo}/pages has two path parameters
+    ...                separated only by '/' — gorilla/mux cannot disambiguate slashy
+    ...                values across that boundary. The aot CLI must surface a warning
+    ...                (not an error) so spec authors notice without the build failing.
+    ...                See docs/parameters_containing_slash.md.
+    [Tags]    cli    aot    path-param-slash
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    aot
+    ...    \./test/registry
+    ...    \./test/registry/src/contrivedprovider/v0\.1\.0/provider\.yaml
+    ...    \-\-schema-dir
+    ...    cicd/schema-definitions
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}AOT-Contrived-Provider-Path-Param-Adjacency.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}AOT-Contrived-Provider-Path-Param-Adjacency_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Log    RC = ${result.rc}
+    # stderr: structured JSONL warning includes bin, the offending template, and the doc pointer.
+    Should Contain                     ${result.stderr}
+    ...                                "level":"warning"
+    Should Contain                     ${result.stderr}
+    ...                                "bin":"path-param-adjacent"
+    Should Contain                     ${result.stderr}
+    ...                                /repos/{owner}/{repo}/pages
+    Should Contain                     ${result.stderr}
+    ...                                docs/parameters_containing_slash.md
+    # stdout: summary counts the warning and bins it under the offending resource.
+    Should Contain                     ${result.stdout}
+    ...                                "path-param-adjacent"
+    Should Contain                     ${result.stdout}
+    ...                                contrived_service.pages
+    # Adjacency is informational, not fatal — exit code stays 0.
+    Should Be Equal As Strings    ${result.rc}    0
+
+AOT Method Level Analysis AWS EC2 Has No Spurious Path Param Adjacency Warning
+    [Documentation]    Regression guard: well-anchored OpenAPI templates (literal segments
+    ...                between every pair of path placeholders) must NOT emit any
+    ...                path-param-adjacent finding. If this fires, hasAdjacentPathParams
+    ...                has gained a false-positive case.
+    [Tags]    cli    aot    path-param-slash
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    aot
+    ...    \-v
+    ...    \./test/registry
+    ...    \./test/registry/src/aws/v0\.1\.0/provider\.yaml
+    ...    ec2
+    ...    \-\-provider
+    ...    aws
+    ...    \-\-resource
+    ...    volumes_post_naively_presented
+    ...    \-\-method
+    ...    describeVolumes
+    ...    \-\-schema-dir
+    ...    cicd/schema-definitions
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}AOT-AWS-EC2-No-Path-Param-Adjacency.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}AOT-AWS-EC2-No-Path-Param-Adjacency_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Log    RC = ${result.rc}
+    Should Not Contain                 ${result.stderr}
+    ...                                "bin":"path-param-adjacent"
+    Should Not Contain                 ${result.stdout}
+    ...                                "path-param-adjacent"
+    Should Be Equal As Strings    ${result.rc}    0
+
 Closure Generation AWS EC2 volumes_post_naively_presented with Rewrite
     [Documentation]    Test closure generation with server URL rewrite produces valid minimal service doc
     [Tags]    cli    closure

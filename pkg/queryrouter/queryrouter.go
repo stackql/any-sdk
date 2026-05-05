@@ -104,7 +104,7 @@ func (r *Router) addRoutes(
 		if qmIxd > -1 {
 			strippedPath = path[:qmIxd]
 		}
-		muxRoute := muxRouter.Path(s.base + strippedPath).Methods(methods...)
+		muxRoute := muxRouter.Path(s.base + permitSlashesInPathParams(strippedPath)).Methods(methods...)
 		if qmIxd > -1 && len(path) > qmIxd {
 			var pairs []string
 			kvs := strings.Split(path[qmIxd+1:], "&")
@@ -183,6 +183,72 @@ func orderedPaths(paths map[string]*openapi3.PathItem) []string {
 		}
 	}
 	return ordered
+}
+
+// permitSlashesInPathParams rewrites OpenAPI-style `{name}` placeholders in a
+// path template to the gorilla/mux form `{name:[^?#]+}`, which allows the
+// captured value to span `/` characters. This is what enables path-parameter
+// values like `projects/foo/locations/us` (a single OpenAPI parameter whose
+// value happens to contain slashes) to route correctly through gorilla/mux —
+// mux's default per-segment regex (`[^/]+`) would otherwise reject them.
+//
+// Placeholders are NOT rewritten when they participate in an ambiguous
+// adjacency pair — i.e. two placeholders separated only by `/` characters
+// (or nothing at all). For those, mux's greedy regex cannot disambiguate
+// across slashes, so we preserve the default `[^/]+` matcher: existing
+// slash-free values keep routing exactly as before, and slashy values still
+// fail with `ErrPathNotFound` at runtime. The aot static analyser emits a
+// warning (`path-param-adjacent` bin) for these templates so authors are
+// notified — see docs/parameters_containing_slash.md.
+//
+// Placeholders that already carry an explicit regex (`{name:...}`) are left
+// untouched, as are stray braces that are not well-formed placeholders.
+func permitSlashesInPathParams(path string) string {
+	type span struct{ start, end int } // inclusive indices of '{' and '}'
+	var spans []span
+	for i := 0; i < len(path); {
+		open := strings.IndexByte(path[i:], '{')
+		if open < 0 {
+			break
+		}
+		open += i
+		closeIdx := strings.IndexByte(path[open:], '}')
+		if closeIdx < 0 {
+			break
+		}
+		closeIdx += open
+		spans = append(spans, span{open, closeIdx})
+		i = closeIdx + 1
+	}
+	if len(spans) == 0 {
+		return path
+	}
+	ambiguous := make([]bool, len(spans))
+	for k := 0; k < len(spans)-1; k++ {
+		between := path[spans[k].end+1 : spans[k+1].start]
+		if strings.Trim(between, "/") == "" {
+			ambiguous[k] = true
+			ambiguous[k+1] = true
+		}
+	}
+	var b strings.Builder
+	b.Grow(len(path) + 8*len(spans))
+	cursor := 0
+	for k, sp := range spans {
+		b.WriteString(path[cursor:sp.start])
+		body := path[sp.start+1 : sp.end]
+		simpleName := body != "" && !strings.ContainsRune(body, ':') && !strings.ContainsRune(body, '{')
+		if simpleName && !ambiguous[k] {
+			b.WriteByte('{')
+			b.WriteString(body)
+			b.WriteString(":[^?#]+}")
+		} else {
+			b.WriteString(path[sp.start : sp.end+1])
+		}
+		cursor = sp.end + 1
+	}
+	b.WriteString(path[cursor:])
+	return b.String()
 }
 
 // Magic strings that temporarily replace "{}" so net/url.Parse() works
