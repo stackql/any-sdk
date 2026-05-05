@@ -16,6 +16,7 @@ const (
 	BinServerURLInvalid         = "server-url-invalid"
 	BinPaginationIncomplete     = "pagination-incomplete"
 	BinTransformSchemaMismatch  = "transform-schema-mismatch"
+	BinPathParamAdjacent        = "path-param-adjacent"
 )
 
 // checkRequestParamRoutability validates that required parameters have
@@ -215,6 +216,72 @@ func checkCrossResourceConsistency(
 		})
 	}
 	return findings
+}
+
+// checkPathParamAdjacency flags OpenAPI path templates where two path
+// parameters appear with no disambiguating literal text between them — e.g.
+// `/{a}/{b}` or `/{a}{b}`.
+//
+// Background: queryrouter's `permitSlashesInPathParams` rewrites
+// path-parameter placeholders so their values may contain `/`. That rewrite
+// is selectively skipped for ambiguous adjacency pairs, because
+// gorilla/mux's greedy regex cannot reliably split values across a
+// slash-only boundary. The runtime behaviour for those templates is
+// unchanged from the pre-fix world (slashy values still fail with
+// `ErrPathNotFound`), but authors should know which params are stuck.
+//
+// This check therefore produces a WARNING-level finding so it surfaces in
+// `aot` output without blocking exit.
+func checkPathParamAdjacency(
+	actx AnalysisContext,
+	method anysdk.StandardOperationStore,
+) []AnalysisFinding {
+	opRef := method.GetOperationRef()
+	if opRef == nil {
+		return nil
+	}
+	path := opRef.ExtractPathItem()
+	if !hasAdjacentPathParams(path) {
+		return nil
+	}
+	return []AnalysisFinding{
+		actx.NewWarning(BinPathParamAdjacent,
+			fmt.Sprintf("path template %q has adjacent path parameters with no literal segment between them; values containing '/' will not route through these params (see docs/parameters_containing_slash.md)", path)),
+	}
+}
+
+// hasAdjacentPathParams reports whether two path-parameter placeholders in
+// `path` appear with no literal disambiguator between them. The text between
+// two consecutive placeholders is "literal" only if it contains characters
+// other than `/` — bare `/` between `{a}` and `{b}` does NOT separate them
+// once values may contain `/` themselves.
+func hasAdjacentPathParams(path string) bool {
+	if path == "" {
+		return false
+	}
+	prevEnd := -1
+	i := 0
+	for i < len(path) {
+		open := strings.IndexByte(path[i:], '{')
+		if open < 0 {
+			return false
+		}
+		open += i
+		close := strings.IndexByte(path[open:], '}')
+		if close < 0 {
+			return false
+		}
+		close += open
+		if prevEnd >= 0 {
+			between := path[prevEnd+1 : open]
+			if strings.Trim(between, "/") == "" {
+				return true
+			}
+		}
+		prevEnd = close
+		i = close + 1
+	}
+	return false
 }
 
 // checkTransformSchemaConsistency validates that when a response has both

@@ -1441,6 +1441,7 @@ func analyzeMethod(
 	result.findings = append(result.findings, checkServerURLValidity(actx, method)...)
 	result.findings = append(result.findings, checkPaginationCompleteness(actx, method)...)
 	result.findings = append(result.findings, checkTransformSchemaConsistency(actx, method)...)
+	result.findings = append(result.findings, checkPathParamAdjacency(actx, method)...)
 
 	switch protocolType {
 	case client.HTTP:
