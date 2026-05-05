@@ -9,6 +9,12 @@ ${RETRY_MOCK_BASE}      http://${RETRY_MOCK_HOST}:${RETRY_MOCK_PORT}
 ${RETRY_PROV_PATH}      test/registry-mocked/src/retrytestprovider/v0.1.0/provider.yaml
 ${RETRY_SVC_PATH}       test/registry-mocked/src/retrytestprovider/v0.1.0/services/flaky.yaml
 ${RETRY_AUTH_JSON}      {"retrytestprovider": {"type": "null_auth"}}
+${CLOUDASSET_MOCK_HOST}    127.0.0.1
+${CLOUDASSET_MOCK_PORT}    1198
+${CLOUDASSET_MOCK_BASE}    http://${CLOUDASSET_MOCK_HOST}:${CLOUDASSET_MOCK_PORT}
+${CLOUDASSET_PROV_PATH}    test/registry-mocked/src/cloudassetfixture/v0.1.0/provider.yaml
+${CLOUDASSET_SVC_PATH}     test/registry-mocked/src/cloudassetfixture/v0.1.0/services/cloudasset.yaml
+${CLOUDASSET_AUTH_JSON}    {"cloudassetfixture": {"type": "null_auth"}}
 
 *** Test Cases *** 
 Select Google Cloud Storage Buckets with CLI
@@ -182,6 +188,40 @@ Tight Retry Budget Surfaces Final 503
     Should Contain                ${result.stderr}    503
     Assert Mock Attempts          tight-budget    2
 
+Path Parameter With Forward Slashes Routes End To End
+    [Documentation]    End-to-end evidence that an OpenAPI path-param value containing
+    ...                forward slashes (e.g. scope = "projects/p1/folders/f2") survives
+    ...                anysdk's substitution + queryrouter + HTTP layers and lands at
+    ...                the mock with the literal '/' on the wire — not %2F. This is
+    ...                the runtime counterpart to docs/parameters_containing_slash.md.
+    [Tags]    cli    path-param-slash
+    Ensure Cloudasset Mock Running
+    Reset Cloudasset Mock
+    ${result} =    Run Process
+    ...    ${CLI_EXE}
+    ...    query
+    ...    \-\-prov-file-path         ${CLOUDASSET_PROV_PATH}
+    ...    \-\-svc-file-path          ${CLOUDASSET_SVC_PATH}
+    ...    \-\-resource               resources
+    ...    \-\-method                 search_all
+    ...    \-\-parameters             {"scope": "projects/p1/folders/f2", "query": "name:compute"}
+    ...    \-\-auth                   ${CLOUDASSET_AUTH_JSON}
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    stdout=${CURDIR}${/}/tmp${/}Path-Param-With-Forward-Slashes.txt
+    ...    stderr=${CURDIR}${/}/tmp${/}Path-Param-With-Forward-Slashes_stderr.txt
+    Log    Stderr = ${result.stderr}
+    Log    Stdout = ${result.stdout}
+    Log    RC = ${result.rc}
+    # 1. CLI exits cleanly — proves substitution + routing succeeded.
+    Should Be Equal As Strings    ${result.rc}    0
+    # 2. Response body echoes the slashy scope back unmangled.
+    Should Contain                 ${result.stdout}    "scope_echo":"projects/p1/folders/f2"
+    # 3. Mock saw the literal '/' on the wire (not %2F) at the expected path.
+    Assert Cloudasset Mock Captured Slashy Scope
+    ...    projects/p1/folders/f2
+    ...    /v1/projects/p1/folders/f2:searchAllResources
+    ...    name:compute
+
 *** Keywords ***
 Ensure Retry Mock Running
     [Documentation]    Confirm the local flask retry mock is reachable. CI starts it
@@ -214,3 +254,39 @@ Assert Mock Attempts
     ${count} =    Run Process    curl    -sf    ${RETRY_MOCK_BASE}/count/${key}
     Should Be Equal As Strings    ${count.rc}    0
     Should Contain                ${count.stdout}    "attempts":${expected}
+
+Ensure Cloudasset Mock Running
+    [Documentation]    Confirm the local flask cloudasset mock is reachable. CI starts it
+    ...                ahead of time; for local dev we'll spin it up on demand.
+    ${ping} =    Run Process    curl    -sf    -X    POST    ${CLOUDASSET_MOCK_BASE}/reset
+    Log    Ping rc=${ping.rc} stdout=${ping.stdout} stderr=${ping.stderr}
+    IF    '${ping.rc}' == '0'    RETURN
+    Create Directory                  ${CURDIR}${/}tmp
+    Start Process    flask    --app\=test/python/any_sdk_test_utils/mocks/cloudasset_app:app    run    --host    ${CLOUDASSET_MOCK_HOST}    --port    ${CLOUDASSET_MOCK_PORT}
+    ...    cwd=${CWD_FOR_EXEC}
+    ...    alias=cloudasset_mock_server
+    ...    stdout=${CURDIR}${/}tmp${/}cloudasset_mock_stdout.log
+    ...    stderr=${CURDIR}${/}tmp${/}cloudasset_mock_stderr.log
+    ${started} =    Run Keyword And Return Status    Wait Until Keyword Succeeds    60x    500ms    Reset Cloudasset Mock
+    IF    not ${started}    Log Cloudasset Mock Diagnostics
+    Should Be True    ${started}    Cloudasset mock did not become reachable on ${CLOUDASSET_MOCK_BASE}
+
+Log Cloudasset Mock Diagnostics
+    ${stdout_exists} =    Run Keyword And Return Status    File Should Exist    ${CURDIR}${/}tmp${/}cloudasset_mock_stdout.log
+    ${stderr_exists} =    Run Keyword And Return Status    File Should Exist    ${CURDIR}${/}tmp${/}cloudasset_mock_stderr.log
+    IF    ${stdout_exists}    Log File    ${CURDIR}${/}tmp${/}cloudasset_mock_stdout.log
+    IF    ${stderr_exists}    Log File    ${CURDIR}${/}tmp${/}cloudasset_mock_stderr.log
+
+Reset Cloudasset Mock
+    ${reset} =    Run Process    curl    -sf    -X    POST    ${CLOUDASSET_MOCK_BASE}/reset
+    Should Be Equal As Strings    ${reset.rc}    0    Reset call to ${CLOUDASSET_MOCK_BASE}/reset returned rc=${reset.rc} stdout='${reset.stdout}' stderr='${reset.stderr}'
+
+Assert Cloudasset Mock Captured Slashy Scope
+    [Arguments]    ${expected_scope}    ${expected_path}    ${expected_query}
+    ${last} =    Run Process    curl    -sf    ${CLOUDASSET_MOCK_BASE}/lastrequest
+    Should Be Equal As Strings    ${last.rc}    0
+    # Literal '/' must survive on the wire — not encoded as %2F.
+    Should Contain                ${last.stdout}    "scope":"${expected_scope}"
+    Should Contain                ${last.stdout}    "path":"${expected_path}"
+    Should Contain                ${last.stdout}    "query":"${expected_query}"
+    Should Not Contain            ${last.stdout}    %2F
