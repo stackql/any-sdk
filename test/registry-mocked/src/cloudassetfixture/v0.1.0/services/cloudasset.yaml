@@ -1,0 +1,79 @@
+components:
+  parameters:
+    scope:
+      description: |
+        The relative resource name of the root asset, e.g. "projects/{PROJECT_ID}",
+        "folders/{FOLDER_ID}", or "organizations/{ORGANIZATION_NUMBER}". Values
+        intentionally carry forward slashes - this is the exact case anysdk's
+        path-param-with-slashes fix is meant to support.
+      in: path
+      name: scope
+      required: true
+      schema:
+        type: string
+    query:
+      description: Asset search query string.
+      in: query
+      name: query
+      required: false
+      schema:
+        type: string
+  schemas:
+    asset_result:
+      type: object
+      properties:
+        name:
+          type: string
+        assetType:
+          type: string
+        scope_echo:
+          type: string
+    search_response:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/asset_result'
+  x-stackQL-resources:
+    resources:
+      id: cloudassetfixture.cloudasset.resources
+      name: resources
+      title: Cloud Asset search results (slash-bearing scope)
+      methods:
+        search_all:
+          operation:
+            $ref: '#/paths/~1v1~1{scope}:searchAllResources/get'
+          response:
+            mediaType: application/json
+            openAPIDocKey: '200'
+            objectKey: $.results
+      sqlVerbs:
+        select:
+          - $ref: '#/components/x-stackQL-resources/resources/methods/search_all'
+        delete: []
+        insert: []
+        update: []
+info:
+  title: Cloud Asset fixture for path-param-with-slashes evidence
+  version: 0.1.0
+openapi: 3.0.3
+paths:
+  /v1/{scope}:searchAllResources:
+    get:
+      operationId: cloudasset/searchAllResources
+      parameters:
+        - $ref: '#/components/parameters/scope'
+        - $ref: '#/components/parameters/query'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/search_response'
+          description: OK
+      servers:
+        - url: http://localhost:1198
+      summary: Search assets across a slashy scope
+servers:
+  - url: http://localhost:1198

@@ -368,6 +368,30 @@ jobs:
         fi
         echo "Retry mock confirmed up on http://127.0.0.1:1199"
 
+    - name: Start Cloudasset Mock
+      run: |
+        set -x
+        mkdir -p ${{ github.workspace }}/test/robot/cli/mocked/tmp
+        cd ${{ github.workspace }}
+        nohup flask --app=test/python/any_sdk_test_utils/mocks/cloudasset_app:app run --host 127.0.0.1 --port 1198 \
+          > ${{ github.workspace }}/test/robot/cli/mocked/tmp/cloudasset_mock_stdout.log \
+          2> ${{ github.workspace }}/test/robot/cli/mocked/tmp/cloudasset_mock_stderr.log &
+        for i in $(seq 1 60); do
+          if curl -sf -X POST http://127.0.0.1:1198/reset > /dev/null; then
+            echo "Cloudasset mock up after ${i} attempts"; break
+          fi
+          sleep 0.5
+        done
+        if ! curl -sf -X POST http://127.0.0.1:1198/reset; then
+          echo "===== Cloudasset mock FAILED to start ====="
+          echo "----- stdout log -----"
+          cat ${{ github.workspace }}/test/robot/cli/mocked/tmp/cloudasset_mock_stdout.log || true
+          echo "----- stderr log -----"
+          cat ${{ github.workspace }}/test/robot/cli/mocked/tmp/cloudasset_mock_stderr.log || true
+          exit 1
+        fi
+        echo "Cloudasset mock confirmed up on http://127.0.0.1:1198"
+
     - name: Run mocked robot tests
       env:
         AWS_ACCESS_KEY_ID: dummy

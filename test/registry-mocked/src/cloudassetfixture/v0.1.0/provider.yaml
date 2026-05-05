@@ -1,0 +1,15 @@
+id: cloudassetfixture
+name: cloudassetfixture
+openapi: 3.0.3
+providerServices:
+  cloudasset:
+    description: Cloud Asset Inventory shape - mirrors Google's live /v1/{scope}:searchAllResources path. Backed by the local flask cloudasset mock.
+    id: cloudasset:v0.1.0
+    name: cloudasset
+    preferred: true
+    service:
+      $ref: cloudassetfixture/v0.1.0/services/cloudasset.yaml
+    title: Cloud Asset Inventory fixture
+    version: v0.1.0
+servers: []
+version: v0.1.0
