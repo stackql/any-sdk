@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/getkin/kin-openapi/openapi3"
-	"golang.org/x/exp/slices"
 )
 
 // ParamType classifies a row produced by IntrospectMethod. The classification
@@ -29,33 +28,70 @@ const (
 // schemas truncating.
 const introspectionMaxDepth = 64
 
-// IntrospectedField is one row of a DESCRIBE METHOD result.
+// IntrospectedField is one row of a DESCRIBE METHOD result. Consumers read
+// fields through accessors; the concrete implementation is package-private
+// so the wire shape can evolve without breaking dependents.
 //
-// Shape is a JSON Schema subset (text). It is empty for scalar fields; for
-// object/array fields it carries the nested structure the caller needs to
-// construct a payload or interpret a response without making further round
-// trips. The subset includes type, format, properties, items, required,
-// enum, default, description, and the OpenAPI booleans readOnly/writeOnly/
-// deprecated. Polymorphism (oneOf/anyOf/allOf) is preserved when present in
-// the source document — providers in this registry usually fatten it at
-// generation time, but if any survives it is rendered.
-type IntrospectedField struct {
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	ParamType   ParamType `json:"param_type"`
-	Shape       string    `json:"shape"`
-	Description string    `json:"description,omitempty"`
+// GetShape returns a JSON Schema subset (text). It is empty for scalar
+// fields; for object/array fields it carries the nested structure the
+// caller needs to construct a payload or interpret a response without
+// making further round trips. The subset includes type, format, properties,
+// items, required, enum, default, description, and the OpenAPI booleans
+// readOnly/writeOnly/deprecated. Polymorphism (oneOf/anyOf/allOf) is
+// preserved when present in the source document — providers in this
+// registry usually fatten it at generation time, but if any survives it is
+// rendered.
+type IntrospectedField interface {
+	GetName() string
+	GetType() string
+	GetParamType() ParamType
+	GetShape() string
+	GetDescription() string
 }
 
 // MethodIntrospection is the structured form of one DESCRIBE METHOD result.
-// The grammar-side caller will flatten Fields into a SQL result set.
-type MethodIntrospection struct {
-	Provider string              `json:"provider"`
-	Service  string              `json:"service"`
-	Resource string              `json:"resource"`
-	Method   string              `json:"method"`
-	Fields   []IntrospectedField `json:"fields"`
+// Consumers read provenance plus the row slice through accessors. The
+// grammar-side caller will flatten GetFields() into a SQL result set.
+type MethodIntrospection interface {
+	GetProvider() string
+	GetService() string
+	GetResource() string
+	GetMethod() string
+	GetFields() []IntrospectedField
 }
+
+// introspectedField is the package-private implementation of
+// IntrospectedField. Field values are populated by the resolver and never
+// mutated after construction; accessors are pure reads.
+type introspectedField struct {
+	name        string
+	dataType    string
+	paramType   ParamType
+	shape       string
+	description string
+}
+
+func (f *introspectedField) GetName() string         { return f.name }
+func (f *introspectedField) GetType() string         { return f.dataType }
+func (f *introspectedField) GetParamType() ParamType { return f.paramType }
+func (f *introspectedField) GetShape() string        { return f.shape }
+func (f *introspectedField) GetDescription() string  { return f.description }
+
+// methodIntrospection is the package-private implementation of
+// MethodIntrospection. The same construction-then-read discipline applies.
+type methodIntrospection struct {
+	provider string
+	service  string
+	resource string
+	method   string
+	fields   []IntrospectedField
+}
+
+func (m *methodIntrospection) GetProvider() string          { return m.provider }
+func (m *methodIntrospection) GetService() string           { return m.service }
+func (m *methodIntrospection) GetResource() string          { return m.resource }
+func (m *methodIntrospection) GetMethod() string            { return m.method }
+func (m *methodIntrospection) GetFields() []IntrospectedField { return m.fields }
 
 // IntrospectMethod returns input and output field metadata for a single
 // method on a resource. It is the any-sdk side of the `DESCRIBE METHOD`
@@ -71,38 +107,38 @@ type MethodIntrospection struct {
 // Input rows are always produced when the method has any input parameter.
 func IntrospectMethod(rsc Resource, methodName string, extended bool) (MethodIntrospection, error) {
 	if rsc == nil {
-		return MethodIntrospection{}, fmt.Errorf("introspect: resource is nil")
+		return nil, fmt.Errorf("introspect: resource is nil")
 	}
 	method, err := rsc.FindMethod(methodName)
 	if err != nil {
-		return MethodIntrospection{}, fmt.Errorf("introspect: %w", err)
+		return nil, fmt.Errorf("introspect: %w", err)
 	}
 	if method == nil {
-		return MethodIntrospection{}, fmt.Errorf("introspect: method %q not found", methodName)
+		return nil, fmt.Errorf("introspect: method %q not found", methodName)
 	}
 
-	out := MethodIntrospection{
-		Resource: rsc.GetName(),
-		Method:   methodName,
+	out := &methodIntrospection{
+		resource: rsc.GetName(),
+		method:   methodName,
 	}
 	if svc, ok := rsc.GetService(); ok && svc != nil {
-		out.Service = svc.GetName()
+		out.service = svc.GetName()
 	}
 	if prov, ok := rsc.GetProvider(); ok && prov != nil {
-		out.Provider = prov.GetName()
+		out.provider = prov.GetName()
 	}
 
 	inputs, err := collectInputs(method, extended)
 	if err != nil {
-		return MethodIntrospection{}, err
+		return nil, err
 	}
-	out.Fields = append(out.Fields, inputs...)
+	out.fields = append(out.fields, inputs...)
 
 	outputs, err := collectOutputs(method, extended)
 	if err != nil {
-		return MethodIntrospection{}, err
+		return nil, err
 	}
-	out.Fields = append(out.Fields, outputs...)
+	out.fields = append(out.fields, outputs...)
 
 	return out, nil
 }
@@ -232,14 +268,14 @@ func collectOutputs(m StandardOperationStore, extended bool) ([]IntrospectedFiel
 			continue
 		}
 		shape := renderShape(child)
-		row := IntrospectedField{
-			Name:      k,
-			Type:      typeOf(child),
-			ParamType: ParamTypeOutput,
-			Shape:     shape,
+		row := &introspectedField{
+			name:      k,
+			dataType:  typeOf(child),
+			paramType: ParamTypeOutput,
+			shape:     shape,
 		}
 		if extended {
-			row.Description = child.getDescription()
+			row.description = child.getDescription()
 		}
 		rows = append(rows, row)
 	}
@@ -251,18 +287,18 @@ func collectOutputs(m StandardOperationStore, extended bool) ([]IntrospectedFiel
 // has configured a body translation algorithm).
 func fieldFromAddressable(name string, addr Addressable, pt ParamType, extended bool) (IntrospectedField, error) {
 	if addr == nil {
-		return IntrospectedField{}, fmt.Errorf("introspect: nil addressable for %q", name)
+		return nil, fmt.Errorf("introspect: nil addressable for %q", name)
 	}
 	s, _ := addr.GetSchema()
-	row := IntrospectedField{
-		Name:      name,
-		Type:      addr.GetType(),
-		ParamType: pt,
+	row := &introspectedField{
+		name:      name,
+		dataType:  addr.GetType(),
+		paramType: pt,
 	}
 	if ss, ok := s.(*standardSchema); ok && ss != nil {
-		row.Shape = renderShape(ss)
+		row.shape = renderShape(ss)
 		if extended {
-			row.Description = ss.getDescription()
+			row.description = ss.getDescription()
 		}
 	}
 	return row, nil
@@ -492,47 +528,4 @@ func (v *visitMap) exit(s *standardSchema) {
 	if s.path != "" {
 		delete(v.byRef, s.path)
 	}
-}
-
-// Helpers exposed for the test harness only — they are not part of the
-// public API and are gated by package boundary.
-
-// introspectFieldNames returns just the names from a MethodIntrospection,
-// in slice order, useful for assertions.
-func introspectFieldNames(mi MethodIntrospection) []string {
-	out := make([]string, 0, len(mi.Fields))
-	for _, f := range mi.Fields {
-		out = append(out, f.Name)
-	}
-	return out
-}
-
-// introspectFieldsByParamType returns the subset of fields with a given
-// ParamType, in slice order.
-func introspectFieldsByParamType(mi MethodIntrospection, pt ParamType) []IntrospectedField {
-	var out []IntrospectedField
-	for _, f := range mi.Fields {
-		if f.ParamType == pt {
-			out = append(out, f)
-		}
-	}
-	return out
-}
-
-// hasParamType reports whether mi contains at least one field of the given
-// type. Used by tests to keep assertions readable.
-func hasParamType(mi MethodIntrospection, pt ParamType) bool {
-	for _, f := range mi.Fields {
-		if f.ParamType == pt {
-			return true
-		}
-	}
-	return false
-}
-
-// containsField reports whether mi contains a field with the given name.
-func containsField(mi MethodIntrospection, name string) bool {
-	return slices.ContainsFunc(mi.Fields, func(f IntrospectedField) bool {
-		return f.Name == name
-	})
 }

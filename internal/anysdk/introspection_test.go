@@ -51,6 +51,18 @@ func shapeAsMap(t *testing.T, shape string) map[string]any {
 	return m
 }
 
+// findField returns the first field with the given name and param type,
+// or nil. Tests use this in place of raw slice iteration so assertion
+// failures point at the right line.
+func findField(mi anysdk.MethodIntrospection, name string, pt anysdk.ParamType) anysdk.IntrospectedField {
+	for _, f := range mi.GetFields() {
+		if f.GetName() == name && f.GetParamType() == pt {
+			return f
+		}
+	}
+	return nil
+}
+
 // TestIntrospectMethod_GoogleStorageBuckets_GetHasResponseFields exercises
 // the basic happy path on a read method: the GET on a bucket should
 // produce a fat set of output rows (every property on the Bucket schema)
@@ -61,34 +73,24 @@ func TestIntrospectMethod_GoogleStorageBuckets_GetHasResponseFields(t *testing.T
 
 	mi, err := anysdk.IntrospectMethod(rsc, "get", false)
 	assert.NilError(t, err)
+	assert.Assert(t, mi != nil)
 
 	// Provenance fields should be filled in.
-	assert.Equal(t, mi.Resource, "buckets")
-	assert.Equal(t, mi.Method, "get")
-	assert.Assert(t, mi.Service != "")
+	assert.Equal(t, mi.GetResource(), "buckets")
+	assert.Equal(t, mi.GetMethod(), "get")
+	assert.Assert(t, mi.GetService() != "")
 
 	// `bucket` is the required path param on GET /b/{bucket}.
-	var seenBucket bool
-	for _, f := range mi.Fields {
-		if f.Name == "bucket" && f.ParamType == anysdk.ParamTypeInputRequired {
-			seenBucket = true
-			break
-		}
-	}
-	assert.Assert(t, seenBucket, "expected required input 'bucket'")
+	assert.Assert(t,
+		findField(mi, "bucket", anysdk.ParamTypeInputRequired) != nil,
+		"expected required input 'bucket'")
 
 	// Output fields: at minimum `id`, `name`, `kind`, `encryption`, `cors`
 	// — these are top-level properties on the Bucket schema.
-	expectedOutputs := []string{"id", "name", "kind", "encryption", "cors", "iamConfiguration"}
-	for _, want := range expectedOutputs {
-		var found bool
-		for _, f := range mi.Fields {
-			if f.Name == want && f.ParamType == anysdk.ParamTypeOutput {
-				found = true
-				break
-			}
-		}
-		assert.Assert(t, found, "expected output field %q in response", want)
+	for _, want := range []string{"id", "name", "kind", "encryption", "cors", "iamConfiguration"} {
+		assert.Assert(t,
+			findField(mi, want, anysdk.ParamTypeOutput) != nil,
+			"expected output field %q in response", want)
 	}
 }
 
@@ -105,36 +107,20 @@ func TestIntrospectMethod_GoogleStorageBuckets_ShapeForObjectField(t *testing.T)
 
 	// `encryption` is `{properties: {defaultKmsKeyName: {type: string}}}` —
 	// a two-level object. Shape must include the nested property.
-	var encryption anysdk.IntrospectedField
-	var seenEncryption bool
-	for _, f := range mi.Fields {
-		if f.Name == "encryption" && f.ParamType == anysdk.ParamTypeOutput {
-			encryption = f
-			seenEncryption = true
-			break
-		}
-	}
-	assert.Assert(t, seenEncryption, "missing encryption field")
-	assert.Equal(t, encryption.Type, "object")
-	assert.Assert(t, encryption.Shape != "", "object field must carry a shape")
-	m := shapeAsMap(t, encryption.Shape)
+	encryption := findField(mi, "encryption", anysdk.ParamTypeOutput)
+	assert.Assert(t, encryption != nil, "missing encryption field")
+	assert.Equal(t, encryption.GetType(), "object")
+	assert.Assert(t, encryption.GetShape() != "", "object field must carry a shape")
+	m := shapeAsMap(t, encryption.GetShape())
 	props, ok := m["properties"].(map[string]any)
 	assert.Assert(t, ok, "encryption shape missing properties")
 	_, hasKMS := props["defaultKmsKeyName"]
 	assert.Assert(t, hasKMS, "encryption.properties.defaultKmsKeyName missing in shape")
 
 	// A scalar field must NOT carry shape.
-	var nameField anysdk.IntrospectedField
-	var seenName bool
-	for _, f := range mi.Fields {
-		if f.Name == "name" && f.ParamType == anysdk.ParamTypeOutput {
-			nameField = f
-			seenName = true
-			break
-		}
-	}
-	assert.Assert(t, seenName, "missing name field")
-	assert.Equal(t, nameField.Shape, "", "scalar field must not carry shape")
+	nameField := findField(mi, "name", anysdk.ParamTypeOutput)
+	assert.Assert(t, nameField != nil, "missing name field")
+	assert.Equal(t, nameField.GetShape(), "", "scalar field must not carry shape")
 }
 
 // TestIntrospectMethod_GoogleStorageBuckets_ShapeRendersDeepNesting walks
@@ -147,16 +133,11 @@ func TestIntrospectMethod_GoogleStorageBuckets_ShapeRendersDeepNesting(t *testin
 	mi, err := anysdk.IntrospectMethod(rsc, "get", false)
 	assert.NilError(t, err)
 
-	var iam anysdk.IntrospectedField
-	for _, f := range mi.Fields {
-		if f.Name == "iamConfiguration" && f.ParamType == anysdk.ParamTypeOutput {
-			iam = f
-			break
-		}
-	}
-	assert.Assert(t, iam.Shape != "", "iamConfiguration must have shape")
+	iam := findField(mi, "iamConfiguration", anysdk.ParamTypeOutput)
+	assert.Assert(t, iam != nil)
+	assert.Assert(t, iam.GetShape() != "", "iamConfiguration must have shape")
 
-	m := shapeAsMap(t, iam.Shape)
+	m := shapeAsMap(t, iam.GetShape())
 	level1 := m["properties"].(map[string]any)
 	bplo, ok := level1["bucketPolicyOnly"].(map[string]any)
 	assert.Assert(t, ok, "missing iamConfiguration.bucketPolicyOnly")
@@ -175,16 +156,11 @@ func TestIntrospectMethod_GoogleStorageBuckets_ArrayItemsHaveShape(t *testing.T)
 	mi, err := anysdk.IntrospectMethod(rsc, "get", false)
 	assert.NilError(t, err)
 
-	var cors anysdk.IntrospectedField
-	for _, f := range mi.Fields {
-		if f.Name == "cors" && f.ParamType == anysdk.ParamTypeOutput {
-			cors = f
-			break
-		}
-	}
-	assert.Equal(t, cors.Type, "array")
-	assert.Assert(t, cors.Shape != "", "array field must have shape")
-	m := shapeAsMap(t, cors.Shape)
+	cors := findField(mi, "cors", anysdk.ParamTypeOutput)
+	assert.Assert(t, cors != nil)
+	assert.Equal(t, cors.GetType(), "array")
+	assert.Assert(t, cors.GetShape() != "", "array field must have shape")
+	m := shapeAsMap(t, cors.GetShape())
 	items, ok := m["items"].(map[string]any)
 	assert.Assert(t, ok, "cors shape must include items")
 	assert.Equal(t, items["type"], "object")
@@ -208,12 +184,12 @@ func TestIntrospectMethod_GoogleStorageBuckets_InsertHasBodyRequired(t *testing.
 
 	requiredInputs := map[string]bool{}
 	optionalInputs := map[string]bool{}
-	for _, f := range mi.Fields {
-		switch f.ParamType {
+	for _, f := range mi.GetFields() {
+		switch f.GetParamType() {
 		case anysdk.ParamTypeInputRequired:
-			requiredInputs[f.Name] = true
+			requiredInputs[f.GetName()] = true
 		case anysdk.ParamTypeInputOptional:
-			optionalInputs[f.Name] = true
+			optionalInputs[f.GetName()] = true
 		}
 	}
 
@@ -245,20 +221,12 @@ func TestIntrospectMethod_GoogleStorageBuckets_ExtendedAddsDescription(t *testin
 	miExt, err := anysdk.IntrospectMethod(rsc, "get", true)
 	assert.NilError(t, err)
 
-	// Find an output field that has a description in the source schema.
-	var plainID, extID anysdk.IntrospectedField
-	for _, f := range miPlain.Fields {
-		if f.Name == "id" && f.ParamType == anysdk.ParamTypeOutput {
-			plainID = f
-		}
-	}
-	for _, f := range miExt.Fields {
-		if f.Name == "id" && f.ParamType == anysdk.ParamTypeOutput {
-			extID = f
-		}
-	}
-	assert.Equal(t, plainID.Description, "", "non-extended must not include description")
-	assert.Assert(t, extID.Description != "", "extended must include description for id")
+	plainID := findField(miPlain, "id", anysdk.ParamTypeOutput)
+	extID := findField(miExt, "id", anysdk.ParamTypeOutput)
+	assert.Assert(t, plainID != nil)
+	assert.Assert(t, extID != nil)
+	assert.Equal(t, plainID.GetDescription(), "", "non-extended must not include description")
+	assert.Assert(t, extID.GetDescription() != "", "extended must include description for id")
 }
 
 // TestIntrospectMethod_GoogleStorageBuckets_ShapeAlwaysContainsDescription
@@ -271,14 +239,9 @@ func TestIntrospectMethod_GoogleStorageBuckets_ShapeAlwaysContainsDescription(t 
 	mi, err := anysdk.IntrospectMethod(rsc, "get", false)
 	assert.NilError(t, err)
 
-	var encryption anysdk.IntrospectedField
-	for _, f := range mi.Fields {
-		if f.Name == "encryption" && f.ParamType == anysdk.ParamTypeOutput {
-			encryption = f
-			break
-		}
-	}
-	m := shapeAsMap(t, encryption.Shape)
+	encryption := findField(mi, "encryption", anysdk.ParamTypeOutput)
+	assert.Assert(t, encryption != nil)
+	m := shapeAsMap(t, encryption.GetShape())
 	// `encryption` description in the source: "Encryption configuration for a bucket."
 	desc, _ := m["description"].(string)
 	assert.Assert(t, strings.Contains(strings.ToLower(desc), "encryption"),
@@ -295,15 +258,10 @@ func TestIntrospectMethod_GoogleStorageBuckets_AdditionalProperties(t *testing.T
 	mi, err := anysdk.IntrospectMethod(rsc, "get", false)
 	assert.NilError(t, err)
 
-	var labels anysdk.IntrospectedField
-	for _, f := range mi.Fields {
-		if f.Name == "labels" && f.ParamType == anysdk.ParamTypeOutput {
-			labels = f
-			break
-		}
-	}
-	assert.Equal(t, labels.Type, "object")
-	m := shapeAsMap(t, labels.Shape)
+	labels := findField(mi, "labels", anysdk.ParamTypeOutput)
+	assert.Assert(t, labels != nil)
+	assert.Equal(t, labels.GetType(), "object")
+	m := shapeAsMap(t, labels.GetShape())
 	ap, ok := m["additionalProperties"].(map[string]any)
 	assert.Assert(t, ok, "labels shape must include additionalProperties")
 	assert.Equal(t, ap["type"], "string")
@@ -322,10 +280,12 @@ func TestIntrospectMethod_GoogleStorageBuckets_FieldOrderingIsStable(t *testing.
 	mi2, err := anysdk.IntrospectMethod(rsc, "get", false)
 	assert.NilError(t, err)
 
-	assert.Equal(t, len(mi1.Fields), len(mi2.Fields))
-	for i := range mi1.Fields {
-		assert.Equal(t, mi1.Fields[i].Name, mi2.Fields[i].Name)
-		assert.Equal(t, mi1.Fields[i].ParamType, mi2.Fields[i].ParamType)
+	f1 := mi1.GetFields()
+	f2 := mi2.GetFields()
+	assert.Equal(t, len(f1), len(f2))
+	for i := range f1 {
+		assert.Equal(t, f1[i].GetName(), f2[i].GetName())
+		assert.Equal(t, f1[i].GetParamType(), f2[i].GetParamType())
 	}
 }
 
@@ -358,8 +318,8 @@ func TestIntrospectMethod_GoogleStorageBuckets_DeleteHasInputNoOutput(t *testing
 	assert.NilError(t, err)
 
 	var inputCount, outputCount int
-	for _, f := range mi.Fields {
-		switch f.ParamType {
+	for _, f := range mi.GetFields() {
+		switch f.GetParamType() {
 		case anysdk.ParamTypeInputRequired, anysdk.ParamTypeInputOptional:
 			inputCount++
 		case anysdk.ParamTypeOutput:
@@ -381,15 +341,15 @@ func TestIntrospectMethod_GoogleStorageBuckets_RequiredAndOptionalAreDisjoint(t 
 	assert.NilError(t, err)
 
 	required := map[string]bool{}
-	for _, f := range mi.Fields {
-		if f.ParamType == anysdk.ParamTypeInputRequired {
-			required[f.Name] = true
+	for _, f := range mi.GetFields() {
+		if f.GetParamType() == anysdk.ParamTypeInputRequired {
+			required[f.GetName()] = true
 		}
 	}
-	for _, f := range mi.Fields {
-		if f.ParamType == anysdk.ParamTypeInputOptional {
-			assert.Assert(t, !required[f.Name],
-				"field %q appears as both required and optional", f.Name)
+	for _, f := range mi.GetFields() {
+		if f.GetParamType() == anysdk.ParamTypeInputOptional {
+			assert.Assert(t, !required[f.GetName()],
+				"field %q appears as both required and optional", f.GetName())
 		}
 	}
 }
@@ -404,14 +364,15 @@ func TestIntrospectMethod_GoogleStorageBuckets_ShapeIsValidJSON(t *testing.T) {
 	for _, methodName := range []string{"get", "list", "insert", "update", "delete"} {
 		mi, err := anysdk.IntrospectMethod(rsc, methodName, false)
 		assert.NilError(t, err, "method %s", methodName)
-		for _, f := range mi.Fields {
-			if f.Shape == "" {
+		for _, f := range mi.GetFields() {
+			shape := f.GetShape()
+			if shape == "" {
 				continue
 			}
 			var decoded interface{}
-			err := json.Unmarshal([]byte(f.Shape), &decoded)
+			err := json.Unmarshal([]byte(shape), &decoded)
 			assert.NilError(t, err, "method=%s field=%s shape=%s",
-				methodName, f.Name, f.Shape)
+				methodName, f.GetName(), shape)
 		}
 	}
 }

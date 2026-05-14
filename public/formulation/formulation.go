@@ -498,23 +498,77 @@ func ResourceConditionIsValid(lhs string, rhs interface{}) bool {
 	return anysdk.ResourceConditionIsValid(lhs, rhs)
 }
 
-// ParamType mirrors anysdk.ParamType for the public surface. Keeping it as
-// a string alias preserves wire compatibility — callers can switch on the
-// constants without knowing the underlying package.
-type ParamType = anysdk.ParamType
+// ParamType classifies an introspected field. The value type carries no
+// behaviour and no internal structure, so re-exporting it as a string-keyed
+// type on the public surface does not leak any anysdk internals — it is a
+// data tag callers switch on.
+type ParamType string
 
 const (
-	ParamTypeInputRequired = anysdk.ParamTypeInputRequired
-	ParamTypeInputOptional = anysdk.ParamTypeInputOptional
-	ParamTypeOutput        = anysdk.ParamTypeOutput
+	ParamTypeInputRequired ParamType = "input_required"
+	ParamTypeInputOptional ParamType = "input_optional"
+	ParamTypeOutput        ParamType = "output"
 )
 
-// IntrospectedField mirrors anysdk.IntrospectedField. It is exported so
-// stackql core can render rows without re-marshalling.
-type IntrospectedField = anysdk.IntrospectedField
+// IntrospectedField is the public view of one row from IntrospectMethod.
+// All access is through accessors; the concrete implementation lives in
+// anysdk and wraps the internal type. The shape returned by GetShape is a
+// JSON Schema subset (text), empty for scalars.
+type IntrospectedField interface {
+	GetName() string
+	GetType() string
+	GetParamType() ParamType
+	GetShape() string
+	GetDescription() string
+	unwrap() anysdk.IntrospectedField
+}
 
-// MethodIntrospection mirrors anysdk.MethodIntrospection.
-type MethodIntrospection = anysdk.MethodIntrospection
+// MethodIntrospection is the public view of one DESCRIBE METHOD result.
+type MethodIntrospection interface {
+	GetProvider() string
+	GetService() string
+	GetResource() string
+	GetMethod() string
+	GetFields() []IntrospectedField
+	unwrap() anysdk.MethodIntrospection
+}
+
+type wrappedIntrospectedField struct {
+	inner anysdk.IntrospectedField
+}
+
+func (w *wrappedIntrospectedField) GetName() string  { return w.inner.GetName() }
+func (w *wrappedIntrospectedField) GetType() string  { return w.inner.GetType() }
+func (w *wrappedIntrospectedField) GetShape() string { return w.inner.GetShape() }
+func (w *wrappedIntrospectedField) GetDescription() string {
+	return w.inner.GetDescription()
+}
+
+func (w *wrappedIntrospectedField) GetParamType() ParamType {
+	return ParamType(w.inner.GetParamType())
+}
+
+func (w *wrappedIntrospectedField) unwrap() anysdk.IntrospectedField { return w.inner }
+
+type wrappedMethodIntrospection struct {
+	inner anysdk.MethodIntrospection
+}
+
+func (w *wrappedMethodIntrospection) GetProvider() string { return w.inner.GetProvider() }
+func (w *wrappedMethodIntrospection) GetService() string  { return w.inner.GetService() }
+func (w *wrappedMethodIntrospection) GetResource() string { return w.inner.GetResource() }
+func (w *wrappedMethodIntrospection) GetMethod() string   { return w.inner.GetMethod() }
+
+func (w *wrappedMethodIntrospection) GetFields() []IntrospectedField {
+	innerFields := w.inner.GetFields()
+	out := make([]IntrospectedField, 0, len(innerFields))
+	for _, f := range innerFields {
+		out = append(out, &wrappedIntrospectedField{inner: f})
+	}
+	return out
+}
+
+func (w *wrappedMethodIntrospection) unwrap() anysdk.MethodIntrospection { return w.inner }
 
 // IntrospectMethod is the public entry point for the DESCRIBE METHOD
 // primitive. It is intentionally a free function so it does not require
@@ -524,9 +578,13 @@ type MethodIntrospection = anysdk.MethodIntrospection
 // response field, with a JSON Schema subset describing the shape of each.
 func IntrospectMethod(rsc Resource, methodName string, extended bool) (MethodIntrospection, error) {
 	if rsc == nil {
-		return MethodIntrospection{}, errIntrospectNilResource
+		return nil, errIntrospectNilResource
 	}
-	return anysdk.IntrospectMethod(rsc.unwrap(), methodName, extended)
+	mi, err := anysdk.IntrospectMethod(rsc.unwrap(), methodName, extended)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedMethodIntrospection{inner: mi}, nil
 }
 
 var errIntrospectNilResource = errors.New("introspect: resource is nil")
