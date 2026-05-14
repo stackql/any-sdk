@@ -1,6 +1,7 @@
 package formulation
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
@@ -496,3 +497,36 @@ func ServiceConditionIsValid(lhs string, rhs interface{}) bool {
 func ResourceConditionIsValid(lhs string, rhs interface{}) bool {
 	return anysdk.ResourceConditionIsValid(lhs, rhs)
 }
+
+// ParamType mirrors anysdk.ParamType for the public surface. Keeping it as
+// a string alias preserves wire compatibility — callers can switch on the
+// constants without knowing the underlying package.
+type ParamType = anysdk.ParamType
+
+const (
+	ParamTypeInputRequired = anysdk.ParamTypeInputRequired
+	ParamTypeInputOptional = anysdk.ParamTypeInputOptional
+	ParamTypeOutput        = anysdk.ParamTypeOutput
+)
+
+// IntrospectedField mirrors anysdk.IntrospectedField. It is exported so
+// stackql core can render rows without re-marshalling.
+type IntrospectedField = anysdk.IntrospectedField
+
+// MethodIntrospection mirrors anysdk.MethodIntrospection.
+type MethodIntrospection = anysdk.MethodIntrospection
+
+// IntrospectMethod is the public entry point for the DESCRIBE METHOD
+// primitive. It is intentionally a free function so it does not require
+// extending any existing wrapper interface. The caller passes the
+// resolved Resource (obtained through the usual hierarchy lookup); the
+// resolver returns one row per input parameter and one row per top-level
+// response field, with a JSON Schema subset describing the shape of each.
+func IntrospectMethod(rsc Resource, methodName string, extended bool) (MethodIntrospection, error) {
+	if rsc == nil {
+		return MethodIntrospection{}, errIntrospectNilResource
+	}
+	return anysdk.IntrospectMethod(rsc.unwrap(), methodName, extended)
+}
+
+var errIntrospectNilResource = errors.New("introspect: resource is nil")
