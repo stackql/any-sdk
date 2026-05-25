@@ -1,7 +1,9 @@
 type AWSCanonicalQueryTransposer struct
 type AWSCloudControlQueryTransposer struct
+type AssumeRoleConfig struct
 type AuthCtx struct
 type AuthMetadata struct
+type AwsTemporaryCredentials struct
 type BasicDiscoveryAdapter struct
 type DBMSInternalCfg struct
 type DropDoubleUnderscoreParamsTranslator struct

@@ -274,6 +274,8 @@ func (cc *anySdkHTTPClientConfigurator) inferAuthType(authCtx dto.AuthCtx, authT
 		return dto.AuthNullStr
 	case dto.AuthAWSSigningv4Str:
 		return dto.AuthAWSSigningv4Str
+	case dto.AuthAWSAssumeRoleStr:
+		return dto.AuthAWSAssumeRoleStr
 	case dto.AuthCustomStr:
 		return dto.AuthCustomStr
 	case dto.OAuth2Str:
@@ -347,6 +349,12 @@ func (cc *anySdkHTTPClientConfigurator) Auth(
 		return newAnySdkHttpClient(httpClient), nil
 	case dto.AuthAWSSigningv4Str:
 		httpClient, httpClientErr := cc.authUtil.AwsSigningAuth(authCtx, cc.runtimeCtx)
+		if httpClientErr != nil {
+			return nil, httpClientErr
+		}
+		return newAnySdkHttpClient(httpClient), nil
+	case dto.AuthAWSAssumeRoleStr:
+		httpClient, httpClientErr := cc.authUtil.AwsAssumeRoleAuth(authCtx, cc.runtimeCtx)
 		if httpClientErr != nil {
 			return nil, httpClientErr
 		}

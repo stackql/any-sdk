@@ -91,6 +91,7 @@ type AuthUtility interface {
 	) (*http.Client, error)
 	ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error)
 	AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
@@ -418,6 +419,74 @@ func (au *authUtil) AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HT
 	}
 
 	// Set the custom AWS signing transport as the client's transport.
+	httpClient.Transport = tr
+
+	return httpClient, nil
+}
+
+// AwsAssumeRoleAuth exchanges the configured base credentials for temporary
+// credentials via STS AssumeRole, then signs outgoing requests with those
+// temporary credentials using the standard SigV4 transport.
+func (au *authUtil) AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+	// Resolve the base (long-lived) credentials used to call AssumeRole.
+	credentialsBytes, err := authCtx.GetCredentialsBytes()
+	if err != nil {
+		return nil, fmt.Errorf("credentials error: %w", err)
+	}
+	baseSecret := string(credentialsBytes)
+
+	baseKeyID, err := authCtx.GetKeyIDString()
+	if err != nil {
+		return nil, err
+	}
+
+	if baseSecret == "" || baseKeyID == "" {
+		return nil, fmt.Errorf("cannot compose AWS signing credentials")
+	}
+
+	roleArn, err := authCtx.GetAwsRoleArn()
+	if err != nil {
+		return nil, err
+	}
+
+	// The base credentials may themselves carry a session token (e.g. already
+	// temporary). It is optional.
+	baseSessionToken, _ := authCtx.GetAwsSessionTokenString()
+
+	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
+
+	// Exchange base credentials for short-lived assumed-role credentials.
+	temporaryCredentials, err := awssign.AssumeRole(context.Background(), awssign.AssumeRoleConfig{
+		BaseAccessKeyID:     baseKeyID,
+		BaseSecretAccessKey: baseSecret,
+		BaseSessionToken:    baseSessionToken,
+		RoleARN:             roleArn,
+		RoleSessionName:     authCtx.GetAwsRoleSessionName(),
+		ExternalID:          authCtx.GetAwsRoleExternalID(),
+		Region:              authCtx.GetAwsStsRegion(),
+		DurationSeconds:     authCtx.AwsRoleDurationSeconds,
+		Endpoint:            authCtx.AwsStsEndpoint,
+		HTTPClient:          httpClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	au.ActivateAuth(authCtx, "", dto.AuthAWSAssumeRoleStr)
+
+	// Sign requests with the temporary credentials. Use the credentials-aware
+	// constructor so the assumed-role id/secret are honoured verbatim alongside
+	// the session token (the default constructor would override them from env).
+	tr, err := awssign.NewAwsSignTransportWithCredentials(
+		httpClient.Transport,
+		temporaryCredentials.AccessKeyID,
+		temporaryCredentials.SecretAccessKey,
+		temporaryCredentials.SessionToken,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	httpClient.Transport = tr
 
 	return httpClient, nil

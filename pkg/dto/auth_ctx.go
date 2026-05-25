@@ -53,6 +53,14 @@ type AuthCtx struct {
 	AuthStyle               int            `json:"auth_style" yaml:"auth_style"`
 	AccountID               string         `json:"account_id" yaml:"account_id"`
 	AccoountIDEnvVar        string         `json:"account_id_env_var" yaml:"account_id_var"`
+	AwsRoleArn              string         `json:"aws_role_arn" yaml:"aws_role_arn"`
+	AwsRoleArnEnvVar        string         `json:"aws_role_arn_env_var" yaml:"aws_role_arn_env_var"`
+	AwsRoleSessionName      string         `json:"aws_role_session_name" yaml:"aws_role_session_name"`
+	AwsRoleExternalID       string         `json:"aws_role_external_id" yaml:"aws_role_external_id"`
+	AwsRoleExternalIDEnvVar string         `json:"aws_role_external_id_env_var" yaml:"aws_role_external_id_env_var"`
+	AwsStsRegion            string         `json:"aws_sts_region" yaml:"aws_sts_region"`
+	AwsStsEndpoint          string         `json:"aws_sts_endpoint" yaml:"aws_sts_endpoint"`
+	AwsRoleDurationSeconds  int32          `json:"aws_role_duration_seconds" yaml:"aws_role_duration_seconds"`
 }
 
 func (ac *AuthCtx) GetSQLCfg() (SQLBackendCfg, bool) {
@@ -100,6 +108,14 @@ func (ac *AuthCtx) Clone() *AuthCtx {
 		AuthStyle:               ac.AuthStyle,
 		AccountID:               ac.AccountID,
 		AccoountIDEnvVar:        ac.AccoountIDEnvVar,
+		AwsRoleArn:              ac.AwsRoleArn,
+		AwsRoleArnEnvVar:        ac.AwsRoleArnEnvVar,
+		AwsRoleSessionName:      ac.AwsRoleSessionName,
+		AwsRoleExternalID:       ac.AwsRoleExternalID,
+		AwsRoleExternalIDEnvVar: ac.AwsRoleExternalIDEnvVar,
+		AwsStsRegion:            ac.AwsStsRegion,
+		AwsStsEndpoint:          ac.AwsStsEndpoint,
+		AwsRoleDurationSeconds:  ac.AwsRoleDurationSeconds,
 	}
 	return rv
 }
@@ -171,6 +187,52 @@ func (ac *AuthCtx) GetKeyIDString() (string, error) {
 func (ac *AuthCtx) GetAwsSessionTokenString() (string, error) {
 	token := os.Getenv("AWS_SESSION_TOKEN")
 	return token, nil // Session token is optional, so an empty token isn't considered an error.
+}
+
+// GetAwsRoleArn resolves the ARN of the role to assume, preferring the
+// environment variable indirection when supplied. The role ARN is mandatory
+// for the aws_assume_role auth type.
+func (ac *AuthCtx) GetAwsRoleArn() (string, error) {
+	if ac.AwsRoleArnEnvVar != "" {
+		rv := os.Getenv(ac.AwsRoleArnEnvVar)
+		if rv == "" {
+			return "", fmt.Errorf("aws_role_arn_env_var references empty string")
+		}
+		return rv, nil
+	}
+	if ac.AwsRoleArn == "" {
+		return "", fmt.Errorf("aws_role_arn is empty")
+	}
+	return ac.AwsRoleArn, nil
+}
+
+// GetAwsRoleSessionName returns the configured STS session name, falling back to
+// a deterministic default when none is supplied. AWS requires a session name on
+// every AssumeRole call.
+func (ac *AuthCtx) GetAwsRoleSessionName() string {
+	if ac.AwsRoleSessionName != "" {
+		return ac.AwsRoleSessionName
+	}
+	return "stackql-assume-role-session"
+}
+
+// GetAwsRoleExternalID resolves the optional STS external ID, preferring the
+// environment variable indirection when supplied. An empty result is valid.
+func (ac *AuthCtx) GetAwsRoleExternalID() string {
+	if ac.AwsRoleExternalIDEnvVar != "" {
+		return os.Getenv(ac.AwsRoleExternalIDEnvVar)
+	}
+	return ac.AwsRoleExternalID
+}
+
+// GetAwsStsRegion returns the region used to reach the STS endpoint when
+// assuming a role, defaulting to us-east-1. This is independent of the region
+// used to sign the eventual service request.
+func (ac *AuthCtx) GetAwsStsRegion() string {
+	if ac.AwsStsRegion != "" {
+		return ac.AwsStsRegion
+	}
+	return "us-east-1"
 }
 
 func (ac *AuthCtx) InferAuthType(authTypeRequested string) string {

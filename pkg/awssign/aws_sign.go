@@ -67,6 +67,28 @@ func NewAwsSignTransport(
 	}, nil
 }
 
+// NewAwsSignTransportWithCredentials builds a signing transport from an explicit
+// (id, secret, token) triple, using all three verbatim. Unlike NewAwsSignTransport
+// it never falls back to AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY when a session
+// token is present, which is required for assumed-role credentials whose id and
+// secret are themselves temporary and do not live in the environment.
+func NewAwsSignTransportWithCredentials(
+	underlyingTransport http.RoundTripper,
+	id, secret, token string,
+	options ...func(*v4.SignerOptions),
+) (Transport, error) {
+	if id == "" || secret == "" {
+		return nil, fmt.Errorf("cannot compose AWS signing credentials: id and secret are required")
+	}
+	creds := credentials.NewStaticCredentialsProvider(id, secret, token)
+	signer := v4.NewSigner(options...)
+	return &standardAwsSignTransport{
+		underlyingTransport:       underlyingTransport,
+		signer:                    signer,
+		staticCredentialsProvider: creds,
+	}, nil
+}
+
 func (t *standardAwsSignTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	svc := req.Context().Value("service")
 	if svc == nil {
