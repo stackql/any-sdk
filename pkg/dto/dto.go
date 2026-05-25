@@ -3,6 +3,7 @@ package dto
 const (
 	AuthAPIKeyStr                   string = "api_key"
 	AuthAWSSigningv4Str             string = "aws_signing_v4"
+	AuthAWSAssumeRoleStr            string = "aws_assume_role"
 	AuthAzureDefaultStr             string = "azure_default"
 	AuthBasicStr                    string = "basic"
 	AuthBearerStr                   string = "bearer"

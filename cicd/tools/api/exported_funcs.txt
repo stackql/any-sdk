@@ -1,3 +1,4 @@
+func AssumeRole
 func CallFromSignature
 func CartesianProduct
 func ClientProtocolTypeFromString
@@ -83,6 +84,7 @@ func NewAnySdkClientConfigurator
 func NewAnySdkOpStoreDesignation
 func NewAuthUtility
 func NewAwsSignTransport
+func NewAwsSignTransportWithCredentials
 func NewBasicDiscoveryAdapter
 func NewBrickMap
 func NewColumnDescriptor
