@@ -7,13 +7,18 @@ import (
 	"fmt"
 	"strings"
 
+	"os"
+
 	"github.com/stackql/any-sdk/pkg/awssign"
 	"github.com/stackql/any-sdk/pkg/azureauth"
+	"github.com/stackql/any-sdk/pkg/azurefed"
 	"github.com/stackql/any-sdk/pkg/constants"
 	"github.com/stackql/any-sdk/pkg/dto"
+	"github.com/stackql/any-sdk/pkg/gcpwif"
 	"github.com/stackql/any-sdk/pkg/google_sdk"
 	"github.com/stackql/any-sdk/pkg/litetemplate"
 	"github.com/stackql/any-sdk/pkg/netutils"
+	"github.com/stackql/any-sdk/pkg/oidcauth"
 
 	"net/http"
 	"regexp"
@@ -92,6 +97,10 @@ type AuthUtility interface {
 	ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error)
 	AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	AwsWebIdentityAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	GcpWorkloadIdentityAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	AzureFederatedAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	OidcAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
@@ -489,6 +498,209 @@ func (au *authUtil) AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils
 
 	httpClient.Transport = tr
 
+	return httpClient, nil
+}
+
+// AwsWebIdentityAuth federates a foreign OIDC token into AWS via STS
+// AssumeRoleWithWebIdentity, then signs outbound requests with the
+// auto-refreshing temporary credentials using the existing SigV4 transport.
+// No long-lived AWS access keys are required — that is the point of federation.
+func (au *authUtil) AwsWebIdentityAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+	roleArn, err := authCtx.GetAwsRoleArn()
+	if err != nil {
+		return nil, err
+	}
+
+	getSubjectToken, err := oidcauth.SubjectTokenRetriever(oidcauth.SubjectTokenConfig{
+		File:       authCtx.OIDCSubjectTokenFile,
+		FileEnvVar: authCtx.OIDCSubjectTokenFileEnvVar,
+		Inline:     authCtx.OIDCSubjectToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
+
+	provider, err := awssign.NewWebIdentityRoleProvider(awssign.AwsWebIdentityConfig{
+		RoleARN:         roleArn,
+		RoleSessionName: authCtx.GetAwsRoleSessionName(),
+		DurationSeconds: authCtx.AwsRoleDurationSeconds,
+		Region:          authCtx.GetAwsStsRegion(),
+		Endpoint:        authCtx.AwsStsEndpoint,
+		HTTPClient:      httpClient,
+	}, getSubjectToken)
+	if err != nil {
+		return nil, err
+	}
+
+	au.ActivateAuth(authCtx, "", dto.AuthAWSWebIdentityStr)
+
+	tr, err := awssign.NewAwsSignTransportWithProvider(httpClient.Transport, provider)
+	if err != nil {
+		return nil, err
+	}
+	httpClient.Transport = tr
+	return httpClient, nil
+}
+
+// GcpWorkloadIdentityAuth federates a foreign OIDC token into GCP via Workload
+// Identity Federation: the subject token is exchanged at sts.googleapis.com for
+// a Google access token (optionally impersonated as a service account), which
+// is then attached as Authorization: Bearer to outbound requests. The token
+// source auto-refreshes; file-backed subject tokens are re-read each refresh.
+func (au *authUtil) GcpWorkloadIdentityAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+	getSubjectToken, err := oidcauth.SubjectTokenRetriever(oidcauth.SubjectTokenConfig{
+		File:       authCtx.OIDCSubjectTokenFile,
+		FileEnvVar: authCtx.OIDCSubjectTokenFileEnvVar,
+		Inline:     authCtx.OIDCSubjectToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
+
+	tokenSource, err := gcpwif.TokenSource(context.Background(), gcpwif.Config{
+		Audience:                       authCtx.GCPWorkloadIdentityAudience,
+		SubjectTokenType:               authCtx.GCPWorkloadIdentitySubjectTokenType,
+		TokenURL:                       authCtx.GCPWorkloadIdentityTokenURL,
+		Scopes:                         authCtx.Scopes,
+		ServiceAccountImpersonationURL: authCtx.GCPServiceAccountImpersonationURL,
+	}, getSubjectToken, httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	au.ActivateAuth(authCtx, "", dto.AuthGCPWorkloadIdentityStr)
+
+	// Bearer-attach via the existing OIDC transport (handles refresh per request).
+	httpClient.Transport = &oidcauth.Transport{
+		Base:        httpClient.Transport,
+		TokenSource: tokenSource,
+	}
+	return httpClient, nil
+}
+
+// AzureFederatedAuth federates a foreign OIDC token into Microsoft Entra ID via
+// a federated identity credential: the subject token is sent as
+// client_assertion (JWT-bearer) to the tenant's token endpoint in place of a
+// client secret. The resulting Entra access token is attached as
+// Authorization: Bearer to outbound requests, refreshing automatically.
+func (au *authUtil) AzureFederatedAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+	clientID, clientIDErr := authCtx.GetClientID()
+	if clientIDErr != nil {
+		return nil, clientIDErr
+	}
+
+	tenantID := authCtx.AzureTenantID
+	if authCtx.AzureTenantIDEnvVar != "" {
+		tenantID = os.Getenv(authCtx.AzureTenantIDEnvVar)
+		if tenantID == "" {
+			return nil, fmt.Errorf("azure_tenant_id_env_var %q is empty", authCtx.AzureTenantIDEnvVar)
+		}
+	}
+	if tenantID == "" {
+		return nil, fmt.Errorf("azure_tenant_id is required")
+	}
+
+	getSubjectToken, err := oidcauth.SubjectTokenRetriever(oidcauth.SubjectTokenConfig{
+		File:       authCtx.OIDCSubjectTokenFile,
+		FileEnvVar: authCtx.OIDCSubjectTokenFileEnvVar,
+		Inline:     authCtx.OIDCSubjectToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
+
+	tokenSource, err := azurefed.TokenSource(context.Background(), azurefed.Config{
+		TenantID: tenantID,
+		ClientID: clientID,
+		Scopes:   authCtx.Scopes,
+		Endpoint: authCtx.AzureFederatedEndpoint,
+	}, getSubjectToken, httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	au.ActivateAuth(authCtx, "", dto.AuthAzureFederatedStr)
+
+	httpClient.Transport = &oidcauth.Transport{
+		Base:        httpClient.Transport,
+		TokenSource: tokenSource,
+	}
+	return httpClient, nil
+}
+
+// OidcAuth performs a provider-agnostic OpenID Connect client_credentials
+// exchange and attaches the resulting token to outbound requests. The token
+// endpoint may be given explicitly (token_url) or discovered from oidc_issuer /
+// oidc_discovery_url; every other knob (scopes, audience, extra params, client
+// auth style, token type, and how/where the token is attached) is configurable,
+// with sensible defaults applied for anything omitted.
+func (au *authUtil) OidcAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+	clientID, clientIDErr := authCtx.GetClientID()
+	if clientIDErr != nil {
+		return nil, clientIDErr
+	}
+	clientSecret, secretErr := authCtx.GetClientSecret()
+	if secretErr != nil {
+		return nil, secretErr
+	}
+
+	issuer, tmplErr := litetemplate.RenderTemplateFromSerializable(authCtx.OIDCIssuer, authCtx)
+	if tmplErr != nil {
+		return nil, fmt.Errorf("incorrect oidc_issuer templating %w", tmplErr)
+	}
+	discoveryURL, tmplErr := litetemplate.RenderTemplateFromSerializable(authCtx.OIDCDiscoveryURL, authCtx)
+	if tmplErr != nil {
+		return nil, fmt.Errorf("incorrect oidc_discovery_url templating %w", tmplErr)
+	}
+	tokenURL, tmplErr := litetemplate.RenderTemplateFromSerializable(authCtx.GetTokenURL(), authCtx)
+	if tmplErr != nil {
+		return nil, fmt.Errorf("incorrect token_url templating %w", tmplErr)
+	}
+
+	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
+
+	// Secure by default (opt-out): verify the discovery issuer unless explicitly
+	// skipped, and verify the id_token whenever it is the credential in use —
+	// likewise unless skipped. id_token verification is scoped to the id_token
+	// token type because the access_token flow frequently carries no id_token.
+	verifyIDToken := authCtx.OIDCTokenType == oidcauth.TokenTypeIDToken && !authCtx.OIDCSkipIDTokenVerification
+
+	// Use a long-lived context so the token source can keep refreshing for the
+	// lifetime of the returned client rather than capturing a single token.
+	tokenSource, tsErr := oidcauth.TokenSource(context.Background(), oidcauth.Config{
+		Issuer:         issuer,
+		DiscoveryURL:   discoveryURL,
+		TokenURL:       tokenURL,
+		ClientID:       clientID,
+		ClientSecret:   clientSecret,
+		AuthStyle:      authCtx.GetAuthStyle(),
+		Scopes:         authCtx.Scopes,
+		Audience:       authCtx.OIDCAudience,
+		EndpointParams: authCtx.GetValues(),
+		TokenType:      authCtx.OIDCTokenType,
+		VerifyIssuer:   !authCtx.OIDCSkipIssuerVerification,
+		VerifyIDToken:  verifyIDToken,
+	}, httpClient)
+	if tsErr != nil {
+		return nil, tsErr
+	}
+
+	au.ActivateAuth(authCtx, "", dto.AuthOIDCStr)
+
+	httpClient.Transport = &oidcauth.Transport{
+		Base:        httpClient.Transport,
+		TokenSource: tokenSource,
+		TokenType:   authCtx.OIDCTokenType,
+		Location:    authCtx.Location,
+		Name:        authCtx.Name,
+		ValuePrefix: authCtx.ValuePrefix,
+	}
 	return httpClient, nil
 }
 
