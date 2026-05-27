@@ -525,6 +525,12 @@ func (au *authUtil) OidcAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCont
 
 	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
 
+	// Secure by default (opt-out): verify the discovery issuer unless explicitly
+	// skipped, and verify the id_token whenever it is the credential in use —
+	// likewise unless skipped. id_token verification is scoped to the id_token
+	// token type because the access_token flow frequently carries no id_token.
+	verifyIDToken := authCtx.OIDCTokenType == oidcauth.TokenTypeIDToken && !authCtx.OIDCSkipIDTokenVerification
+
 	// Use a long-lived context so the token source can keep refreshing for the
 	// lifetime of the returned client rather than capturing a single token.
 	tokenSource, tsErr := oidcauth.TokenSource(context.Background(), oidcauth.Config{
@@ -538,8 +544,8 @@ func (au *authUtil) OidcAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCont
 		Audience:       authCtx.OIDCAudience,
 		EndpointParams: authCtx.GetValues(),
 		TokenType:      authCtx.OIDCTokenType,
-		VerifyIssuer:   authCtx.OIDCVerifyIssuer,
-		VerifyIDToken:  authCtx.OIDCVerifyIDToken,
+		VerifyIssuer:   !authCtx.OIDCSkipIssuerVerification,
+		VerifyIDToken:  verifyIDToken,
 	}, httpClient)
 	if tsErr != nil {
 		return nil, tsErr

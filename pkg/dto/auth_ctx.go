@@ -19,54 +19,54 @@ func (as AuthContexts) Clone() AuthContexts {
 }
 
 type AuthCtx struct {
-	Scopes                  []string       `json:"scopes,omitempty" yaml:"scopes,omitempty"`
-	SQLCfg                  *SQLBackendCfg `json:"sqlDataSource" yaml:"sqlDataSource"`
-	Type                    string         `json:"type" yaml:"type"`
-	ValuePrefix             string         `json:"valuePrefix" yaml:"valuePrefix"`
-	ID                      string         `json:"-" yaml:"-"`
-	KeyID                   string         `json:"keyID" yaml:"keyID"`
-	KeyIDEnvVar             string         `json:"keyIDenvvar" yaml:"keyIDenvvar"`
-	KeyFilePath             string         `json:"credentialsfilepath" yaml:"credentialsfilepath"`
-	KeyFilePathEnvVar       string         `json:"credentialsfilepathenvvar" yaml:"credentialsfilepathenvvar"`
-	KeyEnvVar               string         `json:"credentialsenvvar" yaml:"credentialsenvvar"`
-	APIKeyStr               string         `json:"api_key" yaml:"api_key"`
-	APISecretStr            string         `json:"api_secret" yaml:"api_secret"`
-	Username                string         `json:"username" yaml:"username"`
-	Password                string         `json:"password" yaml:"password"`
-	EnvVarAPIKeyStr         string         `json:"api_key_var" yaml:"api_key_var"`
-	EnvVarAPISecretStr      string         `json:"api_secret_var" yaml:"api_secret_var"`
-	EnvVarUsername          string         `json:"username_var" yaml:"username_var"`
-	EnvVarPassword          string         `json:"password_var" yaml:"password_var"`
-	EncodedBasicCredentials string         `json:"-" yaml:"-"`
-	Successor               *AuthCtx       `json:"successor" yaml:"successor"`
-	Subject                 string         `json:"sub" yaml:"sub"`
-	Active                  bool           `json:"-" yaml:"-"`
-	Location                string         `json:"location" yaml:"location"`
-	Name                    string         `json:"name" yaml:"name"`
-	TokenURL                string         `json:"token_url" yaml:"token_url"`
-	GrantType               string         `json:"grant_type" yaml:"grant_type"`
-	ClientID                string         `json:"client_id" yaml:"client_id"`
-	ClientSecret            string         `json:"client_secret" yaml:"client_secret"`
-	ClientIDEnvVar          string         `json:"client_id_env_var" yaml:"client_id_env_var"`
-	ClientSecretEnvVar      string         `json:"client_secret_env_var" yaml:"client_secret_env_var"`
-	Values                  url.Values     `json:"values" yaml:"values"`
-	AuthStyle               int            `json:"auth_style" yaml:"auth_style"`
-	AccountID               string         `json:"account_id" yaml:"account_id"`
-	AccoountIDEnvVar        string         `json:"account_id_env_var" yaml:"account_id_var"`
-	AwsRoleArn              string         `json:"aws_role_arn" yaml:"aws_role_arn"`
-	AwsRoleArnEnvVar        string         `json:"aws_role_arn_env_var" yaml:"aws_role_arn_env_var"`
-	AwsRoleSessionName      string         `json:"aws_role_session_name" yaml:"aws_role_session_name"`
-	AwsRoleExternalID       string         `json:"aws_role_external_id" yaml:"aws_role_external_id"`
-	AwsRoleExternalIDEnvVar string         `json:"aws_role_external_id_env_var" yaml:"aws_role_external_id_env_var"`
-	AwsStsRegion            string         `json:"aws_sts_region" yaml:"aws_sts_region"`
-	AwsStsEndpoint          string         `json:"aws_sts_endpoint" yaml:"aws_sts_endpoint"`
-	AwsRoleDurationSeconds  int32          `json:"aws_role_duration_seconds" yaml:"aws_role_duration_seconds"`
-	OIDCIssuer              string         `json:"oidc_issuer" yaml:"oidc_issuer"`
-	OIDCDiscoveryURL        string         `json:"oidc_discovery_url" yaml:"oidc_discovery_url"`
-	OIDCTokenType           string         `json:"oidc_token_type" yaml:"oidc_token_type"`
-	OIDCAudience            string         `json:"oidc_audience" yaml:"oidc_audience"`
-	OIDCVerifyIssuer        bool           `json:"oidc_verify_issuer" yaml:"oidc_verify_issuer"`
-	OIDCVerifyIDToken       bool           `json:"oidc_verify_id_token" yaml:"oidc_verify_id_token"`
+	Scopes                      []string       `json:"scopes,omitempty" yaml:"scopes,omitempty"`
+	SQLCfg                      *SQLBackendCfg `json:"sqlDataSource" yaml:"sqlDataSource"`
+	Type                        string         `json:"type" yaml:"type"`
+	ValuePrefix                 string         `json:"valuePrefix" yaml:"valuePrefix"`
+	ID                          string         `json:"-" yaml:"-"`
+	KeyID                       string         `json:"keyID" yaml:"keyID"`
+	KeyIDEnvVar                 string         `json:"keyIDenvvar" yaml:"keyIDenvvar"`
+	KeyFilePath                 string         `json:"credentialsfilepath" yaml:"credentialsfilepath"`
+	KeyFilePathEnvVar           string         `json:"credentialsfilepathenvvar" yaml:"credentialsfilepathenvvar"`
+	KeyEnvVar                   string         `json:"credentialsenvvar" yaml:"credentialsenvvar"`
+	APIKeyStr                   string         `json:"api_key" yaml:"api_key"`
+	APISecretStr                string         `json:"api_secret" yaml:"api_secret"`
+	Username                    string         `json:"username" yaml:"username"`
+	Password                    string         `json:"password" yaml:"password"`
+	EnvVarAPIKeyStr             string         `json:"api_key_var" yaml:"api_key_var"`
+	EnvVarAPISecretStr          string         `json:"api_secret_var" yaml:"api_secret_var"`
+	EnvVarUsername              string         `json:"username_var" yaml:"username_var"`
+	EnvVarPassword              string         `json:"password_var" yaml:"password_var"`
+	EncodedBasicCredentials     string         `json:"-" yaml:"-"`
+	Successor                   *AuthCtx       `json:"successor" yaml:"successor"`
+	Subject                     string         `json:"sub" yaml:"sub"`
+	Active                      bool           `json:"-" yaml:"-"`
+	Location                    string         `json:"location" yaml:"location"`
+	Name                        string         `json:"name" yaml:"name"`
+	TokenURL                    string         `json:"token_url" yaml:"token_url"`
+	GrantType                   string         `json:"grant_type" yaml:"grant_type"`
+	ClientID                    string         `json:"client_id" yaml:"client_id"`
+	ClientSecret                string         `json:"client_secret" yaml:"client_secret"`
+	ClientIDEnvVar              string         `json:"client_id_env_var" yaml:"client_id_env_var"`
+	ClientSecretEnvVar          string         `json:"client_secret_env_var" yaml:"client_secret_env_var"`
+	Values                      url.Values     `json:"values" yaml:"values"`
+	AuthStyle                   int            `json:"auth_style" yaml:"auth_style"`
+	AccountID                   string         `json:"account_id" yaml:"account_id"`
+	AccoountIDEnvVar            string         `json:"account_id_env_var" yaml:"account_id_var"`
+	AwsRoleArn                  string         `json:"aws_role_arn" yaml:"aws_role_arn"`
+	AwsRoleArnEnvVar            string         `json:"aws_role_arn_env_var" yaml:"aws_role_arn_env_var"`
+	AwsRoleSessionName          string         `json:"aws_role_session_name" yaml:"aws_role_session_name"`
+	AwsRoleExternalID           string         `json:"aws_role_external_id" yaml:"aws_role_external_id"`
+	AwsRoleExternalIDEnvVar     string         `json:"aws_role_external_id_env_var" yaml:"aws_role_external_id_env_var"`
+	AwsStsRegion                string         `json:"aws_sts_region" yaml:"aws_sts_region"`
+	AwsStsEndpoint              string         `json:"aws_sts_endpoint" yaml:"aws_sts_endpoint"`
+	AwsRoleDurationSeconds      int32          `json:"aws_role_duration_seconds" yaml:"aws_role_duration_seconds"`
+	OIDCIssuer                  string         `json:"oidc_issuer" yaml:"oidc_issuer"`
+	OIDCDiscoveryURL            string         `json:"oidc_discovery_url" yaml:"oidc_discovery_url"`
+	OIDCTokenType               string         `json:"oidc_token_type" yaml:"oidc_token_type"`
+	OIDCAudience                string         `json:"oidc_audience" yaml:"oidc_audience"`
+	OIDCSkipIssuerVerification  bool           `json:"oidc_skip_issuer_verification" yaml:"oidc_skip_issuer_verification"`
+	OIDCSkipIDTokenVerification bool           `json:"oidc_skip_id_token_verification" yaml:"oidc_skip_id_token_verification"`
 }
 
 func (ac *AuthCtx) GetSQLCfg() (SQLBackendCfg, bool) {
@@ -81,53 +81,53 @@ func (ac *AuthCtx) Clone() *AuthCtx {
 	var scopesCopy []string
 	scopesCopy = append(scopesCopy, ac.Scopes...)
 	rv := &AuthCtx{
-		Scopes:                  scopesCopy,
-		Type:                    ac.Type,
-		ValuePrefix:             ac.ValuePrefix,
-		ID:                      ac.ID,
-		KeyID:                   ac.KeyID,
-		KeyIDEnvVar:             ac.KeyIDEnvVar,
-		KeyFilePath:             ac.KeyFilePath,
-		KeyFilePathEnvVar:       ac.KeyFilePathEnvVar,
-		KeyEnvVar:               ac.KeyEnvVar,
-		Active:                  ac.Active,
-		Username:                ac.Username,
-		Password:                ac.Password,
-		APIKeyStr:               ac.APIKeyStr,
-		APISecretStr:            ac.APISecretStr,
-		EnvVarAPIKeyStr:         ac.EnvVarAPIKeyStr,
-		EnvVarAPISecretStr:      ac.EnvVarAPISecretStr,
-		EnvVarUsername:          ac.EnvVarUsername,
-		EnvVarPassword:          ac.EnvVarPassword,
-		Successor:               ac.Successor,
-		EncodedBasicCredentials: ac.EncodedBasicCredentials,
-		Location:                ac.Location,
-		Name:                    ac.Name,
-		Subject:                 ac.Subject,
-		TokenURL:                ac.TokenURL,
-		GrantType:               ac.GrantType,
-		ClientID:                ac.ClientID,
-		ClientSecret:            ac.ClientSecret,
-		ClientIDEnvVar:          ac.ClientIDEnvVar,
-		ClientSecretEnvVar:      ac.ClientSecretEnvVar,
-		Values:                  ac.Values,
-		AuthStyle:               ac.AuthStyle,
-		AccountID:               ac.AccountID,
-		AccoountIDEnvVar:        ac.AccoountIDEnvVar,
-		AwsRoleArn:              ac.AwsRoleArn,
-		AwsRoleArnEnvVar:        ac.AwsRoleArnEnvVar,
-		AwsRoleSessionName:      ac.AwsRoleSessionName,
-		AwsRoleExternalID:       ac.AwsRoleExternalID,
-		AwsRoleExternalIDEnvVar: ac.AwsRoleExternalIDEnvVar,
-		AwsStsRegion:            ac.AwsStsRegion,
-		AwsStsEndpoint:          ac.AwsStsEndpoint,
-		AwsRoleDurationSeconds:  ac.AwsRoleDurationSeconds,
-		OIDCIssuer:              ac.OIDCIssuer,
-		OIDCDiscoveryURL:        ac.OIDCDiscoveryURL,
-		OIDCTokenType:           ac.OIDCTokenType,
-		OIDCAudience:            ac.OIDCAudience,
-		OIDCVerifyIssuer:        ac.OIDCVerifyIssuer,
-		OIDCVerifyIDToken:       ac.OIDCVerifyIDToken,
+		Scopes:                      scopesCopy,
+		Type:                        ac.Type,
+		ValuePrefix:                 ac.ValuePrefix,
+		ID:                          ac.ID,
+		KeyID:                       ac.KeyID,
+		KeyIDEnvVar:                 ac.KeyIDEnvVar,
+		KeyFilePath:                 ac.KeyFilePath,
+		KeyFilePathEnvVar:           ac.KeyFilePathEnvVar,
+		KeyEnvVar:                   ac.KeyEnvVar,
+		Active:                      ac.Active,
+		Username:                    ac.Username,
+		Password:                    ac.Password,
+		APIKeyStr:                   ac.APIKeyStr,
+		APISecretStr:                ac.APISecretStr,
+		EnvVarAPIKeyStr:             ac.EnvVarAPIKeyStr,
+		EnvVarAPISecretStr:          ac.EnvVarAPISecretStr,
+		EnvVarUsername:              ac.EnvVarUsername,
+		EnvVarPassword:              ac.EnvVarPassword,
+		Successor:                   ac.Successor,
+		EncodedBasicCredentials:     ac.EncodedBasicCredentials,
+		Location:                    ac.Location,
+		Name:                        ac.Name,
+		Subject:                     ac.Subject,
+		TokenURL:                    ac.TokenURL,
+		GrantType:                   ac.GrantType,
+		ClientID:                    ac.ClientID,
+		ClientSecret:                ac.ClientSecret,
+		ClientIDEnvVar:              ac.ClientIDEnvVar,
+		ClientSecretEnvVar:          ac.ClientSecretEnvVar,
+		Values:                      ac.Values,
+		AuthStyle:                   ac.AuthStyle,
+		AccountID:                   ac.AccountID,
+		AccoountIDEnvVar:            ac.AccoountIDEnvVar,
+		AwsRoleArn:                  ac.AwsRoleArn,
+		AwsRoleArnEnvVar:            ac.AwsRoleArnEnvVar,
+		AwsRoleSessionName:          ac.AwsRoleSessionName,
+		AwsRoleExternalID:           ac.AwsRoleExternalID,
+		AwsRoleExternalIDEnvVar:     ac.AwsRoleExternalIDEnvVar,
+		AwsStsRegion:                ac.AwsStsRegion,
+		AwsStsEndpoint:              ac.AwsStsEndpoint,
+		AwsRoleDurationSeconds:      ac.AwsRoleDurationSeconds,
+		OIDCIssuer:                  ac.OIDCIssuer,
+		OIDCDiscoveryURL:            ac.OIDCDiscoveryURL,
+		OIDCTokenType:               ac.OIDCTokenType,
+		OIDCAudience:                ac.OIDCAudience,
+		OIDCSkipIssuerVerification:  ac.OIDCSkipIssuerVerification,
+		OIDCSkipIDTokenVerification: ac.OIDCSkipIDTokenVerification,
 	}
 	return rv
 }
