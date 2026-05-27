@@ -61,6 +61,10 @@ type AuthCtx struct {
 	AwsStsRegion            string         `json:"aws_sts_region" yaml:"aws_sts_region"`
 	AwsStsEndpoint          string         `json:"aws_sts_endpoint" yaml:"aws_sts_endpoint"`
 	AwsRoleDurationSeconds  int32          `json:"aws_role_duration_seconds" yaml:"aws_role_duration_seconds"`
+	OIDCIssuer              string         `json:"oidc_issuer" yaml:"oidc_issuer"`
+	OIDCDiscoveryURL        string         `json:"oidc_discovery_url" yaml:"oidc_discovery_url"`
+	OIDCTokenType           string         `json:"oidc_token_type" yaml:"oidc_token_type"`
+	OIDCAudience            string         `json:"oidc_audience" yaml:"oidc_audience"`
 }
 
 func (ac *AuthCtx) GetSQLCfg() (SQLBackendCfg, bool) {
@@ -116,6 +120,10 @@ func (ac *AuthCtx) Clone() *AuthCtx {
 		AwsStsRegion:            ac.AwsStsRegion,
 		AwsStsEndpoint:          ac.AwsStsEndpoint,
 		AwsRoleDurationSeconds:  ac.AwsRoleDurationSeconds,
+		OIDCIssuer:              ac.OIDCIssuer,
+		OIDCDiscoveryURL:        ac.OIDCDiscoveryURL,
+		OIDCTokenType:           ac.OIDCTokenType,
+		OIDCAudience:            ac.OIDCAudience,
 	}
 	return rv
 }

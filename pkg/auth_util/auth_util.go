@@ -14,6 +14,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/google_sdk"
 	"github.com/stackql/any-sdk/pkg/litetemplate"
 	"github.com/stackql/any-sdk/pkg/netutils"
+	"github.com/stackql/any-sdk/pkg/oidcauth"
 
 	"net/http"
 	"regexp"
@@ -92,6 +93,7 @@ type AuthUtility interface {
 	ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error)
 	AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	OidcAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
@@ -489,6 +491,69 @@ func (au *authUtil) AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils
 
 	httpClient.Transport = tr
 
+	return httpClient, nil
+}
+
+// OidcAuth performs a provider-agnostic OpenID Connect client_credentials
+// exchange and attaches the resulting token to outbound requests. The token
+// endpoint may be given explicitly (token_url) or discovered from oidc_issuer /
+// oidc_discovery_url; every other knob (scopes, audience, extra params, client
+// auth style, token type, and how/where the token is attached) is configurable,
+// with sensible defaults applied for anything omitted.
+func (au *authUtil) OidcAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+	clientID, clientIDErr := authCtx.GetClientID()
+	if clientIDErr != nil {
+		return nil, clientIDErr
+	}
+	clientSecret, secretErr := authCtx.GetClientSecret()
+	if secretErr != nil {
+		return nil, secretErr
+	}
+
+	issuer, tmplErr := litetemplate.RenderTemplateFromSerializable(authCtx.OIDCIssuer, authCtx)
+	if tmplErr != nil {
+		return nil, fmt.Errorf("incorrect oidc_issuer templating %w", tmplErr)
+	}
+	discoveryURL, tmplErr := litetemplate.RenderTemplateFromSerializable(authCtx.OIDCDiscoveryURL, authCtx)
+	if tmplErr != nil {
+		return nil, fmt.Errorf("incorrect oidc_discovery_url templating %w", tmplErr)
+	}
+	tokenURL, tmplErr := litetemplate.RenderTemplateFromSerializable(authCtx.GetTokenURL(), authCtx)
+	if tmplErr != nil {
+		return nil, fmt.Errorf("incorrect token_url templating %w", tmplErr)
+	}
+
+	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
+
+	// Use a long-lived context so the token source can keep refreshing for the
+	// lifetime of the returned client rather than capturing a single token.
+	tokenSource, tsErr := oidcauth.TokenSource(context.Background(), oidcauth.Config{
+		Issuer:         issuer,
+		DiscoveryURL:   discoveryURL,
+		TokenURL:       tokenURL,
+		ClientID:       clientID,
+		ClientSecret:   clientSecret,
+		AuthStyle:      authCtx.GetAuthStyle(),
+		Scopes:         authCtx.Scopes,
+		Audience:       authCtx.OIDCAudience,
+		EndpointParams: authCtx.GetValues(),
+		TokenType:      authCtx.OIDCTokenType,
+		HTTPClient:     httpClient,
+	})
+	if tsErr != nil {
+		return nil, tsErr
+	}
+
+	au.ActivateAuth(authCtx, "", dto.AuthOIDCStr)
+
+	httpClient.Transport = &oidcauth.Transport{
+		Base:        httpClient.Transport,
+		TokenSource: tokenSource,
+		TokenType:   authCtx.OIDCTokenType,
+		Location:    authCtx.Location,
+		Name:        authCtx.Name,
+		ValuePrefix: authCtx.ValuePrefix,
+	}
 	return httpClient, nil
 }
 

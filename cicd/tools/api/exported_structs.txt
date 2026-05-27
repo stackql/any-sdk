@@ -5,6 +5,7 @@ type AuthCtx struct
 type AuthMetadata struct
 type AwsTemporaryCredentials struct
 type BasicDiscoveryAdapter struct
+type Config struct
 type DBMSInternalCfg struct
 type DropDoubleUnderscoreParamsTranslator struct
 type GCCfg struct
@@ -29,6 +30,7 @@ type PgTLSCfg struct
 type PrefixedTranslator struct
 type ProviderDescription struct
 type ProviderInfo struct
+type ProviderMetadata struct
 type ProvidersList struct
 type Registry struct
 type RegistryConfig struct
@@ -50,6 +52,7 @@ type StandardTransformerLocator struct
 type StringFuzzyMatcher struct
 type StringFuzzyPair struct
 type TTLDiscoveryStore struct
+type Transport struct
 type TxnCoordinatorCfg struct
 type URLHostSimple struct
 type XPathResolver struct

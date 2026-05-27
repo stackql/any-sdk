@@ -10,6 +10,7 @@ const (
 	AuthCustomStr                   string = "custom"
 	AuthInteractiveStr              string = "interactive"
 	AuthServiceAccountStr           string = "service_account"
+	AuthOIDCStr                     string = "oidc"
 	AuthNullStr                     string = "null_auth"
 	DryRunFlagKey                   string = "dryrun"
 	ExecutionConcurrencyLimitKey    string = "execution.concurrency.limit"
