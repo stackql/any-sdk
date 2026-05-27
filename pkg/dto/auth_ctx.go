@@ -65,6 +65,8 @@ type AuthCtx struct {
 	OIDCDiscoveryURL        string         `json:"oidc_discovery_url" yaml:"oidc_discovery_url"`
 	OIDCTokenType           string         `json:"oidc_token_type" yaml:"oidc_token_type"`
 	OIDCAudience            string         `json:"oidc_audience" yaml:"oidc_audience"`
+	OIDCVerifyIssuer        bool           `json:"oidc_verify_issuer" yaml:"oidc_verify_issuer"`
+	OIDCVerifyIDToken       bool           `json:"oidc_verify_id_token" yaml:"oidc_verify_id_token"`
 }
 
 func (ac *AuthCtx) GetSQLCfg() (SQLBackendCfg, bool) {
@@ -124,6 +126,8 @@ func (ac *AuthCtx) Clone() *AuthCtx {
 		OIDCDiscoveryURL:        ac.OIDCDiscoveryURL,
 		OIDCTokenType:           ac.OIDCTokenType,
 		OIDCAudience:            ac.OIDCAudience,
+		OIDCVerifyIssuer:        ac.OIDCVerifyIssuer,
+		OIDCVerifyIDToken:       ac.OIDCVerifyIDToken,
 	}
 	return rv
 }

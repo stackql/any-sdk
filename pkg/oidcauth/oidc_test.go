@@ -49,7 +49,7 @@ func TestFetchTokenViaDiscovery(t *testing.T) {
 		ClientSecret: "secret-xyz",
 		Scopes:       []string{"openid", "api.read"},
 		Audience:     "https://api.example.com",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("FetchToken returned error: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestFetchTokenExplicitEndpointSkipsDiscovery(t *testing.T) {
 		TokenURL:     server.URL + "/oauth2/token",
 		ClientID:     "client-abc",
 		ClientSecret: "secret-xyz",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("FetchToken returned error: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestFetchTokenIDTokenSelection(t *testing.T) {
 		ClientID:     "client-abc",
 		ClientSecret: "secret-xyz",
 		TokenType:    TokenTypeIDToken,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("FetchToken returned error: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestFetchTokenValidation(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := FetchToken(context.Background(), tc.cfg); err == nil {
+			if _, err := FetchToken(context.Background(), tc.cfg, nil); err == nil {
 				t.Fatalf("expected error for %s, got nil", tc.name)
 			}
 		})
@@ -165,8 +165,7 @@ func TestTransportRefreshesToken(t *testing.T) {
 		Issuer:       server.URL,
 		ClientID:     "client-abc",
 		ClientSecret: "secret-xyz",
-		HTTPClient:   server.Client(),
-	})
+	}, server.Client())
 	if err != nil {
 		t.Fatalf("TokenSource returned error: %v", err)
 	}
@@ -197,8 +196,8 @@ func TestTransportRefreshesToken(t *testing.T) {
 func TestTransportPlacement(t *testing.T) {
 	server, _ := newMockIdP(t)
 	ts, err := TokenSource(context.Background(), Config{
-		Issuer: server.URL, ClientID: "id", ClientSecret: "secret", HTTPClient: server.Client(),
-	})
+		Issuer: server.URL, ClientID: "id", ClientSecret: "secret",
+	}, server.Client())
 	if err != nil {
 		t.Fatalf("TokenSource returned error: %v", err)
 	}

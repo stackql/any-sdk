@@ -538,8 +538,9 @@ func (au *authUtil) OidcAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPCont
 		Audience:       authCtx.OIDCAudience,
 		EndpointParams: authCtx.GetValues(),
 		TokenType:      authCtx.OIDCTokenType,
-		HTTPClient:     httpClient,
-	})
+		VerifyIssuer:   authCtx.OIDCVerifyIssuer,
+		VerifyIDToken:  authCtx.OIDCVerifyIDToken,
+	}, httpClient)
 	if tsErr != nil {
 		return nil, tsErr
 	}

@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -63,9 +64,14 @@ type Config struct {
 	// TokenType selects which token is returned: access_token (default) or id_token.
 	TokenType string
 
-	// HTTPClient is used for both discovery and the token request, carrying TLS
-	// and proxy configuration. Defaults to http.DefaultClient when nil.
-	HTTPClient *http.Client
+	// VerifyIssuer, when true, asserts that the issuer advertised in the
+	// discovery document matches the configured Issuer. Off by default.
+	VerifyIssuer bool
+	// VerifyIDToken, when true, cryptographically verifies the id_token in each
+	// (refreshed) token response against the provider's JWKS — checking
+	// signature, expiry, and issuer — before the token is used. Requires Issuer.
+	// Off by default.
+	VerifyIDToken bool
 }
 
 // Discover fetches and parses an OIDC discovery document, returning its metadata.
@@ -97,7 +103,7 @@ func Discover(ctx context.Context, discoveryURL string, httpClient *http.Client)
 
 // resolveTokenEndpoint determines the token endpoint, performing discovery only
 // when an explicit token URL is not supplied.
-func resolveTokenEndpoint(ctx context.Context, cfg Config) (string, error) {
+func resolveTokenEndpoint(ctx context.Context, cfg Config, httpClient *http.Client) (string, error) {
 	if cfg.TokenURL != "" {
 		return cfg.TokenURL, nil
 	}
@@ -108,9 +114,18 @@ func resolveTokenEndpoint(ctx context.Context, cfg Config) (string, error) {
 	if discoveryURL == "" {
 		return "", fmt.Errorf("oidc: one of token_url, oidc_discovery_url, or oidc_issuer is required")
 	}
-	md, err := Discover(ctx, discoveryURL, cfg.HTTPClient)
+	md, err := Discover(ctx, discoveryURL, httpClient)
 	if err != nil {
 		return "", err
+	}
+	// Opt-in: per the discovery spec the advertised issuer must match the one
+	// used to construct the request. Only enforceable when an issuer is configured.
+	if cfg.VerifyIssuer && cfg.Issuer != "" {
+		want := strings.TrimSuffix(cfg.Issuer, "/")
+		got := strings.TrimSuffix(md.Issuer, "/")
+		if got != want {
+			return "", fmt.Errorf("oidc: discovery issuer %q does not match configured issuer %q", md.Issuer, cfg.Issuer)
+		}
 	}
 	return md.TokenEndpoint, nil
 }
@@ -120,12 +135,14 @@ func resolveTokenEndpoint(ctx context.Context, cfg Config) (string, error) {
 // here; the returned source caches the token and transparently re-fetches it
 // against the resolved endpoint whenever it expires. The supplied context
 // governs the lifetime of those refreshes, so callers should pass a long-lived
-// (e.g. background) context rather than a request-scoped one.
-func TokenSource(ctx context.Context, cfg Config) (oauth2.TokenSource, error) {
+// (e.g. background) context rather than a request-scoped one. httpClient (which
+// may be nil) carries TLS/proxy configuration for discovery, the token request,
+// and JWKS retrieval.
+func TokenSource(ctx context.Context, cfg Config, httpClient *http.Client) (oauth2.TokenSource, error) {
 	if cfg.ClientID == "" || cfg.ClientSecret == "" {
 		return nil, fmt.Errorf("oidc: client_id and client_secret are required")
 	}
-	tokenEndpoint, err := resolveTokenEndpoint(ctx, cfg)
+	tokenEndpoint, err := resolveTokenEndpoint(ctx, cfg, httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -154,19 +171,113 @@ func TokenSource(ctx context.Context, cfg Config) (oauth2.TokenSource, error) {
 	}
 
 	tokenCtx := ctx
-	if cfg.HTTPClient != nil {
-		tokenCtx = context.WithValue(ctx, oauth2.HTTPClient, cfg.HTTPClient)
+	if httpClient != nil {
+		tokenCtx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
 	}
-	// clientcredentials.Config.TokenSource returns a reusing source that caches
-	// the token until expiry and re-fetches afterwards.
-	return ccConfig.TokenSource(tokenCtx), nil
+
+	// Each call performs one client_credentials fetch; the reuse wrapper added
+	// below caches the result until expiry and re-fetches afterwards.
+	var source oauth2.TokenSource = &configTokenSource{config: ccConfig, ctx: tokenCtx}
+
+	// Opt-in: verify the id_token on every fetch/refresh before the token is
+	// handed out. Layered beneath the reuse wrapper so verification runs only
+	// when a token is actually (re)minted, not on every request.
+	if cfg.VerifyIDToken {
+		verifier, verifyErr := newIDTokenVerifier(ctx, cfg, httpClient)
+		if verifyErr != nil {
+			return nil, verifyErr
+		}
+		// go-oidc's remote key set fetches JWKS using the context passed to
+		// Verify, so that context must carry the configured HTTP client.
+		verifyCtx := ctx
+		if httpClient != nil {
+			verifyCtx = oidc.ClientContext(ctx, httpClient)
+		}
+		source = &verifyingTokenSource{
+			source:   source,
+			verifier: verifier,
+			audience: cfg.Audience,
+			ctx:      verifyCtx,
+		}
+	}
+
+	return oauth2.ReuseTokenSource(nil, source), nil
+}
+
+// configTokenSource adapts a clientcredentials.Config to oauth2.TokenSource,
+// performing a single (non-caching) token fetch per call.
+type configTokenSource struct {
+	config *clientcredentials.Config
+	ctx    context.Context //nolint:containedctx // intentionally long-lived for refreshes
+}
+
+func (s *configTokenSource) Token() (*oauth2.Token, error) {
+	return s.config.Token(s.ctx)
+}
+
+// newIDTokenVerifier discovers the provider (via go-oidc, which itself enforces
+// issuer matching) and returns a verifier for its id_tokens. The client-id /
+// audience check is delegated to verifyingTokenSource, since for the
+// client_credentials grant the id_token audience is frequently the target API
+// rather than the client id.
+func newIDTokenVerifier(ctx context.Context, cfg Config, httpClient *http.Client) (*oidc.IDTokenVerifier, error) {
+	if cfg.Issuer == "" {
+		return nil, fmt.Errorf("oidc: oidc_verify_id_token requires oidc_issuer")
+	}
+	providerCtx := ctx
+	if httpClient != nil {
+		providerCtx = oidc.ClientContext(ctx, httpClient)
+	}
+	provider, err := oidc.NewProvider(providerCtx, strings.TrimSuffix(cfg.Issuer, "/"))
+	if err != nil {
+		return nil, fmt.Errorf("oidc: provider discovery for id_token verification failed: %w", err)
+	}
+	return provider.Verifier(&oidc.Config{SkipClientIDCheck: true}), nil
+}
+
+// verifyingTokenSource verifies the id_token carried by each token its delegate
+// produces, failing closed if the id_token is missing, malformed, or does not
+// satisfy the configured audience.
+type verifyingTokenSource struct {
+	source   oauth2.TokenSource
+	verifier *oidc.IDTokenVerifier
+	audience string
+	ctx      context.Context //nolint:containedctx // intentionally long-lived for JWKS fetches
+}
+
+func (v *verifyingTokenSource) Token() (*oauth2.Token, error) {
+	token, err := v.source.Token()
+	if err != nil {
+		return nil, err
+	}
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok || rawIDToken == "" {
+		return nil, fmt.Errorf("oidc: oidc_verify_id_token is enabled but the token response carries no id_token")
+	}
+	idToken, verifyErr := v.verifier.Verify(v.ctx, rawIDToken)
+	if verifyErr != nil {
+		return nil, fmt.Errorf("oidc: id_token verification failed: %w", verifyErr)
+	}
+	if v.audience != "" {
+		satisfied := false
+		for _, aud := range idToken.Audience {
+			if aud == v.audience {
+				satisfied = true
+				break
+			}
+		}
+		if !satisfied {
+			return nil, fmt.Errorf("oidc: id_token audience %v does not include configured audience %q", idToken.Audience, v.audience)
+		}
+	}
+	return token, nil
 }
 
 // FetchToken performs a one-shot client_credentials exchange and returns the
 // selected token. Prefer TokenSource + Transport for long-lived clients, which
-// refreshes automatically.
-func FetchToken(ctx context.Context, cfg Config) (string, error) {
-	tokenSource, err := TokenSource(ctx, cfg)
+// refreshes automatically. httpClient may be nil.
+func FetchToken(ctx context.Context, cfg Config, httpClient *http.Client) (string, error) {
+	tokenSource, err := TokenSource(ctx, cfg, httpClient)
 	if err != nil {
 		return "", err
 	}
