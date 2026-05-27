@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 )
@@ -36,9 +37,9 @@ type Transport interface {
 }
 
 type standardAwsSignTransport struct {
-	underlyingTransport       http.RoundTripper
-	signer                    *v4.Signer
-	staticCredentialsProvider credentials.StaticCredentialsProvider
+	underlyingTransport http.RoundTripper
+	signer              *v4.Signer
+	credentialsProvider aws.CredentialsProvider
 }
 
 func NewAwsSignTransport(
@@ -61,9 +62,9 @@ func NewAwsSignTransport(
 
 	signer := v4.NewSigner(options...)
 	return &standardAwsSignTransport{
-		underlyingTransport:       underlyingTransport,
-		signer:                    signer,
-		staticCredentialsProvider: creds,
+		underlyingTransport: underlyingTransport,
+		signer:              signer,
+		credentialsProvider: creds,
 	}, nil
 }
 
@@ -83,9 +84,29 @@ func NewAwsSignTransportWithCredentials(
 	creds := credentials.NewStaticCredentialsProvider(id, secret, token)
 	signer := v4.NewSigner(options...)
 	return &standardAwsSignTransport{
-		underlyingTransport:       underlyingTransport,
-		signer:                    signer,
-		staticCredentialsProvider: creds,
+		underlyingTransport: underlyingTransport,
+		signer:              signer,
+		credentialsProvider: creds,
+	}, nil
+}
+
+// NewAwsSignTransportWithProvider builds a signing transport from any
+// aws.CredentialsProvider. Pair this with a refreshing provider (e.g. one wrapped
+// by aws.NewCredentialsCache around stscreds.WebIdentityRoleProvider) to get
+// transparent credential refresh on each request.
+func NewAwsSignTransportWithProvider(
+	underlyingTransport http.RoundTripper,
+	provider aws.CredentialsProvider,
+	options ...func(*v4.SignerOptions),
+) (Transport, error) {
+	if provider == nil {
+		return nil, fmt.Errorf("aws sign: credentials provider is required")
+	}
+	signer := v4.NewSigner(options...)
+	return &standardAwsSignTransport{
+		underlyingTransport: underlyingTransport,
+		signer:              signer,
+		credentialsProvider: provider,
 	}, nil
 }
 
@@ -106,7 +127,7 @@ func (t *standardAwsSignTransport) RoundTrip(req *http.Request) (*http.Response,
 	if !ok {
 		return nil, fmt.Errorf("unsupported type for AWS region: '%T'", rgn)
 	}
-	creds, credsErr := t.staticCredentialsProvider.Retrieve(context.TODO())
+	creds, credsErr := t.credentialsProvider.Retrieve(context.TODO())
 	if credsErr != nil {
 		return nil, credsErr
 	}

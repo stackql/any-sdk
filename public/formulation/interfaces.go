@@ -1,4 +1,3 @@
-// Code generated mechanically from wrappers.go (interfaces only) - DO NOT EDIT.
 package formulation
 
 import (

@@ -276,6 +276,14 @@ func (cc *anySdkHTTPClientConfigurator) inferAuthType(authCtx dto.AuthCtx, authT
 		return dto.AuthAWSSigningv4Str
 	case dto.AuthAWSAssumeRoleStr:
 		return dto.AuthAWSAssumeRoleStr
+	case dto.AuthAWSWebIdentityStr:
+		return dto.AuthAWSWebIdentityStr
+	case dto.AuthAzureFederatedStr:
+		return dto.AuthAzureFederatedStr
+	case dto.AuthGCPWorkloadIdentityStr:
+		return dto.AuthGCPWorkloadIdentityStr
+	case dto.AuthOIDCStr:
+		return dto.AuthOIDCStr
 	case dto.AuthCustomStr:
 		return dto.AuthCustomStr
 	case dto.OAuth2Str:
@@ -355,6 +363,30 @@ func (cc *anySdkHTTPClientConfigurator) Auth(
 		return newAnySdkHttpClient(httpClient), nil
 	case dto.AuthAWSAssumeRoleStr:
 		httpClient, httpClientErr := cc.authUtil.AwsAssumeRoleAuth(authCtx, cc.runtimeCtx)
+		if httpClientErr != nil {
+			return nil, httpClientErr
+		}
+		return newAnySdkHttpClient(httpClient), nil
+	case dto.AuthAWSWebIdentityStr:
+		httpClient, httpClientErr := cc.authUtil.AwsWebIdentityAuth(authCtx, cc.runtimeCtx)
+		if httpClientErr != nil {
+			return nil, httpClientErr
+		}
+		return newAnySdkHttpClient(httpClient), nil
+	case dto.AuthGCPWorkloadIdentityStr:
+		httpClient, httpClientErr := cc.authUtil.GcpWorkloadIdentityAuth(authCtx, cc.runtimeCtx)
+		if httpClientErr != nil {
+			return nil, httpClientErr
+		}
+		return newAnySdkHttpClient(httpClient), nil
+	case dto.AuthAzureFederatedStr:
+		httpClient, httpClientErr := cc.authUtil.AzureFederatedAuth(authCtx, cc.runtimeCtx)
+		if httpClientErr != nil {
+			return nil, httpClientErr
+		}
+		return newAnySdkHttpClient(httpClient), nil
+	case dto.AuthOIDCStr:
+		httpClient, httpClientErr := cc.authUtil.OidcAuth(authCtx, cc.runtimeCtx)
 		if httpClientErr != nil {
 			return nil, httpClientErr
 		}

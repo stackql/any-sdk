@@ -5,11 +5,13 @@ func ClientProtocolTypeFromString
 func DecideAddressing
 func DecompressToPath
 func DefaultLinkHeaderTransformer
+func Discover
 func Execute
 func ExtractHTTPElement
 func ExtractParameterisedURL
 func ExtractProviderDesignation
 func ExtractStackqlRequestContextValue
+func FetchToken
 func FilePathJoin
 func FindLatest
 func FindLatestStable
@@ -85,6 +87,7 @@ func NewAnySdkOpStoreDesignation
 func NewAuthUtility
 func NewAwsSignTransport
 func NewAwsSignTransportWithCredentials
+func NewAwsSignTransportWithProvider
 func NewBasicDiscoveryAdapter
 func NewBrickMap
 func NewColumnDescriptor
@@ -166,6 +169,7 @@ func NewTTLDiscoveryStore
 func NewTemplateStreamTransformer
 func NewTestSchema
 func NewTransport
+func NewWebIdentityRoleProvider
 func NewTxnCounterManager
 func NewViewNameMangler
 func NewViewNameUnmangler
@@ -287,6 +291,8 @@ func TestXMLMArshal
 func TestXMLRequestBody
 func TestXMLSchemaInterrogation
 func TestXPathHandle
+func TokenSource
+func SubjectTokenRetriever
 func TranslateServiceKeyGenericProviderToIql
 func TrimSelectItemsKey
 func ValidateAndParse
