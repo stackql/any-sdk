@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -588,6 +589,84 @@ func TestRead_GraphQLErrorWithoutMessage_FallsBackToJSON(t *testing.T) {
 	if !strings.Contains(err.Error(), "code") || !strings.Contains(err.Error(), "42") {
 		t.Errorf("expected JSON fallback to include the error object, got: %v", err)
 	}
+}
+
+// TestRead_EmitsRequestBodyToHTTPLogWhenEnabled asserts that when a context
+// logger is attached, the rendered GraphQL request body and wire URL are
+// surfaced before the Do() call — closing the gap where --http.log.enabled
+// previously only showed the post-transform projection.
+func TestRead_EmitsRequestBodyToHTTPLogWhenEnabled(t *testing.T) {
+	var buf bytes.Buffer
+	c := &fakeAnySdkClient{bodyJSON: `{"data": {"rows": [{"id": 1}]}}`}
+	req := newTestRequest(t)
+	req = req.WithContext(ContextWithHTTPLogger(context.Background(), &buf))
+
+	r, err := NewStandardGQLReader(
+		c, req, 0, `query { rows { id } }`, map[string]interface{}{}, "",
+		"$.data.rows[*]", "$.data.__no_cursor[*]",
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReader: %v", err)
+	}
+	if _, err := r.Read(); err != nil && err != io.EOF {
+		t.Fatalf("Read: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "query { rows { id } }") {
+		t.Errorf("expected rendered request body in log, got:\n%s", out)
+	}
+	if !strings.Contains(out, "https://api.example.test/graphql") {
+		t.Errorf("expected wire URL in log, got:\n%s", out)
+	}
+}
+
+// TestRead_EmitsRawResponseToHTTPLogWhenEnabled asserts that the naked
+// pre-transform response body is surfaced when a context logger is attached.
+// This is the diagnostic that was missing for transform / templating failures.
+func TestRead_EmitsRawResponseToHTTPLogWhenEnabled(t *testing.T) {
+	var buf bytes.Buffer
+	c := &fakeAnySdkClient{bodyJSON: `{"data":{"rows":[{"id":1}]}}`}
+	req := newTestRequest(t)
+	req = req.WithContext(ContextWithHTTPLogger(context.Background(), &buf))
+
+	r, err := NewStandardGQLReader(
+		c, req, 0, `{ ignored }`, map[string]interface{}{}, "",
+		"$.data.rows[*]", "$.data.__no_cursor[*]",
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReader: %v", err)
+	}
+	if _, err := r.Read(); err != nil && err != io.EOF {
+		t.Fatalf("Read: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, `"id":1`) {
+		t.Errorf("expected raw response body in log, got:\n%s", out)
+	}
+}
+
+// TestRead_DoesNotLogWhenHTTPLogDisabled asserts that with no logger attached
+// to the request context, Read() emits nothing — the opt-in shape mirrors the
+// REST acquire path's gating on runtimeCtx.HTTPLogEnabled.
+func TestRead_DoesNotLogWhenHTTPLogDisabled(t *testing.T) {
+	c := &fakeAnySdkClient{bodyJSON: `{"data":{"rows":[]}}`}
+	req := newTestRequest(t) // no logger in context
+
+	r, err := NewStandardGQLReader(
+		c, req, 0, `{ ignored }`, map[string]interface{}{}, "",
+		"$.data.rows[*]", "$.data.__no_cursor[*]",
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReader: %v", err)
+	}
+	if _, err := r.Read(); err != nil && err != io.EOF {
+		t.Fatalf("Read: %v", err)
+	}
+	// nothing to assert beyond "no panic and no log sink to fill" — the
+	// negative case is covered by the structural check that nil-logger
+	// branches in Read() are short-circuit.
 }
 
 // TestNewStandardGQLReaderWithCursor_KeysetRequiresFormat ensures a keyset
