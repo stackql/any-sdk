@@ -32,8 +32,10 @@ type OpenAPIService interface {
 	//
 	getRequestTranslateAlgorithm() string
 	getComponents() openapi3.Components
+	getPaginationAlgorithm() string
 	getPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	getPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
 	getQueryTransposeAlgorithm() string
 	getQueryParamPushdown() (QueryParamPushdown, bool)
 	getRetryPolicy() (RetryPolicy, bool)
@@ -279,6 +281,26 @@ func (svc *standardService) getPaginationResponseTokenSemantic() (TokenSemantic,
 		pag, pagExists := svc.StackQLConfig.GetPagination()
 		if pagExists && pag.GetResponseToken() != nil {
 			return pag.GetResponseToken(), true
+		}
+	}
+	return nil, false
+}
+
+func (svc *standardService) getPaginationAlgorithm() string {
+	if svc.StackQLConfig != nil {
+		pag, pagExists := svc.StackQLConfig.GetPagination()
+		if pagExists {
+			return pag.GetAlgorithm()
+		}
+	}
+	return ""
+}
+
+func (svc *standardService) getPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool) {
+	if svc.StackQLConfig != nil {
+		pag, pagExists := svc.StackQLConfig.GetPagination()
+		if pagExists && pag.GetResponseTerminator() != nil {
+			return pag.GetResponseTerminator(), true
 		}
 	}
 	return nil, false

@@ -1029,6 +1029,50 @@ func inferNextPageResponseElement(provider anysdk.Provider, method anysdk.Operat
 	}
 }
 
+func inferPageNumberTerminatorElement(method anysdk.OperationStore) sdk_internal_dto.HTTPElement {
+	st, ok := method.GetPaginationResponseTerminatorTokenSemantic()
+	if !ok {
+		return nil
+	}
+	tp, err := sdk_internal_dto.ExtractHTTPElement(st.GetLocation())
+	if err != nil {
+		return nil
+	}
+	rv := sdk_internal_dto.NewHTTPElement(tp, st.GetKey())
+	transformer, tErr := st.GetTransformer()
+	if tErr == nil && transformer != nil {
+		rv.SetTransformer(transformer)
+	}
+	return rv
+}
+
+// extractPageNumberNextToken implements the `page_number` pagination algorithm:
+// it reads the current page number and the page-count terminator from the
+// response, and returns the next page number to request. When the current
+// page is the last (>= total) or either value is missing/unparseable,
+// `finished` is true so the loop terminates rather than spinning forever
+// on a response that echoes the same page number back.
+func extractPageNumberNextToken(
+	res response.Response,
+	currentPageElem sdk_internal_dto.HTTPElement,
+	totalPagesElem sdk_internal_dto.HTTPElement,
+) (string, bool) {
+	if currentPageElem == nil || totalPagesElem == nil {
+		return "", true
+	}
+	currStr := extractNextPageToken(res, currentPageElem)
+	totalStr := extractNextPageToken(res, totalPagesElem)
+	curr, currErr := strconv.Atoi(currStr)
+	total, totalErr := strconv.Atoi(totalStr)
+	if currErr != nil || totalErr != nil {
+		return "", true
+	}
+	if curr >= total {
+		return "", true
+	}
+	return strconv.Itoa(curr + 1), false
+}
+
 func page(
 	res response.Response,
 	method anysdk.OperationStore,
@@ -1045,7 +1089,17 @@ func page(
 	if npt == nil || nptRequest == nil {
 		return newPagingState(pageCount, true, nil, nil)
 	}
-	tk := extractNextPageToken(res, npt)
+	var tk string
+	if method.GetPaginationAlgorithm() == anysdk.PaginationAlgorithmPageNumber {
+		terminator := inferPageNumberTerminatorElement(method)
+		next, finished := extractPageNumberNextToken(res, npt, terminator)
+		if finished {
+			return newPagingState(pageCount, true, nil, nil)
+		}
+		tk = next
+	} else {
+		tk = extractNextPageToken(res, npt)
+	}
 	if tk == "" || tk == "<nil>" || tk == "[]" || (rtCtx.HTTPPageLimit > 0 && pageCount >= rtCtx.HTTPPageLimit) {
 		return newPagingState(pageCount, true, nil, nil)
 	}

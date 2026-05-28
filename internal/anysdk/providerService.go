@@ -23,8 +23,10 @@ type ProviderService interface {
 	GetService() (Service, error)
 	GetRequestTranslateAlgorithm() string
 	GetResourcesShallow() (ResourceRegister, error)
+	GetPaginationAlgorithm() string
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	getPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	getPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetRetryPolicy() (RetryPolicy, bool)
 	ConditionIsValid(lhs string, rhs interface{}) bool
@@ -178,6 +180,20 @@ func (sv *standardProviderService) getPaginationResponseTokenSemantic() (TokenSe
 		return nil, false
 	}
 	return sv.StackQLConfig.Pagination.ResponseToken, true
+}
+
+func (sv *standardProviderService) GetPaginationAlgorithm() string {
+	if sv.StackQLConfig == nil || sv.StackQLConfig.Pagination == nil {
+		return ""
+	}
+	return sv.StackQLConfig.Pagination.Algorithm
+}
+
+func (sv *standardProviderService) getPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool) {
+	if sv.StackQLConfig == nil || sv.StackQLConfig.Pagination == nil || sv.StackQLConfig.Pagination.ResponseTerminator == nil {
+		return nil, false
+	}
+	return sv.StackQLConfig.Pagination.ResponseTerminator, true
 }
 
 func (sv *standardProviderService) GetQueryParamPushdown() (QueryParamPushdown, bool) {

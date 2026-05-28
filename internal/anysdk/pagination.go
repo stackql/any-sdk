@@ -15,15 +15,30 @@ var (
 	_              jsonpointer.JSONPointable = standardPagination{}
 )
 
+const (
+	// PaginationAlgorithmPageNumber identifies the page-number + total-pages
+	// pagination strategy: termination is by comparing the current page number
+	// in the response against a page-count field (`responseTerminator`).
+	PaginationAlgorithmPageNumber = "page_number"
+)
+
 type Pagination interface {
 	JSONLookup(token string) (interface{}, error)
+	GetAlgorithm() string
 	GetRequestToken() TokenSemantic
 	GetResponseToken() TokenSemantic
+	GetResponseTerminator() TokenSemantic
 }
 
 type standardPagination struct {
-	RequestToken  *standardTokenSemantic `json:"requestToken,omitempty" yaml:"requestToken,omitempty"`
-	ResponseToken *standardTokenSemantic `json:"responseToken,omitempty" yaml:"responseToken,omitempty"`
+	Algorithm          string                 `json:"algorithm,omitempty" yaml:"algorithm,omitempty"`
+	RequestToken       *standardTokenSemantic `json:"requestToken,omitempty" yaml:"requestToken,omitempty"`
+	ResponseToken      *standardTokenSemantic `json:"responseToken,omitempty" yaml:"responseToken,omitempty"`
+	ResponseTerminator *standardTokenSemantic `json:"responseTerminator,omitempty" yaml:"responseTerminator,omitempty"`
+}
+
+func (qt *standardPagination) GetAlgorithm() string {
+	return qt.Algorithm
 }
 
 func (qt *standardPagination) GetRequestToken() TokenSemantic {
@@ -34,15 +49,32 @@ func (qt *standardPagination) GetResponseToken() TokenSemantic {
 	return qt.ResponseToken
 }
 
+func (qt *standardPagination) GetResponseTerminator() TokenSemantic {
+	if qt.ResponseTerminator == nil {
+		return nil
+	}
+	return qt.ResponseTerminator
+}
+
 func (qt standardPagination) JSONLookup(token string) (interface{}, error) {
 	switch token {
+	case "algorithm":
+		return qt.Algorithm, nil
 	case "requestToken":
 		return qt.RequestToken, nil
 	case "responseToken":
 		return qt.ResponseToken, nil
+	case "responseTerminator":
+		return qt.ResponseTerminator, nil
 	default:
 		return nil, fmt.Errorf("could not resolve token '%s' from QueryTranspose doc object", token)
 	}
+}
+
+// GetTestingPagination returns a zero-value Pagination for testing.
+// Mirrors the GetTestingQueryParamPushdown helper convention.
+func GetTestingPagination() standardPagination {
+	return standardPagination{}
 }
 
 type TokenTransformer func(interface{}) (interface{}, error)
