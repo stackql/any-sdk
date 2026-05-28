@@ -515,6 +515,22 @@ func (w *wrappedGraphQL) GetResponseJSONPath() (string, bool) {
 	return r0, r1
 }
 
+func (w *wrappedGraphQL) GetCursorStrategy() (string, bool) {
+	return w.inner.GetCursorStrategy()
+}
+
+func (w *wrappedGraphQL) GetCursorFormat() (string, bool) {
+	return w.inner.GetCursorFormat()
+}
+
+func (w *wrappedGraphQL) GetCursorTerminateOnJSONPath() (string, bool) {
+	return w.inner.GetCursorTerminateOnJSONPath()
+}
+
+func (w *wrappedGraphQL) GetCursorPageSize() (int, bool) {
+	return w.inner.GetCursorPageSize()
+}
+
 func (w *wrappedGraphQL) unwrap() anysdk.GraphQL {
 	return w.inner
 }

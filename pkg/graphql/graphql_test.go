@@ -33,6 +33,39 @@ func (f *fakeAnySdkClient) Do(client.AnySdkDesignation, client.AnySdkArgList) (c
 	return &fakeAnySdkResponse{resp: resp}, nil
 }
 
+// multiPageAnySdkClient walks through a sequence of response bodies, one per
+// Do() call. After the sequence is exhausted, the last body is repeated.
+type multiPageAnySdkClient struct {
+	bodies   []string
+	call     int
+	captured []string
+}
+
+func (f *multiPageAnySdkClient) Do(_ client.AnySdkDesignation, args client.AnySdkArgList) (client.AnySdkResponse, error) {
+	// Record the rendered request body so tests can assert on cursor splicing.
+	for _, a := range args.GetArgs() {
+		v, ok := a.GetArg()
+		if !ok {
+			continue
+		}
+		if req, ok := v.(*http.Request); ok && req.Body != nil {
+			b, _ := io.ReadAll(req.Body)
+			f.captured = append(f.captured, string(b))
+		}
+	}
+	idx := f.call
+	if idx >= len(f.bodies) {
+		idx = len(f.bodies) - 1
+	}
+	f.call++
+	resp := &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString(f.bodies[idx])),
+		Header:     http.Header{},
+	}
+	return &fakeAnySdkResponse{resp: resp}, nil
+}
+
 // cloudflareLikeBody is a minimal fixture mimicking the nested shape of a Cloudflare
 // GraphQL Analytics httpRequestsAdaptiveGroups response: one row under
 // data.viewer.zones[0].httpRequestsAdaptiveGroups with dimensions{}, sum{}, count.
@@ -208,5 +241,266 @@ func TestRead_UnsupportedTransformType(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unsupported response.transform type") {
 		t.Errorf("expected unsupported-transform error, got: %v", err)
+	}
+}
+
+// readerCursor exposes the iterativeInput["cursor"] slice for assertions in
+// tests that drive multiple iterations of Read().
+func readerCursor(t *testing.T, r GQLReader) interface{} {
+	t.Helper()
+	sg, ok := r.(*StandardGQLReader)
+	if !ok {
+		t.Fatalf("reader is not *StandardGQLReader; got %T", r)
+	}
+	return sg.iterativeInput["cursor"]
+}
+
+// keysetBody renders a Cloudflare-shaped two-row response with a configurable
+// "last row" datetime, so we can chain page bodies in a multi-page test.
+func keysetBody(lastDatetime string) string {
+	if lastDatetime == "" {
+		return `{"data":{"viewer":{"zones":[{"httpRequestsAdaptiveGroups":[]}]}}}`
+	}
+	return `{"data":{"viewer":{"zones":[{"httpRequestsAdaptiveGroups":[
+  {"dimensions":{"datetime":"2026-05-28T10:00:00Z","clientCountryName":"US"},"sum":{"requests":42}},
+  {"dimensions":{"datetime":"` + lastDatetime + `","clientCountryName":"GB"},"sum":{"requests":17}}
+]}]}}}`
+}
+
+// TestRead_Keyset verifies that the keyset strategy splices a comparator-style
+// cursor built from the last row's sort key into the next request, and that
+// an empty response array terminates the iteration with io.EOF.
+func TestRead_Keyset(t *testing.T) {
+	c := &multiPageAnySdkClient{
+		bodies: []string{
+			keysetBody("2026-05-28T10:01:00Z"),
+			keysetBody(""), // empty page → terminate
+		},
+	}
+	req := newTestRequest(t)
+	r, err := NewStandardGQLReaderWithCursor(
+		c,
+		req,
+		0,
+		`query { zone(filter: { datetime_geq: "x"{{ .cursor }} }) { d } }`,
+		map[string]interface{}{},
+		"",
+		"$.data.viewer.zones[0].httpRequestsAdaptiveGroups[*]",
+		CursorConfig{
+			Strategy:       CursorStrategyKeyset,
+			JSONPath:       "$.data.viewer.zones[0].httpRequestsAdaptiveGroups[-1:].dimensions.datetime",
+			FormatTemplate: `, AND datetime_gt: "{{ .value }}"`,
+		},
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReaderWithCursor: %v", err)
+	}
+	rows1, err := r.Read()
+	if err != nil {
+		t.Fatalf("page 1: unexpected error: %v", err)
+	}
+	if len(rows1) != 2 {
+		t.Fatalf("page 1: expected 2 rows, got %d", len(rows1))
+	}
+	if got, want := readerCursor(t, r), `, AND datetime_gt: "2026-05-28T10:01:00Z"`; got != want {
+		t.Errorf("page 1 cursor: got %q, want %q", got, want)
+	}
+	rows2, err := r.Read()
+	if err != io.EOF {
+		t.Errorf("page 2: expected io.EOF, got %v", err)
+	}
+	if len(rows2) != 0 {
+		t.Errorf("page 2: expected 0 rows on empty page, got %d", len(rows2))
+	}
+	if len(c.captured) < 2 {
+		t.Fatalf("expected at least 2 captured requests, got %d", len(c.captured))
+	}
+	if !strings.Contains(c.captured[1], `AND datetime_gt: \"2026-05-28T10:01:00Z\"`) {
+		t.Errorf("page 2 request did not contain the keyset splice; body=%q", c.captured[1])
+	}
+}
+
+// offsetBody returns a response carrying n synthetic rows under $.data.items.
+func offsetBody(n int) string {
+	parts := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		parts = append(parts, `{"id":`+itoa(i)+`}`)
+	}
+	return `{"data":{"items":[` + strings.Join(parts, ",") + `]}}`
+}
+
+func itoa(i int) string {
+	// Avoid pulling strconv into the test imports for a single use.
+	if i == 0 {
+		return "0"
+	}
+	neg := false
+	if i < 0 {
+		neg = true
+		i = -i
+	}
+	var digits []byte
+	for i > 0 {
+		digits = append([]byte{byte('0' + i%10)}, digits...)
+		i /= 10
+	}
+	if neg {
+		return "-" + string(digits)
+	}
+	return string(digits)
+}
+
+// TestRead_Offset verifies that the offset strategy substitutes a running row
+// count as ", offset: N" each page and terminates when a short page returns
+// fewer rows than the configured PageSize.
+func TestRead_Offset(t *testing.T) {
+	const pageSize = 50
+	c := &multiPageAnySdkClient{
+		bodies: []string{
+			offsetBody(pageSize), // page 1: 50 rows
+			offsetBody(pageSize), // page 2: 50 rows
+			offsetBody(23),       // page 3: 23 rows → short page → terminate after this
+		},
+	}
+	req := newTestRequest(t)
+	r, err := NewStandardGQLReaderWithCursor(
+		c,
+		req,
+		0,
+		`query { items(limit: 50{{ .cursor }}) { id } }`,
+		map[string]interface{}{},
+		"",
+		"$.data.items[*]",
+		CursorConfig{
+			Strategy: CursorStrategyOffset,
+			PageSize: pageSize,
+		},
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReaderWithCursor: %v", err)
+	}
+	rows1, err := r.Read()
+	if err != nil {
+		t.Fatalf("page 1: unexpected error: %v", err)
+	}
+	if len(rows1) != pageSize {
+		t.Fatalf("page 1: expected %d rows, got %d", pageSize, len(rows1))
+	}
+	if got, want := readerCursor(t, r), `, offset: 50`; got != want {
+		t.Errorf("page 1 cursor: got %q, want %q", got, want)
+	}
+	rows2, err := r.Read()
+	if err != nil {
+		t.Fatalf("page 2: unexpected error: %v", err)
+	}
+	if len(rows2) != pageSize {
+		t.Fatalf("page 2: expected %d rows, got %d", pageSize, len(rows2))
+	}
+	if got, want := readerCursor(t, r), `, offset: 100`; got != want {
+		t.Errorf("page 2 cursor: got %q, want %q", got, want)
+	}
+	rows3, err := r.Read()
+	if err != io.EOF {
+		t.Errorf("page 3: expected io.EOF after short page, got %v", err)
+	}
+	if len(rows3) != 23 {
+		t.Errorf("page 3: expected 23 rows, got %d", len(rows3))
+	}
+}
+
+// pageInfoBody renders a minimal Relay-style search response with a pageInfo
+// block driving termination.
+func pageInfoBody(endCursor string, hasNextPage bool) string {
+	hnp := "false"
+	if hasNextPage {
+		hnp = "true"
+	}
+	return `{"data":{"search":{"nodes":[{"id":"n1"}],"pageInfo":{"endCursor":"` + endCursor + `","hasNextPage":` + hnp + `}}}}`
+}
+
+// TestRead_PageInfo verifies that the page_info strategy uses endCursor for
+// the splice and pageInfo.hasNextPage for termination — including the case
+// where the final page still carries a non-empty endCursor but hasNextPage
+// is false (the Relay-strict signal we cannot detect with cursor_after).
+func TestRead_PageInfo(t *testing.T) {
+	c := &multiPageAnySdkClient{
+		bodies: []string{
+			pageInfoBody("Y3Vyc29yOjI=", true),
+			pageInfoBody("Y3Vyc29yOjQ=", false), // hasNextPage=false → terminate even though endCursor is set
+		},
+	}
+	req := newTestRequest(t)
+	r, err := NewStandardGQLReaderWithCursor(
+		c,
+		req,
+		0,
+		`query { search(first: 10{{ .cursor }}) { nodes { id } } }`,
+		map[string]interface{}{},
+		"",
+		"$.data.search.nodes[*]",
+		CursorConfig{
+			Strategy:            CursorStrategyPageInfo,
+			JSONPath:            "$.data.search.pageInfo.endCursor",
+			TerminateOnJSONPath: "$.data.search.pageInfo.hasNextPage",
+		},
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReaderWithCursor: %v", err)
+	}
+	if _, err := r.Read(); err != nil {
+		t.Fatalf("page 1: unexpected error: %v", err)
+	}
+	if got, want := readerCursor(t, r), `, after: "Y3Vyc29yOjI="`; got != want {
+		t.Errorf("page 1 cursor: got %q, want %q", got, want)
+	}
+	_, err = r.Read()
+	if err != io.EOF {
+		t.Errorf("page 2: expected io.EOF (hasNextPage=false), got %v", err)
+	}
+}
+
+// TestNewStandardGQLReaderWithCursor_UnknownStrategy ensures construction
+// fails fast on an unrecognised strategy rather than silently defaulting.
+func TestNewStandardGQLReaderWithCursor_UnknownStrategy(t *testing.T) {
+	c := &fakeAnySdkClient{bodyJSON: `{}`}
+	req := newTestRequest(t)
+	_, err := NewStandardGQLReaderWithCursor(
+		c,
+		req,
+		0,
+		`{}`,
+		map[string]interface{}{},
+		"",
+		"$.data[*]",
+		CursorConfig{Strategy: "bogus"},
+	)
+	if err == nil {
+		t.Fatalf("expected error for unknown cursor strategy, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown cursor strategy") {
+		t.Errorf("expected unknown-strategy error, got: %v", err)
+	}
+}
+
+// TestNewStandardGQLReaderWithCursor_KeysetRequiresFormat ensures a keyset
+// configuration without a format template is rejected at construction time.
+func TestNewStandardGQLReaderWithCursor_KeysetRequiresFormat(t *testing.T) {
+	c := &fakeAnySdkClient{bodyJSON: `{}`}
+	req := newTestRequest(t)
+	_, err := NewStandardGQLReaderWithCursor(
+		c,
+		req,
+		0,
+		`{}`,
+		map[string]interface{}{},
+		"",
+		"$.data[*]",
+		CursorConfig{Strategy: CursorStrategyKeyset, JSONPath: "$.x"},
+	)
+	if err == nil {
+		t.Fatalf("expected error for keyset without format, got nil")
+	}
+	if !strings.Contains(err.Error(), "format") {
+		t.Errorf("expected format-required error, got: %v", err)
 	}
 }
