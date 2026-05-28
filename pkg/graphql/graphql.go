@@ -315,6 +315,9 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	if gqlErr := extractGraphQLErrors(target); gqlErr != nil {
+		return nil, gqlErr
+	}
 	if gq.transformType != "" && gq.transformBody != "" {
 		target, err = gq.applyResponseTransform(target)
 		if err != nil {
@@ -541,6 +544,33 @@ func (gq *StandardGQLReader) renderCursorTemplate(ctx map[string]interface{}) (s
 		return "", fmt.Errorf("failed to render cursor.format template: %w", err)
 	}
 	return buf.String(), nil
+}
+
+// extractGraphQLErrors returns a non-nil error if the decoded response body
+// carries a non-empty top-level `errors` array per the GraphQL spec response
+// format. Strict policy: any non-empty `errors` array is treated as a hard
+// failure, even when `data` is also populated (partial-failure case).
+func extractGraphQLErrors(target map[string]interface{}) error {
+	rawErrs, ok := target["errors"]
+	if !ok {
+		return nil
+	}
+	errs, ok := rawErrs.([]interface{})
+	if !ok || len(errs) == 0 {
+		return nil
+	}
+	msgs := make([]string, 0, len(errs))
+	for _, e := range errs {
+		if em, ok := e.(map[string]interface{}); ok {
+			if m, ok := em["message"].(string); ok && m != "" {
+				msgs = append(msgs, m)
+				continue
+			}
+		}
+		b, _ := json.Marshal(e)
+		msgs = append(msgs, string(b))
+	}
+	return fmt.Errorf("graphql error: %s", strings.Join(msgs, "; "))
 }
 
 func (gq *StandardGQLReader) applyResponseTransform(target map[string]interface{}) (map[string]interface{}, error) {

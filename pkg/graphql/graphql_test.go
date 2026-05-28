@@ -482,6 +482,114 @@ func TestNewStandardGQLReaderWithCursor_UnknownStrategy(t *testing.T) {
 	}
 }
 
+// TestRead_GraphQLErrorEnvelope_ReturnsError asserts that a GraphQL error
+// envelope (`{"data": null, "errors": [...]}`) surfaces as a Go error carrying
+// the concatenated `message` fields, rather than silently producing zero rows
+// via the jsonpath projection.
+func TestRead_GraphQLErrorEnvelope_ReturnsError(t *testing.T) {
+	body := `{
+        "data": null,
+        "errors": [
+            {"message": "unknown field \"requests\""},
+            {"message": "unknown argument \"foo\""}
+        ]
+    }`
+	c := &fakeAnySdkClient{bodyJSON: body}
+	req := newTestRequest(t)
+	r, err := NewStandardGQLReader(
+		c, req, 0, `{ ignored }`, map[string]interface{}{}, "",
+		"$.data.rows[*]", "$.data.__no_cursor[*]",
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReader: %v", err)
+	}
+	_, err = r.Read()
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown field") {
+		t.Errorf("expected error to surface the GraphQL message, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "unknown argument") {
+		t.Errorf("expected error to concatenate multiple GraphQL messages, got: %v", err)
+	}
+}
+
+// TestRead_GraphQLPartialFailure_ReturnsError asserts strict v1 behaviour: when
+// `data` and `errors` are both populated, the error wins and no rows are
+// returned. This guards the recommended "strict" mode from the issue.
+func TestRead_GraphQLPartialFailure_ReturnsError(t *testing.T) {
+	body := `{
+        "data": {"rows": [{"k": "v"}]},
+        "errors": [{"message": "field permission denied"}]
+    }`
+	c := &fakeAnySdkClient{bodyJSON: body}
+	req := newTestRequest(t)
+	r, err := NewStandardGQLReader(
+		c, req, 0, `{ ignored }`, map[string]interface{}{}, "",
+		"$.data.rows[*]", "$.data.__no_cursor[*]",
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReader: %v", err)
+	}
+	rows, err := r.Read()
+	if err == nil {
+		t.Fatalf("expected error on partial failure, got nil")
+	}
+	if !strings.Contains(err.Error(), "field permission denied") {
+		t.Errorf("expected partial-failure error to surface message, got: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("expected no rows on partial failure, got %d", len(rows))
+	}
+}
+
+// TestRead_EmptyErrorsArray_NoError asserts that an empty `errors: []` (legal
+// per spec, semantically a success) does not trip the error path.
+func TestRead_EmptyErrorsArray_NoError(t *testing.T) {
+	body := `{"data": {"rows": [{"k": "v"}]}, "errors": []}`
+	c := &fakeAnySdkClient{bodyJSON: body}
+	req := newTestRequest(t)
+	r, err := NewStandardGQLReader(
+		c, req, 0, `{ ignored }`, map[string]interface{}{}, "",
+		"$.data.rows[*]", "$.data.__no_cursor[*]",
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReader: %v", err)
+	}
+	rows, err := r.Read()
+	if err != nil && err != io.EOF {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(rows))
+	}
+}
+
+// TestRead_GraphQLErrorWithoutMessage_FallsBackToJSON asserts that an error
+// object lacking a usable `message` string is rendered as JSON, so the user
+// still gets a non-empty signal rather than `graphql error: ` with nothing
+// after the colon.
+func TestRead_GraphQLErrorWithoutMessage_FallsBackToJSON(t *testing.T) {
+	body := `{"data": null, "errors": [{"code": 42}]}`
+	c := &fakeAnySdkClient{bodyJSON: body}
+	req := newTestRequest(t)
+	r, err := NewStandardGQLReader(
+		c, req, 0, `{ ignored }`, map[string]interface{}{}, "",
+		"$.data.rows[*]", "$.data.__no_cursor[*]",
+	)
+	if err != nil {
+		t.Fatalf("NewStandardGQLReader: %v", err)
+	}
+	_, err = r.Read()
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "code") || !strings.Contains(err.Error(), "42") {
+		t.Errorf("expected JSON fallback to include the error object, got: %v", err)
+	}
+}
+
 // TestNewStandardGQLReaderWithCursor_KeysetRequiresFormat ensures a keyset
 // configuration without a format template is rejected at construction time.
 func TestNewStandardGQLReaderWithCursor_KeysetRequiresFormat(t *testing.T) {
