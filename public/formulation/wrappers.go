@@ -874,6 +874,11 @@ func (w *wrappedOperationStore) GetNonBodyParameters() map[string]Addressable {
 	return wrapMapString_Addressable(r0)
 }
 
+func (w *wrappedOperationStore) GetPaginationAlgorithm() string {
+	r0 := w.inner.GetPaginationAlgorithm()
+	return r0
+}
+
 func (w *wrappedOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationRequestTokenSemantic()
 	return &wrappedTokenSemantic{inner: r0}, r1
@@ -881,6 +886,11 @@ func (w *wrappedOperationStore) GetPaginationRequestTokenSemantic() (TokenSemant
 
 func (w *wrappedOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationResponseTokenSemantic()
+	return &wrappedTokenSemantic{inner: r0}, r1
+}
+
+func (w *wrappedOperationStore) GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool) {
+	r0, r1 := w.inner.GetPaginationResponseTerminatorTokenSemantic()
 	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
@@ -1536,6 +1546,11 @@ func (w *wrappedStandardOperationStore) GetNonBodyParameters() map[string]Addres
 	return wrapMapString_Addressable(r0)
 }
 
+func (w *wrappedStandardOperationStore) GetPaginationAlgorithm() string {
+	r0 := w.inner.GetPaginationAlgorithm()
+	return r0
+}
+
 func (w *wrappedStandardOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationRequestTokenSemantic()
 	return &wrappedTokenSemantic{inner: r0}, r1
@@ -1543,6 +1558,11 @@ func (w *wrappedStandardOperationStore) GetPaginationRequestTokenSemantic() (Tok
 
 func (w *wrappedStandardOperationStore) GetPaginationResponseTokenSemantic() (TokenSemantic, bool) {
 	r0, r1 := w.inner.GetPaginationResponseTokenSemantic()
+	return &wrappedTokenSemantic{inner: r0}, r1
+}
+
+func (w *wrappedStandardOperationStore) GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool) {
+	r0, r1 := w.inner.GetPaginationResponseTerminatorTokenSemantic()
 	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
