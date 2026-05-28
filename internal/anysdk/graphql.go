@@ -14,13 +14,55 @@ var (
 type GraphQLElement map[string]interface{}
 
 func (gqc GraphQLElement) getJSONPath() (string, bool) {
-	jp, ok := gqc["jsonPath"]
-	switch jp := jp.(type) {
-	case string:
-		return jp, ok
-	default:
+	return gqc.getStringField("jsonPath")
+}
+
+func (gqc GraphQLElement) getStringField(key string) (string, bool) {
+	v, ok := gqc[key]
+	if !ok {
 		return "", false
 	}
+	s, ok := v.(string)
+	if !ok {
+		return "", false
+	}
+	return s, true
+}
+
+// GetCursorStrategy returns the configured cursor.strategy, or "" if absent.
+// Callers should treat "" as the legacy cursor_after default.
+func (gqc GraphQLElement) GetCursorStrategy() (string, bool) {
+	return gqc.getStringField("strategy")
+}
+
+// GetCursorFormat returns the configured cursor.format template, or "" if absent.
+func (gqc GraphQLElement) GetCursorFormat() (string, bool) {
+	return gqc.getStringField("format")
+}
+
+// GetCursorTerminateOnJSONPath returns the configured cursor.terminateOnJsonPath,
+// or "" if absent. Only the page_info strategy consumes this.
+func (gqc GraphQLElement) GetCursorTerminateOnJSONPath() (string, bool) {
+	return gqc.getStringField("terminateOnJsonPath")
+}
+
+// GetCursorPageSize returns the configured cursor.pageSize, or 0 if absent.
+// Only the offset strategy consumes this; non-positive values are treated as
+// "no short-page termination".
+func (gqc GraphQLElement) GetCursorPageSize() (int, bool) {
+	v, ok := gqc["pageSize"]
+	if !ok {
+		return 0, false
+	}
+	switch n := v.(type) {
+	case int:
+		return n, true
+	case int64:
+		return int(n), true
+	case float64:
+		return int(n), true
+	}
+	return 0, false
 }
 
 type GraphQL interface {
@@ -33,6 +75,10 @@ type GraphQL interface {
 	GetHTTPVerb() string
 	GetCursor() GraphQLElement
 	GetResponseSelection() GraphQLElement
+	GetCursorStrategy() (string, bool)
+	GetCursorFormat() (string, bool)
+	GetCursorTerminateOnJSONPath() (string, bool)
+	GetCursorPageSize() (int, bool)
 }
 
 type standardGraphQL struct {
@@ -97,4 +143,32 @@ func (gq *standardGraphQL) GetCursor() GraphQLElement {
 
 func (gq *standardGraphQL) GetResponseSelection() GraphQLElement {
 	return gq.ReponseSelection
+}
+
+func (gq *standardGraphQL) GetCursorStrategy() (string, bool) {
+	if gq.Cursor == nil {
+		return "", false
+	}
+	return gq.Cursor.GetCursorStrategy()
+}
+
+func (gq *standardGraphQL) GetCursorFormat() (string, bool) {
+	if gq.Cursor == nil {
+		return "", false
+	}
+	return gq.Cursor.GetCursorFormat()
+}
+
+func (gq *standardGraphQL) GetCursorTerminateOnJSONPath() (string, bool) {
+	if gq.Cursor == nil {
+		return "", false
+	}
+	return gq.Cursor.GetCursorTerminateOnJSONPath()
+}
+
+func (gq *standardGraphQL) GetCursorPageSize() (int, bool) {
+	if gq.Cursor == nil {
+		return 0, false
+	}
+	return gq.Cursor.GetCursorPageSize()
 }

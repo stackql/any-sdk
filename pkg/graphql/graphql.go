@@ -19,6 +19,60 @@ var (
 	_ template.ExecError = template.ExecError{}
 )
 
+// CursorStrategy enumerates the pluggable pagination shapes supported by
+// StandardGQLReader. The empty string is treated as CursorStrategyAfter to
+// preserve back-compat with specs that predate this field.
+type CursorStrategy string
+
+const (
+	// CursorStrategyAfter is the default Relay-style ", after: \"<value>\""
+	// cursor splice. Termination is signalled by an empty/non-scalar cursor.
+	CursorStrategyAfter CursorStrategy = "cursor_after"
+	// CursorStrategyKeyset injects a filter comparator (typically "_gt") on
+	// the last row's sort key. Used by Cloudflare GraphQL Analytics and
+	// similar APIs that do not support cursors. Termination is signalled by
+	// an empty response row array.
+	CursorStrategyKeyset CursorStrategy = "keyset"
+	// CursorStrategyOffset synthesises a running row count client-side and
+	// substitutes it as ", offset: <count>". Termination is signalled by an
+	// empty response row array (or a short page if PageSize is configured).
+	CursorStrategyOffset CursorStrategy = "offset"
+	// CursorStrategyPageInfo reads ", after: \"<endCursor>\"" from a
+	// jsonpath but terminates on a separate boolean termination flag
+	// (typically `pageInfo.hasNextPage`) — required for Relay-strict
+	// endpoints where the cursor remains non-empty on the final page.
+	CursorStrategyPageInfo CursorStrategy = "page_info"
+)
+
+// CursorConfig configures a pagination strategy for StandardGQLReader. An
+// empty Strategy defaults to CursorStrategyAfter, which is byte-identical to
+// the pre-strategy behaviour.
+type CursorConfig struct {
+	// Strategy selects the pagination shape. Empty == CursorStrategyAfter.
+	Strategy CursorStrategy
+	// JSONPath is the value-source path for the cursor. Required for
+	// cursor_after, keyset, and page_info; ignored for offset.
+	JSONPath string
+	// FormatTemplate is an optional Go text/template rendered into
+	// iterativeInput["cursor"] each iteration. Bindings depend on strategy:
+	//   - cursor_after / offset / page_info: {{ .value }}
+	//   - keyset:                            {{ .value }} when the JSON path
+	//                                        resolves to a scalar; the
+	//                                        object's fields by name when it
+	//                                        resolves to a map
+	// When empty, strategy-specific defaults apply (see strategy docs).
+	FormatTemplate string
+	// TerminateOnJSONPath is the jsonpath inspected for a termination flag
+	// after each page. Only used by CursorStrategyPageInfo.
+	TerminateOnJSONPath string
+	// PageSize, when > 0, terminates CursorStrategyOffset early when a page
+	// returns fewer rows than this value. Ignored by other strategies.
+	PageSize int
+}
+
+// NewStandardGQLReader constructs a StandardGQLReader with the default
+// CursorStrategyAfter strategy. Behaviour is identical to the pre-strategy
+// reader.
 func NewStandardGQLReader(
 	anySdkClient client.AnySdkClient,
 	request *http.Request,
@@ -29,7 +83,7 @@ func NewStandardGQLReader(
 	responseJsonPath string,
 	latestCursorJsonPath string,
 ) (GQLReader, error) {
-	return NewStandardGQLReaderWithTransform(
+	return NewStandardGQLReaderFull(
 		anySdkClient,
 		request,
 		httpPageLimit,
@@ -37,7 +91,7 @@ func NewStandardGQLReader(
 		constInput,
 		initialCursor,
 		responseJsonPath,
-		latestCursorJsonPath,
+		CursorConfig{Strategy: CursorStrategyAfter, JSONPath: latestCursorJsonPath},
 		"",
 		"",
 	)
@@ -59,23 +113,92 @@ func NewStandardGQLReaderWithTransform(
 	transformType string,
 	transformBody string,
 ) (GQLReader, error) {
+	return NewStandardGQLReaderFull(
+		anySdkClient,
+		request,
+		httpPageLimit,
+		baseQuery,
+		constInput,
+		initialCursor,
+		responseJsonPath,
+		CursorConfig{Strategy: CursorStrategyAfter, JSONPath: latestCursorJsonPath},
+		transformType,
+		transformBody,
+	)
+}
+
+// NewStandardGQLReaderWithCursor constructs a StandardGQLReader using the
+// supplied CursorConfig. Supplying CursorConfig{} (Strategy == "") yields the
+// default cursor_after behaviour.
+func NewStandardGQLReaderWithCursor(
+	anySdkClient client.AnySdkClient,
+	request *http.Request,
+	httpPageLimit int,
+	baseQuery string,
+	constInput map[string]interface{},
+	initialCursor string,
+	responseJsonPath string,
+	cursor CursorConfig,
+) (GQLReader, error) {
+	return NewStandardGQLReaderFull(
+		anySdkClient,
+		request,
+		httpPageLimit,
+		baseQuery,
+		constInput,
+		initialCursor,
+		responseJsonPath,
+		cursor,
+		"",
+		"",
+	)
+}
+
+// NewStandardGQLReaderFull is the most general constructor; the narrower
+// constructors are thin wrappers around it.
+func NewStandardGQLReaderFull(
+	anySdkClient client.AnySdkClient,
+	request *http.Request,
+	httpPageLimit int,
+	baseQuery string,
+	constInput map[string]interface{},
+	initialCursor string,
+	responseJsonPath string,
+	cursor CursorConfig,
+	transformType string,
+	transformBody string,
+) (GQLReader, error) {
 	tmpl, err := template.New("gqlTmpl").Parse(baseQuery)
 	if err != nil {
 		return nil, err
 	}
+	if cursor.Strategy == "" {
+		cursor.Strategy = CursorStrategyAfter
+	}
+	if err := validateCursorConfig(cursor); err != nil {
+		return nil, err
+	}
+	var cursorTmpl *template.Template
+	if cursor.FormatTemplate != "" {
+		cursorTmpl, err = template.New("gqlCursorTmpl").Parse(cursor.FormatTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor.format template: %w", err)
+		}
+	}
 	rv := &StandardGQLReader{
-		anySdkClient:         anySdkClient,
-		baseQuery:            baseQuery,
-		httpPageLimit:        httpPageLimit,
-		constInput:           constInput,
-		latestCursorJsonPath: latestCursorJsonPath,
-		responseJsonPath:     responseJsonPath,
-		queryTemplate:        tmpl,
-		request:              request,
-		pageCount:            1,
-		iterativeInput:       make(map[string]interface{}),
-		transformType:        transformType,
-		transformBody:        transformBody,
+		anySdkClient:     anySdkClient,
+		baseQuery:        baseQuery,
+		httpPageLimit:    httpPageLimit,
+		constInput:       constInput,
+		responseJsonPath: responseJsonPath,
+		queryTemplate:    tmpl,
+		request:          request,
+		pageCount:        1,
+		iterativeInput:   make(map[string]interface{}),
+		transformType:    transformType,
+		transformBody:    transformBody,
+		cursorConfig:     cursor,
+		cursorTemplate:   cursorTmpl,
 	}
 	for k, v := range constInput {
 		rv.iterativeInput[k] = v
@@ -84,19 +207,37 @@ func NewStandardGQLReaderWithTransform(
 	return rv, nil
 }
 
+func validateCursorConfig(c CursorConfig) error {
+	switch c.Strategy {
+	case CursorStrategyAfter, CursorStrategyKeyset, CursorStrategyOffset, CursorStrategyPageInfo:
+		// known
+	default:
+		return fmt.Errorf("unknown cursor strategy: %q", c.Strategy)
+	}
+	if c.Strategy == CursorStrategyKeyset && c.FormatTemplate == "" {
+		return fmt.Errorf("cursor strategy %q requires cursor.format template", c.Strategy)
+	}
+	if c.Strategy == CursorStrategyPageInfo && c.TerminateOnJSONPath == "" {
+		return fmt.Errorf("cursor strategy %q requires cursor.terminateOnJsonPath", c.Strategy)
+	}
+	return nil
+}
+
 type StandardGQLReader struct {
-	baseQuery            string
-	constInput           map[string]interface{}
-	iterativeInput       map[string]interface{}
-	anySdkClient         client.AnySdkClient
-	httpPageLimit        int
-	queryTemplate        *template.Template
-	responseJsonPath     string
-	latestCursorJsonPath string
-	request              *http.Request
-	pageCount            int
-	transformType        string
-	transformBody        string
+	baseQuery        string
+	constInput       map[string]interface{}
+	iterativeInput   map[string]interface{}
+	anySdkClient     client.AnySdkClient
+	httpPageLimit    int
+	queryTemplate    *template.Template
+	responseJsonPath string
+	request          *http.Request
+	pageCount        int
+	transformType    string
+	transformBody    string
+	cursorConfig     CursorConfig
+	cursorTemplate   *template.Template
+	rowsReturned     int
 }
 
 type anySdkGraphQLHTTPDesignation struct {
@@ -184,33 +325,13 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 	if len(target) == 0 {
 		returnErr = io.EOF
 	}
-	cursorRaw, err := jsonpath.Get(gq.latestCursorJsonPath, target)
-	if err != nil {
-		returnErr = io.EOF
-	} else {
-		switch ct := cursorRaw.(type) {
-		case []interface{}:
-			if len(ct) == 1 {
-				switch c := ct[0].(type) {
-				case string:
-					gq.iterativeInput["cursor"] = fmt.Sprintf(`, after: "%s"`, c)
-				default:
-					gq.iterativeInput["cursor"] = fmt.Sprintf(`, after: %v`, c)
-				}
-			} else {
-				returnErr = io.EOF
-			}
-		default:
-			returnErr = io.EOF
-		}
-	}
 	processedResponse, err := jsonpath.Get(gq.responseJsonPath, target)
 	if err != nil {
 		return nil, err
 	}
+	var rv []map[string]interface{}
 	switch pr := processedResponse.(type) {
 	case []interface{}:
-		var rv []map[string]interface{}
 		for _, v := range pr {
 			switch v := v.(type) {
 			case map[string]interface{}:
@@ -219,10 +340,207 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 				return nil, fmt.Errorf("cannot accomodate GraphQL pocessed response item of type = '%T'", v)
 			}
 		}
-		return rv, returnErr
 	default:
 		return nil, fmt.Errorf("cannot accomodate GraphQL pocessed response of type = '%T'", pr)
 	}
+	gq.rowsReturned += len(rv)
+	if returnErr == nil {
+		if cursorErr := gq.advanceCursor(target, len(rv)); cursorErr != nil {
+			returnErr = cursorErr
+		}
+	}
+	return rv, returnErr
+}
+
+// advanceCursor dispatches to the per-strategy helper. It either updates
+// gq.iterativeInput["cursor"] for the next page, returns io.EOF to terminate
+// iteration, or returns a non-EOF error to abort with a hard failure.
+func (gq *StandardGQLReader) advanceCursor(target map[string]interface{}, rowCount int) error {
+	switch gq.cursorConfig.Strategy {
+	case CursorStrategyAfter:
+		return gq.advanceCursorAfter(target)
+	case CursorStrategyKeyset:
+		return gq.advanceKeyset(target, rowCount)
+	case CursorStrategyOffset:
+		return gq.advanceOffset(rowCount)
+	case CursorStrategyPageInfo:
+		return gq.advancePageInfo(target)
+	}
+	return fmt.Errorf("unknown cursor strategy: %q", gq.cursorConfig.Strategy)
+}
+
+func (gq *StandardGQLReader) advanceCursorAfter(target map[string]interface{}) error {
+	cursorRaw, err := jsonpath.Get(gq.cursorConfig.JSONPath, target)
+	if err != nil {
+		return io.EOF
+	}
+	ct, ok := cursorRaw.([]interface{})
+	if !ok || len(ct) != 1 {
+		return io.EOF
+	}
+	if gq.cursorTemplate != nil {
+		rendered, rerr := gq.renderCursorTemplate(map[string]interface{}{"value": ct[0]})
+		if rerr != nil {
+			return rerr
+		}
+		gq.iterativeInput["cursor"] = rendered
+		return nil
+	}
+	switch c := ct[0].(type) {
+	case string:
+		gq.iterativeInput["cursor"] = fmt.Sprintf(`, after: "%s"`, c)
+	default:
+		gq.iterativeInput["cursor"] = fmt.Sprintf(`, after: %v`, c)
+	}
+	return nil
+}
+
+func (gq *StandardGQLReader) advanceKeyset(target map[string]interface{}, rowCount int) error {
+	if rowCount == 0 {
+		return io.EOF
+	}
+	cursorRaw, err := jsonpath.Get(gq.cursorConfig.JSONPath, target)
+	if err != nil {
+		return io.EOF
+	}
+	tmplCtx, ok := keysetTemplateContext(cursorRaw)
+	if !ok {
+		return io.EOF
+	}
+	rendered, err := gq.renderCursorTemplate(tmplCtx)
+	if err != nil {
+		return err
+	}
+	gq.iterativeInput["cursor"] = rendered
+	return nil
+}
+
+// keysetTemplateContext turns a jsonpath result into the template binding map
+// used by the keyset format template. It supports three shapes:
+//   - scalar value             -> {"value": <v>}
+//   - map of field-name->value -> field names + a "value" alias for single-field maps
+//   - 1-element slice wrapping either of the above (the common JSONPath slice form)
+func keysetTemplateContext(raw interface{}) (map[string]interface{}, bool) {
+	switch v := raw.(type) {
+	case []interface{}:
+		if len(v) == 0 {
+			return nil, false
+		}
+		return keysetTemplateContext(v[0])
+	case map[string]interface{}:
+		if len(v) == 0 {
+			return nil, false
+		}
+		ctx := make(map[string]interface{}, len(v)+1)
+		for k, vv := range v {
+			ctx[k] = vv
+		}
+		if len(v) == 1 {
+			for _, vv := range v {
+				ctx["value"] = vv
+			}
+		}
+		return ctx, true
+	default:
+		return map[string]interface{}{"value": v}, true
+	}
+}
+
+func (gq *StandardGQLReader) advanceOffset(rowCount int) error {
+	if rowCount == 0 {
+		return io.EOF
+	}
+	if gq.cursorConfig.PageSize > 0 && rowCount < gq.cursorConfig.PageSize {
+		return io.EOF
+	}
+	tmplCtx := map[string]interface{}{"value": gq.rowsReturned}
+	if gq.cursorTemplate != nil {
+		rendered, err := gq.renderCursorTemplate(tmplCtx)
+		if err != nil {
+			return err
+		}
+		gq.iterativeInput["cursor"] = rendered
+		return nil
+	}
+	gq.iterativeInput["cursor"] = fmt.Sprintf(`, offset: %d`, gq.rowsReturned)
+	return nil
+}
+
+func (gq *StandardGQLReader) advancePageInfo(target map[string]interface{}) error {
+	hasNext, err := jsonpath.Get(gq.cursorConfig.TerminateOnJSONPath, target)
+	if err != nil {
+		return io.EOF
+	}
+	if !isPageInfoContinue(hasNext) {
+		return io.EOF
+	}
+	cursorRaw, err := jsonpath.Get(gq.cursorConfig.JSONPath, target)
+	if err != nil {
+		return io.EOF
+	}
+	val, ok := scalarFromJSONPath(cursorRaw)
+	if !ok {
+		return io.EOF
+	}
+	if gq.cursorTemplate != nil {
+		rendered, rerr := gq.renderCursorTemplate(map[string]interface{}{"value": val})
+		if rerr != nil {
+			return rerr
+		}
+		gq.iterativeInput["cursor"] = rendered
+		return nil
+	}
+	switch c := val.(type) {
+	case string:
+		gq.iterativeInput["cursor"] = fmt.Sprintf(`, after: "%s"`, c)
+	default:
+		gq.iterativeInput["cursor"] = fmt.Sprintf(`, after: %v`, c)
+	}
+	return nil
+}
+
+// isPageInfoContinue interprets the value at TerminateOnJSONPath. A boolean
+// false or a nil value means terminate; anything else (including unwrapping
+// a 1-element slice) means continue. Treating "absent" as terminate is the
+// conservative choice — if the spec writer pointed us at a flag they expected
+// to flip, we'd rather stop than spin forever.
+func isPageInfoContinue(v interface{}) bool {
+	switch t := v.(type) {
+	case []interface{}:
+		if len(t) == 0 {
+			return false
+		}
+		return isPageInfoContinue(t[0])
+	case bool:
+		return t
+	case nil:
+		return false
+	default:
+		return true
+	}
+}
+
+// scalarFromJSONPath extracts a single scalar value from a jsonpath result,
+// transparently unwrapping the 1-element slice form that arises from
+// last-row selectors like `[-1:].field`.
+func scalarFromJSONPath(v interface{}) (interface{}, bool) {
+	switch t := v.(type) {
+	case []interface{}:
+		if len(t) != 1 {
+			return nil, false
+		}
+		return t[0], true
+	default:
+		return v, true
+	}
+}
+
+func (gq *StandardGQLReader) renderCursorTemplate(ctx map[string]interface{}) (string, error) {
+	var buf bytes.Buffer
+	if err := gq.cursorTemplate.Execute(&buf, ctx); err != nil {
+		return "", fmt.Errorf("failed to render cursor.format template: %w", err)
+	}
+	return buf.String(), nil
 }
 
 func (gq *StandardGQLReader) applyResponseTransform(target map[string]interface{}) (map[string]interface{}, error) {
