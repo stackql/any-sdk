@@ -12,6 +12,7 @@ import (
 
 	"github.com/stackql/any-sdk/pkg/client"
 	"github.com/stackql/any-sdk/pkg/jsonpath"
+	"github.com/stackql/any-sdk/pkg/stream_transform"
 )
 
 var (
@@ -28,6 +29,36 @@ func NewStandardGQLReader(
 	responseJsonPath string,
 	latestCursorJsonPath string,
 ) (GQLReader, error) {
+	return NewStandardGQLReaderWithTransform(
+		anySdkClient,
+		request,
+		httpPageLimit,
+		baseQuery,
+		constInput,
+		initialCursor,
+		responseJsonPath,
+		latestCursorJsonPath,
+		"",
+		"",
+	)
+}
+
+// NewStandardGQLReaderWithTransform constructs a StandardGQLReader that optionally
+// applies a stream_transform template to the raw response body before the existing
+// responseJsonPath / latestCursorJsonPath selection runs. Passing "" for both
+// transformType and transformBody yields behavior identical to NewStandardGQLReader.
+func NewStandardGQLReaderWithTransform(
+	anySdkClient client.AnySdkClient,
+	request *http.Request,
+	httpPageLimit int,
+	baseQuery string,
+	constInput map[string]interface{},
+	initialCursor string,
+	responseJsonPath string,
+	latestCursorJsonPath string,
+	transformType string,
+	transformBody string,
+) (GQLReader, error) {
 	tmpl, err := template.New("gqlTmpl").Parse(baseQuery)
 	if err != nil {
 		return nil, err
@@ -43,6 +74,8 @@ func NewStandardGQLReader(
 		request:              request,
 		pageCount:            1,
 		iterativeInput:       make(map[string]interface{}),
+		transformType:        transformType,
+		transformBody:        transformBody,
 	}
 	for k, v := range constInput {
 		rv.iterativeInput[k] = v
@@ -62,6 +95,8 @@ type StandardGQLReader struct {
 	latestCursorJsonPath string
 	request              *http.Request
 	pageCount            int
+	transformType        string
+	transformBody        string
 }
 
 type anySdkGraphQLHTTPDesignation struct {
@@ -139,6 +174,12 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	if gq.transformType != "" && gq.transformBody != "" {
+		target, err = gq.applyResponseTransform(target)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var returnErr error
 	if len(target) == 0 {
 		returnErr = io.EOF
@@ -182,6 +223,33 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 	default:
 		return nil, fmt.Errorf("cannot accomodate GraphQL pocessed response of type = '%T'", pr)
 	}
+}
+
+func (gq *StandardGQLReader) applyResponseTransform(target map[string]interface{}) (map[string]interface{}, error) {
+	factory := stream_transform.NewStreamTransformerFactory(gq.transformType, gq.transformBody)
+	if !factory.IsTransformable() {
+		return nil, fmt.Errorf("unsupported response.transform type for graphql: %s", gq.transformType)
+	}
+	inputBytes, err := json.Marshal(target)
+	if err != nil {
+		return nil, err
+	}
+	tfm, err := factory.GetTransformer(string(inputBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build graphql response transformer: %w", err)
+	}
+	if err := tfm.Transform(); err != nil {
+		return nil, fmt.Errorf("graphql response transform failed: %w", err)
+	}
+	outBytes, err := io.ReadAll(tfm.GetOutStream())
+	if err != nil {
+		return nil, err
+	}
+	var transformed map[string]interface{}
+	if err := json.Unmarshal(outBytes, &transformed); err != nil {
+		return nil, fmt.Errorf("graphql response transform produced invalid JSON: %w", err)
+	}
+	return transformed, nil
 }
 
 func (gq *StandardGQLReader) renderQuery() (io.ReadCloser, error) {
