@@ -96,7 +96,9 @@ type OperationStore interface {
 	GetOptionalParameters() map[string]Addressable
 	GetParameter(paramKey string) (Addressable, bool)
 	GetUnionRequiredParameters() (map[string]Addressable, error)
+	GetPaginationAlgorithm() string
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
 	MarshalBody(body interface{}, expectedRequest ExpectedRequest) dto.MarshalledBody
 	GetRequestBodySchema() (Schema, error)
 	GetNonBodyParameters() map[string]Addressable
@@ -645,6 +647,66 @@ func (op *standardOpenAPIOperationStore) GetPaginationResponseTokenSemantic() (T
 	}
 	if op.Provider != nil {
 		if ts, ok := op.ProviderService.getPaginationResponseTokenSemantic(); ok {
+			return ts, true
+		}
+	}
+	return nil, false
+}
+
+func (op *standardOpenAPIOperationStore) GetPaginationAlgorithm() string {
+	if op.StackQLConfig != nil {
+		pag, pagExists := op.StackQLConfig.GetPagination()
+		if pagExists && pag.GetAlgorithm() != "" {
+			return pag.GetAlgorithm()
+		}
+	}
+	if op.Resource != nil {
+		if a := op.Resource.GetPaginationAlgorithm(); a != "" {
+			return a
+		}
+	}
+	if op.OpenAPIService != nil {
+		if a := op.OpenAPIService.getPaginationAlgorithm(); a != "" {
+			return a
+		}
+	}
+	if op.ProviderService != nil {
+		if a := op.ProviderService.GetPaginationAlgorithm(); a != "" {
+			return a
+		}
+	}
+	if op.Provider != nil {
+		if a := op.Provider.GetPaginationAlgorithm(); a != "" {
+			return a
+		}
+	}
+	return ""
+}
+
+func (op *standardOpenAPIOperationStore) GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool) {
+	if op.StackQLConfig != nil {
+		pag, pagExists := op.StackQLConfig.GetPagination()
+		if pagExists && pag.GetResponseTerminator() != nil {
+			return pag.GetResponseTerminator(), true
+		}
+	}
+	if op.Resource != nil {
+		if ts, ok := op.Resource.GetPaginationResponseTerminatorTokenSemantic(); ok {
+			return ts, true
+		}
+	}
+	if op.OpenAPIService != nil {
+		if ts, ok := op.OpenAPIService.getPaginationResponseTerminatorTokenSemantic(); ok {
+			return ts, true
+		}
+	}
+	if op.ProviderService != nil {
+		if ts, ok := op.ProviderService.getPaginationResponseTerminatorTokenSemantic(); ok {
+			return ts, true
+		}
+	}
+	if op.Provider != nil {
+		if ts, ok := op.Provider.GetPaginationResponseTerminatorTokenSemantic(); ok {
 			return ts, true
 		}
 	}

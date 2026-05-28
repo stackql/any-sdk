@@ -695,6 +695,35 @@ pagination:
     algorithm: link_header_next
 ```
 
+### Page Number Pagination (Cloudflare V4, Atlassian, ServiceNow, ...)
+
+For APIs that report the current page and total page count in the response
+body — and therefore cannot signal completion via an empty token —
+set `algorithm: page_number` at the pagination block. The loop terminates
+when the current page number reaches the page-count terminator.
+
+```yaml
+pagination:
+  algorithm: page_number
+  requestToken:
+    key: page
+    location: query
+  responseToken:
+    key: result_info.page          # current page number in the response
+    location: body
+  responseTerminator:
+    key: result_info.total_pages   # total page count to compare against
+    location: body
+```
+
+Semantics:
+
+- The `requestToken.key` is the page-number request field (query/header/body).
+- The `responseToken.key` resolves to the **current** page number in the response.
+- The `responseTerminator.key` resolves to the **page count** to compare against.
+- Termination: `responseToken >= responseTerminator`, or either value missing / unparseable.
+- Increment: next request sends `current + 1`.
+
 ---
 
 ## Query Parameter Pushdown

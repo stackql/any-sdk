@@ -28,8 +28,10 @@ type Provider interface {
 	GetDeleteItemsKey() string
 	GetName() string
 	GetProviderServices() map[string]ProviderService
+	GetPaginationAlgorithm() string
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetRetryPolicy() (RetryPolicy, bool)
 	GetProviderService(key string) (ProviderService, error)
@@ -137,6 +139,20 @@ func (pr *standardProvider) GetPaginationResponseTokenSemantic() (TokenSemantic,
 		return nil, false
 	}
 	return pr.StackQLConfig.Pagination.ResponseToken, true
+}
+
+func (pr *standardProvider) GetPaginationAlgorithm() string {
+	if pr.StackQLConfig == nil || pr.StackQLConfig.Pagination == nil {
+		return ""
+	}
+	return pr.StackQLConfig.Pagination.Algorithm
+}
+
+func (pr *standardProvider) GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool) {
+	if pr.StackQLConfig == nil || pr.StackQLConfig.Pagination == nil || pr.StackQLConfig.Pagination.ResponseTerminator == nil {
+		return nil, false
+	}
+	return pr.StackQLConfig.Pagination.ResponseTerminator, true
 }
 
 func (pr *standardProvider) GetQueryParamPushdown() (QueryParamPushdown, bool) {

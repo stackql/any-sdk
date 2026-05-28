@@ -25,8 +25,10 @@ type Resource interface {
 	GetMethods() Methods
 	GetServiceDocPath() *ServiceRef
 	GetRequestTranslateAlgorithm() string
+	GetPaginationAlgorithm() string
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetRetryPolicy() (RetryPolicy, bool)
 	FindMethod(key string) (StandardOperationStore, error)
@@ -198,6 +200,26 @@ func (r *standardResource) GetPaginationResponseTokenSemantic() (TokenSemantic, 
 		pag, pagExists := r.StackQLConfig.GetPagination()
 		if pagExists && pag.GetResponseToken() != nil {
 			return pag.GetResponseToken(), true
+		}
+	}
+	return nil, false
+}
+
+func (r *standardResource) GetPaginationAlgorithm() string {
+	if r.StackQLConfig != nil {
+		pag, pagExists := r.StackQLConfig.GetPagination()
+		if pagExists {
+			return pag.GetAlgorithm()
+		}
+	}
+	return ""
+}
+
+func (r *standardResource) GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool) {
+	if r.StackQLConfig != nil {
+		pag, pagExists := r.StackQLConfig.GetPagination()
+		if pagExists && pag.GetResponseTerminator() != nil {
+			return pag.GetResponseTerminator(), true
 		}
 	}
 	return nil, false
