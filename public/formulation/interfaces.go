@@ -199,8 +199,10 @@ type OperationStore interface {
 	DeprecatedProcessResponse(response *http.Response) (map[string]interface{}, error)
 	GetName() string
 	GetNonBodyParameters() map[string]Addressable
+	GetPaginationAlgorithm() string
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
+	GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
 	GetParameter(paramKey string) (Addressable, bool)
 	GetRequestBodySchema() (Schema, error)
 	GetRequiredNonBodyParameters() map[string]Addressable
