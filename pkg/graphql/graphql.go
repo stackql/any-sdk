@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,36 @@ import (
 	"github.com/stackql/any-sdk/pkg/jsonpath"
 	"github.com/stackql/any-sdk/pkg/stream_transform"
 )
+
+// httpLoggerCtxKey is the context key under which an optional io.Writer is
+// attached so the GraphQL reader can emit the wire request body and the raw
+// pre-transform response. Mirrors the REST acquire path which writes the same
+// shape of lines to runtimeCtx.outErrFile when --http.log.enabled is set.
+type httpLoggerCtxKey struct{}
+
+// ContextWithHTTPLogger returns a derived context that carries w as the sink
+// for GraphQL wire request / raw response log lines. Consumers (e.g. stackql)
+// should attach the same writer they use for REST HTTP logging when
+// --http.log.enabled is true. Passing a nil writer is equivalent to not
+// attaching one.
+func ContextWithHTTPLogger(ctx context.Context, w io.Writer) context.Context {
+	if w == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, httpLoggerCtxKey{}, w)
+}
+
+func httpLoggerFromContext(ctx context.Context) io.Writer {
+	if ctx == nil {
+		return nil
+	}
+	v := ctx.Value(httpLoggerCtxKey{})
+	if v == nil {
+		return nil
+	}
+	w, _ := v.(io.Writer)
+	return w
+}
 
 var (
 	_ template.ExecError = template.ExecError{}
@@ -298,6 +329,14 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 	req.Body = rb
 	req.URL.RawQuery = ""
 	req.Header.Set("Content-Type", "application/json")
+	if logger := httpLoggerFromContext(req.Context()); logger != nil {
+		bodyBytes, readErr := io.ReadAll(req.Body)
+		if readErr == nil {
+			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			fmt.Fprintf(logger, "http request url: '%s', method: '%s'\n", req.URL.String(), req.Method)
+			fmt.Fprintf(logger, "http request body = '%s'\n", string(bodyBytes))
+		}
+	}
 	r, err := gq.anySdkClient.Do(
 		newAnySdkGraphQLHTTPDesignation(req.URL),
 		newGraphqlAnySdkArgList(newAnySdkHTTPArg(req)),
@@ -308,6 +347,13 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 	httpResponse, httpResponseErr := r.GetHttpResponse()
 	if httpResponseErr != nil {
 		return nil, httpResponseErr
+	}
+	if logger := httpLoggerFromContext(req.Context()); logger != nil && httpResponse != nil && httpResponse.Body != nil {
+		respBytes, readErr := io.ReadAll(httpResponse.Body)
+		if readErr == nil {
+			httpResponse.Body = io.NopCloser(bytes.NewReader(respBytes))
+			fmt.Fprintf(logger, "%s\n", string(respBytes))
+		}
 	}
 	gq.pageCount++
 	var target map[string]interface{}
@@ -340,11 +386,11 @@ func (gq *StandardGQLReader) Read() ([]map[string]interface{}, error) {
 			case map[string]interface{}:
 				rv = append(rv, v)
 			default:
-				return nil, fmt.Errorf("cannot accomodate GraphQL pocessed response item of type = '%T'", v)
+				return nil, fmt.Errorf("cannot accommodate GraphQL processed response item of type = '%T'", v)
 			}
 		}
 	default:
-		return nil, fmt.Errorf("cannot accomodate GraphQL pocessed response of type = '%T'", pr)
+		return nil, fmt.Errorf("cannot accommodate GraphQL processed response of type = '%T'", pr)
 	}
 	gq.rowsReturned += len(rv)
 	if returnErr == nil {
