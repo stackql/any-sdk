@@ -203,6 +203,7 @@ type OperationStore interface {
 	GetPaginationRequestTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
 	GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
+	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetParameter(paramKey string) (Addressable, bool)
 	GetRequestBodySchema() (Schema, error)
 	GetRequiredNonBodyParameters() map[string]Addressable
@@ -225,6 +226,61 @@ type OperationStore interface {
 	GetOptionalParameters() map[string]Addressable
 	IsNullary() bool
 	unwrap() anysdk.OperationStore
+}
+
+// QueryParamPushdown mirrors anysdk.QueryParamPushdown: the top-level
+// configuration for query parameter pushdown (the public JSONLookup is
+// intentionally omitted).
+type QueryParamPushdown interface {
+	GetSelect() (SelectPushdown, bool)
+	GetFilter() (FilterPushdown, bool)
+	GetOrderBy() (OrderByPushdown, bool)
+	GetTop() (TopPushdown, bool)
+	GetCount() (CountPushdown, bool)
+}
+
+// SelectPushdown mirrors anysdk.SelectPushdown (SELECT column projection pushdown).
+type SelectPushdown interface {
+	GetDialect() string
+	GetParamName() string
+	GetDelimiter() string
+	GetSupportedColumns() []string
+	IsColumnSupported(column string) bool
+}
+
+// FilterPushdown mirrors anysdk.FilterPushdown (WHERE clause filter pushdown).
+type FilterPushdown interface {
+	GetDialect() string
+	GetParamName() string
+	GetSyntax() string
+	GetSupportedOperators() []string
+	GetSupportedColumns() []string
+	IsOperatorSupported(operator string) bool
+	IsColumnSupported(column string) bool
+}
+
+// OrderByPushdown mirrors anysdk.OrderByPushdown (ORDER BY clause pushdown).
+type OrderByPushdown interface {
+	GetDialect() string
+	GetParamName() string
+	GetSyntax() string
+	GetSupportedColumns() []string
+	IsColumnSupported(column string) bool
+}
+
+// TopPushdown mirrors anysdk.TopPushdown (LIMIT clause pushdown).
+type TopPushdown interface {
+	GetDialect() string
+	GetParamName() string
+	GetMaxValue() int
+}
+
+// CountPushdown mirrors anysdk.CountPushdown (SELECT COUNT(*) pushdown).
+type CountPushdown interface {
+	GetDialect() string
+	GetParamName() string
+	GetParamValue() string
+	GetResponseKey() string
 }
 
 // ProcessedOperationResponse mirrors methods on ProcessedOperationResponse
@@ -415,6 +471,12 @@ type TokenSemantic interface {
 	GetKey() string
 	GetLocation() string
 	GetTransformer() (TokenTransformer, error)
+	// GetAlgorithm returns the per-token algorithm (e.g. the request-token
+	// increment style for offset/page_number pagination); empty when unset.
+	GetAlgorithm() string
+	// GetArgs returns the token's free-form args (e.g. an offset/page start value
+	// or a transform regex) as a plain map, decoupled from any internal type.
+	GetArgs() map[string]interface{}
 }
 
 // Transform mirrors methods on Transform
