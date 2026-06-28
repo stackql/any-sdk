@@ -1734,6 +1734,14 @@ func (w *wrappedQueryParamPushdown) GetTop() (TopPushdown, bool) {
 	return &wrappedTopPushdown{inner: r0}, true
 }
 
+func (w *wrappedQueryParamPushdown) GetSkip() (SkipPushdown, bool) {
+	r0, r1 := w.inner.GetSkip()
+	if !r1 {
+		return nil, false
+	}
+	return &wrappedSkipPushdown{inner: r0}, true
+}
+
 func (w *wrappedQueryParamPushdown) GetCount() (CountPushdown, bool) {
 	r0, r1 := w.inner.GetCount()
 	if !r1 {
@@ -1805,6 +1813,16 @@ func (w *wrappedTopPushdown) GetDialect() string { return w.inner.GetDialect() }
 func (w *wrappedTopPushdown) GetParamName() string { return w.inner.GetParamName() }
 
 func (w *wrappedTopPushdown) GetMaxValue() int { return w.inner.GetMaxValue() }
+
+type wrappedSkipPushdown struct {
+	inner anysdk.SkipPushdown
+}
+
+func (w *wrappedSkipPushdown) GetDialect() string { return w.inner.GetDialect() }
+
+func (w *wrappedSkipPushdown) GetParamName() string { return w.inner.GetParamName() }
+
+func (w *wrappedSkipPushdown) GetMaxValue() int { return w.inner.GetMaxValue() }
 
 type wrappedCountPushdown struct {
 	inner anysdk.CountPushdown

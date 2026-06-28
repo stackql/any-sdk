@@ -17,6 +17,7 @@ const (
 	DefaultOrderByParamName = "$orderby"
 	DefaultOrderBySyntax    = "odata"
 	DefaultTopParamName     = "$top"
+	DefaultSkipParamName    = "$skip"
 	DefaultCountParamName   = "$count"
 	DefaultCountParamValue  = "true"
 	DefaultCountResponseKey = "@odata.count"
@@ -29,6 +30,7 @@ var (
 	_ FilterPushdown            = &standardFilterPushdown{}
 	_ OrderByPushdown           = &standardOrderByPushdown{}
 	_ TopPushdown               = &standardTopPushdown{}
+	_ SkipPushdown              = &standardSkipPushdown{}
 	_ CountPushdown             = &standardCountPushdown{}
 )
 
@@ -39,6 +41,7 @@ type QueryParamPushdown interface {
 	GetFilter() (FilterPushdown, bool)
 	GetOrderBy() (OrderByPushdown, bool)
 	GetTop() (TopPushdown, bool)
+	GetSkip() (SkipPushdown, bool)
 	GetCount() (CountPushdown, bool)
 }
 
@@ -78,6 +81,13 @@ type TopPushdown interface {
 	GetMaxValue() int
 }
 
+// SkipPushdown represents configuration for OFFSET clause pushdown
+type SkipPushdown interface {
+	GetDialect() string
+	GetParamName() string
+	GetMaxValue() int
+}
+
 // CountPushdown represents configuration for SELECT COUNT(*) pushdown
 type CountPushdown interface {
 	GetDialect() string
@@ -92,6 +102,7 @@ type standardQueryParamPushdown struct {
 	Filter  *standardFilterPushdown  `json:"filter,omitempty" yaml:"filter,omitempty"`
 	OrderBy *standardOrderByPushdown `json:"orderBy,omitempty" yaml:"orderBy,omitempty"`
 	Top     *standardTopPushdown     `json:"top,omitempty" yaml:"top,omitempty"`
+	Skip    *standardSkipPushdown    `json:"skip,omitempty" yaml:"skip,omitempty"`
 	Count   *standardCountPushdown   `json:"count,omitempty" yaml:"count,omitempty"`
 }
 
@@ -105,6 +116,8 @@ func (qpp standardQueryParamPushdown) JSONLookup(token string) (interface{}, err
 		return qpp.OrderBy, nil
 	case "top":
 		return qpp.Top, nil
+	case "skip":
+		return qpp.Skip, nil
 	case "count":
 		return qpp.Count, nil
 	default:
@@ -138,6 +151,13 @@ func (qpp *standardQueryParamPushdown) GetTop() (TopPushdown, bool) {
 		return nil, false
 	}
 	return qpp.Top, true
+}
+
+func (qpp *standardQueryParamPushdown) GetSkip() (SkipPushdown, bool) {
+	if qpp.Skip == nil {
+		return nil, false
+	}
+	return qpp.Skip, true
 }
 
 func (qpp *standardQueryParamPushdown) GetCount() (CountPushdown, bool) {
@@ -293,6 +313,31 @@ func (tp *standardTopPushdown) GetParamName() string {
 
 func (tp *standardTopPushdown) GetMaxValue() int {
 	return tp.MaxValue
+}
+
+// standardSkipPushdown implements SkipPushdown
+type standardSkipPushdown struct {
+	Dialect   string `json:"dialect,omitempty" yaml:"dialect,omitempty"`
+	ParamName string `json:"paramName,omitempty" yaml:"paramName,omitempty"`
+	MaxValue  int    `json:"maxValue,omitempty" yaml:"maxValue,omitempty"`
+}
+
+func (sp *standardSkipPushdown) GetDialect() string {
+	if sp.Dialect == "" {
+		return CustomDialect
+	}
+	return sp.Dialect
+}
+
+func (sp *standardSkipPushdown) GetParamName() string {
+	if sp.ParamName == "" && sp.GetDialect() == ODataDialect {
+		return DefaultSkipParamName
+	}
+	return sp.ParamName
+}
+
+func (sp *standardSkipPushdown) GetMaxValue() int {
+	return sp.MaxValue
 }
 
 // standardCountPushdown implements CountPushdown

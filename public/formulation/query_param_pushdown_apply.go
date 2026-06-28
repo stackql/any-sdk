@@ -41,6 +41,10 @@ type PushdownIntent struct {
 	Limit int
 	// LimitSet reports whether Limit is meaningful.
 	LimitSet bool
+	// Offset is the OFFSET value, honoured only when OffsetSet is true.
+	Offset int
+	// OffsetSet reports whether Offset is meaningful.
+	OffsetSet bool
 	// Count requests a SELECT COUNT(*) pushdown.
 	Count bool
 }
@@ -112,6 +116,7 @@ func ApplyPushdown(src PushdownConfigSource, intent PushdownIntent) PushdownResu
 	applyFilter(qpp, intent, res)
 	applyOrderBy(qpp, intent, res)
 	applyTop(qpp, intent, res)
+	applySkip(qpp, intent, res)
 	applyCount(qpp, intent, res)
 
 	return res
@@ -234,6 +239,28 @@ func applyTop(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdo
 		return
 	}
 	if maxV := tp.GetMaxValue(); maxV > 0 && v > maxV {
+		v = maxV
+	}
+	res.queryParams[paramName] = strconv.Itoa(v)
+}
+
+func applySkip(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
+	if !intent.OffsetSet {
+		return
+	}
+	sp, ok := qpp.GetSkip()
+	if !ok {
+		return
+	}
+	paramName := sp.GetParamName()
+	if paramName == "" {
+		return
+	}
+	v := intent.Offset
+	if v < 0 {
+		return
+	}
+	if maxV := sp.GetMaxValue(); maxV > 0 && v > maxV {
 		v = maxV
 	}
 	res.queryParams[paramName] = strconv.Itoa(v)

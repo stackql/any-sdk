@@ -66,6 +66,9 @@ orderBy:
 top:
   dialect: odata
   maxValue: 1000
+skip:
+  dialect: odata
+  maxValue: 2000
 count:
   dialect: odata
 `
@@ -79,10 +82,12 @@ func TestApplyPushdown_FullOData(t *testing.T) {
 			{Column: "status", Operator: "=", Value: "active"},
 			{Column: "createdYear", Operator: ">", Value: 2020},
 		},
-		OrderBy:  []PushdownOrder{{Column: "displayName", Descending: true}},
-		Limit:    10,
-		LimitSet: true,
-		Count:    true,
+		OrderBy:   []PushdownOrder{{Column: "displayName", Descending: true}},
+		Limit:     10,
+		LimitSet:  true,
+		Offset:    20,
+		OffsetSet: true,
+		Count:     true,
 	}
 
 	res := ApplyPushdown(src, intent)
@@ -92,6 +97,7 @@ func TestApplyPushdown_FullOData(t *testing.T) {
 		"startswith(displayName,'A') and status eq 'active' and createdYear gt 2020")
 	assertParam(t, res.QueryParams(), "$orderby", "displayName desc")
 	assertParam(t, res.QueryParams(), "$top", "10")
+	assertParam(t, res.QueryParams(), "$skip", "20")
 	assertParam(t, res.QueryParams(), "$count", "true")
 
 	if res.CountResponseKey() != "@odata.count" {
@@ -197,6 +203,38 @@ func TestApplyPushdown_TopClamp(t *testing.T) {
 	src := fakeConfigSource{qpp: buildPushdown(t, odataFullPushdownYaml)}
 	res := ApplyPushdown(src, PushdownIntent{Limit: 5000, LimitSet: true})
 	assertParam(t, res.QueryParams(), "$top", "1000")
+}
+
+func TestApplyPushdown_SkipClamp(t *testing.T) {
+	src := fakeConfigSource{qpp: buildPushdown(t, odataFullPushdownYaml)}
+	res := ApplyPushdown(src, PushdownIntent{Offset: 9000, OffsetSet: true})
+	assertParam(t, res.QueryParams(), "$skip", "2000")
+}
+
+func TestApplyPushdown_SkipCustomDialect(t *testing.T) {
+	const customSkipYaml = `
+skip:
+  paramName: "offset"
+  maxValue: 100
+`
+	src := fakeConfigSource{qpp: buildPushdown(t, customSkipYaml)}
+	res := ApplyPushdown(src, PushdownIntent{Offset: 30, OffsetSet: true})
+	assertParam(t, res.QueryParams(), "offset", "30")
+}
+
+func TestApplyPushdown_SkipAbsentConfig(t *testing.T) {
+	// Filter-only config: no skip sub-config -> $skip not emitted even when OffsetSet.
+	const filterOnlyYaml = `
+filter:
+  dialect: odata
+  supportedOperators:
+    - "eq"
+`
+	src := fakeConfigSource{qpp: buildPushdown(t, filterOnlyYaml)}
+	res := ApplyPushdown(src, PushdownIntent{Offset: 10, OffsetSet: true})
+	if _, ok := res.QueryParams()["$skip"]; ok {
+		t.Fatalf("expected no $skip when skip config is absent")
+	}
 }
 
 func TestApplyPushdown_AbsentConfigNoOp(t *testing.T) {

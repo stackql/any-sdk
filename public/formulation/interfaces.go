@@ -236,6 +236,7 @@ type QueryParamPushdown interface {
 	GetFilter() (FilterPushdown, bool)
 	GetOrderBy() (OrderByPushdown, bool)
 	GetTop() (TopPushdown, bool)
+	GetSkip() (SkipPushdown, bool)
 	GetCount() (CountPushdown, bool)
 }
 
@@ -270,6 +271,13 @@ type OrderByPushdown interface {
 
 // TopPushdown mirrors anysdk.TopPushdown (LIMIT clause pushdown).
 type TopPushdown interface {
+	GetDialect() string
+	GetParamName() string
+	GetMaxValue() int
+}
+
+// SkipPushdown mirrors anysdk.SkipPushdown (OFFSET clause pushdown).
+type SkipPushdown interface {
 	GetDialect() string
 	GetParamName() string
 	GetMaxValue() int

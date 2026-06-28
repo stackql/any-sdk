@@ -293,3 +293,64 @@ filter:
 
 	t.Logf("TestWildcardSupportedColumns passed")
 }
+
+func TestSkipPushdownODataDefaults(t *testing.T) {
+	qpp := GetTestingQueryParamPushdown()
+	yamlInput := `
+skip:
+  dialect: odata
+  maxValue: 5000
+`
+	if err := yaml.Unmarshal([]byte(yamlInput), &qpp); err != nil {
+		t.Fatalf("TestSkipPushdownODataDefaults failed at unmarshal step, err = '%s'", err.Error())
+	}
+
+	skipPD, ok := qpp.GetSkip()
+	if !ok {
+		t.Fatalf("TestSkipPushdownODataDefaults failed: expected skip pushdown to exist")
+	}
+	assert.Equal(t, skipPD.GetDialect(), "odata")
+	assert.Equal(t, skipPD.GetParamName(), "$skip") // OData default
+	assert.Equal(t, skipPD.GetMaxValue(), 5000)
+
+	t.Logf("TestSkipPushdownODataDefaults passed")
+}
+
+func TestSkipPushdownCustom(t *testing.T) {
+	qpp := GetTestingQueryParamPushdown()
+	yamlInput := `
+skip:
+  paramName: "offset"
+  maxValue: 100
+`
+	if err := yaml.Unmarshal([]byte(yamlInput), &qpp); err != nil {
+		t.Fatalf("TestSkipPushdownCustom failed at unmarshal step, err = '%s'", err.Error())
+	}
+
+	skipPD, ok := qpp.GetSkip()
+	if !ok {
+		t.Fatalf("TestSkipPushdownCustom failed: expected skip pushdown to exist")
+	}
+	assert.Equal(t, skipPD.GetDialect(), "custom")
+	assert.Equal(t, skipPD.GetParamName(), "offset")
+	assert.Equal(t, skipPD.GetMaxValue(), 100)
+
+	t.Logf("TestSkipPushdownCustom passed")
+}
+
+func TestSkipPushdownAbsent(t *testing.T) {
+	qpp := GetTestingQueryParamPushdown()
+	yamlInput := `
+top:
+  dialect: odata
+`
+	if err := yaml.Unmarshal([]byte(yamlInput), &qpp); err != nil {
+		t.Fatalf("TestSkipPushdownAbsent failed at unmarshal step, err = '%s'", err.Error())
+	}
+
+	if _, ok := qpp.GetSkip(); ok {
+		t.Fatalf("TestSkipPushdownAbsent failed: expected skip pushdown to NOT exist")
+	}
+
+	t.Logf("TestSkipPushdownAbsent passed")
+}

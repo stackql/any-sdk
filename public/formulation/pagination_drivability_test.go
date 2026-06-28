@@ -69,7 +69,7 @@ responseTerminator:
 
 func TestPagination_ODataNextLinkDrivable(t *testing.T) {
 	const nextLinkYaml = `
-algorithm: cursor
+algorithm: odata_next_link
 responseToken:
   key: "@odata.nextLink"
   location: body
@@ -77,6 +77,10 @@ responseToken:
 	pg := anysdk.GetTestingPagination()
 	if err := yaml.Unmarshal([]byte(nextLinkYaml), &pg); err != nil {
 		t.Fatalf("failed to unmarshal pagination config: %v", err)
+	}
+
+	if pg.GetAlgorithm() != anysdk.PaginationAlgorithmODataNextLink {
+		t.Fatalf("algorithm = %q, want %q", pg.GetAlgorithm(), anysdk.PaginationAlgorithmODataNextLink)
 	}
 
 	resp := wrapToken(pg.GetResponseToken())
