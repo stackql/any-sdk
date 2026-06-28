@@ -39,6 +39,7 @@ type Provider interface {
 	GetRequestTranslateAlgorithm() string
 	GetResourcesShallow(serviceKey string) (ResourceRegister, error)
 	GetStackQLConfig() (StackQLConfig, bool)
+	IsSnakeCaseAliasesEnabled() bool
 	JSONLookup(token string) (interface{}, error)
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
@@ -73,6 +74,13 @@ func (pr *standardProvider) GetMinStackQLVersion() string {
 		return pr.StackQLConfig.GetMinStackQLVersion()
 	}
 	return ""
+}
+
+func (pr *standardProvider) IsSnakeCaseAliasesEnabled() bool {
+	if pr.StackQLConfig != nil {
+		return pr.StackQLConfig.IsSnakeCaseAliasesEnabled()
+	}
+	return false
 }
 
 func (pr *standardProvider) GetProviderServices() map[string]ProviderService {

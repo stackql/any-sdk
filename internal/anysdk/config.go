@@ -25,6 +25,7 @@ type StackQLConfig interface {
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetRetryPolicy() (RetryPolicy, bool)
 	GetMinStackQLVersion() string
+	IsSnakeCaseAliasesEnabled() bool
 	//
 	isObjectSchemaImplicitlyUnioned() bool
 	setResource(rsc Resource)
@@ -43,6 +44,7 @@ type standardStackQLConfig struct {
 	QueryParamPushdown   *standardQueryParamPushdown         `json:"queryParamPushdown,omitempty" yaml:"queryParamPushdown,omitempty"`
 	Retry                *standardRetryPolicy                `json:"retry,omitempty" yaml:"retry,omitempty"`
 	MinStackQLVersion    string                              `json:"minStackQLVersion,omitempty" yaml:"minStackQLVersion,omitempty"`
+	SnakeCaseAliases     bool                                `json:"snake_case_aliases,omitempty" yaml:"snake_case_aliases,omitempty"`
 }
 
 func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
@@ -68,6 +70,10 @@ func (qt standardStackQLConfig) JSONLookup(token string) (interface{}, error) {
 
 func (cfg *standardStackQLConfig) GetMinStackQLVersion() string {
 	return cfg.MinStackQLVersion
+}
+
+func (cfg *standardStackQLConfig) IsSnakeCaseAliasesEnabled() bool {
+	return cfg.SnakeCaseAliases
 }
 
 func (cfg *standardStackQLConfig) GetQueryTranspose() (Transform, bool) {

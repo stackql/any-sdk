@@ -1,6 +1,9 @@
 package anysdk
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
@@ -9,6 +12,18 @@ var (
 	_ Addressable = &standardParameter{}
 	_ Params      = &parameters{}
 )
+
+// ParameterNotFoundError reports an unresolved clause key together with the
+// wire-format names that were available, e.g.
+// "field 'foo_bar' not found; available: [VpcId, EnableDnsHostnames, DryRun]".
+type ParameterNotFoundError struct {
+	Key                string
+	AvailableWireNames []string
+}
+
+func (e *ParameterNotFoundError) Error() string {
+	return fmt.Sprintf("field '%s' not found; available: [%s]", e.Key, strings.Join(e.AvailableWireNames, ", "))
+}
 
 type standardParameter struct {
 	openapi3.Parameter
