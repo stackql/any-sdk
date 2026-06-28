@@ -15,6 +15,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/stackql/any-sdk/pkg/casing"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/pkg/fuzzymatch"
 	"github.com/stackql/any-sdk/pkg/media"
@@ -64,6 +65,8 @@ type OperationStore interface {
 	GetInverse() (OperationInverse, bool)
 	GetStackQLConfig() StackQLConfig
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
+	GetRequestNativeCasing() string
+	GetParameterOrError(paramKey string) (Addressable, error)
 	GetRetryPolicy() RetryPolicy
 	GetParameters() map[string]Addressable
 	GetPathItem() *openapi3.PathItem
@@ -1050,10 +1053,10 @@ func (m *standardOpenAPIOperationStore) getRequestBodySchemaAttributeMatcher(pat
 			return nil, fmt.Errorf("could not find schema at path '%s'", path)
 		}
 	}
-	return getschemaAttributeMatcher(schemaOfInterest)
+	return getschemaAttributeMatcher(schemaOfInterest, m.GetRequestNativeCasing())
 }
 
-func getschemaAttributeMatcher(schemaOfInterest Schema) (fuzzymatch.FuzzyMatcher[string], error) {
+func getschemaAttributeMatcher(schemaOfInterest Schema, nativeCasing string) (fuzzymatch.FuzzyMatcher[string], error) {
 	var matchers []fuzzymatch.StringFuzzyPair
 	for k := range schemaOfInterest.getProperties() {
 		if k == "" {
@@ -1065,6 +1068,17 @@ func getschemaAttributeMatcher(schemaOfInterest Schema) (fuzzymatch.FuzzyMatcher
 			return nil, regexpErr
 		}
 		matchers = append(matchers, fuzzymatch.NewFuzzyPair(keyRegexp, k))
+		// When a native wire casing is declared, also accept the snake_case form of
+		// the wire property name and map it back to the wire key.
+		if nativeCasing != "" {
+			if snakeKey := casing.ToSnake(k); snakeKey != k {
+				snakeRegexp, snakeErr := regexp.Compile(fmt.Sprintf("^%s$", regexp.QuoteMeta(snakeKey)))
+				if snakeErr != nil {
+					return nil, snakeErr
+				}
+				matchers = append(matchers, fuzzymatch.NewFuzzyPair(snakeRegexp, k))
+			}
+		}
 	}
 	return fuzzymatch.NewRegexpStringMetcher(matchers), nil
 }
@@ -1284,10 +1298,44 @@ func (m *standardOpenAPIOperationStore) GetNonBodyParameters() map[string]Addres
 	return m.getNonBodyParameters()
 }
 
+func (m *standardOpenAPIOperationStore) GetRequestNativeCasing() string {
+	if m.Request != nil {
+		return m.Request.GetNativeCasing()
+	}
+	return ""
+}
+
 func (m *standardOpenAPIOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	params := m.GetParameters()
-	rv, ok := params[paramKey]
-	return rv, ok
+	if rv, ok := params[paramKey]; ok {
+		return rv, true
+	}
+	// Reverse-casing retry: when the method declares a native wire casing, convert
+	// the (snake_case) SQL key to that casing and retry. Absent native casing this
+	// is a no-op, preserving existing behaviour.
+	if nc := m.GetRequestNativeCasing(); nc != "" {
+		if wireKey := casing.FromSnake(paramKey, nc); wireKey != paramKey {
+			if rv, ok := params[wireKey]; ok {
+				return rv, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// GetParameterOrError resolves a parameter (including reverse-casing) and, on a
+// final miss, returns a *ParameterNotFoundError listing the wire-format names.
+func (m *standardOpenAPIOperationStore) GetParameterOrError(paramKey string) (Addressable, error) {
+	if rv, ok := m.GetParameter(paramKey); ok {
+		return rv, nil
+	}
+	params := m.GetParameters()
+	wireNames := make([]string, 0, len(params))
+	for k := range params {
+		wireNames = append(wireNames, k)
+	}
+	sort.Strings(wireNames)
+	return nil, &ParameterNotFoundError{Key: paramKey, AvailableWireNames: wireNames}
 }
 
 func (m *standardOpenAPIOperationStore) GetName() string {
@@ -1819,10 +1867,21 @@ func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http
 		overrideMediaType := expectedResponse.GetOverrrideBodyMediaType()
 		if responseTransformExists {
 			input := string(bodyBytes)
-			streamTransformerFactory := stream_transform.NewStreamTransformerFactory(
-				responseTransform.GetType(),
-				responseTransform.GetBody(),
-			)
+			var streamTransformerFactory stream_transform.StreamTransformerFactory
+			if responseTransform.GetType() == stream_transform.SchemaDrivenXMLV1 {
+				listProperty := strings.TrimPrefix(expectedResponse.GetObjectKey(), "$.")
+				streamTransformerFactory = stream_transform.NewSchemaDrivenXMLStreamTransformerFactory(
+					responseTransform.GetType(),
+					newXMLSchemaAdapter(expectedResponse.GetSchema()),
+					op.getXProtocol(),
+					listProperty,
+				)
+			} else {
+				streamTransformerFactory = stream_transform.NewStreamTransformerFactory(
+					responseTransform.GetType(),
+					responseTransform.GetBody(),
+				)
+			}
 			if !streamTransformerFactory.IsTransformable() {
 				return nil, fmt.Errorf("unsupported template type: %s", responseTransform.GetType())
 			}
@@ -1846,6 +1905,68 @@ func (op *standardOpenAPIOperationStore) getOverridenResponse(httpResponse *http
 		}
 	}
 	return nil, fmt.Errorf("unprocessable response body for operation =  %s", op.GetName())
+}
+
+// getXProtocol reads the info-level x-protocol hint (query|ec2|rest-xml) used by
+// the schema_driven_xml transform to skip the right response envelope.
+func (op *standardOpenAPIOperationStore) getXProtocol() string {
+	if op.OpenAPIService == nil {
+		return ""
+	}
+	t := op.OpenAPIService.getT()
+	if t == nil || t.Info == nil {
+		return ""
+	}
+	v, err := extractExtensionValBytes(t.Info.Extensions, ExtensionKeyProtocol)
+	if err != nil {
+		return ""
+	}
+	return strings.Trim(strings.TrimSpace(string(v)), `"`)
+}
+
+// xmlSchemaAdapter adapts an internal Schema to stream_transform.SchemaTree so the
+// schema_driven_xml walker can navigate it without importing internal/anysdk.
+type xmlSchemaAdapter struct {
+	s Schema
+}
+
+func newXMLSchemaAdapter(s Schema) stream_transform.SchemaTree {
+	if s == nil {
+		return nil
+	}
+	return xmlSchemaAdapter{s: s}
+}
+
+func (a xmlSchemaAdapter) Type() string {
+	return a.s.GetType()
+}
+
+func (a xmlSchemaAdapter) Items() (stream_transform.SchemaTree, bool) {
+	items, err := a.s.GetItemsSchema()
+	if err != nil || items == nil {
+		return nil, false
+	}
+	return xmlSchemaAdapter{s: items}, true
+}
+
+func (a xmlSchemaAdapter) Property(name string) (stream_transform.SchemaTree, bool) {
+	p, ok := a.s.GetProperty(name)
+	if !ok || p == nil {
+		return nil, false
+	}
+	return xmlSchemaAdapter{s: p}, true
+}
+
+func (a xmlSchemaAdapter) Properties() map[string]stream_transform.SchemaTree {
+	props, err := a.s.GetProperties()
+	if err != nil {
+		return nil
+	}
+	out := make(map[string]stream_transform.SchemaTree, len(props))
+	for k, v := range props {
+		out[k] = xmlSchemaAdapter{s: v}
+	}
+	return out
 }
 
 func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Response) (ProcessedOperationResponse, error) {

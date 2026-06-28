@@ -13,6 +13,7 @@ type ExpectedRequest interface {
 	GetBase() string
 	GetXMLDeclaration() string
 	GetXMLTransform() string
+	GetNativeCasing() string
 	//
 	setSchema(Schema)
 	setBodyMediaType(string)
@@ -33,6 +34,7 @@ type standardExpectedRequest struct {
 	XMLRootAnnotation string             `json:"xmlRootAnnotation,omitempty" yaml:"xmlRootAnnotation,omitempty"`
 	OverrideSchema    *LocalSchemaRef    `json:"schema_override,omitempty" yaml:"schema_override,omitempty"`
 	Transform         *standardTransform `json:"transform,omitempty" yaml:"transform,omitempty"`
+	NativeCasing      string             `json:"nativeCasing,omitempty" yaml:"nativeCasing,omitempty"`
 }
 
 func (er *standardExpectedRequest) setBodyMediaType(s string) {
@@ -71,6 +73,10 @@ func (er *standardExpectedRequest) GetXMLDeclaration() string {
 
 func (er *standardExpectedRequest) GetXMLTransform() string {
 	return er.XMLTransform
+}
+
+func (er *standardExpectedRequest) GetNativeCasing() string {
+	return er.NativeCasing
 }
 
 func (er *standardExpectedRequest) GetSchema() Schema {

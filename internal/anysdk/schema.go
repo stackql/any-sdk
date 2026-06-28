@@ -10,6 +10,7 @@ import (
 
 	"github.com/antchfx/xmlquery"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/stackql/any-sdk/pkg/casing"
 	"github.com/stackql/any-sdk/pkg/jsonpath"
 	"github.com/stackql/any-sdk/pkg/media"
 	"github.com/stackql/any-sdk/pkg/openapitopath"
@@ -995,13 +996,21 @@ func (s *standardSchema) IsArrayRef() bool {
 }
 
 func (s *standardSchema) getPropertiesColumns() []ColumnDescriptor {
+	snakeAliases := s.isSnakeCaseAliasesEnabled()
 	var cols []ColumnDescriptor
 	for k, val := range s.Properties {
 		valSchema := val.Value
 		if valSchema != nil {
+			// The column's display/DDL name is snake-aliased when the provider opts
+			// in; the wire property name (k) is retained on the Schema for response
+			// navigation.
+			name := k
+			if snakeAliases {
+				name = casing.ToSnake(k)
+			}
 			col := newColumnDescriptor(
 				"",
-				k,
+				name,
 				"",
 				"",
 				nil,
@@ -1017,6 +1026,19 @@ func (s *standardSchema) getPropertiesColumns() []ColumnDescriptor {
 		}
 	}
 	return cols
+}
+
+// isSnakeCaseAliasesEnabled reports whether the enclosing provider opts in to
+// snake_case output aliases. Defaults to false (no behaviour change).
+func (s *standardSchema) isSnakeCaseAliasesEnabled() bool {
+	if s.svc == nil {
+		return false
+	}
+	prov := s.svc.getProvider()
+	if prov == nil {
+		return false
+	}
+	return prov.IsSnakeCaseAliasesEnabled()
 }
 
 func (s *standardSchema) getAllOfColumns() []ColumnDescriptor {
