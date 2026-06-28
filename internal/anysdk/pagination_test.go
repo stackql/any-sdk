@@ -81,3 +81,9 @@ responseToken:
 func TestPaginationAlgorithmConstant(t *testing.T) {
 	assert.Equal(t, PaginationAlgorithmPageNumber, "page_number")
 }
+
+// TestPaginationODataNextLinkConstant pins the odata_next_link identifier so
+// provider YAML and the downstream invoker switch match on this exact string.
+func TestPaginationODataNextLinkConstant(t *testing.T) {
+	assert.Equal(t, PaginationAlgorithmODataNextLink, "odata_next_link")
+}

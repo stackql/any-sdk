@@ -20,6 +20,13 @@ const (
 	// pagination strategy: termination is by comparing the current page number
 	// in the response against a page-count field (`responseTerminator`).
 	PaginationAlgorithmPageNumber = "page_number"
+	// PaginationAlgorithmODataNextLink identifies the OData v4 follow-the-link
+	// strategy: the `@odata.nextLink` value in the response body is used verbatim
+	// as the next request URL, and traversal terminates when it is absent/empty.
+	// Like page_number this is a registered identifier; the caller drives the loop
+	// using the public Pagination / TokenSemantic accessors (responseToken keyed at
+	// `@odata.nextLink`).
+	PaginationAlgorithmODataNextLink = "odata_next_link"
 )
 
 type Pagination interface {

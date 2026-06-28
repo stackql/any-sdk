@@ -894,6 +894,11 @@ func (w *wrappedOperationStore) GetPaginationResponseTerminatorTokenSemantic() (
 	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
+func (w *wrappedOperationStore) GetQueryParamPushdown() (QueryParamPushdown, bool) {
+	r0, r1 := w.inner.GetQueryParamPushdown()
+	return wrapQueryParamPushdown(r0, r1)
+}
+
 func (w *wrappedOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	r0, r1 := w.inner.GetParameter(paramKey)
 	return &wrappedAddressable{inner: r0}, r1
@@ -1566,6 +1571,11 @@ func (w *wrappedStandardOperationStore) GetPaginationResponseTerminatorTokenSema
 	return &wrappedTokenSemantic{inner: r0}, r1
 }
 
+func (w *wrappedStandardOperationStore) GetQueryParamPushdown() (QueryParamPushdown, bool) {
+	r0, r1 := w.inner.GetQueryParamPushdown()
+	return wrapQueryParamPushdown(r0, r1)
+}
+
 func (w *wrappedStandardOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	r0, r1 := w.inner.GetParameter(paramKey)
 	return &wrappedAddressable{inner: r0}, r1
@@ -1672,6 +1682,159 @@ func (w *wrappedTokenSemantic) GetTransformer() (TokenTransformer, error) {
 	r0, r1 := w.inner.GetTransformer()
 	return TokenTransformer(r0), r1
 }
+
+func (w *wrappedTokenSemantic) GetAlgorithm() string {
+	return w.inner.GetAlgorithm()
+}
+
+func (w *wrappedTokenSemantic) GetArgs() map[string]interface{} {
+	return map[string]interface{}(w.inner.GetArgs())
+}
+
+func wrapQueryParamPushdown(inner anysdk.QueryParamPushdown, ok bool) (QueryParamPushdown, bool) {
+	if !ok || inner == nil {
+		return nil, false
+	}
+	return &wrappedQueryParamPushdown{inner: inner}, true
+}
+
+type wrappedQueryParamPushdown struct {
+	inner anysdk.QueryParamPushdown
+}
+
+func (w *wrappedQueryParamPushdown) GetSelect() (SelectPushdown, bool) {
+	r0, r1 := w.inner.GetSelect()
+	if !r1 {
+		return nil, false
+	}
+	return &wrappedSelectPushdown{inner: r0}, true
+}
+
+func (w *wrappedQueryParamPushdown) GetFilter() (FilterPushdown, bool) {
+	r0, r1 := w.inner.GetFilter()
+	if !r1 {
+		return nil, false
+	}
+	return &wrappedFilterPushdown{inner: r0}, true
+}
+
+func (w *wrappedQueryParamPushdown) GetOrderBy() (OrderByPushdown, bool) {
+	r0, r1 := w.inner.GetOrderBy()
+	if !r1 {
+		return nil, false
+	}
+	return &wrappedOrderByPushdown{inner: r0}, true
+}
+
+func (w *wrappedQueryParamPushdown) GetTop() (TopPushdown, bool) {
+	r0, r1 := w.inner.GetTop()
+	if !r1 {
+		return nil, false
+	}
+	return &wrappedTopPushdown{inner: r0}, true
+}
+
+func (w *wrappedQueryParamPushdown) GetSkip() (SkipPushdown, bool) {
+	r0, r1 := w.inner.GetSkip()
+	if !r1 {
+		return nil, false
+	}
+	return &wrappedSkipPushdown{inner: r0}, true
+}
+
+func (w *wrappedQueryParamPushdown) GetCount() (CountPushdown, bool) {
+	r0, r1 := w.inner.GetCount()
+	if !r1 {
+		return nil, false
+	}
+	return &wrappedCountPushdown{inner: r0}, true
+}
+
+type wrappedSelectPushdown struct {
+	inner anysdk.SelectPushdown
+}
+
+func (w *wrappedSelectPushdown) GetDialect() string { return w.inner.GetDialect() }
+
+func (w *wrappedSelectPushdown) GetParamName() string { return w.inner.GetParamName() }
+
+func (w *wrappedSelectPushdown) GetDelimiter() string { return w.inner.GetDelimiter() }
+
+func (w *wrappedSelectPushdown) GetSupportedColumns() []string { return w.inner.GetSupportedColumns() }
+
+func (w *wrappedSelectPushdown) IsColumnSupported(c string) bool { return w.inner.IsColumnSupported(c) }
+
+type wrappedFilterPushdown struct {
+	inner anysdk.FilterPushdown
+}
+
+func (w *wrappedFilterPushdown) GetDialect() string { return w.inner.GetDialect() }
+
+func (w *wrappedFilterPushdown) GetParamName() string { return w.inner.GetParamName() }
+
+func (w *wrappedFilterPushdown) GetSyntax() string { return w.inner.GetSyntax() }
+
+func (w *wrappedFilterPushdown) GetSupportedOperators() []string {
+	return w.inner.GetSupportedOperators()
+}
+
+func (w *wrappedFilterPushdown) GetSupportedColumns() []string { return w.inner.GetSupportedColumns() }
+
+func (w *wrappedFilterPushdown) IsOperatorSupported(o string) bool {
+	return w.inner.IsOperatorSupported(o)
+}
+
+func (w *wrappedFilterPushdown) IsColumnSupported(c string) bool { return w.inner.IsColumnSupported(c) }
+
+type wrappedOrderByPushdown struct {
+	inner anysdk.OrderByPushdown
+}
+
+func (w *wrappedOrderByPushdown) GetDialect() string { return w.inner.GetDialect() }
+
+func (w *wrappedOrderByPushdown) GetParamName() string { return w.inner.GetParamName() }
+
+func (w *wrappedOrderByPushdown) GetSyntax() string { return w.inner.GetSyntax() }
+
+func (w *wrappedOrderByPushdown) GetSupportedColumns() []string {
+	return w.inner.GetSupportedColumns()
+}
+
+func (w *wrappedOrderByPushdown) IsColumnSupported(c string) bool {
+	return w.inner.IsColumnSupported(c)
+}
+
+type wrappedTopPushdown struct {
+	inner anysdk.TopPushdown
+}
+
+func (w *wrappedTopPushdown) GetDialect() string { return w.inner.GetDialect() }
+
+func (w *wrappedTopPushdown) GetParamName() string { return w.inner.GetParamName() }
+
+func (w *wrappedTopPushdown) GetMaxValue() int { return w.inner.GetMaxValue() }
+
+type wrappedSkipPushdown struct {
+	inner anysdk.SkipPushdown
+}
+
+func (w *wrappedSkipPushdown) GetDialect() string { return w.inner.GetDialect() }
+
+func (w *wrappedSkipPushdown) GetParamName() string { return w.inner.GetParamName() }
+
+func (w *wrappedSkipPushdown) GetMaxValue() int { return w.inner.GetMaxValue() }
+
+type wrappedCountPushdown struct {
+	inner anysdk.CountPushdown
+}
+
+func (w *wrappedCountPushdown) GetDialect() string { return w.inner.GetDialect() }
+
+func (w *wrappedCountPushdown) GetParamName() string { return w.inner.GetParamName() }
+
+func (w *wrappedCountPushdown) GetParamValue() string { return w.inner.GetParamValue() }
+
+func (w *wrappedCountPushdown) GetResponseKey() string { return w.inner.GetResponseKey() }
 
 type wrappedTransform struct {
 	inner anysdk.Transform
