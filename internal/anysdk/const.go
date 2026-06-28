@@ -33,6 +33,9 @@ const (
 	ExtensionKeyResources      string = "x-stackQL-resources"
 	ExtensionKeyStringOnly     string = "x-stackQL-stringOnly"
 	ExtensionKeyAlias          string = "x-stackQL-alias"
+	// ExtensionKeyProtocol is the info-level wire protocol hint (query|ec2|rest-xml)
+	// consumed by the schema_driven_xml response transform.
+	ExtensionKeyProtocol string = "x-protocol"
 )
 
 const (

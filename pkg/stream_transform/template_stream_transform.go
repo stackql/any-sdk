@@ -37,12 +37,34 @@ type StreamTransformerFactory interface {
 type streamTransformerFactory struct {
 	tplType string
 	tplStr  string
+	// schema-driven fields (only set for SchemaDrivenXMLV1):
+	schema       SchemaTree
+	protocol     string
+	listProperty string
 }
 
 func NewStreamTransformerFactory(tplType string, tplStr string) StreamTransformerFactory {
 	return &streamTransformerFactory{
 		tplType: tplType,
 		tplStr:  tplStr,
+	}
+}
+
+// NewSchemaDrivenXMLStreamTransformerFactory builds a factory for the
+// schema_driven_xml family. The caller adapts its own schema to SchemaTree and
+// supplies the wire protocol (info.x-protocol) plus the envelope list property
+// (derived from response.objectKey, e.g. "line_items").
+func NewSchemaDrivenXMLStreamTransformerFactory(
+	tplType string,
+	schema SchemaTree,
+	protocol string,
+	listProperty string,
+) StreamTransformerFactory {
+	return &streamTransformerFactory{
+		tplType:      tplType,
+		schema:       schema,
+		protocol:     protocol,
+		listProperty: listProperty,
 	}
 }
 
@@ -55,6 +77,8 @@ func (stf *streamTransformerFactory) IsTransformable() bool {
 	case GolangTemplateTextV1, GolangTemplateTextV3:
 		return true
 	case GolangTemplateUnspecifiedV1, GolangTemplateUnspecifiedV3:
+		return true
+	case SchemaDrivenXMLV1:
 		return true
 	default:
 		return false
@@ -78,6 +102,9 @@ func (stf *streamTransformerFactory) GetTransformer(input string) (StreamTransfo
 		outStream := bytes.NewBuffer(nil)
 		tfm, err := newTemplateStreamTransformer(stf.tplType, stf.tplStr, inStream, outStream)
 		return tfm, err
+	case SchemaDrivenXMLV1:
+		outStream := bytes.NewBuffer(nil)
+		return newSchemaDrivenXMLTransformer(input, stf.schema, stf.protocol, stf.listProperty, outStream)
 	default:
 		return nil, fmt.Errorf("unsupported template type: %s", stf.tplType)
 	}

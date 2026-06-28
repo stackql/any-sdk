@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/stackql/any-sdk/internal/anysdk"
+	"github.com/stackql/any-sdk/pkg/casing"
 	"github.com/stackql/any-sdk/pkg/media"
 )
 
@@ -78,17 +79,28 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error)
 		existingColumns[col.GetName()] = struct{}{}
 		rv = append(rv, newSimpleColumn(col.GetName(), col.GetSchema()))
 	}
+	snakeAliases := false
+	if prov := ta.m.GetProvider(); prov != nil {
+		snakeAliases = prov.IsSnakeCaseAliasesEnabled()
+	}
 	unionedRequiredParams, err := ta.m.GetUnionRequiredParameters()
 	if err != nil && !ta.isNilResponseAllowed {
 		return nil, err
 	}
 	for k, col := range unionedRequiredParams {
-		if _, ok := existingColumns[k]; ok {
+		// Snake-alias required-parameter names too when the provider opts in, so the
+		// column set is consistent (snake on both response and parameter sides) and
+		// avoids a SQLite NOCASE collision between e.g. VpcId and vpc_id.
+		colName := k
+		if snakeAliases {
+			colName = casing.ToSnake(k)
+		}
+		if _, ok := existingColumns[colName]; ok {
 			continue
 		}
 		schema, _ := col.GetSchema()
-		existingColumns[col.GetName()] = struct{}{}
-		rv = append(rv, newSimpleColumn(k, schema))
+		existingColumns[colName] = struct{}{}
+		rv = append(rv, newSimpleColumn(colName, schema))
 	}
 	servers, serversDoExist := ta.m.GetServers()
 	if serversDoExist {
