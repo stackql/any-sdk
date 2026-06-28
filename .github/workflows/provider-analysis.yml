@@ -33,6 +33,7 @@ jobs:
       uses: actions/setup-go@v6
       with:
         go-version: ^${{ env.GOLANG_VERSION }}
+        cache: false
       id: go
 
     - name: Check out code into the Go module directory
@@ -86,6 +87,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ^${{ env.GOLANG_VERSION }}
+          cache: false
         id: go
 
       - name: Download core

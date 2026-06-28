@@ -36,6 +36,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ^${{ env.GOLANG_VERSION }}
+          cache: false
         id: go
 
       - name: Setup Python
