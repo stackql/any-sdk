@@ -33,18 +33,18 @@ jobs:
     steps:
 
       - name: Set up golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^${{ env.GOLANG_VERSION }}
         id: go
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download core
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.STACKQL_CORE_REPOSITORY }}
           ref: ${{ env.STACKQL_CORE_REF }}
@@ -58,7 +58,7 @@ jobs:
           python3 cicd/python/build.py --build
 
       - name: Upload stackql binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stackql_binary
           path: stackql-core/build/stackql
@@ -72,10 +72,10 @@ jobs:
     steps:
 
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
@@ -83,7 +83,7 @@ jobs:
       run: pip install flask
 
     - name: Download stackql binary
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: stackql_binary
         path: build
@@ -413,7 +413,7 @@ jobs:
         PYEOF
 
     - name: Upload Mock Test Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: mock-test-results

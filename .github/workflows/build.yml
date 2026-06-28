@@ -35,7 +35,7 @@ jobs:
     steps:
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v7
       with:
         repository: ${{ env.STACKQL_CORE_REPOSITORY }}
         ref: ${{ env.STACKQL_CORE_REF }}
@@ -43,7 +43,7 @@ jobs:
         path: stackql-core-pkg
 
     - name: Setup Python
-      uses: actions/setup-python@v5.0.0
+      uses: actions/setup-python@v6
       with:
         cache: pip
         python-version: '3.12' 
@@ -64,7 +64,7 @@ jobs:
         cicd/util/01-build-robot-lib.sh
     
     - name: Upload python package artifact
-      uses: actions/upload-artifact@v4.3.1
+      uses: actions/upload-artifact@v7
       with:
         name: python-package-dist-folder
         path: stackql-core-pkg/test/dist
@@ -74,7 +74,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Set up Go 1.x
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v6
       with:
         go-version: ^${{ env.GOLANG_VERSION }}
       id: go
@@ -84,7 +84,7 @@ jobs:
         git config --global core.autocrlf false
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
 
     - name: Get dependencies
       run: |
@@ -133,13 +133,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.x
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v6
       with:
         go-version: ^${{ env.GOLANG_VERSION }}
       id: go
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
     
     - name: API sprawl check
       run: |
@@ -156,7 +156,7 @@ jobs:
         sudo apt-get install -y jq
     
     - name: Setup Python
-      uses: actions/setup-python@v5.0.0
+      uses: actions/setup-python@v6
       with:
         # cache: pip # this requires requirements in source control
         python-version: '3.12'
@@ -167,7 +167,7 @@ jobs:
         pip3 install -r cicd/testing-requirements.txt
     
     - name: Download python package dist folder
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v8
       with:
         name: python-package-dist-folder
         path: test/dist
@@ -222,7 +222,7 @@ jobs:
         fi
 
     - name: Download core
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         repository: ${{ env.STACKQL_CORE_REPOSITORY }}
         ref: ${{ env.STACKQL_CORE_REF }}
@@ -407,7 +407,7 @@ jobs:
 
     - name: upload mocked test results
       if: always()
-      uses: actions/upload-artifact@v4.3.1
+      uses: actions/upload-artifact@v7
       with:
         name: mocked-robot-test-results
         path: test/robot/reports/mocked
@@ -438,13 +438,13 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Set up Go 1.x
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v6
       with:
         go-version: ^${{ env.GOLANG_VERSION }}
       id: go
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
 
     - name: Get dependencies
       run: |
@@ -484,13 +484,13 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Set up Go 1.x
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v6
       with:
         go-version: ^${{ env.GOLANG_VERSION }}
       id: go
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
 
     - name: Get dependencies
       run: |
