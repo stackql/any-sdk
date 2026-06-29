@@ -8,33 +8,31 @@ import (
 )
 
 // PushdownPredicate is a single neutral, dialect-agnostic WHERE predicate.
-// Operator accepts either SQL-style symbols ("=", "!=", ">", ">=", "<", "<=")
+// GetOperator accepts either SQL-style symbols ("=", "!=", ">", ">=", "<", "<=")
 // or OData logical names ("eq", "ne", "gt", "ge", "lt", "le", "startswith",
-// "endswith", "contains"). Value is the raw comparison value.
-type PushdownPredicate struct {
-	Column   string
-	Operator string
-	Value    interface{}
+// "endswith", "contains"). GetValue is the raw comparison value.
+type PushdownPredicate interface {
+	GetColumn() string
+	GetOperator() string
+	GetValue() interface{}
 }
 
 // PushdownOrder is a single neutral ORDER BY term.
-type PushdownOrder struct {
-	Column     string
-	Descending bool
+type PushdownOrder interface {
+	GetColumn() string
+	IsDescending() bool
 }
 
 // PushdownIntent is a neutral, dialect-agnostic description of the query options
 // to push down to the upstream API. It carries no foreign (OData/custom) syntax;
 // ApplyPushdown performs the dialect translation.
-type PushdownIntent struct {
-	Projection []string
-	Predicates []PushdownPredicate
-	OrderBy    []PushdownOrder
-	Limit      int
-	LimitSet   bool
-	Offset     int
-	OffsetSet  bool
-	Count      bool
+type PushdownIntent interface {
+	GetProjection() []string
+	GetPredicates() []PushdownPredicate
+	GetOrderBy() []PushdownOrder
+	GetLimit() (int, bool)
+	GetOffset() (int, bool)
+	IsCount() bool
 }
 
 // PushdownResult is the outcome of translating a PushdownIntent against an
@@ -45,6 +43,82 @@ type PushdownResult interface {
 	ResidualPredicates() []PushdownPredicate
 	CountResponseKey() string
 }
+
+type standardPushdownPredicate struct {
+	column   string
+	operator string
+	value    interface{}
+}
+
+// NewPushdownPredicate builds a PushdownPredicate.
+func NewPushdownPredicate(column string, operator string, value interface{}) PushdownPredicate {
+	return &standardPushdownPredicate{column: column, operator: operator, value: value}
+}
+
+func (p *standardPushdownPredicate) GetColumn() string { return p.column }
+
+func (p *standardPushdownPredicate) GetOperator() string { return p.operator }
+
+func (p *standardPushdownPredicate) GetValue() interface{} { return p.value }
+
+type standardPushdownOrder struct {
+	column     string
+	descending bool
+}
+
+// NewPushdownOrder builds a PushdownOrder.
+func NewPushdownOrder(column string, descending bool) PushdownOrder {
+	return &standardPushdownOrder{column: column, descending: descending}
+}
+
+func (o *standardPushdownOrder) GetColumn() string { return o.column }
+
+func (o *standardPushdownOrder) IsDescending() bool { return o.descending }
+
+type standardPushdownIntent struct {
+	projection []string
+	predicates []PushdownPredicate
+	orderBy    []PushdownOrder
+	limit      int
+	limitSet   bool
+	offset     int
+	offsetSet  bool
+	count      bool
+}
+
+// NewPushdownIntent builds a PushdownIntent. limitSet / offsetSet report whether
+// the corresponding value is meaningful (SQL LIMIT/OFFSET being optional).
+func NewPushdownIntent(
+	projection []string,
+	predicates []PushdownPredicate,
+	orderBy []PushdownOrder,
+	limit int, limitSet bool,
+	offset int, offsetSet bool,
+	count bool,
+) PushdownIntent {
+	return &standardPushdownIntent{
+		projection: projection,
+		predicates: predicates,
+		orderBy:    orderBy,
+		limit:      limit,
+		limitSet:   limitSet,
+		offset:     offset,
+		offsetSet:  offsetSet,
+		count:      count,
+	}
+}
+
+func (i *standardPushdownIntent) GetProjection() []string { return i.projection }
+
+func (i *standardPushdownIntent) GetPredicates() []PushdownPredicate { return i.predicates }
+
+func (i *standardPushdownIntent) GetOrderBy() []PushdownOrder { return i.orderBy }
+
+func (i *standardPushdownIntent) GetLimit() (int, bool) { return i.limit, i.limitSet }
+
+func (i *standardPushdownIntent) GetOffset() (int, bool) { return i.offset, i.offsetSet }
+
+func (i *standardPushdownIntent) IsCount() bool { return i.count }
 
 // pushdownConfigSource is the minimal surface ApplyPushdown needs to resolve the
 // pushdown config (with the Method -> Resource -> Service -> ProviderService ->
@@ -79,13 +153,16 @@ func (r *standardPushdownResult) CountResponseKey() string { return r.countRespo
 // residual, preserving current behaviour.
 func ApplyPushdown(src pushdownConfigSource, intent PushdownIntent) PushdownResult {
 	res := &standardPushdownResult{queryParams: map[string]string{}}
+	if intent == nil {
+		return res
+	}
 
 	var qpp QueryParamPushdown
 	if src != nil {
 		qpp, _ = src.GetQueryParamPushdown()
 	}
 	if qpp == nil {
-		res.residualPredicates = append(res.residualPredicates, intent.Predicates...)
+		res.residualPredicates = append(res.residualPredicates, intent.GetPredicates()...)
 		return res
 	}
 
@@ -100,7 +177,8 @@ func ApplyPushdown(src pushdownConfigSource, intent PushdownIntent) PushdownResu
 }
 
 func applyPushdownSelect(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
-	if len(intent.Projection) == 0 {
+	projection := intent.GetProjection()
+	if len(projection) == 0 {
 		return
 	}
 	sel, ok := qpp.GetSelect()
@@ -109,7 +187,7 @@ func applyPushdownSelect(qpp QueryParamPushdown, intent PushdownIntent, res *sta
 	}
 	// All-or-nothing: pushing a partial projection would silently drop columns the
 	// caller still needs, so emit $select only when every column is supported.
-	for _, col := range intent.Projection {
+	for _, col := range projection {
 		if !sel.IsColumnSupported(col) {
 			return
 		}
@@ -118,16 +196,17 @@ func applyPushdownSelect(qpp QueryParamPushdown, intent PushdownIntent, res *sta
 	if paramName == "" {
 		return
 	}
-	res.queryParams[paramName] = strings.Join(intent.Projection, sel.GetDelimiter())
+	res.queryParams[paramName] = strings.Join(projection, sel.GetDelimiter())
 }
 
 func applyPushdownFilter(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
-	if len(intent.Predicates) == 0 {
+	predicates := intent.GetPredicates()
+	if len(predicates) == 0 {
 		return
 	}
 	fil, ok := qpp.GetFilter()
 	if !ok {
-		res.residualPredicates = append(res.residualPredicates, intent.Predicates...)
+		res.residualPredicates = append(res.residualPredicates, predicates...)
 		return
 	}
 
@@ -135,12 +214,12 @@ func applyPushdownFilter(qpp QueryParamPushdown, intent PushdownIntent, res *sta
 	paramName := fil.GetParamName()
 
 	var pushable []PushdownPredicate
-	for _, p := range intent.Predicates {
-		odataOp := normalizePushdownFilterOperator(p.Operator)
+	for _, p := range predicates {
+		odataOp := normalizePushdownFilterOperator(p.GetOperator())
 		// Only OData-syntax filters can be rendered here; a column/operator must be
 		// supported, and the operator must be one we know how to emit.
 		if odataSyntax && paramName != "" && odataOp != "" &&
-			fil.IsColumnSupported(p.Column) && fil.IsOperatorSupported(odataOp) {
+			fil.IsColumnSupported(p.GetColumn()) && fil.IsOperatorSupported(odataOp) {
 			pushable = append(pushable, p)
 		} else {
 			res.residualPredicates = append(res.residualPredicates, p)
@@ -166,7 +245,8 @@ func applyPushdownFilter(qpp QueryParamPushdown, intent PushdownIntent, res *sta
 }
 
 func applyPushdownOrderBy(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
-	if len(intent.OrderBy) == 0 {
+	orderBy := intent.GetOrderBy()
+	if len(orderBy) == 0 {
 		return
 	}
 	ob, ok := qpp.GetOrderBy()
@@ -182,24 +262,25 @@ func applyPushdownOrderBy(qpp QueryParamPushdown, intent PushdownIntent, res *st
 		return
 	}
 	// All-or-nothing: a partial ordering would mis-order results.
-	for _, o := range intent.OrderBy {
-		if !ob.IsColumnSupported(o.Column) {
+	for _, o := range orderBy {
+		if !ob.IsColumnSupported(o.GetColumn()) {
 			return
 		}
 	}
-	parts := make([]string, 0, len(intent.OrderBy))
-	for _, o := range intent.OrderBy {
+	parts := make([]string, 0, len(orderBy))
+	for _, o := range orderBy {
 		dir := "asc"
-		if o.Descending {
+		if o.IsDescending() {
 			dir = "desc"
 		}
-		parts = append(parts, o.Column+" "+dir)
+		parts = append(parts, o.GetColumn()+" "+dir)
 	}
 	res.queryParams[paramName] = strings.Join(parts, ",")
 }
 
 func applyPushdownTop(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
-	if !intent.LimitSet {
+	v, set := intent.GetLimit()
+	if !set {
 		return
 	}
 	tp, ok := qpp.GetTop()
@@ -210,7 +291,6 @@ func applyPushdownTop(qpp QueryParamPushdown, intent PushdownIntent, res *standa
 	if paramName == "" {
 		return
 	}
-	v := intent.Limit
 	if v < 0 {
 		return
 	}
@@ -221,7 +301,8 @@ func applyPushdownTop(qpp QueryParamPushdown, intent PushdownIntent, res *standa
 }
 
 func applyPushdownSkip(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
-	if !intent.OffsetSet {
+	v, set := intent.GetOffset()
+	if !set {
 		return
 	}
 	sp, ok := qpp.GetSkip()
@@ -232,7 +313,6 @@ func applyPushdownSkip(qpp QueryParamPushdown, intent PushdownIntent, res *stand
 	if paramName == "" {
 		return
 	}
-	v := intent.Offset
 	if v < 0 {
 		return
 	}
@@ -243,7 +323,7 @@ func applyPushdownSkip(qpp QueryParamPushdown, intent PushdownIntent, res *stand
 }
 
 func applyPushdownCount(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
-	if !intent.Count {
+	if !intent.IsCount() {
 		return
 	}
 	cp, ok := qpp.GetCount()
@@ -260,12 +340,12 @@ func applyPushdownCount(qpp QueryParamPushdown, intent PushdownIntent, res *stan
 
 // buildODataFilterTerm renders one supported predicate as an OData $filter term.
 func buildODataFilterTerm(p PushdownPredicate) string {
-	op := normalizePushdownFilterOperator(p.Operator)
+	op := normalizePushdownFilterOperator(p.GetOperator())
 	switch op {
 	case "startswith", "endswith", "contains":
-		return fmt.Sprintf("%s(%s,%s)", op, p.Column, formatODataValue(p.Value))
+		return fmt.Sprintf("%s(%s,%s)", op, p.GetColumn(), formatODataValue(p.GetValue()))
 	default: // eq, ne, gt, ge, lt, le
-		return fmt.Sprintf("%s %s %s", p.Column, op, formatODataValue(p.Value))
+		return fmt.Sprintf("%s %s %s", p.GetColumn(), op, formatODataValue(p.GetValue()))
 	}
 }
 

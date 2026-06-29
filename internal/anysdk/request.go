@@ -48,7 +48,7 @@ type standardHTTPPreparator struct {
 	logger            *logrus.Logger
 	parameters        streaming.MapStream
 	streamTransformer stream_transform.StreamTransformer
-	pushdownIntent    *PushdownIntent
+	pushdownIntent    PushdownIntent
 }
 
 func NewHTTPPreparator(
@@ -115,8 +115,7 @@ func (pr *standardHTTPPreparator) clone() *standardHTTPPreparator {
 // preparator with no intent behaves exactly as before.
 func (pr *standardHTTPPreparator) WithPushdownIntent(intent PushdownIntent) HTTPPreparator {
 	rv := pr.clone()
-	intentCopy := intent
-	rv.pushdownIntent = &intentCopy
+	rv.pushdownIntent = intent
 	return rv
 }
 
@@ -145,7 +144,7 @@ func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) 
 	// against this method's queryParamPushdown config and set the resulting query
 	// params on every built request. No intent / no config => armoury untouched.
 	if pr.pushdownIntent != nil {
-		applyPushdownToArmoury(armoury, pr.m, *pr.pushdownIntent)
+		applyPushdownToArmoury(armoury, pr.m, pr.pushdownIntent)
 	}
 	return armoury, nil
 }

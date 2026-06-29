@@ -74,20 +74,18 @@ count:
 
 func TestApplyPushdown_FullOData(t *testing.T) {
 	src := applyTestSource{qpp: applyTestBuildPushdown(t, pushdownApplyODataYaml)}
-	intent := PushdownIntent{
-		Projection: []string{"id", "displayName"},
-		Predicates: []PushdownPredicate{
-			{Column: "displayName", Operator: "startswith", Value: "A"},
-			{Column: "status", Operator: "=", Value: "active"},
-			{Column: "createdYear", Operator: ">", Value: 2020},
+	intent := NewPushdownIntent(
+		[]string{"id", "displayName"},
+		[]PushdownPredicate{
+			NewPushdownPredicate("displayName", "startswith", "A"),
+			NewPushdownPredicate("status", "=", "active"),
+			NewPushdownPredicate("createdYear", ">", 2020),
 		},
-		OrderBy:   []PushdownOrder{{Column: "displayName", Descending: true}},
-		Limit:     10,
-		LimitSet:  true,
-		Offset:    20,
-		OffsetSet: true,
-		Count:     true,
-	}
+		[]PushdownOrder{NewPushdownOrder("displayName", true)},
+		10, true,
+		20, true,
+		true,
+	)
 
 	res := ApplyPushdown(src, intent)
 
@@ -122,14 +120,18 @@ filter:
     - "displayName"
 `
 	src := applyTestSource{qpp: applyTestBuildPushdown(t, partialYaml)}
-	intent := PushdownIntent{
-		Projection: []string{"displayName", "secret"}, // secret unsupported -> $select suppressed
-		Predicates: []PushdownPredicate{
-			{Column: "displayName", Operator: "eq", Value: "A"}, // pushable
-			{Column: "unknownCol", Operator: "eq", Value: "B"},  // unsupported column
-			{Column: "displayName", Operator: "gt", Value: 5},   // unsupported operator
+	intent := NewPushdownIntent(
+		[]string{"displayName", "secret"}, // secret unsupported -> $select suppressed
+		[]PushdownPredicate{
+			NewPushdownPredicate("displayName", "eq", "A"), // pushable
+			NewPushdownPredicate("unknownCol", "eq", "B"),  // unsupported column
+			NewPushdownPredicate("displayName", "gt", 5),   // unsupported operator
 		},
-	}
+		nil,
+		0, false,
+		0, false,
+		false,
+	)
 
 	res := ApplyPushdown(src, intent)
 
@@ -165,13 +167,15 @@ count:
   responseKey: "meta.total"
 `
 	src := applyTestSource{qpp: applyTestBuildPushdown(t, customYaml)}
-	res := ApplyPushdown(src, PushdownIntent{
-		Projection: []string{"a", "b"},
-		Predicates: []PushdownPredicate{{Column: "status", Operator: "eq", Value: "x"}},
-		Offset:     250, // above maxValue -> clamped
-		OffsetSet:  true,
-		Count:      true,
-	})
+	intent := NewPushdownIntent(
+		[]string{"a", "b"},
+		[]PushdownPredicate{NewPushdownPredicate("status", "eq", "x")},
+		nil,
+		0, false,
+		250, true, // above maxValue -> clamped
+		true,
+	)
+	res := ApplyPushdown(src, intent)
 
 	applyTestAssertParam(t, res.QueryParams(), "fields", "a|b")
 	applyTestAssertParam(t, res.QueryParams(), "offset", "100")
@@ -189,14 +193,18 @@ count:
 
 func TestApplyPushdown_TopClampAndAbsentConfig(t *testing.T) {
 	src := applyTestSource{qpp: applyTestBuildPushdown(t, pushdownApplyODataYaml)}
-	res := ApplyPushdown(src, PushdownIntent{Limit: 5000, LimitSet: true})
+	res := ApplyPushdown(src, NewPushdownIntent(nil, nil, nil, 5000, true, 0, false, false))
 	applyTestAssertParam(t, res.QueryParams(), "$top", "1000")
 
 	// Absent config: no params, all predicates residual.
-	noConfig := ApplyPushdown(applyTestSource{qpp: nil}, PushdownIntent{
-		Predicates: []PushdownPredicate{{Column: "a", Operator: "eq", Value: 1}},
-		Limit:      10, LimitSet: true,
-	})
+	noConfig := ApplyPushdown(applyTestSource{qpp: nil}, NewPushdownIntent(
+		nil,
+		[]PushdownPredicate{NewPushdownPredicate("a", "eq", 1)},
+		nil,
+		10, true,
+		0, false,
+		false,
+	))
 	if len(noConfig.QueryParams()) != 0 {
 		t.Fatalf("expected zero params with absent config, got %v", noConfig.QueryParams())
 	}
@@ -241,11 +249,14 @@ func TestSetPushdownQueryParams_EmptyIsByteForByteNoOp(t *testing.T) {
 
 func TestApplyPushdown_IntentToRequestQuery(t *testing.T) {
 	src := applyTestSource{qpp: applyTestBuildPushdown(t, pushdownApplyODataYaml)}
-	res := ApplyPushdown(src, PushdownIntent{
-		Predicates: []PushdownPredicate{{Column: "status", Operator: "eq", Value: "active"}},
-		Limit:      10,
-		LimitSet:   true,
-	})
+	res := ApplyPushdown(src, NewPushdownIntent(
+		nil,
+		[]PushdownPredicate{NewPushdownPredicate("status", "eq", "active")},
+		nil,
+		10, true,
+		0, false,
+		false,
+	))
 	req, _ := http.NewRequest("GET", "https://example.com/api", nil)
 	setPushdownQueryParams([]queryParamSettable{&applyTestQueryParam{req: req}}, res.QueryParams())
 	q := req.URL.Query()

@@ -77,20 +77,18 @@ func NewPushdownIntent(
 
 func pushdownIntentToAnySdk(i PushdownIntent) anysdk.PushdownIntent {
 	if i == nil {
-		return anysdk.PushdownIntent{}
+		return nil
 	}
 	limit, limitSet := i.GetLimit()
 	offset, offsetSet := i.GetOffset()
-	return anysdk.PushdownIntent{
-		Projection: i.GetProjection(),
-		Predicates: toAnySdkPushdownPredicates(i.GetPredicates()),
-		OrderBy:    toAnySdkPushdownOrders(i.GetOrderBy()),
-		Limit:      limit,
-		LimitSet:   limitSet,
-		Offset:     offset,
-		OffsetSet:  offsetSet,
-		Count:      i.IsCount(),
-	}
+	return anysdk.NewPushdownIntent(
+		i.GetProjection(),
+		toAnySdkPushdownPredicates(i.GetPredicates()),
+		toAnySdkPushdownOrders(i.GetOrderBy()),
+		limit, limitSet,
+		offset, offsetSet,
+		i.IsCount(),
+	)
 }
 
 func toAnySdkPushdownPredicates(in []PushdownPredicate) []anysdk.PushdownPredicate {
@@ -99,7 +97,7 @@ func toAnySdkPushdownPredicates(in []PushdownPredicate) []anysdk.PushdownPredica
 	}
 	out := make([]anysdk.PushdownPredicate, len(in))
 	for j, p := range in {
-		out[j] = anysdk.PushdownPredicate{Column: p.Column, Operator: p.Operator, Value: p.Value}
+		out[j] = anysdk.NewPushdownPredicate(p.Column, p.Operator, p.Value)
 	}
 	return out
 }
@@ -110,7 +108,7 @@ func toAnySdkPushdownOrders(in []PushdownOrder) []anysdk.PushdownOrder {
 	}
 	out := make([]anysdk.PushdownOrder, len(in))
 	for j, o := range in {
-		out[j] = anysdk.PushdownOrder{Column: o.Column, Descending: o.Descending}
+		out[j] = anysdk.NewPushdownOrder(o.Column, o.Descending)
 	}
 	return out
 }
@@ -121,7 +119,7 @@ func fromAnySdkPushdownPredicates(in []anysdk.PushdownPredicate) []PushdownPredi
 	}
 	out := make([]PushdownPredicate, len(in))
 	for j, p := range in {
-		out[j] = PushdownPredicate{Column: p.Column, Operator: p.Operator, Value: p.Value}
+		out[j] = PushdownPredicate{Column: p.GetColumn(), Operator: p.GetOperator(), Value: p.GetValue()}
 	}
 	return out
 }

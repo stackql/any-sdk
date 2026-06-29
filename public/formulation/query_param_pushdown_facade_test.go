@@ -17,17 +17,21 @@ func TestPushdownIntent_toAnySdk(t *testing.T) {
 		true,
 	)
 	got := pushdownIntentToAnySdk(in)
-	if len(got.Projection) != 2 || got.Projection[1] != "b" {
-		t.Fatalf("Projection = %v", got.Projection)
+	if len(got.GetProjection()) != 2 || got.GetProjection()[1] != "b" {
+		t.Fatalf("Projection = %v", got.GetProjection())
 	}
-	if len(got.Predicates) != 1 || got.Predicates[0].Column != "c" || got.Predicates[0].Operator != "eq" {
-		t.Fatalf("Predicates = %v", got.Predicates)
+	preds := got.GetPredicates()
+	if len(preds) != 1 || preds[0].GetColumn() != "c" || preds[0].GetOperator() != "eq" {
+		t.Fatalf("Predicates = %v", preds)
 	}
-	if len(got.OrderBy) != 1 || !got.OrderBy[0].Descending || got.OrderBy[0].Column != "d" {
-		t.Fatalf("OrderBy = %v", got.OrderBy)
+	orders := got.GetOrderBy()
+	if len(orders) != 1 || !orders[0].IsDescending() || orders[0].GetColumn() != "d" {
+		t.Fatalf("OrderBy = %v", orders)
 	}
-	if got.Limit != 5 || !got.LimitSet || got.Offset != 2 || !got.OffsetSet || !got.Count {
-		t.Fatalf("scalar fields not mapped: %+v", got)
+	limit, limitSet := got.GetLimit()
+	offset, offsetSet := got.GetOffset()
+	if limit != 5 || !limitSet || offset != 2 || !offsetSet || !got.IsCount() {
+		t.Fatalf("scalar fields not mapped: limit=%d/%v offset=%d/%v count=%v", limit, limitSet, offset, offsetSet, got.IsCount())
 	}
 }
 
@@ -57,11 +61,14 @@ top:
 	if err := yaml.Unmarshal([]byte(yamlStr), &qpp); err != nil {
 		t.Fatal(err)
 	}
-	inner := anysdk.ApplyPushdown(facadeFakeSource{qpp: &qpp}, anysdk.PushdownIntent{
-		Predicates: []anysdk.PushdownPredicate{{Column: "status", Operator: "eq", Value: "x"}},
-		Limit:      7,
-		LimitSet:   true,
-	})
+	inner := anysdk.ApplyPushdown(facadeFakeSource{qpp: &qpp}, anysdk.NewPushdownIntent(
+		nil,
+		[]anysdk.PushdownPredicate{anysdk.NewPushdownPredicate("status", "eq", "x")},
+		nil,
+		7, true,
+		0, false,
+		false,
+	))
 	w := &wrappedPushdownResult{inner: inner}
 	if w.QueryParams()["$filter"] != "status eq 'x'" {
 		t.Fatalf("$filter = %v", w.QueryParams())
