@@ -117,6 +117,7 @@ type HTTPArmouryParameters interface {
 type HTTPPreparator interface {
 	BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error)
 	MergeParams(map[int]map[string]any) (HTTPPreparator, error)
+	WithPushdownIntent(intent PushdownIntent) HTTPPreparator
 	unwrap() anysdk.HTTPPreparator
 }
 

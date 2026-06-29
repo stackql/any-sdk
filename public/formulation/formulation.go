@@ -111,7 +111,7 @@ func NewHTTPPreparator(
 	if execContext != nil {
 		unwrappedExecCtx = execContext.unwrap()
 	}
-	return newHTTPPreparatorFromAnySdkHTTPPreparator(
+	prep := newHTTPPreparatorFromAnySdkHTTPPreparator(
 		anysdk.NewHTTPPreparator(
 			prov.unwrap(),
 			svc.unwrap(),
@@ -122,6 +122,12 @@ func NewHTTPPreparator(
 			logger,
 		),
 	)
+	// m satisfies PushdownConfigSource; the intent stays nil until a caller opts in
+	// via WithPushdownIntent, so behaviour is unchanged by default.
+	if wp, ok := prep.(*wrappedHTTPPreparator); ok {
+		wp.pushdownSource = m
+	}
+	return prep
 }
 
 func CallFromSignature(

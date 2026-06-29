@@ -648,6 +648,11 @@ func (w *wrappedHTTPArmouryParameters) ToFlatMap() (map[string]interface{}, erro
 
 type wrappedHTTPPreparator struct {
 	inner anysdk.HTTPPreparator
+	// pushdownSource resolves the queryParamPushdown config (the OperationStore
+	// supplied to NewHTTPPreparator). pushdownIntent is the opt-in neutral intent.
+	// Both nil unless WithPushdownIntent was used on a NewHTTPPreparator-built value.
+	pushdownSource PushdownConfigSource
+	pushdownIntent *PushdownIntent
 }
 
 func (w *wrappedHTTPPreparator) MergeParams(m map[int]map[string]any) (HTTPPreparator, error) {
@@ -655,15 +660,34 @@ func (w *wrappedHTTPPreparator) MergeParams(m map[int]map[string]any) (HTTPPrepa
 	if r1 != nil {
 		return nil, r1
 	}
-	return &wrappedHTTPPreparator{inner: r0}, nil
+	return &wrappedHTTPPreparator{
+		inner:          r0,
+		pushdownSource: w.pushdownSource,
+		pushdownIntent: w.pushdownIntent,
+	}, nil
 }
 
 func (w *wrappedHTTPPreparator) unwrap() anysdk.HTTPPreparator {
 	return w.inner
 }
 
+// WithPushdownIntent returns a copy of the preparator that, at BuildHTTPRequestCtx
+// time, applies the queryParamPushdown config (if any) for the supplied neutral
+// intent and sets the resulting query params on every built request. It is opt-in
+// and additive: the original preparator is unchanged and a preparator with no
+// intent behaves exactly as before.
+func (w *wrappedHTTPPreparator) WithPushdownIntent(intent PushdownIntent) HTTPPreparator {
+	clone := *w
+	intentCopy := intent
+	clone.pushdownIntent = &intentCopy
+	return &clone
+}
+
 func (w *wrappedHTTPPreparator) BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error) {
 	r0, r1 := w.inner.BuildHTTPRequestCtx(p0)
+	if r1 == nil && w.pushdownIntent != nil && w.pushdownSource != nil {
+		applyPushdownToArmoury(r0, w.pushdownSource, *w.pushdownIntent)
+	}
 	return &wrappedHTTPArmoury{inner: r0}, r1
 }
 
