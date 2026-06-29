@@ -8,17 +8,15 @@ import (
 )
 
 func TestPushdownIntent_toAnySdk(t *testing.T) {
-	in := PushdownIntent{
-		Projection: []string{"a", "b"},
-		Predicates: []PushdownPredicate{{Column: "c", Operator: "eq", Value: 1}},
-		OrderBy:    []PushdownOrder{{Column: "d", Descending: true}},
-		Limit:      5,
-		LimitSet:   true,
-		Offset:     2,
-		OffsetSet:  true,
-		Count:      true,
-	}
-	got := in.toAnySdk()
+	in := NewPushdownIntent(
+		[]string{"a", "b"},
+		[]PushdownPredicate{{Column: "c", Operator: "eq", Value: 1}},
+		[]PushdownOrder{{Column: "d", Descending: true}},
+		5, true,
+		2, true,
+		true,
+	)
+	got := pushdownIntentToAnySdk(in)
 	if len(got.Projection) != 2 || got.Projection[1] != "b" {
 		t.Fatalf("Projection = %v", got.Projection)
 	}

@@ -19,29 +19,77 @@ type PushdownOrder struct {
 }
 
 // PushdownIntent is a neutral, dialect-agnostic description of the query options
-// to push down to the upstream API. The dialect translation lives in the internal
-// anysdk layer; this is the facade data-carrier (cf. RegistryConfig).
-type PushdownIntent struct {
-	Projection []string
-	Predicates []PushdownPredicate
-	OrderBy    []PushdownOrder
-	Limit      int
-	LimitSet   bool
-	Offset     int
-	OffsetSet  bool
-	Count      bool
+// to push down to the upstream API. Construct one with NewPushdownIntent. The
+// dialect translation lives in the internal anysdk layer.
+type PushdownIntent interface {
+	GetProjection() []string
+	GetPredicates() []PushdownPredicate
+	GetOrderBy() []PushdownOrder
+	GetLimit() (int, bool)  // value, and whether a LIMIT was set
+	GetOffset() (int, bool) // value, and whether an OFFSET was set
+	IsCount() bool
 }
 
-func (i PushdownIntent) toAnySdk() anysdk.PushdownIntent {
+type pushdownIntent struct {
+	projection []string
+	predicates []PushdownPredicate
+	orderBy    []PushdownOrder
+	limit      int
+	limitSet   bool
+	offset     int
+	offsetSet  bool
+	count      bool
+}
+
+func (i *pushdownIntent) GetProjection() []string { return i.projection }
+
+func (i *pushdownIntent) GetPredicates() []PushdownPredicate { return i.predicates }
+
+func (i *pushdownIntent) GetOrderBy() []PushdownOrder { return i.orderBy }
+
+func (i *pushdownIntent) GetLimit() (int, bool) { return i.limit, i.limitSet }
+
+func (i *pushdownIntent) GetOffset() (int, bool) { return i.offset, i.offsetSet }
+
+func (i *pushdownIntent) IsCount() bool { return i.count }
+
+// NewPushdownIntent builds a PushdownIntent. limitSet / offsetSet report whether
+// the corresponding value is meaningful (mirroring SQL LIMIT/OFFSET being optional).
+func NewPushdownIntent(
+	projection []string,
+	predicates []PushdownPredicate,
+	orderBy []PushdownOrder,
+	limit int, limitSet bool,
+	offset int, offsetSet bool,
+	count bool,
+) PushdownIntent {
+	return &pushdownIntent{
+		projection: projection,
+		predicates: predicates,
+		orderBy:    orderBy,
+		limit:      limit,
+		limitSet:   limitSet,
+		offset:     offset,
+		offsetSet:  offsetSet,
+		count:      count,
+	}
+}
+
+func pushdownIntentToAnySdk(i PushdownIntent) anysdk.PushdownIntent {
+	if i == nil {
+		return anysdk.PushdownIntent{}
+	}
+	limit, limitSet := i.GetLimit()
+	offset, offsetSet := i.GetOffset()
 	return anysdk.PushdownIntent{
-		Projection: i.Projection,
-		Predicates: toAnySdkPushdownPredicates(i.Predicates),
-		OrderBy:    toAnySdkPushdownOrders(i.OrderBy),
-		Limit:      i.Limit,
-		LimitSet:   i.LimitSet,
-		Offset:     i.Offset,
-		OffsetSet:  i.OffsetSet,
-		Count:      i.Count,
+		Projection: i.GetProjection(),
+		Predicates: toAnySdkPushdownPredicates(i.GetPredicates()),
+		OrderBy:    toAnySdkPushdownOrders(i.GetOrderBy()),
+		Limit:      limit,
+		LimitSet:   limitSet,
+		Offset:     offset,
+		OffsetSet:  offsetSet,
+		Count:      i.IsCount(),
 	}
 }
 
@@ -117,5 +165,5 @@ func (w *wrappedPushdownResult) CountResponseKey() string { return w.inner.Count
 // every predicate is residual. Prefer HTTPPreparator.WithPushdownIntent to apply
 // the params directly to a prepared request.
 func ApplyPushdown(op OperationStore, intent PushdownIntent) PushdownResult {
-	return &wrappedPushdownResult{inner: anysdk.ApplyPushdown(op.unwrap(), intent.toAnySdk())}
+	return &wrappedPushdownResult{inner: anysdk.ApplyPushdown(op.unwrap(), pushdownIntentToAnySdk(intent))}
 }

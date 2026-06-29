@@ -667,7 +667,7 @@ func (w *wrappedHTTPPreparator) unwrap() anysdk.HTTPPreparator {
 // BuildHTTPRequestCtx time. Opt-in and additive: a preparator with no intent
 // behaves exactly as before.
 func (w *wrappedHTTPPreparator) WithPushdownIntent(intent PushdownIntent) HTTPPreparator {
-	return &wrappedHTTPPreparator{inner: w.inner.WithPushdownIntent(intent.toAnySdk())}
+	return &wrappedHTTPPreparator{inner: w.inner.WithPushdownIntent(pushdownIntentToAnySdk(intent))}
 }
 
 func (w *wrappedHTTPPreparator) BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error) {
