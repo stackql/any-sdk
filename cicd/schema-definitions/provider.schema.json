@@ -94,6 +94,9 @@
         "additionalProperties": true
       }
     },
+    "config": {
+      "$ref": "./stackql-config.schema.json"
+    },
     "x-stackQL-info": {
       "type": "object",
       "additionalProperties": true
