@@ -57,6 +57,7 @@ type ColumnDescriptor interface {
 	GetRepresentativeSchema() Schema
 	GetSchema() Schema
 	GetVal() *sqlparser.SQLVal
+	GetWireName() string
 	unwrap() anysdk.ColumnDescriptor
 }
 
@@ -442,24 +443,6 @@ type ArmouryGenerator interface {
 	BaseArmouryGenerator
 	unwrap() anysdkhttp.ArmouryGenerator
 }
-
-type wrappedArmouryGenerator struct {
-	inner anysdkhttp.ArmouryGenerator
-}
-
-func (wag *wrappedArmouryGenerator) GetHTTPArmoury() (HTTPArmoury, error) {
-	inner, err := wag.inner.GetHTTPArmoury()
-	if err != nil {
-		return nil, err
-	}
-	return &wrappedHTTPArmoury{inner: inner}, nil
-}
-
-func (wag *wrappedArmouryGenerator) unwrap() anysdkhttp.ArmouryGenerator {
-	return wag.inner
-}
-
-// anysdkhttp.ArmouryGenerator
 
 func NewPayload(
 	armouryGenerator BaseArmouryGenerator,

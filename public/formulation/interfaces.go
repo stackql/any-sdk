@@ -241,6 +241,7 @@ type OperationStore interface {
 	GetPaginationResponseTerminatorTokenSemantic() (TokenSemantic, bool)
 	GetQueryParamPushdown() (QueryParamPushdown, bool)
 	GetParameter(paramKey string) (Addressable, bool)
+	GetParametersIncludingNativeCasing() map[string]Addressable
 	GetRequestBodySchema() (Schema, error)
 	GetRequiredNonBodyParameters() map[string]Addressable
 	GetRequiredParameters() map[string]Addressable

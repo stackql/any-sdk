@@ -1002,15 +1002,17 @@ func (s *standardSchema) getPropertiesColumns() []ColumnDescriptor {
 		valSchema := val.Value
 		if valSchema != nil {
 			// The column's display/DDL name is snake-aliased when the provider opts
-			// in; the wire property name (k) is retained on the Schema for response
-			// navigation.
+			// in; the wire property name (k) is retained both on the Schema for
+			// response navigation and as the column's wire name so consumers key
+			// data extraction by wire rather than by the snake alias.
 			name := k
 			if snakeAliases {
 				name = casing.ToSnake(k)
 			}
-			col := newColumnDescriptor(
+			col := newColumnDescriptorWithWireName(
 				"",
 				name,
+				k,
 				"",
 				"",
 				nil,
