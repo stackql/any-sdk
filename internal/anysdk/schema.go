@@ -1002,26 +1002,34 @@ func (s *standardSchema) getPropertiesColumns() []ColumnDescriptor {
 		valSchema := val.Value
 		if valSchema != nil {
 			// The column's display/DDL name is snake-aliased when the provider opts
-			// in; the wire property name (k) is retained both on the Schema for
-			// response navigation and as the column's wire name so consumers key
-			// data extraction by wire rather than by the snake alias.
+			// in; the wire name (used only to key into the response payload for value
+			// extraction) is the xml: name override when present, otherwise the
+			// original property key. GetName must stay the display name so the
+			// resource-schema and response/select-items descriptors agree - a
+			// divergence creates the column under the wire name on a case-sensitive
+			// backend while the projection references the display name.
 			name := k
 			if snakeAliases {
 				name = casing.ToSnake(k)
 			}
+			colSchema := newSchema(
+				valSchema,
+				s.svc,
+				k,
+				val.Ref,
+			)
+			wireName := k
+			if xmlAlias := colSchema.getXmlAlias(); xmlAlias != "" {
+				wireName = xmlAlias
+			}
 			col := newColumnDescriptorWithWireName(
 				"",
 				name,
-				k,
+				wireName,
 				"",
 				"",
 				nil,
-				newSchema(
-					valSchema,
-					s.svc,
-					k,
-					val.Ref,
-				),
+				colSchema,
 				nil,
 			)
 			cols = append(cols, col)
