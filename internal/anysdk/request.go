@@ -36,6 +36,7 @@ func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
 type HTTPPreparator interface {
 	BuildHTTPRequestCtx(HTTPPreparatorConfig) (HTTPArmoury, error)
 	MergeParams(map[int]map[string]any) (HTTPPreparator, error)
+	WithPushdownIntent(intent PushdownIntent) HTTPPreparator
 }
 
 type standardHTTPPreparator struct {
@@ -47,6 +48,7 @@ type standardHTTPPreparator struct {
 	logger            *logrus.Logger
 	parameters        streaming.MapStream
 	streamTransformer stream_transform.StreamTransformer
+	pushdownIntent    PushdownIntent
 }
 
 func NewHTTPPreparator(
@@ -95,14 +97,26 @@ func (pr *standardHTTPPreparator) clone() *standardHTTPPreparator {
 		newParamMap[k] = cloneSubMap
 	}
 	return &standardHTTPPreparator{
-		prov:        pr.prov,
-		m:           pr.m,
-		svc:         pr.svc,
-		paramMap:    newParamMap,
-		parameters:  pr.parameters,
-		execContext: pr.execContext,
-		logger:      pr.logger,
+		prov:           pr.prov,
+		m:              pr.m,
+		svc:            pr.svc,
+		paramMap:       newParamMap,
+		parameters:     pr.parameters,
+		execContext:    pr.execContext,
+		logger:         pr.logger,
+		pushdownIntent: pr.pushdownIntent,
 	}
+}
+
+// WithPushdownIntent returns a copy of the preparator that, at
+// BuildHTTPRequestCtx time, applies the queryParamPushdown config (if any) for the
+// supplied neutral intent and sets the resulting query params on every built
+// request. It is opt-in and additive: the original preparator is unchanged and a
+// preparator with no intent behaves exactly as before.
+func (pr *standardHTTPPreparator) WithPushdownIntent(intent PushdownIntent) HTTPPreparator {
+	rv := pr.clone()
+	rv.pushdownIntent = intent
+	return rv
 }
 
 func (pr *standardHTTPPreparator) MergeParams(maps map[int]map[string]any) (HTTPPreparator, error) {
@@ -121,8 +135,22 @@ func (pr *standardHTTPPreparator) MergeParams(maps map[int]map[string]any) (HTTP
 	return rv, nil
 }
 
-//nolint:funlen,gocognit // TODO: review
 func (pr *standardHTTPPreparator) BuildHTTPRequestCtx(cfg HTTPPreparatorConfig) (HTTPArmoury, error) {
+	armoury, err := pr.buildHTTPRequestCtxInner(cfg)
+	if err != nil {
+		return nil, err
+	}
+	// Opt-in query-param push-down: when an intent was supplied, translate it
+	// against this method's queryParamPushdown config and set the resulting query
+	// params on every built request. No intent / no config => armoury untouched.
+	if pr.pushdownIntent != nil {
+		applyPushdownToArmoury(armoury, pr.m, pr.pushdownIntent)
+	}
+	return armoury, nil
+}
+
+//nolint:funlen,gocognit // TODO: review
+func (pr *standardHTTPPreparator) buildHTTPRequestCtxInner(cfg HTTPPreparatorConfig) (HTTPArmoury, error) {
 	if cfg.IsFromAnnotation() {
 		return pr.buildHTTPRequestCtxFromAnnotation(cfg)
 	}
