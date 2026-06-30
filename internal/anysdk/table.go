@@ -26,7 +26,11 @@ type ColumnDescriptor interface {
 	GetRepresentativeSchema() Schema
 	GetSchema() Schema
 	GetVal() *sqlparser.SQLVal
-	setName(string)
+	// GetWireName returns the foreign-API property name to key response data
+	// extraction by. It differs from GetName only when the display name has been
+	// aliased (e.g. snake_case_aliases), in which case GetName is the snake alias
+	// and GetWireName is the original wire property name. It defaults to GetName.
+	GetWireName() string
 }
 
 type Relation interface {
@@ -43,6 +47,7 @@ type Column interface {
 type standardColumnDescriptor struct {
 	Alias        string
 	Name         string
+	WireName     string
 	Qualifier    string
 	Schema       Schema
 	DecoratedCol string
@@ -70,11 +75,14 @@ func (cd standardColumnDescriptor) GetAlias() string {
 	return cd.Alias
 }
 
-func (cd standardColumnDescriptor) setName(name string) {
-	cd.Name = name
+func (cd standardColumnDescriptor) GetName() string {
+	return cd.Name
 }
 
-func (cd standardColumnDescriptor) GetName() string {
+func (cd standardColumnDescriptor) GetWireName() string {
+	if cd.WireName != "" {
+		return cd.WireName
+	}
 	return cd.Name
 }
 
@@ -110,7 +118,14 @@ func NewColumnDescriptor(alias string, name string, qualifier string, decoratedC
 }
 
 func newColumnDescriptor(alias string, name string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema Schema, val *sqlparser.SQLVal) ColumnDescriptor {
-	return standardColumnDescriptor{Alias: alias, Name: name, Qualifier: qualifier, DecoratedCol: decoratedCol, Schema: schema, Val: val, Node: node}
+	return newColumnDescriptorWithWireName(alias, name, "", qualifier, decoratedCol, node, schema, val)
+}
+
+// newColumnDescriptorWithWireName is newColumnDescriptor plus an explicit wire
+// name, used where the display name is aliased away from the wire property name
+// (e.g. snake_case_aliases) so consumers can still key data extraction by wire.
+func newColumnDescriptorWithWireName(alias string, name string, wireName string, qualifier string, decoratedCol string, node sqlparser.SQLNode, schema Schema, val *sqlparser.SQLVal) ColumnDescriptor {
+	return standardColumnDescriptor{Alias: alias, Name: name, WireName: wireName, Qualifier: qualifier, DecoratedCol: decoratedCol, Schema: schema, Val: val, Node: node}
 }
 
 func newNilTabulation(svc OpenAPIService, key string, path string) Tabulation {
@@ -165,7 +180,12 @@ func (t *standardTabulation) RenameColumnsToXml() Tabulation {
 		if v.GetSchema() != nil {
 			alias := v.GetSchema().getXmlAlias()
 			if alias != "" {
-				t.columns[i].setName(alias)
+				// standardColumnDescriptor is stored by value, so the rename only
+				// sticks if we write the modified copy back into the slice.
+				if cd, ok := v.(standardColumnDescriptor); ok {
+					cd.Name = alias
+					t.columns[i] = cd
+				}
 			}
 		}
 	}

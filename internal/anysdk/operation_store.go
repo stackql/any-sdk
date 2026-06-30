@@ -98,6 +98,7 @@ type OperationStore interface {
 	GetRequiredParameters() map[string]Addressable
 	GetOptionalParameters() map[string]Addressable
 	GetParameter(paramKey string) (Addressable, bool)
+	GetParametersIncludingNativeCasing() map[string]Addressable
 	GetUnionRequiredParameters() (map[string]Addressable, error)
 	GetPaginationAlgorithm() string
 	GetPaginationResponseTokenSemantic() (TokenSemantic, bool)
@@ -1323,6 +1324,36 @@ func (m *standardOpenAPIOperationStore) GetParameter(paramKey string) (Addressab
 	return nil, false
 }
 
+// GetParametersIncludingNativeCasing returns the full input parameter set keyed
+// by wire name, augmented (when the method declares request.nativeCasing) with
+// snake_case aliases mapping to the same Addressable. This lets a consumer resolve
+// snake_case WHERE/INSERT keys by direct set membership without special-casing the
+// reverse-casing retry at every resolution point. Absent native casing it is
+// identical to the wire-keyed set, preserving existing behaviour. A snake alias is
+// never allowed to clobber a real wire parameter of the same name.
+func (m *standardOpenAPIOperationStore) GetParametersIncludingNativeCasing() map[string]Addressable {
+	base := m.GetParameters()
+	nc := m.GetRequestNativeCasing()
+	if nc == "" {
+		return base
+	}
+	retVal := make(map[string]Addressable, len(base))
+	for k, v := range base {
+		retVal[k] = v
+	}
+	for wireKey, v := range base {
+		snakeKey := casing.ToSnake(wireKey)
+		if snakeKey == wireKey {
+			continue
+		}
+		if _, exists := retVal[snakeKey]; exists {
+			continue
+		}
+		retVal[snakeKey] = v
+	}
+	return retVal
+}
+
 // GetParameterOrError resolves a parameter (including reverse-casing) and, on a
 // final miss, returns a *ParameterNotFoundError listing the wire-format names.
 func (m *standardOpenAPIOperationStore) GetParameterOrError(paramKey string) (Addressable, error) {
@@ -1509,6 +1540,20 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	return dto.NewMarshalledBody(nil, fmt.Errorf("media type = '%s' not supported", expectedRequest.GetBodyMediaType()))
 }
 
+// hasRequestBodyContent reports whether requestBody carries anything to marshal.
+// An empty (or nil) body map means the method's request block exists only to carry
+// metadata (e.g. request.nativeCasing on a body-less GET); NewHttpParameters seeds
+// RequestBody with an empty non-nil map, so emptiness - not nil-ness - is the test.
+func hasRequestBodyContent(requestBody interface{}) bool {
+	if util.IsNil(requestBody) {
+		return false
+	}
+	if bm, ok := requestBody.(map[string]interface{}); ok {
+		return len(bm) > 0
+	}
+	return true
+}
+
 func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc Service, inputParams HttpParameters, requestBody interface{}) (*openapi3filter.RequestValidationInput, error) {
 
 	params := op.OperationRef.Value.Parameters
@@ -1595,21 +1640,23 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	}
 	contentTypeHeaderRequired := false
 	var bodyReader io.Reader
-	// predOne := !util.IsNil(requestBody)
-	predTwo := !util.IsNil(op.Request)
-	if predTwo {
+	if op.Request != nil {
 		// TODO: transform
 		marshalledBody := op.marshalBody(requestBody, op.Request)
 		b := marshalledBody.GetBytes()
 		marshalledBodyErr, hassError := marshalledBody.GetError()
 		if hassError {
-			return nil, marshalledBodyErr
-		}
-		if len(b) > 0 {
+			// A request block may be declared purely to carry metadata (e.g.
+			// request.nativeCasing on a body-less GET). With no body content to
+			// marshal there is no media type to resolve, so a marshalling error is
+			// only fatal when there is actually a body to send.
+			if hasRequestBodyContent(requestBody) {
+				return nil, marshalledBodyErr
+			}
+		} else if len(b) > 0 {
 			bodyReader = bytes.NewReader(b)
 			contentTypeHeaderRequired = true
 		}
-
 	}
 	// TODO: clean up
 	sv = strings.TrimSuffix(sv, "/")

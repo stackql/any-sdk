@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stackql-config.schema.json",
+  "title": "stackql any-sdk config block (x-stackQL-config)",
+  "description": "The stackql configuration block. It appears under `config` in a provider document and, as `x-stackQL-config`, at service / resource / method inheritance levels. Property names mirror the yaml tags on the loader's config struct; unknown keys are rejected so mistyped or misplaced keys fail validation rather than being silently ignored.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "auth": {
+      "type": "object",
+      "description": "Authentication descriptor. Shape varies by auth type; not yet fully modelled."
+    },
+    "queryParamTranspose": {
+      "$ref": "#/$defs/transform"
+    },
+    "requestTranslate": {
+      "$ref": "#/$defs/transform"
+    },
+    "requestBodyTranslate": {
+      "$ref": "#/$defs/transform"
+    },
+    "pagination": {
+      "type": "object",
+      "description": "Pagination semantics (request/response token strategies). Not yet fully modelled."
+    },
+    "variations": {
+      "type": "object",
+      "description": "Provider variations (e.g. implicit union of object schemas). Not yet fully modelled."
+    },
+    "views": {
+      "type": "object",
+      "description": "Named SQL views keyed by view name. Not yet fully modelled."
+    },
+    "sqlExternalTables": {
+      "type": "object",
+      "description": "External SQL tables keyed by table name. Not yet fully modelled."
+    },
+    "queryParamPushdown": {
+      "type": "object",
+      "description": "Query parameter push-down configuration. Not yet fully modelled."
+    },
+    "retry": {
+      "type": "object",
+      "description": "Retry policy. Not yet fully modelled."
+    },
+    "minStackQLVersion": {
+      "type": "string",
+      "description": "Minimum stackql version required to consume this provider."
+    },
+    "snake_case_aliases": {
+      "type": "boolean",
+      "description": "When true, multi-word response columns are exposed under snake_case aliases."
+    }
+  },
+  "$defs": {
+    "transform": {
+      "type": "object",
+      "description": "A text/stream transform descriptor.",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

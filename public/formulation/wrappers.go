@@ -916,6 +916,11 @@ func (w *wrappedOperationStore) GetParameter(paramKey string) (Addressable, bool
 	return &wrappedAddressable{inner: r0}, r1
 }
 
+func (w *wrappedOperationStore) GetParametersIncludingNativeCasing() map[string]Addressable {
+	r0 := w.inner.GetParametersIncludingNativeCasing()
+	return wrapMapString_Addressable(r0)
+}
+
 func (w *wrappedOperationStore) GetRequestBodySchema() (Schema, error) {
 	r0, r1 := w.inner.GetRequestBodySchema()
 	return newWrappedSchemaFromAnySdkSchema(r0), r1
@@ -1591,6 +1596,11 @@ func (w *wrappedStandardOperationStore) GetQueryParamPushdown() (QueryParamPushd
 func (w *wrappedStandardOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	r0, r1 := w.inner.GetParameter(paramKey)
 	return &wrappedAddressable{inner: r0}, r1
+}
+
+func (w *wrappedStandardOperationStore) GetParametersIncludingNativeCasing() map[string]Addressable {
+	r0 := w.inner.GetParametersIncludingNativeCasing()
+	return wrapMapString_Addressable(r0)
 }
 
 func (w *wrappedStandardOperationStore) GetRequestBodySchema() (Schema, error) {
@@ -3199,6 +3209,10 @@ func (w *wrappedColumnDescriptor) GetAlias() string {
 
 func (w *wrappedColumnDescriptor) GetName() string {
 	return w.inner.GetName()
+}
+
+func (w *wrappedColumnDescriptor) GetWireName() string {
+	return w.inner.GetWireName()
 }
 
 func (w *wrappedColumnDescriptor) GetIdentifier() string {

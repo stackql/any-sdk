@@ -7,10 +7,46 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stackql/any-sdk/pkg/casing"
 	"github.com/stackql/any-sdk/test/pkg/testutil"
 
 	"gotest.tools/assert"
 )
+
+// TestParameterizeRequestBlockWithoutBodyMediaType reproduces issue #109's
+// secondary note: a GET that declares a request block solely to carry
+// request.nativeCasing (no body, no mediaType) must still assemble. Before the
+// fix, parameterize unconditionally marshalled the body and failed with
+// "media type = ” not supported".
+func TestParameterizeRequestBlockWithoutBodyMediaType(t *testing.T) {
+	setupFileRoot(t)
+
+	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"), "")
+	assert.NilError(t, err)
+
+	l := newLoader()
+	svc, err := l.loadFromBytes(b)
+	assert.NilError(t, err)
+
+	rsc, err := svc.GetResource("node")
+	assert.NilError(t, err)
+
+	ops, _, ok := rsc.GetFirstNamespaceMethodMatchFromSQLVerb("select", nil)
+	assert.Assert(t, ok)
+	assert.Assert(t, ops != nil)
+
+	// Attach a request block carrying only native casing - as on a body-less GET -
+	// with no body media type declared.
+	ops.setRequest(&standardExpectedRequest{NativeCasing: casing.Pascal})
+
+	params := NewHttpParameters(ops)
+	err = params.IngestMap(map[string]interface{}{"cluster_addr": "k8shost"})
+	assert.NilError(t, err)
+
+	rvi, err := ops.parameterize(dummmyK8sProv, svc, params, params.GetRequestBody())
+	assert.NilError(t, err)
+	assert.Assert(t, rvi != nil)
+}
 
 var (
 	dummmyContrivedProv Provider = NewProvider("", "github", "", "")
