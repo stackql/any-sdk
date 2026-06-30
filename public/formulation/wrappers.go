@@ -667,7 +667,11 @@ func (w *wrappedHTTPPreparator) unwrap() anysdk.HTTPPreparator {
 // BuildHTTPRequestCtx time. Opt-in and additive: a preparator with no intent
 // behaves exactly as before.
 func (w *wrappedHTTPPreparator) WithPushdownIntent(intent PushdownIntent) HTTPPreparator {
-	return &wrappedHTTPPreparator{inner: w.inner.WithPushdownIntent(pushdownIntentToAnySdk(intent))}
+	var inner anysdk.PushdownIntent
+	if intent != nil {
+		inner = intent.unwrap()
+	}
+	return &wrappedHTTPPreparator{inner: w.inner.WithPushdownIntent(inner)}
 }
 
 func (w *wrappedHTTPPreparator) BuildHTTPRequestCtx(p0 anysdk.HTTPPreparatorConfig) (HTTPArmoury, error) {
@@ -1843,6 +1847,110 @@ func (w *wrappedCountPushdown) GetParamName() string { return w.inner.GetParamNa
 func (w *wrappedCountPushdown) GetParamValue() string { return w.inner.GetParamValue() }
 
 func (w *wrappedCountPushdown) GetResponseKey() string { return w.inner.GetResponseKey() }
+
+func wrapSlice_PushdownPredicate(in []anysdk.PushdownPredicate) []PushdownPredicate {
+	if in == nil {
+		return nil
+	}
+	out := make([]PushdownPredicate, 0, len(in))
+	for _, v := range in {
+		out = append(out, &wrappedPushdownPredicate{inner: v})
+	}
+	return out
+}
+
+func unwrapSlice_PushdownPredicate(in []PushdownPredicate) []anysdk.PushdownPredicate {
+	if in == nil {
+		return nil
+	}
+	out := make([]anysdk.PushdownPredicate, 0, len(in))
+	for _, v := range in {
+		out = append(out, v.unwrap())
+	}
+	return out
+}
+
+func wrapSlice_PushdownOrder(in []anysdk.PushdownOrder) []PushdownOrder {
+	if in == nil {
+		return nil
+	}
+	out := make([]PushdownOrder, 0, len(in))
+	for _, v := range in {
+		out = append(out, &wrappedPushdownOrder{inner: v})
+	}
+	return out
+}
+
+func unwrapSlice_PushdownOrder(in []PushdownOrder) []anysdk.PushdownOrder {
+	if in == nil {
+		return nil
+	}
+	out := make([]anysdk.PushdownOrder, 0, len(in))
+	for _, v := range in {
+		out = append(out, v.unwrap())
+	}
+	return out
+}
+
+type wrappedPushdownPredicate struct {
+	inner anysdk.PushdownPredicate
+}
+
+func (w *wrappedPushdownPredicate) GetColumn() string { return w.inner.GetColumn() }
+
+func (w *wrappedPushdownPredicate) GetOperator() string { return w.inner.GetOperator() }
+
+func (w *wrappedPushdownPredicate) GetValue() interface{} { return w.inner.GetValue() }
+
+func (w *wrappedPushdownPredicate) unwrap() anysdk.PushdownPredicate { return w.inner }
+
+type wrappedPushdownOrder struct {
+	inner anysdk.PushdownOrder
+}
+
+func (w *wrappedPushdownOrder) GetColumn() string { return w.inner.GetColumn() }
+
+func (w *wrappedPushdownOrder) IsDescending() bool { return w.inner.IsDescending() }
+
+func (w *wrappedPushdownOrder) unwrap() anysdk.PushdownOrder { return w.inner }
+
+type wrappedPushdownIntent struct {
+	inner anysdk.PushdownIntent
+}
+
+func (w *wrappedPushdownIntent) GetProjection() []string { return w.inner.GetProjection() }
+
+func (w *wrappedPushdownIntent) GetPredicates() []PushdownPredicate {
+	return wrapSlice_PushdownPredicate(w.inner.GetPredicates())
+}
+
+func (w *wrappedPushdownIntent) GetOrderBy() []PushdownOrder {
+	return wrapSlice_PushdownOrder(w.inner.GetOrderBy())
+}
+
+func (w *wrappedPushdownIntent) GetLimit() (int, bool) { return w.inner.GetLimit() }
+
+func (w *wrappedPushdownIntent) GetOffset() (int, bool) { return w.inner.GetOffset() }
+
+func (w *wrappedPushdownIntent) IsCount() bool { return w.inner.IsCount() }
+
+func (w *wrappedPushdownIntent) unwrap() anysdk.PushdownIntent { return w.inner }
+
+type wrappedPushdownResult struct {
+	inner anysdk.PushdownResult
+}
+
+func (w *wrappedPushdownResult) QueryParams() map[string]string { return w.inner.QueryParams() }
+
+func (w *wrappedPushdownResult) PushedPredicates() []PushdownPredicate {
+	return wrapSlice_PushdownPredicate(w.inner.PushedPredicates())
+}
+
+func (w *wrappedPushdownResult) ResidualPredicates() []PushdownPredicate {
+	return wrapSlice_PushdownPredicate(w.inner.ResidualPredicates())
+}
+
+func (w *wrappedPushdownResult) CountResponseKey() string { return w.inner.CountResponseKey() }
 
 type wrappedTransform struct {
 	inner anysdk.Transform

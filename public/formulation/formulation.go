@@ -267,6 +267,45 @@ func NewHTTPPreparatorConfig(isFromAnnotation bool) HTTPPreparatorConfig {
 	}
 }
 
+func NewPushdownPredicate(column string, operator string, value interface{}) PushdownPredicate {
+	return &wrappedPushdownPredicate{inner: anysdk.NewPushdownPredicate(column, operator, value)}
+}
+
+func NewPushdownOrder(column string, descending bool) PushdownOrder {
+	return &wrappedPushdownOrder{inner: anysdk.NewPushdownOrder(column, descending)}
+}
+
+func NewPushdownIntent(
+	projection []string,
+	predicates []PushdownPredicate,
+	orderBy []PushdownOrder,
+	limit int, limitSet bool,
+	offset int, offsetSet bool,
+	count bool,
+) PushdownIntent {
+	return &wrappedPushdownIntent{
+		inner: anysdk.NewPushdownIntent(
+			projection,
+			unwrapSlice_PushdownPredicate(predicates),
+			unwrapSlice_PushdownOrder(orderBy),
+			limit, limitSet,
+			offset, offsetSet,
+			count,
+		),
+	}
+}
+
+// ApplyPushdown translates a neutral PushdownIntent into the request query params
+// supported by the OperationStore's queryParamPushdown config. Prefer
+// HTTPPreparator.WithPushdownIntent to apply the params directly to a request.
+func ApplyPushdown(op OperationStore, intent PushdownIntent) PushdownResult {
+	var inner anysdk.PushdownIntent
+	if intent != nil {
+		inner = intent.unwrap()
+	}
+	return &wrappedPushdownResult{inner: anysdk.ApplyPushdown(op.unwrap(), inner)}
+}
+
 func EmptyMethods() Methods {
 	return &wrappedMethods{inner: anysdk.Methods{}}
 }

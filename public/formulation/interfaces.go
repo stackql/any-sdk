@@ -127,6 +127,41 @@ func newHTTPPreparatorFromAnySdkHTTPPreparator(inner anysdk.HTTPPreparator) HTTP
 	}
 }
 
+// PushdownPredicate mirrors anysdk.PushdownPredicate (a neutral WHERE predicate).
+type PushdownPredicate interface {
+	GetColumn() string
+	GetOperator() string
+	GetValue() interface{}
+	unwrap() anysdk.PushdownPredicate
+}
+
+// PushdownOrder mirrors anysdk.PushdownOrder (a neutral ORDER BY term).
+type PushdownOrder interface {
+	GetColumn() string
+	IsDescending() bool
+	unwrap() anysdk.PushdownOrder
+}
+
+// PushdownIntent mirrors anysdk.PushdownIntent. Build one with NewPushdownIntent.
+type PushdownIntent interface {
+	GetProjection() []string
+	GetPredicates() []PushdownPredicate
+	GetOrderBy() []PushdownOrder
+	GetLimit() (int, bool)
+	GetOffset() (int, bool)
+	IsCount() bool
+	unwrap() anysdk.PushdownIntent
+}
+
+// PushdownResult mirrors anysdk.PushdownResult (the translated query params plus
+// pushed/residual predicate split).
+type PushdownResult interface {
+	QueryParams() map[string]string
+	PushedPredicates() []PushdownPredicate
+	ResidualPredicates() []PushdownPredicate
+	CountResponseKey() string
+}
+
 // HttpParameters mirrors methods on HttpParameters
 type HttpParameters interface {
 	GetInlineParameterFlatMap() (map[string]interface{}, error)
