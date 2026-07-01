@@ -175,15 +175,22 @@ func (t *standardTabulation) GetName() string {
 	return t.name
 }
 
+// RenameColumnsToXml records each column's xml: name as its wire name (used to key
+// into the response payload for extraction). It deliberately does NOT touch the
+// display name (GetName): the xml: name is the wire name, not the column name, so
+// the select-items descriptors must keep the same display name as the resource
+// descriptors. Putting the wire name into GetName creates the column under the wire
+// name on a case-sensitive SQL backend while the projection references the display
+// name (42703).
 func (t *standardTabulation) RenameColumnsToXml() Tabulation {
 	for i, v := range t.columns {
 		if v.GetSchema() != nil {
 			alias := v.GetSchema().getXmlAlias()
 			if alias != "" {
-				// standardColumnDescriptor is stored by value, so the rename only
+				// standardColumnDescriptor is stored by value, so the update only
 				// sticks if we write the modified copy back into the slice.
 				if cd, ok := v.(standardColumnDescriptor); ok {
-					cd.Name = alias
+					cd.WireName = alias
 					t.columns[i] = cd
 				}
 			}
