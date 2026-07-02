@@ -34,8 +34,11 @@ type SchemaTree interface {
 	Items() (SchemaTree, bool)
 	// Property returns the named child property schema for an object node.
 	Property(name string) (SchemaTree, bool)
-	// Properties returns all child property schemas keyed by their wire name.
+	// Properties returns all child property schemas keyed by their property name.
 	Properties() map[string]SchemaTree
+	// XMLName returns the xml: name override (the wire element name) when the
+	// property's wire name differs from its property name, else "".
+	XMLName() string
 }
 
 // schemaDrivenXMLTransformer walks one XML body into stackql's
@@ -84,6 +87,11 @@ func (t *schemaDrivenXMLTransformer) Transform() error {
 	rowSchema, err := t.rowSchema()
 	if err != nil {
 		return err
+	}
+	// An empty response body (e.g. S3 CreateBucket returns 200 with headers
+	// only) is a legitimate no-rows outcome, not a transform failure.
+	if strings.TrimSpace(t.input) == "" {
+		return t.write(make([]interface{}, 0))
 	}
 	// Decode WITHOUT mxj casting so leaf values stay strings; the schema's declared
 	// type is then authoritative (this is what stops 12-digit IDs becoming float64).
@@ -149,6 +157,17 @@ func extractRows(payload map[string]interface{}, rowSchema SchemaTree) []map[str
 		// The payload itself carries the row's fields -> singleton response.
 		return []map[string]interface{}{payload}
 	}
+	// Singleton-unwrap: a named wrapper member carries the row (CreateVpc ->
+	// {vpc: {...}}, GetUser -> {User: {...}}). Checked before list detection
+	// so an ancillary list sibling (GetHostedZone's VPCs) cannot hijack the
+	// row. Deterministic key order.
+	for _, k := range sortedKeys(payload) {
+		if mm, ok := payload[k].(map[string]interface{}); ok {
+			if mapHasAnyKey(mm, rowProps) {
+				return []map[string]interface{}{mm}
+			}
+		}
+	}
 	member, ok := findListMember(payload)
 	if !ok {
 		return nil
@@ -159,14 +178,29 @@ func extractRows(payload map[string]interface{}, rowSchema SchemaTree) []map[str
 func projectRow(row map[string]interface{}, rowSchema SchemaTree) map[string]interface{} {
 	out := make(map[string]interface{}, len(rowSchema.Properties()))
 	for name, propSchema := range rowSchema.Properties() {
-		raw, ok := row[name]
+		// The XML element name is the xml: name override when present (a
+		// property whose display name differs from the wire name, e.g. EC2's
+		// Attachments member serialised as <attachmentSet>), else the property
+		// name itself. The projected row is keyed by the wire name - value
+		// extraction downstream resolves GetWireName first, then GetName.
+		key := wireKey(name, propSchema)
+		raw, ok := row[key]
 		if !ok {
-			out[name] = nil
+			out[key] = nil
 			continue
 		}
-		out[name] = convertValue(raw, propSchema.Type())
+		out[key] = convertValue(raw, propSchema.Type())
 	}
 	return out
+}
+
+// wireKey resolves the XML element name for a property: the xml: name override
+// when declared, else the property name.
+func wireKey(name string, propSchema SchemaTree) string {
+	if xn := propSchema.XMLName(); xn != "" {
+		return xn
+	}
+	return name
 }
 
 // convertValue applies the schema-declared type to a (string-typed) mxj leaf value.
@@ -210,6 +244,15 @@ func convertValue(raw interface{}, schemaType string) interface{} {
 		if s, ok := raw.(string); ok {
 			return s
 		}
+		// A complex value under a string-typed schema (e.g. a Display column
+		// that stringifies a nested structure for JSON_EXTRACT decomposition)
+		// must serialise as JSON, never as Go's fmt map representation.
+		switch raw.(type) {
+		case map[string]interface{}, []interface{}:
+			if b, err := json.Marshal(raw); err == nil {
+				return string(b)
+			}
+		}
 		return fmt.Sprintf("%v", raw)
 	default:
 		return raw
@@ -239,8 +282,8 @@ func resultWrapper(m map[string]interface{}) (map[string]interface{}, bool) {
 }
 
 func mapHasAnyKey(m map[string]interface{}, props map[string]SchemaTree) bool {
-	for k := range props {
-		if _, ok := m[k]; ok {
+	for k, p := range props {
+		if _, ok := m[wireKey(k, p)]; ok {
 			return true
 		}
 	}

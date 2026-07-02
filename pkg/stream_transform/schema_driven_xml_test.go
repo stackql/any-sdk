@@ -9,12 +9,15 @@ import (
 
 // fakeSchema is a minimal SchemaTree for tests.
 type fakeSchema struct {
-	typ   string
-	items *fakeSchema
-	props map[string]*fakeSchema
+	typ     string
+	items   *fakeSchema
+	props   map[string]*fakeSchema
+	xmlName string
 }
 
 func (f *fakeSchema) Type() string { return f.typ }
+
+func (f *fakeSchema) XMLName() string { return f.xmlName }
 
 func (f *fakeSchema) Items() (SchemaTree, bool) {
 	if f.items == nil {
@@ -182,6 +185,93 @@ func TestWalker_TypeDispatch(t *testing.T) {
 	}
 	if r["Tags"] != nil {
 		t.Errorf("Tags (self-closing) = %#v, want null", r["Tags"])
+	}
+}
+
+func TestWalker_XMLNameOverrideProjection(t *testing.T) {
+	// EC2's Volume.Attachments member is serialised as <attachmentSet>: the
+	// schema carries the member name as the property key and the wire element
+	// name as an xml: name override. The walker must extract by the override
+	// and key the projected row by it (value extraction downstream resolves
+	// GetWireName first).
+	row := &fakeSchema{typ: "object", props: map[string]*fakeSchema{
+		"VolumeId":    {typ: "string", xmlName: "volumeId"},
+		"Attachments": {typ: "array", xmlName: "attachmentSet"},
+		"Size":        {typ: "integer", xmlName: "size"},
+	}}
+	list := &fakeSchema{typ: "array", items: row}
+	override := &fakeSchema{typ: "object", props: map[string]*fakeSchema{"line_items": list}}
+	xml := `<DescribeVolumesResponse><volumeSet>` +
+		`<item><volumeId>vol-1</volumeId><size>8</size>` +
+		`<attachmentSet><item><instanceId>i-1</instanceId></item></attachmentSet></item>` +
+		`</volumeSet></DescribeVolumesResponse>`
+	rows := runWalker(t, override, XProtocolEC2, xml)
+	if len(rows) != 1 {
+		t.Fatalf("want 1 row, got %d (%v)", len(rows), rows)
+	}
+	r := rows[0]
+	if r["volumeId"] != "vol-1" || r["size"] != float64(8) {
+		t.Fatalf("scalar wire-key projection mismatch: %v", r)
+	}
+	att, ok := r["attachmentSet"].(string)
+	if !ok || !bytes.Contains([]byte(att), []byte("i-1")) {
+		t.Fatalf("attachmentSet should be a JSON string containing i-1: %v", r["attachmentSet"])
+	}
+	if _, present := r["Attachments"]; present {
+		t.Fatalf("projected row must be keyed by wire name, not property name: %v", r)
+	}
+}
+
+func TestWalker_ComplexValueUnderStringSchemaIsJSON(t *testing.T) {
+	// Display schemas type complex columns as "string" so users decompose
+	// them with JSON_EXTRACT. A nested XML structure landing under such a
+	// column must serialise as JSON, not Go fmt map notation.
+	override := overrideWith(map[string]string{"AttributeName": "string", "AttributeValues": "string"})
+	xml := `<DescribeAccountAttributesResponse><accountAttributeSet>` +
+		`<item><AttributeName>max-instances</AttributeName>` +
+		`<AttributeValues><item><attributeValue>20</attributeValue></item></AttributeValues></item>` +
+		`</accountAttributeSet></DescribeAccountAttributesResponse>`
+	rows := runWalker(t, override, XProtocolEC2, xml)
+	if len(rows) != 1 {
+		t.Fatalf("want 1 row, got %d (%v)", len(rows), rows)
+	}
+	av, ok := rows[0]["AttributeValues"].(string)
+	if !ok {
+		t.Fatalf("AttributeValues should be a string: %#v", rows[0]["AttributeValues"])
+	}
+	var decoded map[string]interface{}
+	if err := json.Unmarshal([]byte(av), &decoded); err != nil {
+		t.Fatalf("AttributeValues should be valid JSON, got %q: %v", av, err)
+	}
+	if !bytes.Contains([]byte(av), []byte(`"attributeValue"`)) {
+		t.Fatalf("expected attributeValue key in JSON: %q", av)
+	}
+}
+
+func TestWalker_EC2SingletonUnwrap(t *testing.T) {
+	// CreateVpc (ec2 protocol) returns {requestId, vpc: {...}} - the row lives
+	// under a named wrapper member. The walker must unwrap one level when the
+	// payload root does not itself carry the row fields.
+	override := overrideWith(map[string]string{"vpcId": "string", "state": "string", "cidrBlock": "string"})
+	xml := `<CreateVpcResponse><requestId>r-9</requestId>` +
+		`<vpc><vpcId>vpc-123</vpcId><state>pending</state><cidrBlock>10.99.0.0/16</cidrBlock></vpc>` +
+		`</CreateVpcResponse>`
+	rows := runWalker(t, override, XProtocolEC2, xml)
+	if len(rows) != 1 {
+		t.Fatalf("want 1 unwrapped singleton row, got %d (%v)", len(rows), rows)
+	}
+	if rows[0]["vpcId"] != "vpc-123" || rows[0]["cidrBlock"] != "10.99.0.0/16" {
+		t.Fatalf("unwrap mismatch: %v", rows[0])
+	}
+}
+
+func TestWalker_EmptyBodyYieldsNoRows(t *testing.T) {
+	// S3 CreateBucket (and friends) return 200 with an empty body; the walker
+	// must emit an empty row set rather than an mxj EOF error.
+	override := overrideWith(map[string]string{"Location": "string"})
+	rows := runWalker(t, override, XProtocolRestXML, "")
+	if len(rows) != 0 {
+		t.Fatalf("want 0 rows for empty body, got %d (%v)", len(rows), rows)
 	}
 }
 

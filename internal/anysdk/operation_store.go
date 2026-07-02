@@ -740,6 +740,7 @@ func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interf
 		}
 		optionalParameters.Put(key, vOpt)
 	}
+	nc := op.GetRequestNativeCasing()
 	for k := range copiedParams {
 		if requiredParameters.Delete(k) {
 			delete(copiedParams, k)
@@ -748,6 +749,21 @@ func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interf
 		if optionalParameters.Delete(k) {
 			delete(copiedParams, k)
 			continue
+		}
+		// Reverse-casing retry: a snake_case SQL key satisfies its wire-name
+		// parameter when the method declares a native request casing
+		// (mirrors GetParameter). Absent native casing this is a no-op.
+		if nc != "" {
+			if wireKey := casing.FromSnake(k, nc); wireKey != k {
+				if requiredParameters.Delete(wireKey) {
+					delete(copiedParams, k)
+					continue
+				}
+				if optionalParameters.Delete(wireKey) {
+					delete(copiedParams, k)
+					continue
+				}
+			}
 		}
 		// log.Debugf("parameter '%s' unmatched for method '%s'\n", k, op.getName())
 	}
@@ -781,6 +797,7 @@ func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[stri
 		}
 		optionalParameters.Put(key, vOpt)
 	}
+	nc := op.GetRequestNativeCasing()
 	for k := range copiedParams {
 		if requiredParameters.Delete(k) {
 			delete(copiedParams, k)
@@ -789,6 +806,21 @@ func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[stri
 		if optionalParameters.Delete(k) {
 			delete(copiedParams, k)
 			continue
+		}
+		// Reverse-casing retry: a snake_case SQL key satisfies its wire-name
+		// parameter when the method declares a native request casing
+		// (mirrors GetParameter). Absent native casing this is a no-op.
+		if nc != "" {
+			if wireKey := casing.FromSnake(k, nc); wireKey != k {
+				if requiredParameters.Delete(wireKey) {
+					delete(copiedParams, k)
+					continue
+				}
+				if optionalParameters.Delete(wireKey) {
+					delete(copiedParams, k)
+					continue
+				}
+			}
 		}
 		// log.Debugf("parameter '%s' unmatched for method '%s'\n", k, op.getName())
 	}
@@ -1444,6 +1476,24 @@ func (op *standardOpenAPIOperationStore) GetOperationParameters() Params {
 }
 
 func (op *standardOpenAPIOperationStore) GetOperationParameter(key string) (Addressable, bool) {
+	rv, ok := op.getOperationParameterByWireKey(key)
+	if ok {
+		return rv, true
+	}
+	// Reverse-casing retry: a snake_case SQL key resolves to its wire-name
+	// operation parameter when the method declares a native request casing
+	// (mirrors GetParameter / parameterMatch). The returned Addressable
+	// carries the wire name, so HttpParameters.StoreParameter re-keys the
+	// value to the wire form for request construction.
+	if nc := op.GetRequestNativeCasing(); nc != "" {
+		if wireKey := casing.FromSnake(key, nc); wireKey != key {
+			return op.getOperationParameterByWireKey(wireKey)
+		}
+	}
+	return nil, false
+}
+
+func (op *standardOpenAPIOperationStore) getOperationParameterByWireKey(key string) (Addressable, bool) {
 	paramLocal, isParamLocal := op.Parameters[key]
 	if isParamLocal {
 		b, err := json.Marshal(paramLocal)
@@ -1640,21 +1690,27 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	}
 	contentTypeHeaderRequired := false
 	var bodyReader io.Reader
-	if op.Request != nil {
+	// Marshal a request body only when there is body content to send. A nil
+	// or empty body must not marshal - the bytes would be literal "null" /
+	// "{}" on ops that expect no body at all (e.g. S3 CreateBucket rejects
+	// them with MalformedXML). Protocols that require a body even for empty
+	// inputs (AWS json wants literal "{}") declare request.base, which is
+	// sent verbatim as the fallback.
+	if op.Request != nil && hasRequestBodyContent(requestBody) {
 		// TODO: transform
 		marshalledBody := op.marshalBody(requestBody, op.Request)
 		b := marshalledBody.GetBytes()
 		marshalledBodyErr, hassError := marshalledBody.GetError()
 		if hassError {
-			// A request block may be declared purely to carry metadata (e.g.
-			// request.nativeCasing on a body-less GET). With no body content to
-			// marshal there is no media type to resolve, so a marshalling error is
-			// only fatal when there is actually a body to send.
-			if hasRequestBodyContent(requestBody) {
-				return nil, marshalledBodyErr
-			}
-		} else if len(b) > 0 {
+			return nil, marshalledBodyErr
+		}
+		if len(b) > 0 {
 			bodyReader = bytes.NewReader(b)
+			contentTypeHeaderRequired = true
+		}
+	} else if op.Request != nil {
+		if baseBytes := op.getBaseRequestBodyBytes(); len(baseBytes) > 0 {
+			bodyReader = bytes.NewReader(baseBytes)
 			contentTypeHeaderRequired = true
 		}
 	}
@@ -1677,7 +1733,10 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 		return nil, err
 	}
 	if contentTypeHeaderRequired {
-		if prefilledHeader.Get("Content-Type") != "" {
+		// Fill Content-Type from the declared request media type unless a
+		// header parameter already supplied one. (Downstream armoury header
+		// merging may overwrite with the same declared value.)
+		if prefilledHeader.Get("Content-Type") == "" && op.Request.BodyMediaType != "" {
 			prefilledHeader.Set("Content-Type", op.Request.BodyMediaType)
 		}
 	}
@@ -2014,6 +2073,10 @@ func (a xmlSchemaAdapter) Properties() map[string]stream_transform.SchemaTree {
 		out[k] = xmlSchemaAdapter{s: v}
 	}
 	return out
+}
+
+func (a xmlSchemaAdapter) XMLName() string {
+	return a.s.getXmlAlias()
 }
 
 func (op *standardOpenAPIOperationStore) ProcessResponse(httpResponse *http.Response) (ProcessedOperationResponse, error) {
