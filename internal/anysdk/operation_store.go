@@ -1690,26 +1690,40 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	}
 	contentTypeHeaderRequired := false
 	var bodyReader io.Reader
-	// Marshal a request body only when there is body content to send. A nil
-	// or empty body must not marshal - the bytes would be literal "null" /
-	// "{}" on ops that expect no body at all (e.g. S3 CreateBucket rejects
-	// them with MalformedXML). Protocols that require a body even for empty
-	// inputs (AWS json wants literal "{}") declare request.base, which is
-	// sent verbatim as the fallback.
-	if op.Request != nil && hasRequestBodyContent(requestBody) {
-		// TODO: transform
-		marshalledBody := op.marshalBody(requestBody, op.Request)
-		b := marshalledBody.GetBytes()
-		marshalledBodyErr, hassError := marshalledBody.GetError()
-		if hassError {
-			return nil, marshalledBodyErr
-		}
-		if len(b) > 0 {
-			bodyReader = bytes.NewReader(b)
-			contentTypeHeaderRequired = true
-		}
-	} else if op.Request != nil {
-		if baseBytes := op.getBaseRequestBodyBytes(); len(baseBytes) > 0 {
+	// Marshal a request body only when there is something to send:
+	//   - A declared request TRANSFORM always runs - templates generate wire
+	//     bytes (e.g. "Action=DescribeVolumes&Version=...") even from an
+	//     empty body map.
+	//   - Otherwise a nil or empty body must not marshal: the bytes would be
+	//     literal "null" / "{}" on ops that expect no body at all (e.g. S3
+	//     CreateBucket rejects them with MalformedXML).
+	//   - Protocols that require a body even for empty inputs (AWS json
+	//     wants literal "{}") declare request.base, sent verbatim as the
+	//     fallback.
+	if op.Request != nil {
+		_, hasTransform := op.Request.GetTransform()
+		if hasTransform || hasRequestBodyContent(requestBody) {
+			effectiveBody := requestBody
+			if util.IsNil(effectiveBody) {
+				// Transforms consume a map; normalise a nil interface so the
+				// template still expands (matching an empty SQL input).
+				effectiveBody = map[string]interface{}{}
+			}
+			marshalledBody := op.marshalBody(effectiveBody, op.Request)
+			b := marshalledBody.GetBytes()
+			marshalledBodyErr, hassError := marshalledBody.GetError()
+			if hassError {
+				// A marshalling error is only fatal when there is actual body
+				// content to send; a transform over an empty body that cannot
+				// resolve simply sends nothing.
+				if hasRequestBodyContent(requestBody) {
+					return nil, marshalledBodyErr
+				}
+			} else if len(b) > 0 {
+				bodyReader = bytes.NewReader(b)
+				contentTypeHeaderRequired = true
+			}
+		} else if baseBytes := op.getBaseRequestBodyBytes(); len(baseBytes) > 0 {
 			bodyReader = bytes.NewReader(baseBytes)
 			contentTypeHeaderRequired = true
 		}

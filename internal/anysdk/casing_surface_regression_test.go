@@ -215,6 +215,37 @@ func TestParameterizeBaseFallbackBody(t *testing.T) {
 	}
 }
 
+// TestParameterizeTransformExpandsForEmptyBody: a declared request transform
+// generates wire bytes even when no body params are supplied (the aws ec2
+// "no request body parameters still expands template" fixture behaviour) -
+// the empty-body skip applies only to plain marshalled bodies.
+func TestParameterizeTransformExpandsForEmptyBody(t *testing.T) {
+	setupFileRoot(t)
+	ops, svc := loadK8sNodeSelectOp(t)
+	ops.setRequest(&standardExpectedRequest{
+		BodyMediaType: "application/x-www-form-urlencoded",
+		Transform: &standardTransform{
+			Type: "golang_template_text_v0.1.0",
+			Body: "Action=DescribeVolumes&Version=2016-11-15",
+		},
+	})
+
+	for _, body := range []interface{}{nil, map[string]interface{}{}} {
+		params := NewHttpParameters(ops)
+		err := params.IngestMap(map[string]interface{}{"cluster_addr": "k8shost"})
+		assert.NilError(t, err)
+
+		rvi, err := ops.parameterize(dummmyK8sProv, svc, params, body)
+		assert.NilError(t, err)
+		assert.Assert(t, rvi != nil)
+		assert.Assert(t, rvi.Request.Body != nil)
+		b, _ := io.ReadAll(rvi.Request.Body)
+		if string(b) != "Action=DescribeVolumes&Version=2016-11-15" {
+			t.Fatalf("transform must expand for empty body (%T); got %q", body, string(b))
+		}
+	}
+}
+
 func loadK8sNodeSelectOp(t *testing.T) (StandardOperationStore, Service) {
 	t.Helper()
 	b, err := GetServiceDocBytes(fmt.Sprintf("k8s/%s/services/core_v1.yaml", "v0.1.0"), "")
