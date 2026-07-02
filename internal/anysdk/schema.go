@@ -968,9 +968,17 @@ func (s *standardSchema) GetAllColumns(defaultColName string) []string {
 	var retVal []string
 	properties := s.getProperties()
 	if s.Type == "object" || (len(properties) > 0) {
+		// Star expansion surfaces the same column names as the resource
+		// tabulation and DESCRIBE: snake aliases when the provider opts in
+		// (mirrors getPropertiesColumns / ToDescriptionMap).
+		snakeAliases := s.isSnakeCaseAliasesEnabled()
 		for k, val := range properties {
 			_, valSchemaExists := val.getOpenapiSchema()
 			if valSchemaExists {
+				if snakeAliases {
+					retVal = append(retVal, casing.ToSnake(k))
+					continue
+				}
 				retVal = append(retVal, k)
 			}
 		}
@@ -1302,13 +1310,21 @@ func (s *standardSchema) ToDescriptionMap(extended bool) map[string]interface{} 
 	// TODO:
 	//     - Ensure this logic conforms to openapi3 doc rules.
 	//     - Add integration testing to ensure same, corner cases.
+	// DESCRIBE surfaces the same column names as SELECT: when the provider
+	// opts in to snake_case_aliases, the display/DDL name is the snake alias
+	// of the wire property key (mirrors getPropertiesColumns).
+	snakeAliases := s.isSnakeCaseAliasesEnabled()
 	if s.Type == "object" {
 		for k, v := range s.Properties {
 			p := v.Value
 			if p != nil {
 				pm := newSchema(p, s.svc, "", v.Ref).toFlatDescriptionMap(extended)
-				pm["name"] = k
-				retVal[k] = pm
+				name := k
+				if snakeAliases {
+					name = casing.ToSnake(k)
+				}
+				pm["name"] = name
+				retVal[name] = pm
 			}
 		}
 		return retVal
@@ -1319,8 +1335,12 @@ func (s *standardSchema) ToDescriptionMap(extended bool) map[string]interface{} 
 			p := v.Value
 			if p != nil {
 				pm := newSchema(p, s.svc, "", v.Ref).toFlatDescriptionMap(extended)
-				pm["name"] = k
-				retVal[k] = pm
+				name := k
+				if snakeAliases {
+					name = casing.ToSnake(k)
+				}
+				pm["name"] = name
+				retVal[name] = pm
 			}
 		}
 		return retVal
