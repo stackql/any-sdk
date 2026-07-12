@@ -91,7 +91,7 @@ func (t *schemaDrivenXMLTransformer) Transform() error {
 	// An empty response body (e.g. S3 CreateBucket returns 200 with headers
 	// only) is a legitimate no-rows outcome, not a transform failure.
 	if strings.TrimSpace(t.input) == "" {
-		return t.write(make([]interface{}, 0))
+		return t.write(make([]interface{}, 0), nil)
 	}
 	// Decode WITHOUT mxj casting so leaf values stay strings; the schema's declared
 	// type is then authoritative (this is what stops 12-digit IDs becoming float64).
@@ -102,18 +102,31 @@ func (t *schemaDrivenXMLTransformer) Transform() error {
 	payload, ok := t.payloadMap(map[string]interface{}(decoded))
 	if !ok {
 		// Unrecognised envelope: emit an empty result rather than erroring.
-		return t.write(make([]interface{}, 0))
+		return t.write(make([]interface{}, 0), nil)
 	}
 	rows := extractRows(payload, rowSchema)
 	projected := make([]interface{}, 0, len(rows))
 	for _, row := range rows {
 		projected = append(projected, projectRow(row, rowSchema))
 	}
-	return t.write(projected)
+	return t.write(projected, payload)
 }
 
-func (t *schemaDrivenXMLTransformer) write(rows []interface{}) error {
+func (t *schemaDrivenXMLTransformer) write(rows []interface{}, payload map[string]interface{}) error {
 	out := map[string]interface{}{t.listProperty: rows}
+	// Pass scalar payload siblings (pagination tokens - <nextToken>,
+	// <NextMarker>, ... - plus inert metadata like <requestId>) through to
+	// the output envelope: the pagination machinery extracts the response
+	// token from the transformed document, so dropping them here would end
+	// traversal after page one.
+	for k, v := range payload {
+		if k == t.listProperty {
+			continue
+		}
+		if s, ok := v.(string); ok {
+			out[k] = s
+		}
+	}
 	b, err := json.Marshal(out)
 	if err != nil {
 		return err

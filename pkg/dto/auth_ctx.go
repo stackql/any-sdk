@@ -61,6 +61,25 @@ type AuthCtx struct {
 	AwsStsRegion            string         `json:"aws_sts_region" yaml:"aws_sts_region"`
 	AwsStsEndpoint          string         `json:"aws_sts_endpoint" yaml:"aws_sts_endpoint"`
 	AwsRoleDurationSeconds  int32          `json:"aws_role_duration_seconds" yaml:"aws_role_duration_seconds"`
+	// OCI request signing (oci_signing_v1). Raw values (twelve-factor style)
+	// take precedence; otherwise the OCI config file convention (~/.oci/config)
+	// shared by every OCI tool applies.
+	OciConfigFilePath           string `json:"config_file_path" yaml:"config_file_path"`
+	OciProfile                  string `json:"profile" yaml:"profile"`
+	OciTenancyOCID              string `json:"tenancy_ocid" yaml:"tenancy_ocid"`
+	OciTenancyOCIDEnvVar        string `json:"tenancy_ocid_env_var" yaml:"tenancy_ocid_env_var"`
+	OciUserOCID                 string `json:"user_ocid" yaml:"user_ocid"`
+	OciUserOCIDEnvVar           string `json:"user_ocid_env_var" yaml:"user_ocid_env_var"`
+	OciFingerprint              string `json:"fingerprint" yaml:"fingerprint"`
+	OciFingerprintEnvVar        string `json:"fingerprint_env_var" yaml:"fingerprint_env_var"`
+	OciPrivateKey               string `json:"private_key" yaml:"private_key"`
+	OciPrivateKeyEnvVar         string `json:"private_key_env_var" yaml:"private_key_env_var"`
+	OciPrivateKeyFilePath       string `json:"private_key_path" yaml:"private_key_path"`
+	OciPrivateKeyFilePathEnvVar string `json:"private_key_path_env_var" yaml:"private_key_path_env_var"`
+	OciPassphrase               string `json:"passphrase" yaml:"passphrase"`
+	OciPassphraseEnvVar         string `json:"passphrase_env_var" yaml:"passphrase_env_var"`
+	OciRegion                   string `json:"region" yaml:"region"`
+	OciRegionEnvVar             string `json:"region_env_var" yaml:"region_env_var"`
 }
 
 func (ac *AuthCtx) GetSQLCfg() (SQLBackendCfg, bool) {
@@ -75,47 +94,63 @@ func (ac *AuthCtx) Clone() *AuthCtx {
 	var scopesCopy []string
 	scopesCopy = append(scopesCopy, ac.Scopes...)
 	rv := &AuthCtx{
-		Scopes:                  scopesCopy,
-		Type:                    ac.Type,
-		ValuePrefix:             ac.ValuePrefix,
-		ID:                      ac.ID,
-		KeyID:                   ac.KeyID,
-		KeyIDEnvVar:             ac.KeyIDEnvVar,
-		KeyFilePath:             ac.KeyFilePath,
-		KeyFilePathEnvVar:       ac.KeyFilePathEnvVar,
-		KeyEnvVar:               ac.KeyEnvVar,
-		Active:                  ac.Active,
-		Username:                ac.Username,
-		Password:                ac.Password,
-		APIKeyStr:               ac.APIKeyStr,
-		APISecretStr:            ac.APISecretStr,
-		EnvVarAPIKeyStr:         ac.EnvVarAPIKeyStr,
-		EnvVarAPISecretStr:      ac.EnvVarAPISecretStr,
-		EnvVarUsername:          ac.EnvVarUsername,
-		EnvVarPassword:          ac.EnvVarPassword,
-		Successor:               ac.Successor,
-		EncodedBasicCredentials: ac.EncodedBasicCredentials,
-		Location:                ac.Location,
-		Name:                    ac.Name,
-		Subject:                 ac.Subject,
-		TokenURL:                ac.TokenURL,
-		GrantType:               ac.GrantType,
-		ClientID:                ac.ClientID,
-		ClientSecret:            ac.ClientSecret,
-		ClientIDEnvVar:          ac.ClientIDEnvVar,
-		ClientSecretEnvVar:      ac.ClientSecretEnvVar,
-		Values:                  ac.Values,
-		AuthStyle:               ac.AuthStyle,
-		AccountID:               ac.AccountID,
-		AccoountIDEnvVar:        ac.AccoountIDEnvVar,
-		AwsRoleArn:              ac.AwsRoleArn,
-		AwsRoleArnEnvVar:        ac.AwsRoleArnEnvVar,
-		AwsRoleSessionName:      ac.AwsRoleSessionName,
-		AwsRoleExternalID:       ac.AwsRoleExternalID,
-		AwsRoleExternalIDEnvVar: ac.AwsRoleExternalIDEnvVar,
-		AwsStsRegion:            ac.AwsStsRegion,
-		AwsStsEndpoint:          ac.AwsStsEndpoint,
-		AwsRoleDurationSeconds:  ac.AwsRoleDurationSeconds,
+		Scopes:                      scopesCopy,
+		Type:                        ac.Type,
+		ValuePrefix:                 ac.ValuePrefix,
+		ID:                          ac.ID,
+		KeyID:                       ac.KeyID,
+		KeyIDEnvVar:                 ac.KeyIDEnvVar,
+		KeyFilePath:                 ac.KeyFilePath,
+		KeyFilePathEnvVar:           ac.KeyFilePathEnvVar,
+		KeyEnvVar:                   ac.KeyEnvVar,
+		Active:                      ac.Active,
+		Username:                    ac.Username,
+		Password:                    ac.Password,
+		APIKeyStr:                   ac.APIKeyStr,
+		APISecretStr:                ac.APISecretStr,
+		EnvVarAPIKeyStr:             ac.EnvVarAPIKeyStr,
+		EnvVarAPISecretStr:          ac.EnvVarAPISecretStr,
+		EnvVarUsername:              ac.EnvVarUsername,
+		EnvVarPassword:              ac.EnvVarPassword,
+		Successor:                   ac.Successor,
+		EncodedBasicCredentials:     ac.EncodedBasicCredentials,
+		Location:                    ac.Location,
+		Name:                        ac.Name,
+		Subject:                     ac.Subject,
+		TokenURL:                    ac.TokenURL,
+		GrantType:                   ac.GrantType,
+		ClientID:                    ac.ClientID,
+		ClientSecret:                ac.ClientSecret,
+		ClientIDEnvVar:              ac.ClientIDEnvVar,
+		ClientSecretEnvVar:          ac.ClientSecretEnvVar,
+		Values:                      ac.Values,
+		AuthStyle:                   ac.AuthStyle,
+		AccountID:                   ac.AccountID,
+		AccoountIDEnvVar:            ac.AccoountIDEnvVar,
+		AwsRoleArn:                  ac.AwsRoleArn,
+		AwsRoleArnEnvVar:            ac.AwsRoleArnEnvVar,
+		AwsRoleSessionName:          ac.AwsRoleSessionName,
+		AwsRoleExternalID:           ac.AwsRoleExternalID,
+		AwsRoleExternalIDEnvVar:     ac.AwsRoleExternalIDEnvVar,
+		AwsStsRegion:                ac.AwsStsRegion,
+		AwsStsEndpoint:              ac.AwsStsEndpoint,
+		AwsRoleDurationSeconds:      ac.AwsRoleDurationSeconds,
+		OciConfigFilePath:           ac.OciConfigFilePath,
+		OciProfile:                  ac.OciProfile,
+		OciTenancyOCID:              ac.OciTenancyOCID,
+		OciTenancyOCIDEnvVar:        ac.OciTenancyOCIDEnvVar,
+		OciUserOCID:                 ac.OciUserOCID,
+		OciUserOCIDEnvVar:           ac.OciUserOCIDEnvVar,
+		OciFingerprint:              ac.OciFingerprint,
+		OciFingerprintEnvVar:        ac.OciFingerprintEnvVar,
+		OciPrivateKey:               ac.OciPrivateKey,
+		OciPrivateKeyEnvVar:         ac.OciPrivateKeyEnvVar,
+		OciPrivateKeyFilePath:       ac.OciPrivateKeyFilePath,
+		OciPrivateKeyFilePathEnvVar: ac.OciPrivateKeyFilePathEnvVar,
+		OciPassphrase:               ac.OciPassphrase,
+		OciPassphraseEnvVar:         ac.OciPassphraseEnvVar,
+		OciRegion:                   ac.OciRegion,
+		OciRegionEnvVar:             ac.OciRegionEnvVar,
 	}
 	return rv
 }
@@ -233,6 +268,107 @@ func (ac *AuthCtx) GetAwsStsRegion() string {
 		return ac.AwsStsRegion
 	}
 	return "us-east-1"
+}
+
+const (
+	defaultOciConfigFilePath string = "~/.oci/config"
+	defaultOciProfile        string = "DEFAULT"
+)
+
+// GetOciTenancyOCID resolves the OCI tenancy OCID, preferring the environment
+// variable indirection when supplied. An empty result means "not configured"
+// and triggers config-file fallback.
+func (ac *AuthCtx) GetOciTenancyOCID() string {
+	if ac.OciTenancyOCIDEnvVar != "" {
+		return os.Getenv(ac.OciTenancyOCIDEnvVar)
+	}
+	return ac.OciTenancyOCID
+}
+
+// GetOciUserOCID resolves the OCI user OCID, preferring the environment
+// variable indirection when supplied.
+func (ac *AuthCtx) GetOciUserOCID() string {
+	if ac.OciUserOCIDEnvVar != "" {
+		return os.Getenv(ac.OciUserOCIDEnvVar)
+	}
+	return ac.OciUserOCID
+}
+
+// GetOciFingerprint resolves the fingerprint of the API signing key, preferring
+// the environment variable indirection when supplied.
+func (ac *AuthCtx) GetOciFingerprint() string {
+	if ac.OciFingerprintEnvVar != "" {
+		return os.Getenv(ac.OciFingerprintEnvVar)
+	}
+	return ac.OciFingerprint
+}
+
+// GetOciPrivateKey resolves the RSA private key PEM: an env var carrying the
+// PEM itself wins, then an inline literal, then a key file path (literal or via
+// env var). An empty result with nil error means "not configured" and triggers
+// config-file fallback.
+func (ac *AuthCtx) GetOciPrivateKey() (string, error) {
+	if ac.OciPrivateKeyEnvVar != "" {
+		rv := os.Getenv(ac.OciPrivateKeyEnvVar)
+		if rv == "" {
+			return "", fmt.Errorf("private_key_env_var references empty string")
+		}
+		return rv, nil
+	}
+	if ac.OciPrivateKey != "" {
+		return ac.OciPrivateKey, nil
+	}
+	keyFilePath := ac.OciPrivateKeyFilePath
+	if ac.OciPrivateKeyFilePathEnvVar != "" {
+		keyFilePath = os.Getenv(ac.OciPrivateKeyFilePathEnvVar)
+		if keyFilePath == "" {
+			return "", fmt.Errorf("private_key_path_env_var references empty string")
+		}
+	}
+	if keyFilePath == "" {
+		return "", nil
+	}
+	b, err := os.ReadFile(keyFilePath)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// GetOciPassphrase resolves the optional private key passphrase, preferring the
+// environment variable indirection when supplied. An empty result is valid.
+func (ac *AuthCtx) GetOciPassphrase() string {
+	if ac.OciPassphraseEnvVar != "" {
+		return os.Getenv(ac.OciPassphraseEnvVar)
+	}
+	return ac.OciPassphrase
+}
+
+// GetOciRegion resolves the region, preferring the environment variable
+// indirection when supplied. The region does not participate in request
+// signing; it is a provider-config convenience.
+func (ac *AuthCtx) GetOciRegion() string {
+	if ac.OciRegionEnvVar != "" {
+		return os.Getenv(ac.OciRegionEnvVar)
+	}
+	return ac.OciRegion
+}
+
+// GetOciConfigFilePath returns the OCI config file path, defaulting to the
+// ~/.oci/config convention every OCI tool shares.
+func (ac *AuthCtx) GetOciConfigFilePath() string {
+	if ac.OciConfigFilePath != "" {
+		return ac.OciConfigFilePath
+	}
+	return defaultOciConfigFilePath
+}
+
+// GetOciProfile returns the OCI config file profile, defaulting to DEFAULT.
+func (ac *AuthCtx) GetOciProfile() string {
+	if ac.OciProfile != "" {
+		return ac.OciProfile
+	}
+	return defaultOciProfile
 }
 
 func (ac *AuthCtx) InferAuthType(authTypeRequested string) string {

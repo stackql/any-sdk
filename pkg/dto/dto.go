@@ -5,6 +5,7 @@ const (
 	AuthAWSSigningv4Str             string = "aws_signing_v4"
 	AuthAWSAssumeRoleStr            string = "aws_assume_role"
 	AuthAzureDefaultStr             string = "azure_default"
+	AuthOciSigningv1Str             string = "oci_signing_v1"
 	AuthBasicStr                    string = "basic"
 	AuthBearerStr                   string = "bearer"
 	AuthCustomStr                   string = "custom"

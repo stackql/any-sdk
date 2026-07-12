@@ -53,7 +53,9 @@ func overrideWith(fields map[string]string) *fakeSchema {
 	return &fakeSchema{typ: "object", props: map[string]*fakeSchema{"line_items": list}}
 }
 
-func runWalker(t *testing.T, override *fakeSchema, protocol, xml string) []map[string]interface{} {
+// runWalkerEnvelope returns the full output envelope, which may carry scalar
+// siblings (pagination tokens, requestId) alongside the row list.
+func runWalkerEnvelope(t *testing.T, override *fakeSchema, protocol, xml string) map[string]interface{} {
 	t.Helper()
 	tr, err := newSchemaDrivenXMLTransformer(xml, override, protocol, "line_items", bytes.NewBuffer(nil))
 	if err != nil {
@@ -63,11 +65,29 @@ func runWalker(t *testing.T, override *fakeSchema, protocol, xml string) []map[s
 		t.Fatalf("transform: %v", err)
 	}
 	out, _ := io.ReadAll(tr.GetOutStream())
-	var env map[string][]map[string]interface{}
+	var env map[string]interface{}
 	if err := json.Unmarshal(out, &env); err != nil {
 		t.Fatalf("bad envelope json %q: %v", string(out), err)
 	}
-	return env["line_items"]
+	return env
+}
+
+func runWalker(t *testing.T, override *fakeSchema, protocol, xml string) []map[string]interface{} {
+	t.Helper()
+	env := runWalkerEnvelope(t, override, protocol, xml)
+	raw, ok := env["line_items"].([]interface{})
+	if !ok {
+		t.Fatalf("line_items should be a list, got %#v", env["line_items"])
+	}
+	rows := make([]map[string]interface{}, 0, len(raw))
+	for _, e := range raw {
+		rm, ok := e.(map[string]interface{})
+		if !ok {
+			t.Fatalf("row should be an object, got %#v", e)
+		}
+		rows = append(rows, rm)
+	}
+	return rows
 }
 
 func TestWalker_EC2List(t *testing.T) {
@@ -272,6 +292,48 @@ func TestWalker_EmptyBodyYieldsNoRows(t *testing.T) {
 	rows := runWalker(t, override, XProtocolRestXML, "")
 	if len(rows) != 0 {
 		t.Fatalf("want 0 rows for empty body, got %d (%v)", len(rows), rows)
+	}
+}
+
+func TestWalker_ScalarSiblingPassthrough(t *testing.T) {
+	// Pagination response tokens (<nextToken> et al.) are scalar siblings of
+	// the row carrier: they must survive into the output envelope so the
+	// pagination machinery can extract them from the transformed document.
+	override := overrideWith(map[string]string{"volumeId": "string", "size": "integer"})
+	xml := `<DescribeVolumesResponse><requestId>r-1</requestId><volumeSet>` +
+		`<item><volumeId>vol-1</volumeId><size>8</size></item>` +
+		`</volumeSet><nextToken>tok-page-2</nextToken></DescribeVolumesResponse>`
+	env := runWalkerEnvelope(t, override, XProtocolEC2, xml)
+	if env["nextToken"] != "tok-page-2" {
+		t.Errorf("nextToken = %#v, want \"tok-page-2\"", env["nextToken"])
+	}
+	if env["requestId"] != "r-1" {
+		t.Errorf("requestId = %#v, want \"r-1\"", env["requestId"])
+	}
+	rows, ok := env["line_items"].([]interface{})
+	if !ok || len(rows) != 1 {
+		t.Fatalf("line_items should carry 1 row, got %#v", env["line_items"])
+	}
+	row, _ := rows[0].(map[string]interface{})
+	if row["volumeId"] != "vol-1" || row["size"] != float64(8) {
+		t.Fatalf("row projection changed by passthrough: %v", row)
+	}
+	if _, present := row["nextToken"]; present {
+		t.Fatalf("token must live on the envelope, not the row: %v", row)
+	}
+}
+
+func TestWalker_ScalarSiblingPassthroughQueryResultWrapper(t *testing.T) {
+	// query-protocol tokens live inside the *Result wrapper (the payload map),
+	// e.g. CloudFormation's <NextToken> sibling of <Stacks>.
+	override := overrideWith(map[string]string{"StackName": "string"})
+	xml := `<DescribeStacksResponse><DescribeStacksResult>` +
+		`<Stacks><member><StackName>s1</StackName></member></Stacks>` +
+		`<NextToken>tok-42</NextToken>` +
+		`</DescribeStacksResult></DescribeStacksResponse>`
+	env := runWalkerEnvelope(t, override, XProtocolQuery, xml)
+	if env["NextToken"] != "tok-42" {
+		t.Errorf("NextToken = %#v, want \"tok-42\"", env["NextToken"])
 	}
 }
 
