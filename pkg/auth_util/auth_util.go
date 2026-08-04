@@ -14,6 +14,7 @@ import (
 	"github.com/stackql/any-sdk/pkg/google_sdk"
 	"github.com/stackql/any-sdk/pkg/litetemplate"
 	"github.com/stackql/any-sdk/pkg/netutils"
+	"github.com/stackql/any-sdk/pkg/ocisign"
 
 	"net/http"
 	"regexp"
@@ -92,6 +93,7 @@ type AuthUtility interface {
 	ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error)
 	AwsSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
+	OciSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	BasicAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	CustomAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
 	AzureDefaultAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error)
@@ -483,6 +485,62 @@ func (au *authUtil) AwsAssumeRoleAuth(authCtx *dto.AuthCtx, httpContext netutils
 		temporaryCredentials.SecretAccessKey,
 		temporaryCredentials.SessionToken,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient.Transport = tr
+
+	return httpClient, nil
+}
+
+// resolveOciConfigurationProvider resolves OCI signing credentials: raw values
+// (env-var-or-literal) when present, otherwise the OCI config file convention.
+// Both delegate to the official SDK's configuration providers, so semantics
+// match the OCI CLI/SDK ecosystem exactly.
+func resolveOciConfigurationProvider(authCtx *dto.AuthCtx) (ocisign.ConfigurationProvider, error) {
+	privateKey, err := authCtx.GetOciPrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("OCI private key error: %w", err)
+	}
+	tenancyOCID := authCtx.GetOciTenancyOCID()
+	userOCID := authCtx.GetOciUserOCID()
+	fingerprint := authCtx.GetOciFingerprint()
+	if privateKey != "" || tenancyOCID != "" || userOCID != "" || fingerprint != "" {
+		if privateKey == "" || tenancyOCID == "" || userOCID == "" || fingerprint == "" {
+			return nil, fmt.Errorf(
+				"cannot compose OCI signing credentials: tenancy_ocid, user_ocid, fingerprint and a private key are all required when any is supplied")
+		}
+		return ocisign.NewRawConfigurationProvider(
+			tenancyOCID,
+			userOCID,
+			authCtx.GetOciRegion(),
+			fingerprint,
+			privateKey,
+			authCtx.GetOciPassphrase(),
+		), nil
+	}
+	return ocisign.NewFileConfigurationProvider(
+		authCtx.GetOciConfigFilePath(),
+		authCtx.GetOciProfile(),
+		authCtx.GetOciPassphrase(),
+	)
+}
+
+// OciSigningAuth signs outgoing requests per the OCI Request Signatures
+// specification (draft-cavage HTTP Signatures with an RSA key registered
+// against an IAM user), mirroring the AwsSigningAuth transport decoration.
+func (au *authUtil) OciSigningAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext) (*http.Client, error) {
+	provider, err := resolveOciConfigurationProvider(authCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	au.ActivateAuth(authCtx, "", dto.AuthOciSigningv1Str)
+
+	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
+
+	tr, err := ocisign.NewOciSignTransport(httpClient.Transport, provider)
 	if err != nil {
 		return nil, err
 	}

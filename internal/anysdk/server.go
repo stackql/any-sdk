@@ -1,7 +1,9 @@
 package anysdk
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -18,9 +20,42 @@ func getServerVariablesMap(sv *openapi3.Server, svc OpenAPIService) map[string]A
 		s := openapi3.NewSchema()
 		s.Type = "string"
 		s.Default = v.Default
-		retVal[k] = newAddressableServerVariable(k, newSchema(s, svc, "", ""), true)
+		_, isEnvResolved := resolveServerVariableFromEnv(v)
+		retVal[k] = newAddressableServerVariable(k, newSchema(s, svc, "", ""), !isEnvResolved)
 	}
 	return retVal
+}
+
+func getServerVariableEnvVarName(v *openapi3.ServerVariable) (string, bool) {
+	if v == nil {
+		return "", false
+	}
+	raw, ok := v.Extensions[ExtensionKeyEnvVar]
+	if !ok {
+		return "", false
+	}
+	switch r := raw.(type) {
+	case string:
+		return r, r != ""
+	case json.RawMessage:
+		var s string
+		if err := json.Unmarshal(r, &s); err == nil {
+			return s, s != ""
+		}
+	}
+	return "", false
+}
+
+func resolveServerVariableFromEnv(v *openapi3.ServerVariable) (string, bool) {
+	envVarName, ok := getServerVariableEnvVarName(v)
+	if !ok {
+		return "", false
+	}
+	val, isPresent := os.LookupEnv(envVarName)
+	if !isPresent || val == "" {
+		return "", false
+	}
+	return val, true
 }
 
 func obtainServerURLsFromServers(svs []*openapi3.Server, vars map[string]string) ([]string, error) {
@@ -49,6 +84,10 @@ func generateServerURL(sv *openapi3.Server, vars map[string]string) (string, err
 	for k, v := range sv.Variables {
 		existing, alreadyExists := vars[k]
 		if !alreadyExists {
+			if envVal, isEnvResolved := resolveServerVariableFromEnv(v); isEnvResolved {
+				mergedVars[k] = envVal
+				continue
+			}
 			def := v.Default
 			if def == "" {
 				return "", fmt.Errorf("no default provided for server variable %s", k)

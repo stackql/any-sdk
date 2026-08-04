@@ -213,6 +213,112 @@ func TestApplyPushdown_TopClampAndAbsentConfig(t *testing.T) {
 	}
 }
 
+const pushdownApplySupersetYaml = `
+select:
+  dialect: odata
+  supportedColumns:
+    - "id"
+    - "displayName"
+    - "status"
+filter:
+  dialect: odata
+  supportedOperators:
+    - "eq"
+    - "and"
+  supportedColumns:
+    - "displayName"
+    - "status"
+    - "createdYear"
+orderBy:
+  dialect: odata
+  supportedColumns:
+    - "status"
+`
+
+func TestApplyPushdown_SelectSupersetOfFilterAndOrderBy(t *testing.T) {
+	src := applyTestSource{qpp: applyTestBuildPushdown(t, pushdownApplySupersetYaml)}
+	intent := NewPushdownIntent(
+		[]string{"id"},
+		[]PushdownPredicate{NewPushdownPredicate("displayName", "eq", "A")},
+		[]PushdownOrder{NewPushdownOrder("status", false)},
+		0, false,
+		0, false,
+		false,
+	)
+
+	res := ApplyPushdown(src, intent)
+
+	// The emitted $select must be extended with the pushed filter and order-by
+	// columns so the request never projects away a column it depends on.
+	applyTestAssertParam(t, res.QueryParams(), "$select", "id,displayName,status")
+	applyTestAssertParam(t, res.QueryParams(), "$filter", "displayName eq 'A'")
+	applyTestAssertParam(t, res.QueryParams(), "$orderby", "status asc")
+}
+
+func TestApplyPushdown_SelectSupersetSkipsUnsupportedAndResidualColumns(t *testing.T) {
+	src := applyTestSource{qpp: applyTestBuildPushdown(t, pushdownApplySupersetYaml)}
+	intent := NewPushdownIntent(
+		[]string{"id"},
+		[]PushdownPredicate{
+			// Pushed into $filter but createdYear is outside the select
+			// allowlist: it must not be added ($select stays coherent).
+			NewPushdownPredicate("createdYear", "eq", 2020),
+			// Residual (operator unsupported by the filter config): a predicate
+			// evaluated client-side contributes nothing to $select, even though
+			// displayName is in the select allowlist.
+			NewPushdownPredicate("displayName", "gt", "M"),
+		},
+		nil,
+		0, false,
+		0, false,
+		false,
+	)
+
+	res := ApplyPushdown(src, intent)
+
+	applyTestAssertParam(t, res.QueryParams(), "$select", "id")
+	applyTestAssertParam(t, res.QueryParams(), "$filter", "createdYear eq 2020")
+	if len(res.ResidualPredicates()) != 1 {
+		t.Fatalf("residual=%d, want 1", len(res.ResidualPredicates()))
+	}
+}
+
+func TestApplyPushdown_SelectSupersetNoChangeWhenAlreadyProjected(t *testing.T) {
+	src := applyTestSource{qpp: applyTestBuildPushdown(t, pushdownApplySupersetYaml)}
+	intent := NewPushdownIntent(
+		[]string{"id", "displayName", "status"},
+		[]PushdownPredicate{NewPushdownPredicate("displayName", "eq", "A")},
+		[]PushdownOrder{NewPushdownOrder("status", true)},
+		0, false,
+		0, false,
+		false,
+	)
+
+	res := ApplyPushdown(src, intent)
+
+	// Queries that already project their filter/order-by columns are untouched.
+	applyTestAssertParam(t, res.QueryParams(), "$select", "id,displayName,status")
+}
+
+func TestApplyPushdown_SelectSupersetEmptyProjectionStaysSelectStar(t *testing.T) {
+	src := applyTestSource{qpp: applyTestBuildPushdown(t, pushdownApplySupersetYaml)}
+	intent := NewPushdownIntent(
+		nil,
+		[]PushdownPredicate{NewPushdownPredicate("displayName", "eq", "A")},
+		[]PushdownOrder{NewPushdownOrder("status", false)},
+		0, false,
+		0, false,
+		false,
+	)
+
+	res := ApplyPushdown(src, intent)
+
+	// SELECT * pushes no projection; filters/order-by alone must not conjure one.
+	if _, ok := res.QueryParams()["$select"]; ok {
+		t.Fatalf("expected no $select for an empty projection, got %v", res.QueryParams())
+	}
+}
+
 // --- query-setting seam (the apply-to-request half) ---
 
 type applyTestQueryParam struct {

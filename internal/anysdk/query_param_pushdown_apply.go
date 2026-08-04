@@ -131,6 +131,7 @@ type standardPushdownResult struct {
 	queryParams        map[string]string
 	pushedPredicates   []PushdownPredicate
 	residualPredicates []PushdownPredicate
+	pushedOrderColumns []string
 	countResponseKey   string
 }
 
@@ -166,9 +167,11 @@ func ApplyPushdown(src pushdownConfigSource, intent PushdownIntent) PushdownResu
 		return res
 	}
 
-	applyPushdownSelect(qpp, intent, res)
+	// Filter and order-by run before select so the emitted $select can be
+	// guaranteed a superset of the columns actually pushed into $filter/$orderby.
 	applyPushdownFilter(qpp, intent, res)
 	applyPushdownOrderBy(qpp, intent, res)
+	applyPushdownSelect(qpp, intent, res)
 	applyPushdownTop(qpp, intent, res)
 	applyPushdownSkip(qpp, intent, res)
 	applyPushdownCount(qpp, intent, res)
@@ -196,7 +199,37 @@ func applyPushdownSelect(qpp QueryParamPushdown, intent PushdownIntent, res *sta
 	if paramName == "" {
 		return
 	}
-	res.queryParams[paramName] = strings.Join(projection, sel.GetDelimiter())
+	// Defensive superset guard: extend the emitted $select with any column the
+	// request is simultaneously filtering ($filter, i.e. the pushed predicates)
+	// or ordering ($orderby) on, so the projection can never strip a column the
+	// server-side query options depend on. A filter/order column outside the
+	// select allowlist is not added (that would emit an incoherent $select);
+	// an empty projection (SELECT *) never emits a $select at all.
+	selected := make(map[string]struct{}, len(projection))
+	out := make([]string, 0, len(projection))
+	for _, col := range projection {
+		if _, ok := selected[col]; ok {
+			continue
+		}
+		selected[col] = struct{}{}
+		out = append(out, col)
+	}
+	extras := make([]string, 0, len(res.pushedPredicates)+len(res.pushedOrderColumns))
+	for _, p := range res.pushedPredicates {
+		extras = append(extras, p.GetColumn())
+	}
+	extras = append(extras, res.pushedOrderColumns...)
+	for _, col := range extras {
+		if _, ok := selected[col]; ok {
+			continue
+		}
+		if !sel.IsColumnSupported(col) {
+			continue
+		}
+		selected[col] = struct{}{}
+		out = append(out, col)
+	}
+	res.queryParams[paramName] = strings.Join(out, sel.GetDelimiter())
 }
 
 func applyPushdownFilter(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {
@@ -274,6 +307,7 @@ func applyPushdownOrderBy(qpp QueryParamPushdown, intent PushdownIntent, res *st
 			dir = "desc"
 		}
 		parts = append(parts, o.GetColumn()+" "+dir)
+		res.pushedOrderColumns = append(res.pushedOrderColumns, o.GetColumn())
 	}
 	res.queryParams[paramName] = strings.Join(parts, ",")
 }
