@@ -1238,7 +1238,9 @@ func (m *standardOpenAPIOperationStore) getRequiredParameters() map[string]Addre
 		sv := availableServers[0]
 		serverVarMap := getServerVariablesMap(sv, m.OpenAPIService)
 		for k, v := range serverVarMap {
-			retVal[k] = v
+			if v.IsRequired() {
+				retVal[k] = v
+			}
 		}
 	}
 	return retVal
@@ -1444,8 +1446,10 @@ func (m *standardOpenAPIOperationStore) ToPresentationMap(extended bool) map[str
 	if availableServersDoExist {
 		sv := availableServers[0]
 		serverVarMap := getServerVariablesMap(sv, m.OpenAPIService)
-		for k := range serverVarMap {
-			requiredServerParamNames = append(requiredServerParamNames, k)
+		for k, v := range serverVarMap {
+			if v.IsRequired() {
+				requiredServerParamNames = append(requiredServerParamNames, k)
+			}
 		}
 	}
 
