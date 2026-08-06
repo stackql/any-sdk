@@ -88,13 +88,17 @@ type standardAuthDTO struct {
 	// needs no runtime auth context at all. Only indirections are accepted
 	// at doc level - literal credential values belong exclusively in the
 	// runtime auth context.
+	// Key naming: every property carries an OCI reference at the operator
+	// surface (tenancy_ocid/user_ocid via "ocid", the rest via an oci_
+	// prefix) so generic terms (fingerprint, private key, passphrase) stay
+	// available to other auth types without collision.
 	OciTenancyOCIDEnvVar    string `json:"tenancy_ocid_envvar,omitempty" yaml:"tenancy_ocid_envvar,omitempty"`
 	OciUserOCIDEnvVar       string `json:"user_ocid_envvar,omitempty" yaml:"user_ocid_envvar,omitempty"`
-	OciFingerprintEnvVar    string `json:"fingerprint_envvar,omitempty" yaml:"fingerprint_envvar,omitempty"`
-	OciPrivateKeyEnvVar     string `json:"private_key_envvar,omitempty" yaml:"private_key_envvar,omitempty"`
-	OciPrivateKeyPathEnvVar string `json:"private_key_path_envvar,omitempty" yaml:"private_key_path_envvar,omitempty"`
-	OciPassphraseEnvVar     string `json:"passphrase_envvar,omitempty" yaml:"passphrase_envvar,omitempty"`
-	OciRegionEnvVar         string `json:"region_envvar,omitempty" yaml:"region_envvar,omitempty"`
+	OciFingerprintEnvVar    string `json:"oci_fingerprint_envvar,omitempty" yaml:"oci_fingerprint_envvar,omitempty"`
+	OciPrivateKeyEnvVar     string `json:"oci_private_key_envvar,omitempty" yaml:"oci_private_key_envvar,omitempty"`
+	OciPrivateKeyPathEnvVar string `json:"oci_private_key_path_envvar,omitempty" yaml:"oci_private_key_path_envvar,omitempty"`
+	OciPassphraseEnvVar     string `json:"oci_passphrase_envvar,omitempty" yaml:"oci_passphrase_envvar,omitempty"`
+	OciRegionEnvVar         string `json:"oci_region_envvar,omitempty" yaml:"oci_region_envvar,omitempty"`
 }
 
 func (qt standardAuthDTO) GetOciTenancyOCIDEnvVar() string {
