@@ -768,6 +768,13 @@ type AuthDTO interface {
 	GetKeyIDEnvVar() string
 	GetLocation() string
 	GetName() string
+	GetOciFingerprintEnvVar() string
+	GetOciPassphraseEnvVar() string
+	GetOciPrivateKeyEnvVar() string
+	GetOciPrivateKeyPathEnvVar() string
+	GetOciRegionEnvVar() string
+	GetOciTenancyOCIDEnvVar() string
+	GetOciUserOCIDEnvVar() string
 	GetScopes() []string
 	GetSubject() string
 	GetSuccessor() (AuthDTO, bool)

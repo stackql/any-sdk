@@ -33,4 +33,11 @@ type AuthDTO interface {
 	GetAuthStyle() int
 	GetAccountID() string
 	GetAccountIDEnvVar() string
+	GetOciTenancyOCIDEnvVar() string
+	GetOciUserOCIDEnvVar() string
+	GetOciFingerprintEnvVar() string
+	GetOciPrivateKeyEnvVar() string
+	GetOciPrivateKeyPathEnvVar() string
+	GetOciPassphraseEnvVar() string
+	GetOciRegionEnvVar() string
 }

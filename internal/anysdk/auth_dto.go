@@ -43,6 +43,13 @@ type AuthDTO interface {
 	GetAuthStyle() int
 	GetAccountID() string
 	GetAccountIDEnvVar() string
+	GetOciTenancyOCIDEnvVar() string
+	GetOciUserOCIDEnvVar() string
+	GetOciFingerprintEnvVar() string
+	GetOciPrivateKeyEnvVar() string
+	GetOciPrivateKeyPathEnvVar() string
+	GetOciPassphraseEnvVar() string
+	GetOciRegionEnvVar() string
 }
 
 type standardAuthDTO struct {
@@ -76,6 +83,46 @@ type standardAuthDTO struct {
 	AuthStyle          int              `json:"auth_style" yaml:"auth_style"`
 	AccoountID         string           `json:"account_id" yaml:"account_id"`
 	AccountIDEnvVar    string           `json:"account_id_env_var" yaml:"account_id_var"`
+	// OCI signing (oci_signing_v1) doc-level env var indirections: a provider
+	// doc may ship default env var names so that a populated environment
+	// needs no runtime auth context at all. Only indirections are accepted
+	// at doc level - literal credential values belong exclusively in the
+	// runtime auth context.
+	OciTenancyOCIDEnvVar    string `json:"tenancy_ocid_envvar,omitempty" yaml:"tenancy_ocid_envvar,omitempty"`
+	OciUserOCIDEnvVar       string `json:"user_ocid_envvar,omitempty" yaml:"user_ocid_envvar,omitempty"`
+	OciFingerprintEnvVar    string `json:"fingerprint_envvar,omitempty" yaml:"fingerprint_envvar,omitempty"`
+	OciPrivateKeyEnvVar     string `json:"private_key_envvar,omitempty" yaml:"private_key_envvar,omitempty"`
+	OciPrivateKeyPathEnvVar string `json:"private_key_path_envvar,omitempty" yaml:"private_key_path_envvar,omitempty"`
+	OciPassphraseEnvVar     string `json:"passphrase_envvar,omitempty" yaml:"passphrase_envvar,omitempty"`
+	OciRegionEnvVar         string `json:"region_envvar,omitempty" yaml:"region_envvar,omitempty"`
+}
+
+func (qt standardAuthDTO) GetOciTenancyOCIDEnvVar() string {
+	return qt.OciTenancyOCIDEnvVar
+}
+
+func (qt standardAuthDTO) GetOciUserOCIDEnvVar() string {
+	return qt.OciUserOCIDEnvVar
+}
+
+func (qt standardAuthDTO) GetOciFingerprintEnvVar() string {
+	return qt.OciFingerprintEnvVar
+}
+
+func (qt standardAuthDTO) GetOciPrivateKeyEnvVar() string {
+	return qt.OciPrivateKeyEnvVar
+}
+
+func (qt standardAuthDTO) GetOciPrivateKeyPathEnvVar() string {
+	return qt.OciPrivateKeyPathEnvVar
+}
+
+func (qt standardAuthDTO) GetOciPassphraseEnvVar() string {
+	return qt.OciPassphraseEnvVar
+}
+
+func (qt standardAuthDTO) GetOciRegionEnvVar() string {
+	return qt.OciRegionEnvVar
 }
 
 func (qt standardAuthDTO) GetAccountID() string {
