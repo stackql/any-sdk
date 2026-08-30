@@ -745,6 +745,11 @@ func (w *wrappedMethodAnalysisOutput) GetInsertTabulation() Tabulation {
 }
 
 func newWrappedSchemaFromAnySdkSchema(inner anysdk.Schema) Schema {
+	// A nil schema must stay nil; wrapping it yields a non-nil interface over a
+	// nil pointer, which defeats the caller's nil check.
+	if inner == nil {
+		return nil
+	}
 	return &wrappedSchema{inner: inner}
 }
 
