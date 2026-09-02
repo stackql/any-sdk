@@ -39,7 +39,8 @@ jobs:
       with:
         repository: ${{ env.STACKQL_CORE_REPOSITORY }}
         ref: ${{ env.STACKQL_CORE_REF }}
-        token: ${{ secrets.CI_STACKQL_PACKAGE_DOWNLOAD_TOKEN  }}
+        # Dependabot runs have no repo secrets; fall back to the default token.
+        token: ${{ secrets.CI_STACKQL_PACKAGE_DOWNLOAD_TOKEN || github.token }}
         path: stackql-core-pkg
 
     - name: Setup Python
