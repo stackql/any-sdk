@@ -2636,6 +2636,34 @@ type wrappedAuthDTO struct {
 	inner authsurface.AuthDTO
 }
 
+func (w *wrappedAuthDTO) GetOciTenancyOCIDEnvVar() string {
+	return w.inner.GetOciTenancyOCIDEnvVar()
+}
+
+func (w *wrappedAuthDTO) GetOciUserOCIDEnvVar() string {
+	return w.inner.GetOciUserOCIDEnvVar()
+}
+
+func (w *wrappedAuthDTO) GetOciFingerprintEnvVar() string {
+	return w.inner.GetOciFingerprintEnvVar()
+}
+
+func (w *wrappedAuthDTO) GetOciPrivateKeyEnvVar() string {
+	return w.inner.GetOciPrivateKeyEnvVar()
+}
+
+func (w *wrappedAuthDTO) GetOciPrivateKeyPathEnvVar() string {
+	return w.inner.GetOciPrivateKeyPathEnvVar()
+}
+
+func (w *wrappedAuthDTO) GetOciPassphraseEnvVar() string {
+	return w.inner.GetOciPassphraseEnvVar()
+}
+
+func (w *wrappedAuthDTO) GetOciRegionEnvVar() string {
+	return w.inner.GetOciRegionEnvVar()
+}
+
 func (w *wrappedAuthDTO) GetAccountID() string {
 	r0 := w.inner.GetAccountID()
 	return r0

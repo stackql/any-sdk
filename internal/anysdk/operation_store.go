@@ -1735,14 +1735,21 @@ func (op *standardOpenAPIOperationStore) parameterize(prov Provider, parentDoc S
 	// TODO: clean up
 	sv = strings.TrimSuffix(sv, "/")
 	path := replaceSimpleStringVars(fmt.Sprintf("%s%s", sv, op.OperationRef.extractPathItem()), pathParams)
-	u, err := url.Parse(fmt.Sprintf("%s?%s", path, q.Encode()))
-	if strings.Contains(path, "?") {
-		if len(q) > 0 {
-			u, err = url.Parse(fmt.Sprintf("%s&%s", path, q.Encode()))
-		} else {
-			u, err = url.Parse(path)
+	// Never emit a dangling "?" for an empty query: url.Parse records it as
+	// ForceQuery and reproduces it on the wire, and signature schemes that
+	// cover (request-target) then fail against servers that normalise the
+	// request line before verification (OCI 401 NotAuthenticated on every
+	// no-query body verb).
+	encodedQuery := q.Encode()
+	rawURL := path
+	if encodedQuery != "" {
+		separator := "?"
+		if strings.Contains(path, "?") {
+			separator = "&"
 		}
+		rawURL = fmt.Sprintf("%s%s%s", path, separator, encodedQuery)
 	}
+	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
 	}
