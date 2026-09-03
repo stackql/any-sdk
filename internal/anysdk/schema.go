@@ -735,7 +735,7 @@ func (s *standardSchema) IsBoolean() bool {
 }
 
 func (s *standardSchema) IsFloat() bool {
-	return s.Type == "float" || s.Type == "float64"
+	return s.Type == "float" || s.Type == "float64" || s.Type == "number"
 }
 
 func (sc *standardSchema) GetPropertySchema(key string) (Schema, error) {
