@@ -1714,6 +1714,10 @@ func (w *wrappedTokenSemantic) GetAlgorithm() string {
 	return w.inner.GetAlgorithm()
 }
 
+func (w *wrappedTokenSemantic) GetEncoding() string {
+	return w.inner.GetEncoding()
+}
+
 func (w *wrappedTokenSemantic) GetArgs() map[string]interface{} {
 	return map[string]interface{}(w.inner.GetArgs())
 }

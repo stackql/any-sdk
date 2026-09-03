@@ -111,12 +111,33 @@ func (hap *standardHTTPArmouryParameters) Encode() string {
 	return ""
 }
 
+func requestTokenEncoding(ops OperationStore) string {
+	if ops == nil {
+		return TokenEncodingURL
+	}
+	ts, ok := ops.GetPaginationRequestTokenSemantic()
+	if !ok || ts == nil {
+		return TokenEncodingURL
+	}
+	return ts.GetEncoding()
+}
+
 func (hap *standardHTTPArmouryParameters) SetNextPage(
 	ops OperationStore, token string, tokenKey internaldto.HTTPElement) (*http.Request, error) {
 	rv := hap.request.Clone(hap.request.Context())
 	switch tokenKey.GetType() { //nolint:exhaustive	// acceptable for now
 	case internaldto.QueryParam:
 		q := hap.request.URL.Query()
+		if requestTokenEncoding(ops) == TokenEncodingNone {
+			// Token written as issued; the other parameters stay escaped.
+			q.Del(tokenKey.GetName())
+			pair := url.QueryEscape(tokenKey.GetName()) + "=" + token
+			if encoded := q.Encode(); encoded != "" {
+				pair = encoded + "&" + pair
+			}
+			rv.URL.RawQuery = pair
+			return rv, nil
+		}
 		q.Set(tokenKey.GetName(), token)
 		rv.URL.RawQuery = q.Encode()
 		return rv, nil
