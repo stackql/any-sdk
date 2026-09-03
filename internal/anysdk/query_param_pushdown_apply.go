@@ -286,10 +286,6 @@ func applyPushdownOrderBy(qpp QueryParamPushdown, intent PushdownIntent, res *st
 	if !ok {
 		return
 	}
-	// Only the OData syntax has a well-defined "col asc|desc" rendering here.
-	if !strings.EqualFold(ob.GetSyntax(), ODataDialect) {
-		return
-	}
 	paramName := ob.GetParamName()
 	if paramName == "" {
 		return
@@ -300,16 +296,60 @@ func applyPushdownOrderBy(qpp QueryParamPushdown, intent PushdownIntent, res *st
 			return
 		}
 	}
-	parts := make([]string, 0, len(orderBy))
+	value, ok := renderPushdownOrderBy(ob, orderBy)
+	if !ok {
+		return
+	}
 	for _, o := range orderBy {
-		dir := "asc"
-		if o.IsDescending() {
-			dir = "desc"
-		}
-		parts = append(parts, o.GetColumn()+" "+dir)
 		res.pushedOrderColumns = append(res.pushedOrderColumns, o.GetColumn())
 	}
-	res.queryParams[paramName] = strings.Join(parts, ",")
+	res.queryParams[paramName] = value
+}
+
+// renderPushdownOrderBy renders the order terms in the configured syntax; false
+// when the syntax is unknown or cannot express the terms, leaving ORDER BY
+// client-side.
+func renderPushdownOrderBy(ob OrderByPushdown, orderBy []PushdownOrder) (string, bool) {
+	syntax := strings.ToLower(ob.GetSyntax())
+	switch syntax {
+	case OrderBySyntaxDirectionOnly:
+		// The API orders by a fixed column: exactly one term, on an explicit
+		// allowlist, rendered as its direction alone.
+		if len(orderBy) != 1 || len(ob.GetSupportedColumns()) == 0 {
+			return "", false
+		}
+		return pushdownOrderDirection(orderBy[0]), true
+	case ODataDialect, OrderBySyntaxPrefix, OrderBySyntaxSuffix, OrderBySyntaxColumnOnly:
+		parts := make([]string, 0, len(orderBy))
+		for _, o := range orderBy {
+			parts = append(parts, renderPushdownOrderTerm(syntax, o))
+		}
+		return strings.Join(parts, ","), true
+	}
+	return "", false
+}
+
+func renderPushdownOrderTerm(syntax string, o PushdownOrder) string {
+	switch syntax {
+	case OrderBySyntaxPrefix:
+		if o.IsDescending() {
+			return "-" + o.GetColumn()
+		}
+		return o.GetColumn()
+	case OrderBySyntaxSuffix:
+		return o.GetColumn() + ":" + pushdownOrderDirection(o)
+	case OrderBySyntaxColumnOnly:
+		return o.GetColumn()
+	default:
+		return o.GetColumn() + " " + pushdownOrderDirection(o)
+	}
+}
+
+func pushdownOrderDirection(o PushdownOrder) string {
+	if o.IsDescending() {
+		return "desc"
+	}
+	return "asc"
 }
 
 func applyPushdownTop(qpp QueryParamPushdown, intent PushdownIntent, res *standardPushdownResult) {

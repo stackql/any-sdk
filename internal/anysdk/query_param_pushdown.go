@@ -21,6 +21,12 @@ const (
 	DefaultCountParamName   = "$count"
 	DefaultCountParamValue  = "true"
 	DefaultCountResponseKey = "@odata.count"
+	// OrderBySyntax* name the non-OData ORDER BY renderings; see
+	// renderPushdownOrderBy.
+	OrderBySyntaxPrefix        = "prefix"
+	OrderBySyntaxSuffix        = "suffix"
+	OrderBySyntaxColumnOnly    = "column_only"
+	OrderBySyntaxDirectionOnly = "direction_only"
 )
 
 var (
