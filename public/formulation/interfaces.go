@@ -519,6 +519,9 @@ type TokenSemantic interface {
 	// GetAlgorithm returns the per-token algorithm (e.g. the request-token
 	// increment style for offset/page_number pagination); empty when unset.
 	GetAlgorithm() string
+	// GetEncoding returns how a query-located request token is written:
+	// "url" (percent-escaped, the default) or "none" (verbatim).
+	GetEncoding() string
 	// GetArgs returns the token's free-form args (e.g. an offset/page start value
 	// or a transform regex) as a plain map, decoupled from any internal type.
 	GetArgs() map[string]interface{}

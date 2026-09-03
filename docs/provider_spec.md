@@ -670,6 +670,11 @@ pagination:
     location: body           # "body" or "header"
 ```
 
+A query-located `requestToken` is percent-escaped by default (`encoding: url`).
+Set `encoding: none` to send the token exactly as the server issued it, for
+cursor parsers that do not percent-decode (e.g. base64 `=` padding); the other
+query parameters remain escaped.
+
 ### Offset-Based Pagination
 
 ```yaml

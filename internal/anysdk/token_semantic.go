@@ -14,12 +14,22 @@ var (
 	_ jsonpointer.JSONPointable = (TokenSemantic)(&standardTokenSemantic{})
 )
 
+const (
+	// TokenEncodingURL percent-escapes a query-located request token
+	// (url.Values.Encode); the default.
+	TokenEncodingURL = "url"
+	// TokenEncodingNone writes a query-located request token verbatim, for
+	// servers whose cursor parser does not percent-decode.
+	TokenEncodingNone = "none"
+)
+
 type TokenSemanticArgs map[string]interface{}
 
 type TokenSemantic interface {
 	JSONLookup(token string) (interface{}, error)
 	GetAlgorithm() string
 	GetArgs() TokenSemanticArgs
+	GetEncoding() string
 	GetKey() string
 	GetLocation() string
 	GetTransformer() (TokenTransformer, error)
@@ -31,6 +41,7 @@ type standardTokenSemantic struct {
 	Args      TokenSemanticArgs `json:"args,omitempty" yaml:"args,omitempty"`
 	Key       string            `json:"key,omitempty" yaml:"key,omitempty"`
 	Location  string            `json:"location,omitempty" yaml:"location,omitempty"`
+	Encoding  string            `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 }
 
 func (ts *standardTokenSemantic) GetTransformer() (TokenTransformer, error) {
@@ -81,6 +92,13 @@ func (ts *standardTokenSemantic) GetArgs() TokenSemanticArgs {
 	return ts.Args
 }
 
+func (ts *standardTokenSemantic) GetEncoding() string {
+	if ts.Encoding == "" {
+		return TokenEncodingURL
+	}
+	return ts.Encoding
+}
+
 func (ts *standardTokenSemantic) GetKey() string {
 	return ts.Key
 }
@@ -93,6 +111,8 @@ func (qt *standardTokenSemantic) JSONLookup(token string) (interface{}, error) {
 	switch token {
 	case "algorithm":
 		return qt.Algorithm, nil
+	case "encoding":
+		return qt.Encoding, nil
 	default:
 		return nil, fmt.Errorf("could not resolve token '%s' from TokenSemantic doc object", token)
 	}
