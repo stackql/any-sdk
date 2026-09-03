@@ -1579,7 +1579,11 @@ func (op *standardOpenAPIOperationStore) marshalBody(body interface{}, expectedR
 	}
 	switch mediaType {
 	case media.MediaTypeJson:
-		b, err := json.Marshal(body)
+		coerced, err := coerceBodyToSchema(expectedRequest.GetSchema(), body)
+		if err != nil {
+			return dto.NewMarshalledBody(nil, err)
+		}
+		b, err := json.Marshal(coerced)
 		return dto.NewMarshalledBody(b, err)
 	case media.MediaTypeXML, media.MediaTypeTextXML:
 		b, err := xmlmap.MarshalXMLUserInput(
