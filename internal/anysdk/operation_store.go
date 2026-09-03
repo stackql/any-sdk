@@ -598,6 +598,23 @@ func (op *standardOpenAPIOperationStore) GetRequestTranslateAlgorithm() string {
 }
 
 func (op *standardOpenAPIOperationStore) GetPaginationRequestTokenSemantic() (TokenSemantic, bool) {
+	// Link-header pagination carries a URL, not a token: it replaces the
+	// request URL regardless of any declared request token.
+	if op.isLinkHeaderPagination() {
+		return newRequestURLTokenSemantic(), true
+	}
+	return op.getConfiguredPaginationRequestTokenSemantic()
+}
+
+func (op *standardOpenAPIOperationStore) isLinkHeaderPagination() bool {
+	if op.GetPaginationAlgorithm() == PaginationAlgorithmLinkHeaderNext {
+		return true
+	}
+	ts, ok := op.GetPaginationResponseTokenSemantic()
+	return ok && isLinkHeaderTokenSemantic(ts)
+}
+
+func (op *standardOpenAPIOperationStore) getConfiguredPaginationRequestTokenSemantic() (TokenSemantic, bool) {
 	if op.StackQLConfig != nil {
 		pag, pagExists := op.StackQLConfig.GetPagination()
 		if pagExists && pag.GetRequestToken() != nil {
@@ -620,7 +637,7 @@ func (op *standardOpenAPIOperationStore) GetPaginationRequestTokenSemantic() (To
 		}
 	}
 	if op.Provider != nil {
-		if ts, ok := op.ProviderService.GetPaginationRequestTokenSemantic(); ok {
+		if ts, ok := op.Provider.GetPaginationRequestTokenSemantic(); ok {
 			return ts, true
 		}
 	}
@@ -650,7 +667,7 @@ func (op *standardOpenAPIOperationStore) GetPaginationResponseTokenSemantic() (T
 		}
 	}
 	if op.Provider != nil {
-		if ts, ok := op.ProviderService.getPaginationResponseTokenSemantic(); ok {
+		if ts, ok := op.Provider.GetPaginationResponseTokenSemantic(); ok {
 			return ts, true
 		}
 	}

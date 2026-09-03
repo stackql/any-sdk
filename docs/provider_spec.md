@@ -684,16 +684,22 @@ pagination:
 
 ### Link Header Pagination (GitHub-style)
 
+For APIs that return the next page URL in an RFC 5988 `Link` header
+(`<url>; rel="next"`), declare only the response token. The extracted URL
+replaces the request URL for the next page, so no `requestToken` is needed;
+one declared with a `query`, `header` or `body` location is ignored for this
+scheme. Traversal ends when no `rel="next"` link is present.
+
 ```yaml
 pagination:
-  requestToken:
-    key: page
-    location: query
   responseToken:
     key: Link
     location: header
-    algorithm: link_header_next
 ```
+
+A header-located `Link` token is recognised automatically. To read a
+differently named header, set `algorithm: link_header_next` on the
+pagination block or on the response token.
 
 ### Page Number Pagination (Cloudflare V4, Atlassian, ServiceNow, ...)
 

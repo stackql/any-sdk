@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/go-openapi/jsonpointer"
+
+	"github.com/stackql/any-sdk/pkg/internaldto"
 )
 
 var (
@@ -27,6 +29,11 @@ const (
 	// using the public Pagination / TokenSemantic accessors (responseToken keyed at
 	// `@odata.nextLink`).
 	PaginationAlgorithmODataNextLink = "odata_next_link"
+	// PaginationAlgorithmLinkHeaderNext identifies RFC 5988 Link-header
+	// pagination: the `rel="next"` URL replaces the request URL for the next
+	// page. Inferred for a header-located `Link` response token; the identifier
+	// makes it explicit or names a different header.
+	PaginationAlgorithmLinkHeaderNext = "link_header_next"
 )
 
 type Pagination interface {
@@ -49,10 +56,16 @@ func (qt *standardPagination) GetAlgorithm() string {
 }
 
 func (qt *standardPagination) GetRequestToken() TokenSemantic {
+	if qt.RequestToken == nil {
+		return nil
+	}
 	return qt.RequestToken
 }
 
 func (qt *standardPagination) GetResponseToken() TokenSemantic {
+	if qt.ResponseToken == nil {
+		return nil
+	}
 	return qt.ResponseToken
 }
 
@@ -112,22 +125,31 @@ func getNopTransformer() (TokenTransformer, error) {
 }
 
 func getHeaderTransformer(tokenSemantic TokenSemantic) (TokenTransformer, error) {
-	if tokenSemantic.GetAlgorithm() == "" && strings.ToLower(tokenSemantic.GetKey()) == "link" && strings.ToLower(tokenSemantic.GetLocation()) == "header" {
+	if isLinkHeaderTokenSemantic(tokenSemantic) {
 		return defaultLinkHeaderTransformer, nil
 	}
-
+	key := tokenSemantic.GetKey()
 	return func(input interface{}) (interface{}, error) {
-		h, ok := input.(http.Header)
-		if !ok {
-			return nil, fmt.Errorf("cannot ingest purported http header of type = '%T'", h)
-		}
-		s := h.Values(tokenSemantic.GetKey())
-		resArr := linksNextRegex.FindStringSubmatch(strings.Join(s, ","))
-		if len(resArr) == 2 {
-			return resArr[1], nil
-		}
-		return "", nil
+		return extractNextLink(input, key)
 	}, nil
+}
+
+// isLinkHeaderTokenSemantic reports whether a token names the RFC 5988 Link
+// header, by algorithm or by location and key.
+func isLinkHeaderTokenSemantic(ts TokenSemantic) bool {
+	if ts == nil {
+		return false
+	}
+	if ts.GetAlgorithm() == PaginationAlgorithmLinkHeaderNext {
+		return true
+	}
+	return strings.EqualFold(ts.GetLocation(), internaldto.HeaderStr) && strings.EqualFold(ts.GetKey(), "link")
+}
+
+// newRequestURLTokenSemantic describes a request token that replaces the whole
+// request URL, as link-header pagination requires.
+func newRequestURLTokenSemantic() TokenSemantic {
+	return &standardTokenSemantic{Location: internaldto.RequestStringStr}
 }
 
 func DefaultLinkHeaderTransformer(input interface{}) (interface{}, error) {
@@ -135,12 +157,24 @@ func DefaultLinkHeaderTransformer(input interface{}) (interface{}, error) {
 }
 
 func defaultLinkHeaderTransformer(input interface{}) (interface{}, error) {
-	h, ok := input.(http.Header)
-	if !ok {
-		return nil, fmt.Errorf("cannot ingest purported http header of type = '%T'", h)
+	return extractNextLink(input, "Link")
+}
+
+// extractNextLink returns the rel="next" URL from a header supplied as an
+// http.Header, its value slice, or a single value; "" when absent.
+func extractNextLink(input interface{}, key string) (interface{}, error) {
+	var vals []string
+	switch h := input.(type) {
+	case http.Header:
+		vals = h.Values(key)
+	case []string:
+		vals = h
+	case string:
+		vals = []string{h}
+	default:
+		return nil, fmt.Errorf("cannot ingest purported http header of type = '%T'", input)
 	}
-	s := h.Values("Link")
-	resArr := linksNextRegex.FindStringSubmatch(strings.Join(s, ","))
+	resArr := linksNextRegex.FindStringSubmatch(strings.Join(vals, ","))
 	if len(resArr) == 2 {
 		return resArr[1], nil
 	}
