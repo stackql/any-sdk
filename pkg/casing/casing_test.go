@@ -94,3 +94,28 @@ func TestIsKnownCasing(t *testing.T) {
 		t.Errorf("IsKnownCasing(\"bogus\") = true, want false")
 	}
 }
+
+// Hyphenated wire names (HTTP headers) split on '-' as well as on case
+// boundaries, so they gain a usable snake alias (issue #119).
+func TestToSnakeHyphenated(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"openai-organization", "openai_organization"},
+		{"OpenAI-Organization", "open_ai_organization"},
+		{"X-Amz-Date", "x_amz_date"},
+		{"Content-MD5", "content_md5"},
+		{"-leading-", "leading"},
+		{"VPCId", "vpc_id"},
+		{"training_file", "training_file"},
+	}
+	for _, c := range cases {
+		if got := ToSnake(c.in); got != c.want {
+			t.Errorf("ToSnake(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+	if got := FromSnake("openai_organization", Kebab); got != "openai-organization" {
+		t.Errorf("FromSnake kebab inverse = %q", got)
+	}
+}
