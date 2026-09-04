@@ -815,6 +815,21 @@ config:
 | `odata` | `$orderby=name desc` |
 | `prefix` | `sort=-name` |
 | `suffix` | `sort=name:desc` |
+| `column_only` | `sort=name` |
+| `direction_only` | `order=desc` |
+
+`direction_only` is for APIs that order by a fixed column and take only a
+direction (e.g. `?order=desc`): it requires exactly one ORDER BY term whose
+column is on an explicit `supportedColumns` allowlist. An ORDER BY the syntax
+cannot express is not pushed and stays client-side, which remains
+authoritative in every case.
+
+```yaml
+orderBy:
+  paramName: order
+  syntax: direction_only
+  supportedColumns: ["created_at"]
+```
 
 ---
 
