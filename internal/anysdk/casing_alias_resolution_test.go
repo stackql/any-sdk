@@ -141,8 +141,8 @@ func TestBodylessMethodHasNoRequestSchemaError(t *testing.T) {
 		t.Fatalf("metadata-only request block: schema=%v err=%v, want nil, nil", s, err)
 	}
 	paths, err := op.getRequestBodyStringifiedPaths()
-	if err != nil || len(paths) != 0 {
-		t.Errorf("stringified paths = %v, %v; want empty, nil", paths, err)
+	if err == nil || len(paths) != 0 {
+		t.Errorf("stringified paths = %v, %v; want empty with an explicit error", paths, err)
 	}
 	if _, err := op.getRequestBodySchemaAttributeMatcher(""); err == nil {
 		t.Error("an attribute matcher needs a schema and must still error")

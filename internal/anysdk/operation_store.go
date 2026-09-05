@@ -282,8 +282,11 @@ func (op *standardOpenAPIOperationStore) getXMLTransform() string {
 func (op *standardOpenAPIOperationStore) getRequestBodyStringifiedPaths() (map[string]struct{}, error) {
 	rv := make(map[string]struct{})
 	requestBodySchema, schemaErr := op.getRequestBodySchema()
-	if schemaErr != nil || requestBodySchema == nil {
+	if schemaErr != nil {
 		return rv, schemaErr
+	}
+	if requestBodySchema == nil {
+		return rv, op.noRequestBodyError()
 	}
 	for k, v := range requestBodySchema.getProperties() {
 		if v == nil {
