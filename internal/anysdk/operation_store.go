@@ -285,6 +285,9 @@ func (op *standardOpenAPIOperationStore) getRequestBodyStringifiedPaths() (map[s
 	if schemaErr != nil {
 		return rv, schemaErr
 	}
+	if requestBodySchema == nil {
+		return rv, op.noRequestBodyError()
+	}
 	for k, v := range requestBodySchema.getProperties() {
 		if v == nil {
 			continue
@@ -741,6 +744,7 @@ func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interf
 	}
 	requiredParameters := NewParameterSuffixMap()
 	optionalParameters := NewParameterSuffixMap()
+	var declared []string
 	for k, v := range op.getRequiredParameters() {
 		key := fmt.Sprintf("%s.%s", op.getName(), k)
 		_, keyExists := requiredParameters.Get(key)
@@ -748,6 +752,7 @@ func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interf
 			return copiedParams, false
 		}
 		requiredParameters.Put(key, v)
+		declared = append(declared, k)
 	}
 	for k, vOpt := range op.getOptionalParameters() {
 		key := fmt.Sprintf("%s.%s", op.getName(), k)
@@ -756,6 +761,7 @@ func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interf
 			return copiedParams, false
 		}
 		optionalParameters.Put(key, vOpt)
+		declared = append(declared, k)
 	}
 	nc := op.GetRequestNativeCasing()
 	for k := range copiedParams {
@@ -770,17 +776,9 @@ func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interf
 		// Reverse-casing retry: a snake_case SQL key satisfies its wire-name
 		// parameter when the method declares a native request casing
 		// (mirrors GetParameter). Absent native casing this is a no-op.
-		if nc != "" {
-			if wireKey := casing.FromSnake(k, nc); wireKey != k {
-				if requiredParameters.Delete(wireKey) {
-					delete(copiedParams, k)
-					continue
-				}
-				if optionalParameters.Delete(wireKey) {
-					delete(copiedParams, k)
-					continue
-				}
-			}
+		if nc != "" && deleteAliasedParameter(k, nc, declared, requiredParameters, optionalParameters) {
+			delete(copiedParams, k)
+			continue
 		}
 		// log.Debugf("parameter '%s' unmatched for method '%s'\n", k, op.getName())
 	}
@@ -791,6 +789,15 @@ func (op *standardOpenAPIOperationStore) parameterMatch(params map[string]interf
 	return copiedParams, false
 }
 
+func deleteAliasedParameter(k, nc string, declared []string, required, optional *ParameterSuffixMap) bool {
+	for _, wireKey := range wireKeyCandidates(k, nc, declared) {
+		if required.Delete(wireKey) || optional.Delete(wireKey) {
+			return true
+		}
+	}
+	return false
+}
+
 func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[string]interface{}) (map[string]interface{}, bool) {
 	copiedParams := make(map[string]interface{})
 	for k, v := range params {
@@ -798,6 +805,7 @@ func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[stri
 	}
 	requiredParameters := NewParameterSuffixMap()
 	optionalParameters := NewParameterSuffixMap()
+	var declared []string
 	for k, v := range op.getRequiredParameters() {
 		key := fmt.Sprintf("%s.%s", op.getName(), k)
 		_, keyExists := requiredParameters.Get(key)
@@ -805,6 +813,7 @@ func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[stri
 			return copiedParams, false
 		}
 		requiredParameters.Put(key, v)
+		declared = append(declared, k)
 	}
 	for k, vOpt := range op.getOptionalParameters() {
 		key := fmt.Sprintf("%s.%s", op.getName(), k)
@@ -813,6 +822,7 @@ func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[stri
 			return copiedParams, false
 		}
 		optionalParameters.Put(key, vOpt)
+		declared = append(declared, k)
 	}
 	nc := op.GetRequestNativeCasing()
 	for k := range copiedParams {
@@ -827,17 +837,9 @@ func (op *standardOpenAPIOperationStore) namespaceParameterMatch(params map[stri
 		// Reverse-casing retry: a snake_case SQL key satisfies its wire-name
 		// parameter when the method declares a native request casing
 		// (mirrors GetParameter). Absent native casing this is a no-op.
-		if nc != "" {
-			if wireKey := casing.FromSnake(k, nc); wireKey != k {
-				if requiredParameters.Delete(wireKey) {
-					delete(copiedParams, k)
-					continue
-				}
-				if optionalParameters.Delete(wireKey) {
-					delete(copiedParams, k)
-					continue
-				}
-			}
+		if nc != "" && deleteAliasedParameter(k, nc, declared, requiredParameters, optionalParameters) {
+			delete(copiedParams, k)
+			continue
 		}
 		// log.Debugf("parameter '%s' unmatched for method '%s'\n", k, op.getName())
 	}
@@ -988,6 +990,9 @@ func (m *standardOpenAPIOperationStore) getRequestBodyAttributes() (map[string]A
 	if err != nil {
 		return nil, err
 	}
+	if s == nil {
+		return nil, m.noRequestBodyError()
+	}
 	rv := make(map[string]Addressable)
 	if s != nil {
 		propz := s.getProperties()
@@ -1011,6 +1016,9 @@ func (m *standardOpenAPIOperationStore) getRequestBodyAttributesNoRename() (map[
 	s, err := m.getRequestBodySchema()
 	if err != nil {
 		return nil, err
+	}
+	if s == nil {
+		return nil, m.noRequestBodyError()
 	}
 	rv := make(map[string]Addressable)
 	if s != nil {
@@ -1049,8 +1057,49 @@ func (m *standardOpenAPIOperationStore) getIndicatedRequestBodyAttributes(requir
 	return rv, nil
 }
 
+// RenameRequestBodyAttribute is the presentation form of a body key: the snake
+// alias when the method declares a native casing and the provider opts in to
+// snake_case_aliases, otherwise the wire key.
 func (m *standardOpenAPIOperationStore) RenameRequestBodyAttribute(k string) (string, error) {
+	if m.isSnakeCasePresentation() {
+		k = casing.ToSnake(k)
+	}
 	return m.renameRequestBodyAttribute(k)
+}
+
+func (m *standardOpenAPIOperationStore) isSnakeCasePresentation() bool {
+	if m.GetRequestNativeCasing() == "" {
+		return false
+	}
+	if m.Provider != nil {
+		return m.Provider.IsSnakeCaseAliasesEnabled()
+	}
+	if m.OpenAPIService != nil {
+		if prov := m.OpenAPIService.getProvider(); prov != nil {
+			return prov.IsSnakeCaseAliasesEnabled()
+		}
+	}
+	return false
+}
+
+// wireRequestBodyAttribute maps a snake body key to its wire property when the
+// method declares a native casing; wire keys pass through.
+func (m *standardOpenAPIOperationStore) wireRequestBodyAttribute(key string) string {
+	if m.GetRequestNativeCasing() == "" {
+		return key
+	}
+	s, err := m.getRequestBodySchema()
+	if err != nil || s == nil {
+		return key
+	}
+	props := s.getProperties()
+	if _, isWire := props[key]; isWire {
+		return key
+	}
+	if wireKey, ok := wireKeyForAlias(key, wireKeysOf(props)); ok {
+		return wireKey
+	}
+	return key
 }
 
 func (m *standardOpenAPIOperationStore) renameRequestBodyAttribute(k string) (string, error) {
@@ -1072,7 +1121,10 @@ func (m *standardOpenAPIOperationStore) revertRequestBodyAttributeRename(k strin
 		return "", translatorInferErr
 	}
 	output, outputErr := paramTranslator.ReverseTranslate(k)
-	return output, outputErr
+	if outputErr != nil {
+		return output, outputErr
+	}
+	return m.wireRequestBodyAttribute(output), nil
 }
 
 func (m *standardOpenAPIOperationStore) getRequestBodyAttributeParentKey(algorithm string) (string, bool) {
@@ -1096,6 +1148,9 @@ func (m *standardOpenAPIOperationStore) getRequestBodySchemaAttributeMatcher(pat
 	schemaOfInterest, err := m.getRequestBodySchema()
 	if err != nil {
 		return nil, err
+	}
+	if schemaOfInterest == nil {
+		return nil, m.noRequestBodyError()
 	}
 	if path != "" {
 		schemaOfInterest = schemaOfInterest.FindByPath(path, map[string]bool{})
@@ -1357,16 +1412,56 @@ func (m *standardOpenAPIOperationStore) GetRequestNativeCasing() string {
 	return ""
 }
 
+// snakeAliasOf is the snake_case alias of a wire key; a data__ body key keeps
+// its prefix.
+func snakeAliasOf(wireKey string) string {
+	if rest, ok := strings.CutPrefix(wireKey, requestBodyBaseKey); ok {
+		return requestBodyBaseKey + casing.ToSnake(rest)
+	}
+	return casing.ToSnake(wireKey)
+}
+
+func wireKeysOf[T any](m map[string]T) []string {
+	rv := make([]string, 0, len(m))
+	for k := range m {
+		rv = append(rv, k)
+	}
+	sort.Strings(rv)
+	return rv
+}
+
+// wireKeyForAlias returns the declared wire key whose snake alias is key.
+func wireKeyForAlias(key string, wireKeys []string) (string, bool) {
+	for _, wk := range wireKeys {
+		if wk != key && snakeAliasOf(wk) == key {
+			return wk, true
+		}
+	}
+	return "", false
+}
+
+// wireKeyCandidates lists the wire spellings a snake key may resolve to: the
+// declared key it aliases, then the mechanical FromSnake form.
+func wireKeyCandidates(key, nativeCasing string, declared []string) []string {
+	var rv []string
+	if wk, ok := wireKeyForAlias(key, declared); ok {
+		rv = append(rv, wk)
+	}
+	if wk := casing.FromSnake(key, nativeCasing); wk != key {
+		rv = append(rv, wk)
+	}
+	return rv
+}
+
 func (m *standardOpenAPIOperationStore) GetParameter(paramKey string) (Addressable, bool) {
 	params := m.GetParameters()
 	if rv, ok := params[paramKey]; ok {
 		return rv, true
 	}
-	// Reverse-casing retry: when the method declares a native wire casing, convert
-	// the (snake_case) SQL key to that casing and retry. Absent native casing this
-	// is a no-op, preserving existing behaviour.
+	// Reverse-casing retry: a snake_case SQL key resolves to its wire-name
+	// parameter when the method declares a native casing; otherwise a no-op.
 	if nc := m.GetRequestNativeCasing(); nc != "" {
-		if wireKey := casing.FromSnake(paramKey, nc); wireKey != paramKey {
+		for _, wireKey := range wireKeyCandidates(paramKey, nc, wireKeysOf(params)) {
 			if rv, ok := params[wireKey]; ok {
 				return rv, true
 			}
@@ -1393,7 +1488,7 @@ func (m *standardOpenAPIOperationStore) GetParametersIncludingNativeCasing() map
 		retVal[k] = v
 	}
 	for wireKey, v := range base {
-		snakeKey := casing.ToSnake(wireKey)
+		snakeKey := snakeAliasOf(wireKey)
 		if snakeKey == wireKey {
 			continue
 		}
@@ -1437,8 +1532,12 @@ func (m *standardOpenAPIOperationStore) GetRequestBodyAttributesNoRename() (map[
 
 func (m *standardOpenAPIOperationStore) ToPresentationMap(extended bool) map[string]interface{} {
 	requiredParams := m.getRequiredNonBodyParameters()
+	snakePresentation := m.isSnakeCasePresentation()
 	var requiredParamNames []string
 	for s := range requiredParams {
+		if snakePresentation {
+			s = casing.ToSnake(s)
+		}
 		requiredParamNames = append(requiredParamNames, s)
 	}
 	var requiredBodyParamNames []string
@@ -1449,7 +1548,7 @@ func (m *standardOpenAPIOperationStore) ToPresentationMap(extended bool) map[str
 			isRequiredFromMethodAnnotation = slices.Contains(m.Request.Required, k)
 		}
 		if v.IsRequired() || isRequiredFromMethodAnnotation {
-			renamedKey, renamedKeyErr := m.renameRequestBodyAttribute(k)
+			renamedKey, renamedKeyErr := m.RenameRequestBodyAttribute(k)
 			if renamedKeyErr != nil {
 				requiredBodyParamNames = append(requiredBodyParamNames, k)
 				continue
@@ -1507,11 +1606,25 @@ func (op *standardOpenAPIOperationStore) GetOperationParameter(key string) (Addr
 	// carries the wire name, so HttpParameters.StoreParameter re-keys the
 	// value to the wire form for request construction.
 	if nc := op.GetRequestNativeCasing(); nc != "" {
-		if wireKey := casing.FromSnake(key, nc); wireKey != key {
-			return op.getOperationParameterByWireKey(wireKey)
+		for _, wireKey := range wireKeyCandidates(key, nc, op.operationParameterWireKeys()) {
+			if rv, ok := op.getOperationParameterByWireKey(wireKey); ok {
+				return rv, true
+			}
 		}
 	}
 	return nil, false
+}
+
+func (op *standardOpenAPIOperationStore) operationParameterWireKeys() []string {
+	rv := wireKeysOf(op.Parameters)
+	if op.OperationRef != nil && op.OperationRef.Value != nil {
+		for _, p := range op.OperationRef.Value.Parameters {
+			if p != nil && p.Value != nil {
+				rv = append(rv, p.Value.Name)
+			}
+		}
+	}
+	return rv
 }
 
 func (op *standardOpenAPIOperationStore) getOperationParameterByWireKey(key string) (Addressable, bool) {
@@ -1808,11 +1921,17 @@ func (op *standardOpenAPIOperationStore) GetRequestBodySchema() (Schema, error) 
 	return op.getRequestBodySchema()
 }
 
+// getRequestBodySchema returns nil, nil when the method declares no body; the
+// body-attribute accessors keep reporting that as an error.
 func (op *standardOpenAPIOperationStore) getRequestBodySchema() (Schema, error) {
 	if op.Request != nil && op.Request.Schema != nil {
 		return op.Request.Schema, nil
 	}
-	return nil, fmt.Errorf("no request body for operation =  %s", op.GetName())
+	return nil, nil
+}
+
+func (op *standardOpenAPIOperationStore) noRequestBodyError() error {
+	return fmt.Errorf("no request body for operation =  %s", op.GetName())
 }
 
 func (op *standardOpenAPIOperationStore) GetRequestBodyRequiredProperties() ([]string, error) {

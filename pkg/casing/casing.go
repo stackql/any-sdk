@@ -46,6 +46,16 @@ func ToSnake(name string) string {
 }
 
 func xform(name, sep string) string {
+	// Hyphenated names (HTTP headers) are transformed segment by segment.
+	if strings.Contains(name, "-") {
+		var parts []string
+		for _, seg := range strings.Split(name, "-") {
+			if seg != "" {
+				parts = append(parts, xform(seg, sep))
+			}
+		}
+		return strings.Join(parts, sep)
+	}
 	// If the separator is already present, botocore treats the name as final.
 	if strings.Contains(name, sep) {
 		return name

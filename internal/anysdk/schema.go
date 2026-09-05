@@ -712,13 +712,16 @@ func (s *standardSchema) GetProperty(propertyKey string) (Schema, bool) {
 }
 
 func (s *standardSchema) getProperty(propertyKey string) (Schema, bool) {
-	var sc *openapi3.SchemaRef
-	var ok bool
+	props := s.Properties
 	if s.hasPolymorphicProperties() {
-		polySchema := s.getFattnedPolymorphicSchema()
-		sc, ok = polySchema.getRawProperty(propertyKey)
-	} else {
-		sc, ok = s.Properties[propertyKey]
+		props = s.getFattnedPolymorphicSchema().getPropertiesOpenapi3()
+	}
+	sc, ok := props[propertyKey]
+	if !ok && s.isSnakeCaseAliasesEnabled() {
+		// A snake alias resolves to its wire property; wire keys match first.
+		if wireKey, aliasOK := wireKeyForAlias(propertyKey, wireKeysOf(props)); aliasOK {
+			sc, ok = props[wireKey]
+		}
 	}
 	if !ok {
 		return nil, false
@@ -1378,6 +1381,13 @@ func (s *standardSchema) FindByPath(path string, visited map[string]bool) Schema
 			fs := s.getFattnedPolymorphicSchema()
 			fs.setAlreadyExpanded(true)
 			return fs.FindByPath(path, visited)
+		}
+		if s.isSnakeCaseAliasesEnabled() {
+			if _, exact := s.Properties[path]; !exact {
+				if wireKey, ok := wireKeyForAlias(path, wireKeysOf(s.Properties)); ok {
+					path = wireKey
+				}
+			}
 		}
 		for k, v := range s.Properties {
 			if v.Ref != "" {

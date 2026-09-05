@@ -168,7 +168,7 @@ func collectInputs(m StandardOperationStore, extended bool) ([]IntrospectedField
 	// behaviour diverges from SHOW METHODS.
 	if bodySchema, bodyErr := m.GetRequestBodySchema(); bodyErr == nil && bodySchema != nil && len(bodyRequiredOverride) > 0 {
 		for rawKey := range bodyRequiredOverride {
-			renamedKey, renameErr := m.RenameRequestBodyAttribute(rawKey)
+			renamedKey, renameErr := m.renameRequestBodyAttribute(rawKey)
 			if renameErr != nil {
 				continue
 			}
