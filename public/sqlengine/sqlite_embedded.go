@@ -23,16 +23,12 @@ import (
 )
 
 const (
-	// sqliteDriverName is the database/sql driver name under which the
-	// caller-constructed modernc.org/sqlite driver (with the StackQL
-	// extension functions registered) is published.
+	// sqliteDriverName publishes the modernc.org/sqlite driver with the
+	// StackQL extension functions registered.
 	sqliteDriverName = "stackql-sqlite"
-	// sqliteDefaultDSN preserves the pre-migration default of a shared
-	// in-memory database visible to every pooled connection.
 	sqliteDefaultDSN = "file::memory:?cache=shared"
-	// sqliteDefaultBusyTimeoutMillis preserves the busy timeout that the
-	// retired cgo sqlite driver hardcoded on every new connection;
-	// modernc.org/sqlite defaults to 0 (fail immediately when locked).
+	// sqliteDefaultBusyTimeoutMillis preserves the retired cgo driver's
+	// per-connection default; modernc defaults to 0.
 	sqliteDefaultBusyTimeoutMillis = "5000"
 )
 
@@ -41,10 +37,8 @@ var (
 	sqliteDriverRegisterErr  error
 )
 
-// registerSQLiteDriver constructs the modernc.org/sqlite driver, registers
-// the StackQL extension functions on it via sqlfuncs.Register, and publishes
-// it under sqliteDriverName. It is idempotent; any registration error is
-// captured once and surfaced on every engine construction attempt.
+// registerSQLiteDriver idempotently publishes the sqlfuncs-equipped driver
+// under sqliteDriverName; a registration error surfaces on every attempt.
 func registerSQLiteDriver() error {
 	sqliteDriverRegisterOnce.Do(func() {
 		drv := &sqlite.Driver{}
@@ -86,8 +80,6 @@ func newSQLiteEmbeddedEngine(
 	cfg dto.SQLBackendCfg,
 	controlAttributes sqlcontrol.ControlAttributes,
 ) (*sqLiteEmbeddedEngine, error) {
-	// SQLite permits an empty DSN; BuildDSN substitutes the default shared
-	// in-memory database in that case.
 	dsn, expectedPragmas, err := BuildDSN(cfg.GetDSN())
 	eng := &sqLiteEmbeddedEngine{
 		dsn:               dsn,
@@ -109,9 +101,8 @@ func newSQLiteEmbeddedEngine(
 		return eng, err
 	}
 	if eng.IsMemory() && !strings.Contains(dsn, "cache=shared") {
-		// Every new connection to a non-shared in-memory DSN is a separate
-		// database, so cap the pool at a single connection to preserve one
-		// coherent database (single writer as the safe default).
+		// each pooled connection to a non-shared in-memory DSN would be a
+		// separate database
 		db.SetMaxOpenConns(1)
 	}
 	if err = eng.assertPragmas(expectedPragmas); err != nil {
@@ -340,23 +331,19 @@ func (se sqLiteEmbeddedEngine) query(query string, varArgs ...interface{}) (*sql
 	return res, err
 }
 
-// isBusy reports whether err is a SQLite busy error (primary result code
-// SQLITE_BUSY, including extended variants). All driver error inspection is
-// funnelled through these predicates; no *sqlite.Error assertions exist
-// outside this file.
+// isBusy reports whether err carries primary result code SQLITE_BUSY.
 func isBusy(err error) bool {
 	return hasSQLitePrimaryCode(err, sqlite3.SQLITE_BUSY)
 }
 
-// isConstraintViolation reports whether err is a SQLite constraint violation
-// (primary result code SQLITE_CONSTRAINT, including extended variants such
-// as UNIQUE or FOREIGN KEY failures).
+// isConstraintViolation reports whether err carries primary result code
+// SQLITE_CONSTRAINT.
 func isConstraintViolation(err error) bool {
 	return hasSQLitePrimaryCode(err, sqlite3.SQLITE_CONSTRAINT)
 }
 
-// hasSQLitePrimaryCode unwraps err to a *sqlite.Error and compares its
-// primary result code (low byte; the driver enables extended result codes).
+// hasSQLitePrimaryCode compares the primary (low byte) result code; the
+// driver enables extended result codes.
 func hasSQLitePrimaryCode(err error, code int) bool {
 	var sqliteErr *sqlite.Error
 	if errors.As(err, &sqliteErr) {
@@ -365,8 +352,8 @@ func hasSQLitePrimaryCode(err error, code int) bool {
 	return false
 }
 
-// classifySQLiteError emits a debug-level classification of driver errors on
-// the write paths, distinguishing lock contention from constraint failures.
+// classifySQLiteError logs whether a write-path error is lock contention or
+// a constraint failure.
 func classifySQLiteError(err error) {
 	if err == nil {
 		return
@@ -379,13 +366,10 @@ func classifySQLiteError(err error) {
 	}
 }
 
-// legacyParamTranslations maps the retired cgo sqlite driver's DSN
-// shorthand parameters to the pragmas they set. Order matters: when a
-// parameter and its alias are both present the later (alias) entry wins,
-// matching the legacy driver. modernc.org/sqlite natively understands only
-// a subset of these shorthands and silently ignores the rest, so every one
-// of them is translated explicitly to `_pragma=` form here - a missed
-// translation must never fail silently.
+// legacyParamTranslations maps the retired cgo driver's DSN shorthands to
+// pragmas. Order matters: a later alias overrides its primary form, matching
+// legacy precedence. modernc silently ignores unknown shorthands, so every
+// one is translated explicitly.
 var legacyParamTranslations = []struct {
 	param  string
 	pragma string
@@ -413,8 +397,7 @@ var legacyParamTranslations = []struct {
 	{"_writable_schema", "writable_schema"},
 }
 
-// moderncNativeParams are the non-pragma modernc.org/sqlite DSN parameters
-// that pass through BuildDSN verbatim.
+// moderncNativeParams pass through BuildDSN verbatim.
 var moderncNativeParams = map[string]struct{}{
 	"_pragma":              {},
 	"_time_format":         {},
@@ -427,24 +410,21 @@ var moderncNativeParams = map[string]struct{}{
 	"_error_rc":            {},
 }
 
-// nonQueryablePragmas cannot be read back with a bare PRAGMA statement, so
-// they are excluded from the startup assertion.
+// nonQueryablePragmas cannot be read back, so the startup assertion skips
+// them.
 var nonQueryablePragmas = map[string]struct{}{
 	"case_sensitive_like": {},
 }
 
 var pragmaNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// BuildDSN is the single place DSNs for the embedded engine are constructed.
-// It translates the retired cgo sqlite driver's `_param=value` shorthands
-// to modernc.org/sqlite `_pragma=name(value)` directives, passes through
-// modernc-native parameters and plain SQLite URI parameters (cache, mode,
-// vfs, ...), and rejects any unrecognized underscore-prefixed parameter so a
-// missed translation fails loudly instead of silently. An empty dsn selects
-// the default shared in-memory database. A busy_timeout of 5000ms is
-// injected when the DSN does not set one, preserving the legacy default.
-// The returned map records every pragma the DSN sets, keyed by pragma name,
-// for the startup assertion.
+// BuildDSN is the single place embedded-engine DSNs are constructed. It
+// translates legacy `_param=value` shorthands to modernc `_pragma=name(value)`
+// directives, passes through modernc-native and plain URI parameters, rejects
+// unknown underscore parameters (modernc would silently ignore them), and
+// injects the 5000ms legacy busy_timeout default when unset. An empty dsn
+// selects the default shared in-memory database. The returned map records
+// every pragma the DSN sets, for the startup assertion.
 func BuildDSN(dsn string) (string, map[string]string, error) {
 	if dsn == "" {
 		dsn = sqliteDefaultDSN
@@ -476,9 +456,8 @@ func BuildDSN(dsn string) (string, map[string]string, error) {
 			continue
 		}
 		if key == "_loc" {
-			// the legacy `_loc` (time location) maps to modernc's
-			// `_timezone`; the legacy special value `auto` means the
-			// process-local zone.
+			// legacy time-location parameter; maps to _timezone, "auto"
+			// meaning the process-local zone
 			if query.Has("_timezone") {
 				return "", nil, fmt.Errorf("conflicting sqlite DSN parameters: _loc and _timezone")
 			}
@@ -497,8 +476,7 @@ func BuildDSN(dsn string) (string, map[string]string, error) {
 		}
 		outParams[key] = vals
 	}
-	// Translate legacy shorthands in declaration order so an alias
-	// overrides its primary form, matching legacy driver precedence.
+	// declaration order makes an alias override its primary form
 	for _, tr := range legacyParamTranslations {
 		if vals := query[tr.param]; len(vals) > 0 {
 			translatedPragmas[tr.pragma] = vals[len(vals)-1]
@@ -525,8 +503,8 @@ func BuildDSN(dsn string) (string, map[string]string, error) {
 	return base + "?" + outParams.Encode(), expectedPragmas, nil
 }
 
-// parsePragmaDirective splits a modernc `_pragma` directive of the form
-// `name(value)` or bare `name`; valued reports whether a value was supplied.
+// parsePragmaDirective splits a `name(value)` or bare `name` directive;
+// valued reports whether a value was supplied.
 func parsePragmaDirective(directive string) (string, string, bool) {
 	name, rest, found := strings.Cut(directive, "(")
 	name = strings.TrimSpace(name)
@@ -546,8 +524,8 @@ func isLegacyParam(key string) bool {
 	return false
 }
 
-// canonicalizePragmaValue reduces the spellings SQLite accepts for a pragma
-// value to one canonical form so requested and reported values compare.
+// canonicalizePragmaValue reduces equivalent pragma value spellings to one
+// form so requested and reported values compare.
 func canonicalizePragmaValue(name, value string) string {
 	v := strings.ToLower(strings.TrimSpace(value))
 	switch name {
@@ -592,10 +570,8 @@ func canonicalizePragmaValue(name, value string) string {
 	return v
 }
 
-// assertPragmas queries every pragma the DSN set and fails fast on any
-// mismatch. This is a permanent startup invariant, not scaffolding: it
-// guarantees a DSN translation that stops taking effect cannot fail
-// silently.
+// assertPragmas reads back every pragma the DSN set and fails fast on
+// mismatch, so a translation that stops taking effect cannot fail silently.
 func (se *sqLiteEmbeddedEngine) assertPragmas(expected map[string]string) error {
 	names := make([]string, 0, len(expected))
 	for name := range expected {
@@ -612,8 +588,7 @@ func (se *sqLiteEmbeddedEngine) assertPragmas(expected map[string]string) error 
 		var raw any
 		err := se.db.QueryRow("PRAGMA " + name).Scan(&raw)
 		if errors.Is(err, sql.ErrNoRows) {
-			// Command-style pragmas report nothing; there is no value to
-			// assert.
+			// command-style pragmas report nothing
 			continue
 		}
 		if err != nil {
@@ -623,8 +598,7 @@ func (se *sqLiteEmbeddedEngine) assertPragmas(expected map[string]string) error 
 		want := canonicalizePragmaValue(name, expected[name])
 		if actual != want {
 			if name == "journal_mode" && se.IsMemory() && actual == "memory" {
-				// SQLite coerces the journal mode of in-memory databases to
-				// "memory"; requesting another mode is legal and ignored.
+				// SQLite coerces in-memory journal mode to "memory"
 				continue
 			}
 			return fmt.Errorf("pragma assertion failed: %q is %q, requested %q", name, actual, want)

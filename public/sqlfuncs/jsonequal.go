@@ -6,19 +6,15 @@ import (
 	"strings"
 )
 
-// errInvalidJSONArgs mirrors the "Invalid JSON strings" error the retired C
-// implementation raised for NULL arguments (json_equal.c).
+// errInvalidJSONArgs preserves the retired C error text for NULL arguments.
 var errInvalidJSONArgs = errors.New("Invalid JSON strings") //nolint:staticcheck // C-parity error text
 
-// errJSONParse mirrors the "Error parsing JSON strings" error the retired C
-// implementation raised when either document failed to parse.
+// errJSONParse preserves the retired C error text for unparseable documents.
 var errJSONParse = errors.New("Error parsing JSON strings") //nolint:staticcheck // C-parity error text
 
-// JSONEqual implements json_equal(a, b): 1 if the two JSON documents are
-// deeply equal, else 0. Objects compare unordered with case-sensitive keys;
-// arrays compare ordered; numbers compare as IEEE 754 doubles with the same
-// epsilon rule as the retired cJSON implementation, so 1 and 1.0 are equal.
-// NULL arguments and unparseable documents are errors, matching the C code.
+// JSONEqual implements json_equal(a, b): 1 if the documents are deeply equal,
+// else 0. Objects compare unordered, arrays ordered, numbers as doubles with
+// the epsilon rule (1 == 1.0). NULL or unparseable arguments are errors.
 func JSONEqual(a, b any) (any, error) {
 	sa, okA := valueText(a)
 	sb, okB := valueText(b)
@@ -36,9 +32,8 @@ func JSONEqual(a, b any) (any, error) {
 	return int64(0), nil
 }
 
-// parseJSONDocument parses exactly one JSON value. Unlike the retired cJSON
-// parser it rejects trailing non-whitespace content (see DIVERGENCES.md).
-// Numbers decode to float64, the same binary64 representation cJSON used.
+// parseJSONDocument parses exactly one JSON value, rejecting trailing
+// non-whitespace content (a divergence from cJSON, see DIVERGENCES.md).
 func parseJSONDocument(s string) (any, error) {
 	dec := json.NewDecoder(strings.NewReader(s))
 	var v any
@@ -51,9 +46,7 @@ func parseJSONDocument(s string) (any, error) {
 	return v, nil
 }
 
-// jsonDeepEqual ports cJSON_Compare(a, b, case_sensitive=true): unordered
-// object comparison with case-sensitive keys, ordered array comparison and
-// epsilon number comparison.
+// jsonDeepEqual ports cJSON_Compare with case-sensitive keys.
 func jsonDeepEqual(a, b any) bool {
 	switch av := a.(type) {
 	case nil:

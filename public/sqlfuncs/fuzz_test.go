@@ -62,6 +62,24 @@ func FuzzRegexpLike(f *testing.F) {
 	})
 }
 
+func FuzzRegexp(f *testing.F) {
+	f.Add("hello", "hello world")
+	f.Add("[0-9]+", "the year is 2021")
+	f.Fuzz(func(t *testing.T, pattern, source string) {
+		got, err := Regexp(pattern, source)
+		if err != nil {
+			if fuzzCompiles(pattern) {
+				t.Fatalf("regexp(%q, %q) errored on a valid pattern: %v", pattern, source, err)
+			}
+			return
+		}
+		want, wantErr := RegexpLike(source, pattern)
+		if wantErr != nil || got != want {
+			t.Fatalf("regexp(%q, %q) = %#v, want regexp_like result %#v (err %v)", pattern, source, got, want, wantErr)
+		}
+	})
+}
+
 func FuzzRegexpSubstr(f *testing.F) {
 	f.Add("hello world", "w.*d")
 	f.Add("file.txt", "\\.\\w+$")

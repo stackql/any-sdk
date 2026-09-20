@@ -12,7 +12,8 @@ functions; there is no build tag.
 ```
 public/sqlfuncs/
   splitpart.go        - split_part(str, sep, n)
-  regexp.go           - regexp_like, regexp_substr, regexp_replace
+  regexp.go           - regexp (backs the REGEXP operator), regexp_like,
+                        regexp_substr, regexp_replace
   jsonequal.go        - json_equal(a, b)
   awspolicyequal.go   - aws_policy_equal(a, b)
   register.go         - Register(drv *sqlite.Driver) - the ONLY driver-facing file
@@ -23,7 +24,7 @@ public/sqlfuncs/
 
 ## Invariants
 
-- All six functions are deterministic scalars. Register them with the
+- All functions are deterministic scalars. Register them with the
   deterministic flag so SQLite can use them in indexes and generated columns.
 - Registration happens ONLY via `Register(drv *sqlite.Driver)` on a
   caller-constructed driver (requires modernc.org/sqlite >= v1.57.0).

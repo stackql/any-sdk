@@ -19,6 +19,11 @@ module graph entirely.
   `aws_policy_equal` are now implemented in pure Go in `public/sqlfuncs`
   and registered on every embedded connection. The `sqlite_stackql` build
   tag is retired; no build tag is needed to get the functions.
+- **SQL `REGEXP` operator now works**: a `regexp(pattern, source)` function
+  (SQLite's hook for the `X REGEXP Y` operator) is registered alongside the
+  `regexp_*` family. The retired cgo builds never provided it, so the
+  operator documented in the stackql language spec previously failed with
+  "no such function: regexp".
 - **DSN handling centralized**: all embedded-engine DSNs pass through
   `sqlengine.BuildDSN`, which translates legacy `mattn`-style parameters
   (for example `_busy_timeout=5000`) to modernc `_pragma=name(value)`

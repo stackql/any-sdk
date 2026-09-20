@@ -2,14 +2,9 @@ package sqlfuncs
 
 import "strings"
 
-// SplitPart implements split_part(source, separator, part): it splits source
-// on separator and returns the part selected by the one-based index part.
-// Negative indexes count backward from the end (-1 is the last part).
-// Behavior ported from the retired C implementation (split_part.c):
-//   - NULL source, NULL separator or empty separator yields NULL.
-//   - A NULL part index coerces to 0, which is out of range, yielding NULL.
-//   - Consecutive separators produce empty parts.
-//   - An out-of-range index yields NULL.
+// SplitPart implements split_part(source, separator, part): the one-based
+// part of source split on separator; negative indexes count from the end.
+// NULL source, NULL or empty separator, and out-of-range indexes yield NULL.
 func SplitPart(source, separator, part any) (any, error) {
 	src, srcOK := valueText(source)
 	sep, sepOK := valueText(separator)

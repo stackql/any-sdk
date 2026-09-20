@@ -7,12 +7,9 @@ import (
 	sqlite "modernc.org/sqlite"
 )
 
-// Register registers the six StackQL extension functions - split_part,
-// regexp_like, regexp_substr, regexp_replace, json_equal and
-// aws_policy_equal - as deterministic scalar functions on the supplied
-// caller-constructed driver (requires modernc.org/sqlite >= v1.57.0). It is
-// the only driver-facing entry point of this package; there is no
-// package-global registration.
+// Register registers the StackQL extension functions as deterministic scalar
+// functions on the supplied driver. It is the only driver-facing entry point
+// of this package.
 func Register(drv *sqlite.Driver) error {
 	if drv == nil {
 		return errors.New("sqlfuncs: cannot register functions on a nil driver")
@@ -27,6 +24,9 @@ func Register(drv *sqlite.Driver) error {
 		}},
 		{"regexp_like", 2, func(args []driver.Value) (driver.Value, error) {
 			return RegexpLike(args[0], args[1])
+		}},
+		{"regexp", 2, func(args []driver.Value) (driver.Value, error) {
+			return Regexp(args[0], args[1])
 		}},
 		{"regexp_substr", 2, func(args []driver.Value) (driver.Value, error) {
 			return RegexpSubstr(args[0], args[1])

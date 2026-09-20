@@ -153,9 +153,9 @@ This draft is intentionally comprehensive to serve as both documentation and a R
 - Driver errors are inspected ONLY via the predicates in
   `public/sqlengine` (`isBusy`, `isConstraintViolation`); no `*sqlite.Error`
   assertions outside that package.
-- The StackQL SQLite extension functions (`split_part`, `regexp_like`,
-  `regexp_substr`, `regexp_replace`, `json_equal`, `aws_policy_equal`) live
-  ONLY in `public/sqlfuncs` and are registered unconditionally; behavioral
-  divergences from the retired C implementations are catalogued in
-  `public/sqlfuncs/DIVERGENCES.md`.
+- The StackQL SQLite extension functions (`split_part`, `regexp` backing the
+  REGEXP operator, `regexp_like`, `regexp_substr`, `regexp_replace`,
+  `json_equal`, `aws_policy_equal`) live ONLY in `public/sqlfuncs` and are
+  registered unconditionally; behavioral divergences from the retired C
+  implementations are catalogued in `public/sqlfuncs/DIVERGENCES.md`.
 - Never reintroduce `mattn/go-sqlite3`, cgo, or a C toolchain dependency.

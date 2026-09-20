@@ -122,6 +122,12 @@ func TestRegexpLikeGoldenVectors(t *testing.T) {
 	})
 }
 
+func TestRegexpGoldenVectors(t *testing.T) {
+	runGoldenVectors(t, "regexp", func(args []any) (any, error) {
+		return Regexp(args[0], args[1])
+	})
+}
+
 func TestRegexpSubstrGoldenVectors(t *testing.T) {
 	runGoldenVectors(t, "regexp_substr", func(args []any) (any, error) {
 		return RegexpSubstr(args[0], args[1])

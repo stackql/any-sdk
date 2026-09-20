@@ -7,13 +7,12 @@ import (
 	"strings"
 )
 
-// dblEpsilon is C's DBL_EPSILON, used by the retired cJSON implementations
-// (json_equal.c, aws_policy_equal.c) for approximate number equality.
+// dblEpsilon is C's DBL_EPSILON, the tolerance the retired cJSON-based
+// implementations used for number equality.
 const dblEpsilon = 2.220446049250313e-16
 
-// valueText mirrors sqlite3_value_text() coercion for the five value kinds
-// the driver adapter passes through: int64, float64, string, []byte and nil.
-// The boolean result reports whether the value was non-NULL.
+// valueText mirrors sqlite3_value_text() coercion; the boolean reports
+// whether the value was non-NULL.
 func valueText(v any) (string, bool) {
 	switch t := v.(type) {
 	case nil:
@@ -31,8 +30,8 @@ func valueText(v any) (string, bool) {
 	}
 }
 
-// formatFloatText renders a float the way SQLite renders a REAL as text:
-// shortest round-trip form, always carrying a decimal point or exponent.
+// formatFloatText renders a float the way SQLite renders REAL as text:
+// shortest round-trip form always carrying a decimal point or exponent.
 func formatFloatText(f float64) string {
 	s := strconv.FormatFloat(f, 'g', -1, 64)
 	if !strings.ContainsAny(s, ".eE") && !math.IsInf(f, 0) && !math.IsNaN(f) {
@@ -42,8 +41,7 @@ func formatFloatText(f float64) string {
 }
 
 // valueInt mirrors sqlite3_value_int() coercion: NULL is 0, floats truncate
-// toward zero, and text is parsed as an optionally signed leading integer
-// prefix (non-numeric text is 0).
+// toward zero, text parses as a signed leading-digit prefix.
 func valueInt(v any) int64 {
 	switch t := v.(type) {
 	case nil:
@@ -64,8 +62,8 @@ func valueInt(v any) int64 {
 	}
 }
 
-// parseIntPrefix parses an optionally signed run of leading ASCII digits,
-// ignoring leading whitespace, the way SQLite coerces text to an integer.
+// parseIntPrefix parses an optionally signed run of leading ASCII digits
+// after whitespace, the way SQLite coerces text to an integer.
 func parseIntPrefix(s string) int64 {
 	i := 0
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' || s[i] == '\v' || s[i] == '\f') {
@@ -89,8 +87,8 @@ func parseIntPrefix(s string) int64 {
 	return n
 }
 
-// compareDouble is the epsilon comparison used by the retired cJSON-based C
-// implementations: |a-b| <= max(|a|,|b|) * DBL_EPSILON.
+// compareDouble is the retired implementations' epsilon comparison:
+// |a-b| <= max(|a|,|b|) * DBL_EPSILON.
 func compareDouble(a, b float64) bool {
 	maxVal := math.Abs(a)
 	if abs := math.Abs(b); abs > maxVal {
@@ -99,8 +97,7 @@ func compareDouble(a, b float64) bool {
 	return math.Abs(a-b) <= maxVal*dblEpsilon
 }
 
-// asciiEqualFold reports byte-wise ASCII case-insensitive equality, matching
-// the tolower() loop in the retired aws_policy_equal.c.
+// asciiEqualFold reports byte-wise ASCII case-insensitive equality.
 func asciiEqualFold(a, b string) bool {
 	if len(a) != len(b) {
 		return false

@@ -155,6 +155,7 @@ func TestSQLiteEmbeddedExtensionFunctions(t *testing.T) {
 	}
 	assertQuery(`SELECT split_part('a,b,c', ',', 2)`, "b")
 	assertQuery(`SELECT regexp_like('abc123', '\d+')`, int64(1))
+	assertQuery(`SELECT 'the year is 2021' REGEXP '[0-9]+'`, int64(1))
 	assertQuery(`SELECT regexp_substr('abc123def', '\d+')`, "123")
 	assertQuery(`SELECT regexp_replace('abc123', '\d', 'X')`, "abcXXX")
 	assertQuery(`SELECT json_equal('{"a":1}', '{ "a" : 1.0 }')`, int64(1))

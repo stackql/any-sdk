@@ -9,6 +9,13 @@ and is pinned by the golden vectors in `testdata/`.
 
 ## Regexp functions (`regexp_like`, `regexp_substr`, `regexp_replace`)
 
+`regexp(pattern, source)` is a pure addition with no C counterpart: the
+retired builds never registered it (the amalgamation's `regexp()` is
+ICU-gated and was not compiled), so the SQL `REGEXP` operator documented in
+the stackql language spec previously failed with "no such function". It is
+`regexp_like` with swapped arguments, per the SQLite REGEXP-operator
+contract, and shares every divergence below.
+
 The C implementations used tiny-regex-c (compiled with
 `RE_DOT_MATCHES_NEWLINE=1`), a deliberately minimal engine. The Go
 implementations use Go's `regexp` (RE2). The pattern language differences:

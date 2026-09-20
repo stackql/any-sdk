@@ -6,17 +6,14 @@ import (
 	"strings"
 )
 
-// errInvalidPolicyArgs mirrors the "Invalid policy strings" error the retired
-// C implementation raised for NULL arguments (aws_policy_equal.c).
+// errInvalidPolicyArgs preserves the retired C error text for NULL arguments.
 var errInvalidPolicyArgs = errors.New("Invalid policy strings") //nolint:staticcheck // C-parity error text
 
-// errPolicyParse mirrors the "Error parsing policy JSON strings" error the
-// retired C implementation raised when either document failed to parse.
+// errPolicyParse preserves the retired C error text for unparseable documents.
 var errPolicyParse = errors.New("Error parsing policy JSON strings") //nolint:staticcheck // C-parity error text
 
-// awsUnorderedFields are the policy fields whose array values compare as
-// unordered sets and whose ARN string values compare case-insensitively,
-// exactly the list in the retired C implementation.
+// awsUnorderedFields are the policy fields whose arrays compare as unordered
+// sets and whose "arn:" strings compare case-insensitively.
 var awsUnorderedFields = map[string]struct{}{
 	"Action":       {},
 	"NotAction":    {},
@@ -28,20 +25,10 @@ var awsUnorderedFields = map[string]struct{}{
 	"Service":      {},
 }
 
-// AWSPolicyEqual implements aws_policy_equal(a, b): 1 if the two AWS IAM
-// policy documents are semantically equivalent per the retired C
-// implementation's normalization rules, else 0. Those rules are:
-//   - identical strings are equal without parsing;
-//   - a single-element array is equal to its lone string element in any
-//     position (AWS scalar-vs-array forms);
-//   - arrays under Action / NotAction / Resource / NotResource / Principal /
-//     NotPrincipal / AWS / Service compare as unordered sets, all other
-//     arrays (including Statement) compare ordered;
-//   - within those unordered contexts, strings starting with "arn:" compare
-//     ASCII case-insensitively;
-//   - object keys compare unordered and are looked up case-insensitively.
-//
-// NULL arguments and unparseable documents are errors, matching the C code.
+// AWSPolicyEqual implements aws_policy_equal(a, b): 1 if the two IAM policy
+// documents are equivalent under the retired C normalization rules (see
+// awsPolicyCompare and DIVERGENCES.md), else 0. NULL or unparseable
+// arguments are errors.
 func AWSPolicyEqual(a, b any) (any, error) {
 	sa, okA := valueText(a)
 	sb, okB := valueText(b)
@@ -62,14 +49,13 @@ func AWSPolicyEqual(a, b any) (any, error) {
 	return int64(0), nil
 }
 
-// awsPolicyCompare ports aws_policy_compare_items from the retired C
-// implementation, including its deliberate asymmetries (the "arn:" prefix is
-// tested on the left operand only, and unordered array elements are matched
-// left-into-right after a length check).
+// awsPolicyCompare ports aws_policy_compare_items: single-element arrays
+// equal their lone string element, awsUnorderedFields arrays compare as sets,
+// keys are case-insensitive, and the "arn:" case-fold is tested on the left
+// operand only - a deliberate C asymmetry.
 //
 //nolint:gocognit // faithful port of the C comparison, kept in one unit
 func awsPolicyCompare(a, b any, parentUnordered bool) bool {
-	// Special case: a single-element array compares equal to a lone string.
 	if aArr, ok := a.([]any); ok {
 		if bStr, isStr := b.(string); isStr {
 			return len(aArr) == 1 && awsPolicyCompare(aArr[0], bStr, parentUnordered)
@@ -141,7 +127,7 @@ func awsPolicyCompare(a, b any, parentUnordered bool) bool {
 }
 
 // awsFindMatchingElement reports whether item matches any element of array
-// under unordered comparison, porting find_matching_element from the C code.
+// under unordered comparison.
 func awsFindMatchingElement(array []any, item any) bool {
 	for _, elem := range array {
 		if awsPolicyCompare(elem, item, true) {
@@ -151,10 +137,8 @@ func awsFindMatchingElement(array []any, item any) bool {
 	return false
 }
 
-// awsObjectGet ports cJSON_GetObjectItem's case-insensitive key lookup. An
-// exact match wins; otherwise the lexicographically smallest key that folds
-// equal is used so the result is deterministic (cJSON used insertion order,
-// which Go maps do not preserve).
+// awsObjectGet is a case-insensitive key lookup: an exact match wins, then
+// the lexicographically smallest folding key, keeping lookups deterministic.
 func awsObjectGet(obj map[string]any, key string) (any, bool) {
 	if v, ok := obj[key]; ok {
 		return v, true
