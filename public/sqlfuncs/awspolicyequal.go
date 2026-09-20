@@ -8,11 +8,11 @@ import (
 
 // errInvalidPolicyArgs mirrors the "Invalid policy strings" error the retired
 // C implementation raised for NULL arguments (aws_policy_equal.c).
-var errInvalidPolicyArgs = errors.New("Invalid policy strings")
+var errInvalidPolicyArgs = errors.New("Invalid policy strings") //nolint:staticcheck // C-parity error text
 
 // errPolicyParse mirrors the "Error parsing policy JSON strings" error the
 // retired C implementation raised when either document failed to parse.
-var errPolicyParse = errors.New("Error parsing policy JSON strings")
+var errPolicyParse = errors.New("Error parsing policy JSON strings") //nolint:staticcheck // C-parity error text
 
 // awsUnorderedFields are the policy fields whose array values compare as
 // unordered sets and whose ARN string values compare case-insensitively,

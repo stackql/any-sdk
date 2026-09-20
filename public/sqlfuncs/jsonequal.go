@@ -8,11 +8,11 @@ import (
 
 // errInvalidJSONArgs mirrors the "Invalid JSON strings" error the retired C
 // implementation raised for NULL arguments (json_equal.c).
-var errInvalidJSONArgs = errors.New("Invalid JSON strings")
+var errInvalidJSONArgs = errors.New("Invalid JSON strings") //nolint:staticcheck // C-parity error text
 
 // errJSONParse mirrors the "Error parsing JSON strings" error the retired C
 // implementation raised when either document failed to parse.
-var errJSONParse = errors.New("Error parsing JSON strings")
+var errJSONParse = errors.New("Error parsing JSON strings") //nolint:staticcheck // C-parity error text
 
 // JSONEqual implements json_equal(a, b): 1 if the two JSON documents are
 // deeply equal, else 0. Objects compare unordered with case-sensitive keys;
