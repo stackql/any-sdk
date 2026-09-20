@@ -141,3 +141,21 @@ _TBA._
 
 ### End of Draft 0.1
 This draft is intentionally comprehensive to serve as both documentation and a RAG corpus seed.
+
+## Embedded SQLite backend
+
+- The embedded backend is the pure Go driver `modernc.org/sqlite`, registered
+  as driver name `stackql-sqlite`. Builds are CGO-free (`CGO_ENABLED=0`).
+- DSNs for the embedded engine are constructed ONLY via `sqlengine.BuildDSN`;
+  never hand-concatenate `_pragma`/legacy parameters elsewhere. modernc
+  silently ignores unknown legacy-style parameters, so a bypassed translation
+  fails silently.
+- Driver errors are inspected ONLY via the predicates in
+  `public/sqlengine` (`isBusy`, `isConstraintViolation`); no `*sqlite.Error`
+  assertions outside that package.
+- The StackQL SQLite extension functions (`split_part`, `regexp_like`,
+  `regexp_substr`, `regexp_replace`, `json_equal`, `aws_policy_equal`) live
+  ONLY in `public/sqlfuncs` and are registered unconditionally; behavioral
+  divergences from the retired C implementations are catalogued in
+  `public/sqlfuncs/DIVERGENCES.md`.
+- Never reintroduce `mattn/go-sqlite3`, cgo, or a C toolchain dependency.

@@ -85,3 +85,21 @@ golangci-lint run
 - Provide the PR title and body fenced with `~~~` (not triple backticks) so copy-paste into VS Code does not break.
 - An unrelated change should be a branch off `main`, not stacked on an open PR.
 - Releases use the `v0.5.3-alphaNN` tag scheme. Tag the squash-merge commit on `main` (verify `git rev-parse <tag>` == `git rev-parse origin/main`) only after the PR is merged and CI is green. The maintainer cuts/pushes tags.
+
+## Embedded SQLite backend
+
+- The embedded backend is the pure Go driver `modernc.org/sqlite`, registered
+  as driver name `stackql-sqlite`. Builds are CGO-free (`CGO_ENABLED=0`).
+- DSNs for the embedded engine are constructed ONLY via `sqlengine.BuildDSN`;
+  never hand-concatenate `_pragma`/legacy parameters elsewhere. modernc
+  silently ignores unknown legacy-style parameters, so a bypassed translation
+  fails silently.
+- Driver errors are inspected ONLY via the predicates in
+  `public/sqlengine` (`isBusy`, `isConstraintViolation`); no `*sqlite.Error`
+  assertions outside that package.
+- The StackQL SQLite extension functions (`split_part`, `regexp_like`,
+  `regexp_substr`, `regexp_replace`, `json_equal`, `aws_policy_equal`) live
+  ONLY in `public/sqlfuncs` and are registered unconditionally; behavioral
+  divergences from the retired C implementations are catalogued in
+  `public/sqlfuncs/DIVERGENCES.md`.
+- Never reintroduce `mattn/go-sqlite3`, cgo, or a C toolchain dependency.

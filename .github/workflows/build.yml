@@ -96,7 +96,7 @@ jobs:
         go get -v -t -d ./...
       env:
         GOGETCMD: ${{env.GOGETCMD}}
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
         GHACCESSTOKEN: ${{env.GH_ACCESS_TOKEN}}
         GOPRIVATE: ${{env.GOPRIVATE}}
 
@@ -106,7 +106,7 @@ jobs:
         BUILDBRANCH: ${{github.ref}}
         BUILDPLATFORM: ${{runner.os}}
         BUILDPATCHVERSION: ${{github.run_number}}
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
         GH_ACCESS_TOKEN: ${{env.GH_ACCESS_TOKEN}}
         GOPRIVATE: ${{env.GOPRIVATE}}
       run: |
@@ -456,7 +456,7 @@ jobs:
         $GOGETCMD
       env:
         GOGETCMD: ${{env.GOGETCMD}}
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
         GH_ACCESS_TOKEN: ${{env.GH_ACCESS_TOKEN}}
         GOPRIVATE: ${{env.GOPRIVATE}}
 
@@ -466,7 +466,7 @@ jobs:
         BUILDBRANCH: ${{github.ref}}
         BUILDPLATFORM: ${{runner.os}}
         BUILDPATCHVERSION: ${{github.run_number}}
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
       run: |
         BUILDSHORTCOMMITSHA=$(echo $BUILDCOMMITSHA | cut -c 1-7)
         BUILDDATE=$(date)
@@ -503,7 +503,7 @@ jobs:
         $GOGETCMD
       env:
         GOGETCMD: ${{env.GOGETCMD}}
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
         GH_ACCESS_TOKEN: ${{env.GH_ACCESS_TOKEN}}
         GOPRIVATE: ${{env.GOPRIVATE}}
 
@@ -513,7 +513,7 @@ jobs:
         BUILDBRANCH: ${{github.ref}}
         BUILDPLATFORM: "darwin_arm64"
         BUILDPATCHVERSION: ${{github.run_number}}
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
       run: |
         BUILDSHORTCOMMITSHA=$(echo $BUILDCOMMITSHA | cut -c 1-7)
         BUILDDATE=$(date)
