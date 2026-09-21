@@ -1,6 +1,41 @@
 # Changelog
 
-## Unreleased
+## v0.6.0-alpha01
+
+First release on the pure Go embedded SQLite backend. The migration was
+validated end to end through stackql using the pre-release tags
+`v0.5.6-alpha01-pure-go-sqlite-migration` and
+`v0.5.6-alpha02-pure-go-sqlite-migration`; this release supersedes both.
+
+### Maintenance
+
+- **oauth2 deprecation warning removed** (#143): Google service account and
+  OAuth2 client credentials operations could log `deprecated:
+  golang.org/x/oauth2: Transport.CancelRequest no longer does anything; use
+  contexts`. net/http falls back to its legacy cancellation path for a
+  RoundTripper it does not recognise, and calls `CancelRequest` on it when
+  the client timeout fires. Two triggers are fixed. The response body
+  inspection used by `--http.log.enabled` (and by error reporting) swapped
+  the body for an in-memory copy without closing the original, which left
+  the timeout timer running on a completed request; the original is now
+  closed once drained. Independently, a genuine API timeout produced the
+  same warning, so the oauth2 transport is now wrapped to hide the
+  deprecated method. Request timeouts and cancellation are unchanged.
+- **Dependency updates** (#141): `google.golang.org/grpc` 1.83.1 -> 1.83.2
+  (security fix: requests missing both `:authority` and `Host` are
+  rejected), with `golang.org/x/crypto` 0.55.0, `golang.org/x/net` 0.58.0
+  and `golang.org/x/text` 0.41.0.
+- **CI**: `CGO_ENABLED: 0` is now set at workflow level in `build.yml` and
+  `provider-analysis.yml`. The Linux job and every Test step previously
+  left it unset, so they ran with cgo enabled on runners that ship a C
+  compiler, and a reintroduced cgo dependency would have passed there.
+  `google-github-actions/auth` and `google-github-actions/setup-gcloud`
+  move from v2 to v3 to clear the Node.js 20 deprecation warning; all other
+  actions already target Node.js 24. All Linux jobs now run on
+  `ubuntu-latest`: the `ubuntu-22.04` image entered deprecation on
+  2026-09-17 (unsupported from 2027-04-17), and the `ubuntu-24.04` pins
+  resolve to the same image as `ubuntu-latest` today. Every job was already
+  on a free standard label.
 
 ### Fixes from stackql robot-test feedback on the pure Go SQLite migration
 
@@ -25,8 +60,6 @@ against `v0.5.6-alpha01-pure-go-sqlite-migration`:
   wraps the driver so declared-boolean columns return Go `bool` for
   INTEGER values, NULL passes through unchanged, and all other columns are
   untouched.
-
-## v0.5.5-alpha02 (draft — not yet tagged)
 
 ### Embedded SQLite backend migrated to modernc.org/sqlite (CGO-free)
 
