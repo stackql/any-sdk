@@ -169,6 +169,86 @@
       ],
       "error": true,
       "note": "non-identical unparseable documents raise a parse error"
+    },
+    {
+      "id": "fork_tags_top_01",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\"}],\"Tags\":[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]}",
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\"}],\"Tags\":[{\"Key\":\"team\",\"Value\":\"data\"},{\"Key\":\"env\",\"Value\":\"prod\"}]}"
+      ],
+      "result": 1,
+      "note": "top-level Tags arrays compare unordered (fork-only field-set addition)"
+    },
+    {
+      "id": "fork_tags_top_02",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\"}],\"Tags\":[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]}",
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\"}],\"Tags\":[{\"Key\":\"env\",\"Value\":\"dev\"},{\"Key\":\"team\",\"Value\":\"data\"}]}"
+      ],
+      "result": 0,
+      "note": "top-level Tags with a differing element are unequal"
+    },
+    {
+      "id": "fork_tags_statement_01",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\",\"Tags\":[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]}]}",
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\",\"Tags\":[{\"Key\":\"team\",\"Value\":\"data\"},{\"Key\":\"env\",\"Value\":\"prod\"}]}]}"
+      ],
+      "result": 1,
+      "note": "Tags arrays nested within a statement compare unordered (fork-only field-set addition)"
+    },
+    {
+      "id": "fork_tags_statement_02",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\",\"Tags\":[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]}]}",
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\",\"Tags\":[{\"Key\":\"env\",\"Value\":\"dev\"},{\"Key\":\"team\",\"Value\":\"data\"}]}]}"
+      ],
+      "result": 0,
+      "note": "nested Tags with a differing element are unequal"
+    },
+    {
+      "id": "fork_tags_lower_01",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "{\"Version\":\"2012-10-17\",\"tags\":[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]}",
+        "{\"Version\":\"2012-10-17\",\"tags\":[{\"Key\":\"team\",\"Value\":\"data\"},{\"Key\":\"env\",\"Value\":\"prod\"}]}"
+      ],
+      "result": 1,
+      "note": "lowercase tags is a distinct fork-only field-set entry (set matching is case-sensitive)"
+    },
+    {
+      "id": "fork_tags_lower_02",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "{\"Version\":\"2012-10-17\",\"tags\":[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]}",
+        "{\"Version\":\"2012-10-17\",\"tags\":[{\"Key\":\"env\",\"Value\":\"dev\"},{\"Key\":\"team\",\"Value\":\"data\"}]}"
+      ],
+      "result": 0,
+      "note": "lowercase tags with a differing element are unequal"
+    },
+    {
+      "id": "fork_root_array_01",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]",
+        "[{\"Key\":\"team\",\"Value\":\"data\"},{\"Key\":\"env\",\"Value\":\"prod\"}]"
+      ],
+      "result": 1,
+      "note": "two top-level array documents compare unordered (fork-only behavior)"
+    },
+    {
+      "id": "fork_root_array_02",
+      "source": "stackql-go-sqlite3 fork amalgamation (SQLITE_ENABLE_STACKQL) fork-only behavior",
+      "args": [
+        "[{\"Key\":\"env\",\"Value\":\"prod\"},{\"Key\":\"team\",\"Value\":\"data\"}]",
+        "[{\"Key\":\"env\",\"Value\":\"dev\"},{\"Key\":\"team\",\"Value\":\"data\"}]"
+      ],
+      "result": 0,
+      "note": "top-level array documents with a differing element are unequal"
     }
   ]
 }

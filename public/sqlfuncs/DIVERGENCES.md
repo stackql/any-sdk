@@ -1,11 +1,16 @@
 # Behavioral divergences vs the retired C implementations
 
 This file documents every known behavioral difference between the pure Go
-implementations in this package and the retired C implementations
-(github.com/stackql/sqlite-ext-functions and the identical
-`SQLITE_ENABLE_STACKQL` amalgamation additions in the stackql-go-sqlite3
-fork). Anything not listed here is intended to be byte-for-byte compatible
-and is pinned by the golden vectors in `testdata/`.
+implementations in this package and the retired C implementations. The
+authoritative C reference is the `SQLITE_ENABLE_STACKQL` amalgamation
+additions in the stackql-go-sqlite3 fork - the code that actually shipped
+in the retired cgo builds. github.com/stackql/sqlite-ext-functions is the
+upstream source of most of that code, but the two are NOT identical: for
+`aws_policy_equal` the fork carried two modifications that were never
+backported to sqlite-ext-functions (see "aws_policy_equal comparison
+rules" below). Anything not listed here is intended to be byte-for-byte
+compatible with the fork's amalgamation additions and is pinned by the
+golden vectors in `testdata/`.
 
 ## Regexp functions (`regexp_like`, `regexp_substr`, `regexp_replace`)
 
@@ -100,9 +105,12 @@ Preserved C behaviors (parity):
 Preserved C behaviors (parity, deliberately including its quirks):
 
 - The unordered-comparison field set is exactly `Action`, `NotAction`,
-  `Resource`, `NotResource`, `Principal`, `NotPrincipal`, `AWS`, `Service`
-  (field name matched case-sensitively). All other arrays - including
-  `Statement` - compare ordered.
+  `Resource`, `NotResource`, `Principal`, `NotPrincipal`, `AWS`, `Service`,
+  `Tags`, `tags` (field name matched case-sensitively - `Tags` and `tags`
+  are two distinct entries). All other arrays - including `Statement` -
+  compare ordered.
+- Two top-level array documents (an array at the root of both documents)
+  compare unordered.
 - Within an unordered field, a string beginning with `arn:` compares ASCII
   case-insensitively. The prefix test is applied to the **left** operand
   only, preserving the C code's asymmetry.
@@ -110,6 +118,21 @@ Preserved C behaviors (parity, deliberately including its quirks):
 - Unordered array elements are matched left-into-right after a length
   check, without marking right-hand elements as consumed - arrays with
   duplicate elements can double-match, exactly as in the C code.
+
+Fork-only modifications (authoritative contract):
+
+The stackql-go-sqlite3 fork's `SQLITE_ENABLE_STACKQL` amalgamation carried
+two modifications to `aws_policy_equal` that were never backported to
+github.com/stackql/sqlite-ext-functions. This package implements the fork
+behavior, because the fork is what shipped in the retired cgo builds:
+
+- `Tags` and `tags` are members of the unordered-comparison field set
+  (vectors `fork_tags_top_*`, `fork_tags_statement_*`,
+  `fork_tags_lower_*`).
+- Two top-level array documents (array vs array at the document root) are
+  compared unordered (vectors `fork_root_array_*`). A root array vs a
+  non-array root still compares under the ordinary rules (including the
+  single-element-array-equals-scalar rule).
 
 ## Argument coercion
 

@@ -13,7 +13,10 @@ var errInvalidPolicyArgs = errors.New("Invalid policy strings") //nolint:staticc
 var errPolicyParse = errors.New("Error parsing policy JSON strings") //nolint:staticcheck // C-parity error text
 
 // awsUnorderedFields are the policy fields whose arrays compare as unordered
-// sets and whose "arn:" strings compare case-insensitively.
+// sets and whose "arn:" strings compare case-insensitively. "Tags" and "tags"
+// are fork-only additions shipped in the stackql-go-sqlite3 fork's
+// SQLITE_ENABLE_STACKQL amalgamation, never backported to
+// sqlite-ext-functions (see DIVERGENCES.md).
 var awsUnorderedFields = map[string]struct{}{
 	"Action":       {},
 	"NotAction":    {},
@@ -23,6 +26,8 @@ var awsUnorderedFields = map[string]struct{}{
 	"NotPrincipal": {},
 	"AWS":          {},
 	"Service":      {},
+	"Tags":         {},
+	"tags":         {},
 }
 
 // AWSPolicyEqual implements aws_policy_equal(a, b): 1 if the two IAM policy
@@ -43,7 +48,12 @@ func AWSPolicyEqual(a, b any) (any, error) {
 	if errA != nil || errB != nil {
 		return nil, errPolicyParse
 	}
-	if awsPolicyCompare(va, vb, false) {
+	// Fork-only behavior (see DIVERGENCES.md): two top-level array documents
+	// compare unordered, as in the stackql-go-sqlite3 fork's amalgamation.
+	_, aIsArray := va.([]any)
+	_, bIsArray := vb.([]any)
+	rootUnordered := aIsArray && bIsArray
+	if awsPolicyCompare(va, vb, rootUnordered) {
 		return int64(1), nil
 	}
 	return int64(0), nil
