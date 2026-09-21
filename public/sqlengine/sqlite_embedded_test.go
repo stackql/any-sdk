@@ -29,7 +29,7 @@ func newTestEngine(t *testing.T, dsn string) *sqLiteEmbeddedEngine {
 }
 
 func TestBuildDSNDefault(t *testing.T) {
-	dsn, pragmas, err := BuildDSN("")
+	dsn, pragmas, err := buildDSN("")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestBuildDSNTranslations(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			dsn, pragmas, err := BuildDSN(tc.in)
+			dsn, pragmas, err := buildDSN(tc.in)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -136,8 +136,8 @@ func TestBuildDSNRejectsUnknownUnderscoreParam(t *testing.T) {
 		"file:test.db?_auth_user=admin",
 		"file:test.db?_no_such_param=1",
 	} {
-		if _, _, err := BuildDSN(dsn); err == nil {
-			t.Fatalf("BuildDSN(%q) must reject unknown underscore parameters", dsn)
+		if _, _, err := buildDSN(dsn); err == nil {
+			t.Fatalf("buildDSN(%q) must reject unknown underscore parameters", dsn)
 		}
 	}
 }

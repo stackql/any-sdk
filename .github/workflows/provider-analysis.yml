@@ -27,7 +27,7 @@ env:
 jobs:
 
   build-anysdk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
 
@@ -80,7 +80,7 @@ jobs:
 
 
   build-stackql:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
         
 
     steps:
@@ -114,7 +114,7 @@ jobs:
 
   analysis:
     name: Analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: 
       - build-anysdk
       - build-stackql

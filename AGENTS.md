@@ -146,7 +146,7 @@ This draft is intentionally comprehensive to serve as both documentation and a R
 
 - The embedded backend is the pure Go driver `modernc.org/sqlite`, registered
   as driver name `stackql-sqlite`. Builds are CGO-free (`CGO_ENABLED=0`).
-- DSNs for the embedded engine are constructed ONLY via `sqlengine.BuildDSN`;
+- DSNs for the embedded engine are constructed ONLY via `buildDSN` in `public/sqlengine`;
   never hand-concatenate `_pragma`/legacy parameters elsewhere. modernc
   silently ignores unknown legacy-style parameters, so a bypassed translation
   fails silently.

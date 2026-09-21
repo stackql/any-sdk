@@ -31,11 +31,11 @@ validated end to end through stackql using the pre-release tags
   compiler, and a reintroduced cgo dependency would have passed there.
   `google-github-actions/auth` and `google-github-actions/setup-gcloud`
   move from v2 to v3 to clear the Node.js 20 deprecation warning; all other
-  actions already target Node.js 24. All Linux jobs now run on
-  `ubuntu-latest`: the `ubuntu-22.04` image entered deprecation on
-  2026-09-17 (unsupported from 2027-04-17), and the `ubuntu-24.04` pins
-  resolve to the same image as `ubuntu-latest` today. Every job was already
-  on a free standard label.
+  actions already target Node.js 24. The Python package build job moves
+  from `ubuntu-22.04` to `ubuntu-24.04`, since the 22.04 image entered
+  deprecation on 2026-09-17 (unsupported from 2027-04-17); all other Linux
+  jobs keep their `ubuntu-24.04` pin. Every job was already on a free
+  standard label.
 
 ### Fixes from stackql robot-test feedback on the pure Go SQLite migration
 
@@ -84,11 +84,11 @@ module graph entirely.
   operator documented in the stackql language spec previously failed with
   "no such function: regexp".
 - **DSN handling centralized**: all embedded-engine DSNs pass through
-  `sqlengine.BuildDSN`, which translates legacy `mattn`-style parameters
-  (for example `_busy_timeout=5000`) to modernc `_pragma=name(value)`
-  syntax and rejects unknown underscore parameters instead of silently
-  ignoring them. The 5000 ms default busy timeout of the previous driver
-  is preserved.
+  `buildDSN` in `public/sqlengine`, which translates legacy `mattn`-style
+  parameters (for example `_busy_timeout=5000`) to modernc
+  `_pragma=name(value)` syntax and rejects unknown underscore parameters
+  instead of silently ignoring them. The 5000 ms default busy timeout of
+  the previous driver is preserved.
 - **Startup pragma assertions**: after opening a database, the engine
   reads back every pragma the DSN set and fails fast on mismatch.
 - **Driver error inspection wrapped**: SQLITE_BUSY / SQLITE_LOCKED and

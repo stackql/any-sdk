@@ -81,7 +81,7 @@ func newSQLiteEmbeddedEngine(
 	cfg dto.SQLBackendCfg,
 	controlAttributes sqlcontrol.ControlAttributes,
 ) (*sqLiteEmbeddedEngine, error) {
-	dsn, expectedPragmas, err := BuildDSN(cfg.GetDSN())
+	dsn, expectedPragmas, err := buildDSN(cfg.GetDSN())
 	eng := &sqLiteEmbeddedEngine{
 		dsn:               dsn,
 		controlAttributes: controlAttributes,
@@ -398,7 +398,7 @@ var legacyParamTranslations = []struct {
 	{"_writable_schema", "writable_schema"},
 }
 
-// moderncNativeParams pass through BuildDSN verbatim.
+// moderncNativeParams pass through buildDSN verbatim.
 var moderncNativeParams = map[string]struct{}{
 	"_pragma":              {},
 	"_time_format":         {},
@@ -419,14 +419,14 @@ var nonQueryablePragmas = map[string]struct{}{
 
 var pragmaNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// BuildDSN is the single place embedded-engine DSNs are constructed. It
+// buildDSN is the single place embedded-engine DSNs are constructed. It
 // translates legacy `_param=value` shorthands to modernc `_pragma=name(value)`
 // directives, passes through modernc-native and plain URI parameters, rejects
 // unknown underscore parameters (modernc would silently ignore them), and
 // injects the 5000ms legacy busy_timeout default when unset. An empty dsn
 // selects the default shared in-memory database. The returned map records
 // every pragma the DSN sets, for the startup assertion.
-func BuildDSN(dsn string) (string, map[string]string, error) {
+func buildDSN(dsn string) (string, map[string]string, error) {
 	if dsn == "" {
 		dsn = sqliteDefaultDSN
 	}
