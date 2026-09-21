@@ -1,6 +1,7 @@
 package sqlengine
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
@@ -328,6 +329,100 @@ func TestSQLiteEmbeddedTimestampRoundTrip(t *testing.T) {
 	}
 	if id != 2 {
 		t.Fatalf("expected returned id 2, got %d", id)
+	}
+}
+
+func TestSQLiteEmbeddedBooleanDecltypeRoundTrip(t *testing.T) {
+	eng := newTestEngine(t, "")
+	ddl := `CREATE TABLE bool_probe (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		flag BOOLEAN,
+		flag_lower boolean,
+		plain INTEGER
+	)`
+	if _, err := eng.Exec(ddl); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// 2 and -1 pin the retired driver's val > 0 rule.
+	if _, err := eng.Exec(
+		`INSERT INTO bool_probe (flag, flag_lower, plain) VALUES (1, 1, 1), (0, 0, 0), (NULL, NULL, NULL), (2, 2, 2), (-1, -1, -1)`,
+	); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	expected := []struct {
+		flag  any
+		plain any
+	}{
+		{true, int64(1)},
+		{false, int64(0)},
+		{nil, nil},
+		{true, int64(2)},
+		{false, int64(-1)},
+	}
+	rows, err := eng.Query(`SELECT flag, flag_lower, plain FROM bool_probe ORDER BY id`)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+	i := 0
+	for rows.Next() {
+		var flag, flagLower, plain any
+		if err = rows.Scan(&flag, &flagLower, &plain); err != nil {
+			t.Fatalf("scan row %d: %v", i, err)
+		}
+		if i >= len(expected) {
+			t.Fatalf("unexpected extra row %d", i)
+		}
+		if flag != expected[i].flag {
+			t.Fatalf("row %d: BOOLEAN column = %#v, want %#v", i, flag, expected[i].flag)
+		}
+		if flagLower != expected[i].flag {
+			t.Fatalf("row %d: boolean (lowercase decltype) column = %#v, want %#v", i, flagLower, expected[i].flag)
+		}
+		if plain != expected[i].plain {
+			t.Fatalf("row %d: plain INTEGER column = %#v, want %#v (must stay untouched)", i, plain, expected[i].plain)
+		}
+		i++
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+	if i != len(expected) {
+		t.Fatalf("expected %d rows, got %d", len(expected), i)
+	}
+	// Typed sinks: bool and sql.NullBool round-trip, NULL preserved.
+	var b bool
+	if err = eng.QueryRow(`SELECT flag FROM bool_probe WHERE id = 1`).Scan(&b); err != nil || !b {
+		t.Fatalf("bool scan = (%v, %v), want (true, nil)", b, err)
+	}
+	var nb sql.NullBool
+	if err = eng.QueryRow(`SELECT flag FROM bool_probe WHERE id = 3`).Scan(&nb); err != nil {
+		t.Fatalf("NullBool scan: %v", err)
+	}
+	if nb.Valid {
+		t.Fatalf("NULL in a declared-boolean column must stay NULL, got %+v", nb)
+	}
+	// Prepared-statement path goes through the same conversion.
+	stmt, err := eng.db.Prepare(`SELECT flag FROM bool_probe WHERE id = ?`)
+	if err != nil {
+		t.Fatalf("prepare: %v", err)
+	}
+	defer func() { _ = stmt.Close() }()
+	var prepared any
+	if err = stmt.QueryRow(2).Scan(&prepared); err != nil {
+		t.Fatalf("prepared scan: %v", err)
+	}
+	if prepared != false {
+		t.Fatalf("prepared statement BOOLEAN column = %#v, want false", prepared)
+	}
+	// An expression over a boolean column has no decltype and must stay
+	// an INTEGER, exactly as under the retired driver.
+	var expr any
+	if err = eng.QueryRow(`SELECT flag + 0 FROM bool_probe WHERE id = 1`).Scan(&expr); err != nil {
+		t.Fatalf("expression scan: %v", err)
+	}
+	if expr != int64(1) {
+		t.Fatalf("expression column = %#v, want int64(1) (must stay untouched)", expr)
 	}
 }
 
