@@ -38,7 +38,8 @@ var (
 )
 
 // registerSQLiteDriver idempotently publishes the sqlfuncs-equipped driver
-// under sqliteDriverName; a registration error surfaces on every attempt.
+// under sqliteDriverName, wrapped for mattn-parity boolean decltype
+// conversion; a registration error surfaces on every attempt.
 func registerSQLiteDriver() error {
 	sqliteDriverRegisterOnce.Do(func() {
 		drv := &sqlite.Driver{}
@@ -46,7 +47,7 @@ func registerSQLiteDriver() error {
 			sqliteDriverRegisterErr = err
 			return
 		}
-		sql.Register(sqliteDriverName, drv)
+		sql.Register(sqliteDriverName, newBoolDecltypeDriver(drv))
 	})
 	return sqliteDriverRegisterErr
 }

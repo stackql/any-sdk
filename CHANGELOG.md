@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Fixes from stackql robot-test feedback on the pure Go SQLite migration
+
+Two upstream defects root-caused by the stackql robot test suite running
+against `v0.5.6-alpha01-pure-go-sqlite-migration`:
+
+- **`aws_policy_equal` fork-only behaviors restored**: the pure Go port was
+  written from `github.com/stackql/sqlite-ext-functions`, but the C code
+  that actually shipped (the stackql-go-sqlite3 fork's
+  `SQLITE_ENABLE_STACKQL` amalgamation additions) carried two modifications
+  never backported to that repo: `Tags` and `tags` are members of the
+  unordered-comparison field set, and two top-level array documents (array
+  vs array at the document root) compare unordered. Both are restored,
+  pinned by new golden vectors (`fork_*` in
+  `public/sqlfuncs/testdata/aws_policy_equal.json`), and recorded as the
+  authoritative contract in `public/sqlfuncs/DIVERGENCES.md`.
+- **Declared-boolean columns render as Go bool again**: mattn/go-sqlite3
+  converted INTEGER values to Go `bool` when a column's declared type was
+  boolean (case-insensitive decltype check, `val > 0`);
+  modernc.org/sqlite performs decltype-based conversion for timestamps but
+  not booleans, so such columns surfaced as 0/1. The embedded engine now
+  wraps the driver so declared-boolean columns return Go `bool` for
+  INTEGER values, NULL passes through unchanged, and all other columns are
+  untouched.
+
 ## v0.5.5-alpha02 (draft — not yet tagged)
 
 ### Embedded SQLite backend migrated to modernc.org/sqlite (CGO-free)
