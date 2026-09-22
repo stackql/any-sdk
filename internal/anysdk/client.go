@@ -374,17 +374,32 @@ func (cc *anySdkHTTPClientConfigurator) Auth(
 	return nil, fmt.Errorf("could not infer auth type")
 }
 
+// drainResponseBody reads the response body in full and replaces it with an
+// in-memory copy, so that it can be inspected and still consumed downstream.
+// The original body is closed once drained; a downstream Close() only reaches
+// the replacement, and net/http keeps the client timeout timer running against
+// the original until it is closed.
+func drainResponseBody(response *http.Response) ([]byte, error) {
+	originalBody := response.Body
+	bodyBytes, bErr := io.ReadAll(originalBody)
+	if bErr != nil {
+		return nil, bErr
+	}
+	_ = originalBody.Close()
+	response.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	return bodyBytes, nil
+}
+
 //nolint:nestif,mnd // acceptable for now
 func parseReponseBodyIfErroneous(response *http.Response) (string, error) {
 	if response != nil {
 		if response.StatusCode >= 300 {
 			if response.Body != nil {
-				bodyBytes, bErr := io.ReadAll(response.Body)
+				bodyBytes, bErr := drainResponseBody(response)
 				if bErr != nil {
 					return "", bErr
 				}
 				bodyStr := string(bodyBytes)
-				response.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 				if len(bodyStr) > 0 {
 					return fmt.Sprintf("http response status code: %d, response body: %s", response.StatusCode, bodyStr), nil
 				}
@@ -399,12 +414,11 @@ func parseReponseBodyIfErroneous(response *http.Response) (string, error) {
 func parseReponseBodyIfPresent(response *http.Response) (string, error) {
 	if response != nil {
 		if response.Body != nil {
-			bodyBytes, bErr := io.ReadAll(response.Body)
+			bodyBytes, bErr := drainResponseBody(response)
 			if bErr != nil {
 				return "", bErr
 			}
 			bodyStr := string(bodyBytes)
-			response.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 			if len(bodyStr) > 0 {
 				return fmt.Sprintf("http response status code: %d, response body: %s", response.StatusCode, bodyStr), nil
 			}

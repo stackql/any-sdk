@@ -213,6 +213,25 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.underlyingTransport.RoundTrip(req)
 }
 
+// contextCancelTransport hides the deprecated CancelRequest method of the
+// wrapped RoundTripper. net/http uses its legacy cancellation path for any
+// RoundTripper it does not recognise and, when the client timeout fires, calls
+// CancelRequest if the RoundTripper has one. The oauth2.Transport implementation
+// cancels nothing and only logs a deprecation warning. Cancellation is unaffected
+// by hiding it: that is carried on the request and honoured by the base transport.
+type contextCancelTransport struct {
+	underlyingTransport http.RoundTripper
+}
+
+func (t *contextCancelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return t.underlyingTransport.RoundTrip(req)
+}
+
+func withContextCancelTransport(httpClient *http.Client) *http.Client {
+	httpClient.Transport = &contextCancelTransport{underlyingTransport: httpClient.Transport}
+	return httpClient
+}
+
 func (au *authUtil) ActivateAuth(authCtx *dto.AuthCtx, principal string, authType string) {
 	authCtx.Active = true
 	authCtx.Type = authType
@@ -350,7 +369,9 @@ func (au *authUtil) GoogleOauthServiceAccount(
 	}
 	au.ActivateAuth(authCtx, "", dto.AuthServiceAccountStr)
 	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
-	return config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)), nil
+	return withContextCancelTransport(
+		config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)),
+	), nil
 }
 
 func (au *authUtil) GenericOauthClientCredentials(
@@ -364,7 +385,9 @@ func (au *authUtil) GenericOauthClientCredentials(
 	}
 	au.ActivateAuth(authCtx, "", dto.ClientCredentialsStr)
 	httpClient := netutils.GetHTTPClient(httpContext, au.defaultClient)
-	return config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)), nil
+	return withContextCancelTransport(
+		config.Client(context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)),
+	), nil
 }
 
 func (au *authUtil) ApiTokenAuth(authCtx *dto.AuthCtx, httpContext netutils.HTTPContext, enforceBearer bool) (*http.Client, error) {
