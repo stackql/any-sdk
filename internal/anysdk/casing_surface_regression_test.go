@@ -94,6 +94,22 @@ func TestGetAllColumnsDisabledIsWireKeyed(t *testing.T) {
 	}
 }
 
+func TestParameterColumnDescriptorKeepsWireName(t *testing.T) {
+	provider := &standardProvider{StackQLConfig: &standardStackQLConfig{SnakeCaseAliases: true}}
+	schema := newStandardSchema(&openapi3.Schema{Type: "string"}, nil, "VpcId", "")
+	descriptor := NewParameterColumnDescriptor(provider, "VpcId", "VpcId", schema)
+	if got := descriptor.GetName(); got != "vpc_id" {
+		t.Errorf("display name = %q, want vpc_id", got)
+	}
+	if got := descriptor.GetWireName(); got != "VpcId" {
+		t.Errorf("wire name = %q, want VpcId", got)
+	}
+	aliasedDescriptor := NewParameterColumnDescriptor(nil, "vpc_id", "VpcId", schema)
+	if got := aliasedDescriptor.GetName(); got != "vpc_id" {
+		t.Errorf("explicit alias = %q, want vpc_id", got)
+	}
+}
+
 func requiredQueryParameterRef(name string) *openapi3.ParameterRef {
 	return &openapi3.ParameterRef{Value: &openapi3.Parameter{
 		Name: name, In: openapi3.ParameterInQuery, Required: true,
