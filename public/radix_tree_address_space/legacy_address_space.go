@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/stackql/any-sdk/internal/anysdk"
-	"github.com/stackql/any-sdk/pkg/casing"
 	"github.com/stackql/any-sdk/pkg/media"
 )
 
@@ -79,28 +78,30 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error)
 		existingColumns[col.GetName()] = struct{}{}
 		rv = append(rv, newSimpleColumn(col.GetName(), col.GetSchema()))
 	}
-	snakeAliases := false
-	if prov := ta.m.GetProvider(); prov != nil {
-		snakeAliases = prov.IsSnakeCaseAliasesEnabled()
-	}
 	unionedRequiredParams, err := ta.m.GetUnionRequiredParameters()
 	if err != nil && !ta.isNilResponseAllowed {
 		return nil, err
 	}
 	for k, col := range unionedRequiredParams {
-		// Snake-alias required-parameter names too when the provider opts in, so the
-		// column set is consistent (snake on both response and parameter sides) and
-		// avoids a SQLite NOCASE collision between e.g. VpcId and vpc_id.
-		colName := k
-		if snakeAliases {
-			colName = casing.ToSnake(k)
-		}
+		schema, _ := col.GetSchema()
+		colName := anysdk.NewParameterColumnDescriptor(ta.m.GetProvider(), k, k, schema).GetName()
 		if _, ok := existingColumns[colName]; ok {
 			continue
 		}
-		schema, _ := col.GetSchema()
 		existingColumns[colName] = struct{}{}
 		rv = append(rv, newSimpleColumn(colName, schema))
+	}
+	for alias, parameter := range ta.m.GetParametersIncludingNativeCasing() {
+		if alias == parameter.GetName() {
+			continue
+		}
+		schema, _ := parameter.GetSchema()
+		descriptor := anysdk.NewParameterColumnDescriptor(ta.m.GetProvider(), alias, parameter.GetName(), schema)
+		if _, ok := existingColumns[descriptor.GetName()]; ok {
+			continue
+		}
+		existingColumns[descriptor.GetName()] = struct{}{}
+		rv = append(rv, newSimpleColumn(descriptor.GetName(), schema))
 	}
 	servers, serversDoExist := ta.m.GetServers()
 	if serversDoExist {
@@ -159,21 +160,25 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumnDescriptors(
 		return nil, err
 	}
 	for k, col := range unionedRequiredParams {
-		if _, ok := existingColumns[k]; ok {
+		schema, _ := col.GetSchema()
+		descriptor := anysdk.NewParameterColumnDescriptor(ta.m.GetProvider(), k, k, schema)
+		if _, ok := existingColumns[descriptor.GetName()]; ok {
 			continue
 		}
-		existingColumns[k] = struct{}{}
-		schema, _ := col.GetSchema()
-		colDesc := anysdk.NewColumnDescriptor(
-			"",
-			k,
-			"",
-			"",
-			nil,
-			schema,
-			nil,
-		)
-		rv = append(rv, colDesc)
+		existingColumns[descriptor.GetName()] = struct{}{}
+		rv = append(rv, descriptor)
+	}
+	for alias, parameter := range ta.m.GetParametersIncludingNativeCasing() {
+		if alias == parameter.GetName() {
+			continue
+		}
+		schema, _ := parameter.GetSchema()
+		descriptor := anysdk.NewParameterColumnDescriptor(ta.m.GetProvider(), alias, parameter.GetName(), schema)
+		if _, ok := existingColumns[descriptor.GetName()]; ok {
+			continue
+		}
+		existingColumns[descriptor.GetName()] = struct{}{}
+		rv = append(rv, descriptor)
 	}
 	servers, serversDoExist := ta.m.GetServers()
 	if serversDoExist {
