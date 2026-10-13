@@ -45,6 +45,16 @@ func TrimSelectItemsKey(selectItemsKey string) string {
 	return splitSet[len(splitSet)-1]
 }
 
+func aliasedParameterNames(parameters map[string]anysdk.Addressable) map[string]struct{} {
+	aliased := make(map[string]struct{})
+	for alias, parameter := range parameters {
+		if alias != parameter.GetName() {
+			aliased[parameter.GetName()] = struct{}{}
+		}
+	}
+	return aliased
+}
+
 // TODO: operate on namespace
 func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error) {
 	var rv []anysdk.Column
@@ -78,11 +88,16 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error)
 		existingColumns[col.GetName()] = struct{}{}
 		rv = append(rv, newSimpleColumn(col.GetName(), col.GetSchema()))
 	}
+	parameters := ta.m.GetParametersIncludingNativeCasing()
+	aliasedParameters := aliasedParameterNames(parameters)
 	unionedRequiredParams, err := ta.m.GetUnionRequiredParameters()
 	if err != nil && !ta.isNilResponseAllowed {
 		return nil, err
 	}
 	for k, col := range unionedRequiredParams {
+		if _, hasAlias := aliasedParameters[k]; hasAlias {
+			continue
+		}
 		schema, _ := col.GetSchema()
 		colName := anysdk.NewParameterColumnDescriptor(ta.m.GetProvider(), k, k, schema).GetName()
 		if _, ok := existingColumns[colName]; ok {
@@ -91,7 +106,7 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumns() ([]anysdk.Column, error)
 		existingColumns[colName] = struct{}{}
 		rv = append(rv, newSimpleColumn(colName, schema))
 	}
-	for alias, parameter := range ta.m.GetParametersIncludingNativeCasing() {
+	for alias, parameter := range parameters {
 		if alias == parameter.GetName() {
 			continue
 		}
@@ -155,11 +170,16 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumnDescriptors(
 		existingColumns[colName] = struct{}{}
 		rv = append(rv, col)
 	}
+	parameters := ta.m.GetParametersIncludingNativeCasing()
+	aliasedParameters := aliasedParameterNames(parameters)
 	unionedRequiredParams, err := ta.m.GetUnionRequiredParameters()
 	if err != nil {
 		return nil, err
 	}
 	for k, col := range unionedRequiredParams {
+		if _, hasAlias := aliasedParameters[k]; hasAlias {
+			continue
+		}
 		schema, _ := col.GetSchema()
 		descriptor := anysdk.NewParameterColumnDescriptor(ta.m.GetProvider(), k, k, schema)
 		if _, ok := existingColumns[descriptor.GetName()]; ok {
@@ -168,7 +188,7 @@ func (ta *simpleLegacyTableSchemaAnalyzer) GetColumnDescriptors(
 		existingColumns[descriptor.GetName()] = struct{}{}
 		rv = append(rv, descriptor)
 	}
-	for alias, parameter := range ta.m.GetParametersIncludingNativeCasing() {
+	for alias, parameter := range parameters {
 		if alias == parameter.GetName() {
 			continue
 		}
