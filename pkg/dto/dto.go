@@ -57,6 +57,7 @@ const (
 	RegistryRawKey                  string = "registry"
 	SessionCtxKey                   string = "session"
 	GCCfgRawKey                     string = "gc"
+	UpstreamErrorCfgRawKey          string = "upstream.errors"
 	ACIDCfgRawKey                   string = "acid"
 	NamespaceCfgRawKey              string = "namespaces"
 	SQLBackendCfgRawKey             string = "sqlBackend"

@@ -49,6 +49,7 @@ type RuntimeCtx struct {
 	StoreTxnCfgRaw               string
 	GCCfgRaw                     string
 	ACIDCfgRaw                   string
+	UpstreamErrorCfgRaw          string
 	QueryCacheSize               int
 	TemplateCtxFilePath          string
 	TestWithoutAPICalls          bool
@@ -168,6 +169,8 @@ func (rc *RuntimeCtx) Set(key string, val string) error {
 		rc.GCCfgRaw = val
 	case ACIDCfgRawKey:
 		rc.ACIDCfgRaw = val
+	case UpstreamErrorCfgRawKey:
+		rc.UpstreamErrorCfgRaw = val
 	case OutfilePathKey:
 		rc.OutfilePath = val
 	case OutputFormatKey:
@@ -262,6 +265,7 @@ func (rc RuntimeCtx) Copy() RuntimeCtx {
 		StoreTxnCfgRaw:               rc.StoreTxnCfgRaw,
 		GCCfgRaw:                     rc.GCCfgRaw,
 		ACIDCfgRaw:                   rc.ACIDCfgRaw,
+		UpstreamErrorCfgRaw:          rc.UpstreamErrorCfgRaw,
 		QueryCacheSize:               rc.QueryCacheSize,
 		TemplateCtxFilePath:          rc.TemplateCtxFilePath,
 		TestWithoutAPICalls:          rc.TestWithoutAPICalls,
