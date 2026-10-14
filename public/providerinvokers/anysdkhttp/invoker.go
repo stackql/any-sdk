@@ -832,6 +832,19 @@ func (sp *standardProcessor) Process() ProcessorResponse {
 	if httpResponse != nil && httpResponse.Body != nil {
 		defer httpResponse.Body.Close()
 	}
+	if httpResponse != nil && !isMutation {
+		upstreamErrorCfg, cfgErr := dto.GetUpstreamErrorCfg(runtimeCtx.UpstreamErrorCfgRaw)
+		if cfgErr != nil {
+			return newHTTPProcessorResponse(nil, reversalStream, false, cfgErr)
+		}
+		if upstreamErrorCfg.HTTP.IsIgnored(httpResponse.StatusCode) {
+			//nolint:errcheck // TODO: fix
+			outErrFile.Write([]byte(
+				fmt.Sprintf("ignoring upstream response: %s\n", httpResponse.Status),
+			))
+			return newHTTPProcessorResponse(nil, reversalStream, false, nil)
+		}
+	}
 	if httpResponse != nil && httpResponse.StatusCode >= 400 && isMaterialiseResponse {
 		generatedErr := fmt.Errorf("%s over HTTP error: %s", verb, httpResponse.Status)
 		return newHTTPProcessorResponse(nil, reversalStream, true, generatedErr)
