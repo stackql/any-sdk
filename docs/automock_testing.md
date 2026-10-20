@@ -9,7 +9,7 @@ The `anysdk` CLI is for testing purposes, so long as semver < 1.
 You will need to install:
 
 -  `stackql`, eg with `brew install stackql`.  There are other alternatives on [the official install doco](https://stackql.io/docs/installing-stackql). 
-- `golang` >= `1.25.3`.
+- `golang` >= `1.26.10`.
 - `python3` >= `3.12`.
 
 
