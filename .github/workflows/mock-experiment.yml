@@ -15,7 +15,7 @@ on:
 env:
   STACKQL_CORE_REPOSITORY: ${{ vars.STACKQL_CORE_REPOSITORY != '' && vars.STACKQL_CORE_REPOSITORY || 'stackql/stackql' }}
   STACKQL_CORE_REF: ${{ vars.STACKQL_CORE_REF != '' && vars.STACKQL_CORE_REF || 'main' }}
-  GOLANG_VERSION: 1.25.3
+  GOLANG_VERSION: 1.27.2
   PYTHON_VERSION: '3.12'
   ANALYSIS_RESULTS_BUCKET: 'stackql-provider-analysis-results'
   MOCK_PORT_BASE: 5050
