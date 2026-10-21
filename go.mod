@@ -1,6 +1,6 @@
 module github.com/stackql/any-sdk
 
-go 1.26.10
+go 1.27.3
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0

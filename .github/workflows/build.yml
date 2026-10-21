@@ -20,7 +20,7 @@ env:
   GOPRIVATE: github.com/stackql/*
   GH_ACCESS_TOKEN: ${{ secrets.ACTIONS_PRIVATE_PACKAGE_SECRET }}
   PLANCACHEENABLED: "true"
-  GOLANG_VERSION: 1.26.10
+  GOLANG_VERSION: 1.27.3
   # Builds are CGO-free. Set for every job and step so that a reintroduced cgo
   # dependency fails CI on all platforms, including runners that ship a C compiler.
   CGO_ENABLED: 0
