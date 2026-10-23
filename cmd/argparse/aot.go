@@ -12,7 +12,7 @@ import (
 	"github.com/stackql/any-sdk/internal/anysdk"
 	"github.com/stackql/any-sdk/pkg/dto"
 	"github.com/stackql/any-sdk/public/discovery"
-	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
+	"github.com/stackql/stackql-provider-registry/signing/pqsig"
 )
 
 var aotCmd = &cobra.Command{
@@ -55,7 +55,7 @@ func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
 			RegistryURL:      fmt.Sprintf("file://%s", cleanPath),
 			LocalDocRoot:     relativePath,
 			AllowSrcDownload: false,
-			VerifyConfig: &edcrypto.VerifierConfig{
+			VerifyConfig: &pqsig.VerifierConfig{
 				NopVerify: true,
 			},
 		},

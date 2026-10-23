@@ -10,7 +10,7 @@ import (
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/any-sdk/public/sqlengine"
-	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
+	"github.com/stackql/stackql-provider-registry/signing/pqsig"
 )
 
 const (
@@ -23,7 +23,7 @@ func getNewTestDataMockRegistry(relativePath string) (anysdk.RegistryAPI, error)
 			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
 			LocalDocRoot:     relativePath,
 			AllowSrcDownload: false,
-			VerifyConfig: &edcrypto.VerifierConfig{
+			VerifyConfig: &pqsig.VerifierConfig{
 				NopVerify: true,
 			},
 		},

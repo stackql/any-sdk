@@ -14,7 +14,7 @@ import (
 	"github.com/stackql/any-sdk/public/persistence"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/any-sdk/public/sqlengine"
-	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
+	"github.com/stackql/stackql-provider-registry/signing/pqsig"
 )
 
 var (
@@ -139,7 +139,7 @@ func getNewLocalRegistry(relativePath string) (anysdk.RegistryAPI, error) {
 			RegistryURL:      fmt.Sprintf("file://%s", cleanPath),
 			LocalDocRoot:     relativePath,
 			AllowSrcDownload: false,
-			VerifyConfig: &edcrypto.VerifierConfig{
+			VerifyConfig: &pqsig.VerifierConfig{
 				NopVerify: true,
 			},
 		},
@@ -1551,12 +1551,12 @@ func analyzeMethod(
 				varName := MockResponseVarName(actx.Provider, actx.Service, actx.Resource, actx.Method)
 				sampleResponse.VarName = varName
 				f := AnalysisFinding{
-					Level:    "info",
-					Provider: actx.Provider,
-					Service:  actx.Service,
-					Resource: actx.Resource,
-					Method:   actx.Method,
-					Message:  "mock generated from response schema",
+					Level:          "info",
+					Provider:       actx.Provider,
+					Service:        actx.Service,
+					Resource:       actx.Resource,
+					Method:         actx.Method,
+					Message:        "mock generated from response schema",
 					SampleResponse: sampleResponse,
 					MockRoute: GenerateMockRoute(
 						actx.Provider,
