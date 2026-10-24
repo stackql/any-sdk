@@ -1,3 +1,10 @@
+
+# 🚨 🚨 FORMALLY DEPRECATED — DO NOT USE FOR NEW DEVELOPMENT 🚨 🚨
+
+**This repository is open ONLY for bug fixes and security upgrades. No new features or enhancements will be accepted. All functionality has migrated to [omnisdk](https://github/stackql-labs/omnisdk). Use omnisdk for all new development.**
+
+---
+
 <!-- language: lang-none -->
 
 ![Platforms](https://img.shields.io/badge/platform-windows%20macos%20linux-brightgreen)
