@@ -396,6 +396,8 @@ github.com/stackql/stackql-parser v0.0.15-alpha06 h1:bdaudybbEmrR9m88CO1HpX/eKda
 github.com/stackql/stackql-parser v0.0.15-alpha06/go.mod h1:iyB47SvRS+Fvpn7joF7mHAkeiWSq83TbUhglRmLzPLQ=
 github.com/stackql/stackql-provider-registry v0.0.2-alpha01 h1:fPz6MhfXaMC/VPNJnjUo0sZyjTYhlifzaUWZ9Yj8NVE=
 github.com/stackql/stackql-provider-registry v0.0.2-alpha01/go.mod h1:87rVxnS2aRASK20lBQgoYA0o7FSJTZBGGRaWFR7IDm4=
+github.com/stackql/stackql-provider-registry/signing v0.1.0-alpha01 h1:KtrwwTJLMWn5+yEzguADFx96pA59k7P2JxmpAKXae6g=
+github.com/stackql/stackql-provider-registry/signing v0.1.0-alpha01/go.mod h1:2rrVmn6zLIonwq72QX50qtixWRZqx61tSDxPeOt/E1s=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.5.2 h1:xuMeJ0Sdp5ZMRXx/aWO6RZxdr3beISkG5/G/aIRr3pY=
 github.com/stretchr/objx v0.5.2/go.mod h1:FRsXN1f5AsAjCGJKqEizvkpNtU+EGNCLh3NxZ/8L+MA=

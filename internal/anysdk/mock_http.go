@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/stackql/any-sdk/pkg/fileutil"
-	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
+	"github.com/stackql/stackql-provider-registry/signing/pqsig"
 )
 
 var ()
@@ -86,7 +86,7 @@ func getNewTestDataMockRegistry(relativePath string) (RegistryAPI, error) {
 			RegistryURL:      fmt.Sprintf("file://%s", relativePath),
 			LocalDocRoot:     relativePath,
 			AllowSrcDownload: false,
-			VerifyConfig: &edcrypto.VerifierConfig{
+			VerifyConfig: &pqsig.VerifierConfig{
 				NopVerify: true,
 			},
 		},

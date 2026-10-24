@@ -24,7 +24,7 @@ import (
 	"github.com/stackql/any-sdk/public/discovery"
 	"github.com/stackql/any-sdk/public/radix_tree_address_space"
 	"github.com/stackql/stackql-parser/go/sqltypes"
-	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
+	"github.com/stackql/stackql-provider-registry/signing/pqsig"
 )
 
 // RuntimeCtx mirrors methods on RuntimeCtx
@@ -351,12 +351,12 @@ type ExecContext interface {
 }
 
 type RegistryConfig struct {
-	RegistryURL      string                   `json:"url" yaml:"url"`
-	SrcPrefix        *string                  `json:"srcPrefix" yaml:"srcPrefix"`
-	DistPrefix       *string                  `json:"distPrefix" yaml:"distPrefix"`
-	AllowSrcDownload bool                     `json:"allowSrcDownload" yaml:"allowSrcDownload"`
-	LocalDocRoot     string                   `json:"localDocRoot" yaml:"localDocRoot"`
-	VerifyConfig     *edcrypto.VerifierConfig `json:"verifyConfig" yaml:"verifyConfig"`
+	RegistryURL      string                `json:"url" yaml:"url"`
+	SrcPrefix        *string               `json:"srcPrefix" yaml:"srcPrefix"`
+	DistPrefix       *string               `json:"distPrefix" yaml:"distPrefix"`
+	AllowSrcDownload bool                  `json:"allowSrcDownload" yaml:"allowSrcDownload"`
+	LocalDocRoot     string                `json:"localDocRoot" yaml:"localDocRoot"`
+	VerifyConfig     *pqsig.VerifierConfig `json:"verifyConfig" yaml:"verifyConfig"`
 }
 
 func (rc RegistryConfig) toAnySdkRegistryConfig() anysdk.RegistryConfig {

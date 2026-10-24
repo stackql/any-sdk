@@ -2,18 +2,18 @@ package anysdk
 
 import (
 	"bytes"
-	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/stackql/any-sdk/pkg/compression"
-	"github.com/stackql/stackql-provider-registry/signing/Ed25519/app/edcrypto"
+	"github.com/stackql/stackql-provider-registry/signing/pqsig"
 	"gopkg.in/yaml.v3"
 
 	"github.com/stackql/any-sdk/pkg/semver"
@@ -59,12 +59,12 @@ type RegistryAPI interface {
 }
 
 type RegistryConfig struct {
-	RegistryURL      string                   `json:"url" yaml:"url"`
-	SrcPrefix        *string                  `json:"srcPrefix" yaml:"srcPrefix"`
-	DistPrefix       *string                  `json:"distPrefix" yaml:"distPrefix"`
-	AllowSrcDownload bool                     `json:"allowSrcDownload" yaml:"allowSrcDownload"`
-	LocalDocRoot     string                   `json:"localDocRoot" yaml:"localDocRoot"`
-	VerifyConfig     *edcrypto.VerifierConfig `json:"verifyConfig" yaml:"verifyConfig"`
+	RegistryURL      string                `json:"url" yaml:"url"`
+	SrcPrefix        *string               `json:"srcPrefix" yaml:"srcPrefix"`
+	DistPrefix       *string               `json:"distPrefix" yaml:"distPrefix"`
+	AllowSrcDownload bool                  `json:"allowSrcDownload" yaml:"allowSrcDownload"`
+	LocalDocRoot     string                `json:"localDocRoot" yaml:"localDocRoot"`
+	VerifyConfig     *pqsig.VerifierConfig `json:"verifyConfig" yaml:"verifyConfig"`
 }
 
 type Registry struct {
@@ -76,7 +76,7 @@ type Registry struct {
 	localSrcPrefix   string
 	localDistPrefix  string
 	transport        http.RoundTripper
-	verifier         *edcrypto.Verifier
+	verifier         pqsig.Verifier
 	nopVerifier      bool
 }
 
@@ -121,16 +121,18 @@ func newRegistry(registryCfg RegistryConfig, transport http.RoundTripper) (Regis
 	if err != nil {
 		return nil, err
 	}
-	var ver *edcrypto.Verifier
+	var ver pqsig.Verifier
 	nopVerify := false
-	if registryCfg.VerifyConfig == nil {
-		ver, err = edcrypto.NewVerifier(edcrypto.NewVerifierConfig("", "", ""))
-	} else {
-		ver, err = edcrypto.NewVerifier(*registryCfg.VerifyConfig)
+	var keys map[string]string
+	if registryCfg.VerifyConfig != nil {
 		nopVerify = registryCfg.VerifyConfig.NopVerify
+		keys = registryCfg.VerifyConfig.PublicKeys
 	}
-	if err != nil {
-		return nil, err
+	if !nopVerify {
+		ver, err = pqsig.NewVerifier(keys)
+		if err != nil {
+			return nil, err
+		}
 	}
 	rv := &Registry{
 		allowSrcDownload: registryCfg.AllowSrcDownload,
@@ -380,15 +382,6 @@ func (r *Registry) GetServiceFragment(ps ProviderService, resourceKey string) (S
 	return svc, nil
 }
 
-func (r *Registry) checkSignature(docUrl string, verFile, sigFile io.ReadCloser) (*edcrypto.VerifierResponse, error) {
-	if sigFile == nil {
-		return nil, fmt.Errorf("nil signature")
-	}
-	vc := edcrypto.NewVerifyContext(docUrl, sigFile, verFile, "base64", true, x509.VerifyOptions{})
-	vr, err := r.verifier.VerifyFileFromCertificateBytes(vc)
-	return &vr, err
-}
-
 func (r *Registry) pullArchive(archivePath string) (io.ReadCloser, error) {
 	return r.getUnVerifiedArchive(archivePath)
 }
@@ -576,86 +569,20 @@ func (r *Registry) getUnVerifiedArchive(docPath string) (io.ReadCloser, error) {
 	return nil, fmt.Errorf("registry scheme '%s' currently not supported", r.regUrl.Scheme)
 }
 
-func (r *Registry) getEmbeddedVerifiedDocResponse(docPath string) (*edcrypto.VerifierResponse, error) {
-	lf, err := getServiceDoc(docPath, "")
-	if err != nil {
-		return nil, err
-	}
-	sf, err := r.getLocalDoc(fmt.Sprintf("%s.sig", docPath))
-	if err != nil {
-		lf.Close()
-		return nil, fmt.Errorf("embedded document present but signature file not present")
-	}
-	return r.checkSignature(docPath, lf, sf)
-}
-
-func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierResponse, error) {
-	var embeddedErr error
+func (r *Registry) getDocReader(docPath string) (io.ReadCloser, error) {
 	if r.isLocalFile() {
-		localPath := r.srcUrl.Path
-		if r.srcUrl.Host == "." {
-			localPath = "." + localPath
-		}
-		rb, err := os.Open(path.Join(localPath, docPath))
-		if err != nil {
-			return nil, fmt.Errorf("cannot read local registry file: '%s'", err.Error())
-		}
-		defer rb.Close()
-		rBytes, rErr := io.ReadAll(rb)
-		if rErr != nil {
-			return nil, fmt.Errorf("cannot read local registry file: '%s'", rErr.Error())
-		}
-		fileLockSafeReadCloser := io.NopCloser(bytes.NewReader(rBytes))
-		if r.nopVerifier {
-			rv := edcrypto.NewVerifierResponse(true, nil, fileLockSafeReadCloser, nil)
-			return &rv, nil
-		}
-		sb, err := os.Open(path.Join(localPath, fmt.Sprintf("%s.sig", docPath)))
-		if err != nil {
-			return nil, fmt.Errorf("cannot read local signature file: '%s'", err.Error())
-		}
-		defer sb.Close()
-		sBytes, sErr := io.ReadAll(sb)
-		if sErr != nil {
-			return nil, fmt.Errorf("cannot read signature file: '%s'", sErr.Error())
-		}
-		return r.checkSignature(
-			docPath,
-			fileLockSafeReadCloser,
-			io.NopCloser(bytes.NewReader(sBytes)), // file lock safe signature file
-		)
+		return os.Open(path.Join(r.localSourcePath(), docPath))
 	}
 	if r.localDocRoot != "" {
 		localPath := r.getLocalDocPath(docPath)
 		lf, err := r.getLocalDoc(localPath)
 		if err == nil {
-			if r.nopVerifier {
-				rv := edcrypto.NewVerifierResponse(true, nil, lf, nil)
-				return &rv, nil
-			}
-			sf, err := r.getLocalDoc(fmt.Sprintf("%s.sig", localPath))
-			if err != nil {
-				if lf != nil {
-					lf.Close()
-				}
-				return nil, fmt.Errorf("local document present but signature file not present")
-			}
-			return r.checkSignature(localPath, lf, sf)
+			return lf, nil
 		}
 	}
-	fullUrl, err := url.Parse(r.regUrl.String())
-	if err != nil {
-		return nil, err
-	}
-	fullUrl.Path = path.Join(fullUrl.Path, docPath)
-	verifyUrl := fullUrl.String()
 	if r.isHttp() {
 		if !r.allowSrcDownload {
 			return nil, fmt.Errorf("download of individual docs disallowed; please attempt to pull provider docs")
-		}
-		cl := &http.Client{}
-		if r.transport != nil {
-			cl.Transport = r.transport
 		}
 		response, err := r.getRemoteDoc(docPath)
 		if err != nil {
@@ -664,39 +591,50 @@ func (r *Registry) getVerifiedDocResponse(docPath string) (*edcrypto.VerifierRes
 		if response == nil {
 			return nil, fmt.Errorf("no response body from remote")
 		}
-		if r.nopVerifier {
-			rv := edcrypto.NewVerifierResponse(true, nil, response, nil)
-			return &rv, nil
-		}
-		sigResponse, err := r.getRemoteDoc(fmt.Sprintf("%s.sig", docPath))
-		if err != nil {
-			response.Close()
-			return nil, fmt.Errorf("remote document '%s' present but signature file not present", verifyUrl)
-		}
-		return r.checkSignature(verifyUrl, response, sigResponse)
-	}
-	if embeddedErr != nil {
-		return nil, fmt.Errorf("error retrieving from embedded: %s", embeddedErr.Error())
+		return response, nil
 	}
 	return nil, fmt.Errorf("registry scheme '%s' currently not supported", r.regUrl.Scheme)
 }
 
 func (r *Registry) getVerifiedDocBytes(docPath string) ([]byte, error) {
-	vr, err := r.getVerifiedDocResponse(docPath)
+	reader, err := r.getDocReader(docPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("registry document %q: %w", docPath, err)
 	}
-	return io.ReadAll(vr.VerifyFile)
+	defer reader.Close()
+	doc, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("read registry document %q: %w", docPath, err)
+	}
+	if r.nopVerifier {
+		return doc, nil
+	}
+	doc, err = r.verifier.Verify(doc)
+	if err != nil {
+		return nil, fmt.Errorf("verify registry document %q: %w", docPath, err)
+	}
+	return doc, nil
 }
 
 func (r *Registry) GetLatestAvailableVersion(providerName string) (string, error) {
 	return r.getLatestAvailableVersion(providerName)
 }
 
+func (r *Registry) localSourcePath() string {
+	localPath := r.srcUrl.Path
+	if r.srcUrl.Host == "." {
+		localPath = "." + localPath
+	}
+	if strings.HasPrefix(localPath, "/") && filepath.VolumeName(localPath[1:]) != "" {
+		localPath = localPath[1:]
+	}
+	return localPath
+}
+
 func (r *Registry) getLatestAvailableVersion(providerName string) (string, error) {
 	providerName = r.renameProvider(providerName)
 	if r.isLocalFile() {
-		deSlice, err := os.ReadDir(path.Join(r.srcUrl.Path, providerName))
+		deSlice, err := os.ReadDir(path.Join(r.localSourcePath(), providerName))
 		if err != nil {
 			return "", err
 		}

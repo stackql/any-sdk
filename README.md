@@ -24,6 +24,21 @@ Based upon the fact that [golang text templates are Turing complete](https://lin
 
 As a side note, [this review piece](https://solutionspace.blog/2021/12/04/every-simple-language-will-eventually-end-up-turing-complete/) gives some insight into whay all DSLs wind up Turing complete and also therefore rather messy for narrowband purposes.
 
+## Provider document verification
+
+Registry verification uses FIPS 204 ML-DSA-65 from Go's standard library.
+`verifyConfig.nopVerify: true` preserves unverified reads; `false` requires
+`x-stackql-signature` on every provider, service and referenced document read
+from a local registry, cache, or remote source. There is no `.sig` or certificate
+fallback. Verified readers parse the exact authenticated YAML payload returned by
+the shared `github.com/stackql/stackql-provider-registry/signing/pqsig` package.
+
+`verifyConfig.publicKeys` may supply a `kid` to hex public-key map for a private
+registry; it replaces the embedded production roots. An empty map is invalid.
+The SDK's existing nil-config behavior is unchanged; StackQL supplies
+`nopVerify: true` by default. Archive extraction is outside this verification
+boundary.
+
 ## Acknowledgements
 
 Extensions, adaptations and shims of the following support our work:
